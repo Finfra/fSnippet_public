@@ -1,0 +1,1486 @@
+openapi: 3.0.3
+info:
+  title: fSnippet REST API
+  description: |
+    REST API for fSnippet, a macOS text snippet expansion tool.
+    Powered by a lightweight NWListener-based HTTP server embedded in the app.
+    Provides snippet search/expansion, clipboard history, usage statistics, and trigger key info.
+    Settings modification is not exposed via this API.
+
+    ## Security
+    - By default, the API accepts connections on all interfaces but filters requests by CIDR (default `127.0.0.1/32`, localhost only).
+    - External access can be enabled via Settings > Advanced > "Allow External Access" checkbox.
+    - When external access is enabled, the allowed CIDR field becomes editable (e.g. `192.168.0.0/24`).
+    - Requests from IPs outside the configured CIDR range are rejected.
+
+    ## Default Configuration
+    | Setting              | Default           | Notes                                              |
+    |----------------------|-------------------|----------------------------------------------------|
+    | API enabled          | **OFF**           | Must be explicitly enabled in Settings              |
+    | Port                 | `3015`            | Configurable in Settings                            |
+    | Allowed CIDR         | `127.0.0.1/32`   | Localhost only                                      |
+    | Allow external access| **OFF**           | When unchecked, CIDR field is locked to 127.0.0.1/32|
+  version: 1.0.0
+  contact:
+    name: fSnippet
+    url: https://github.com/finfra/fSnippet_public
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3015/api/v1
+    description: Local fSnippet app REST server (API v1)
+
+tags:
+  - name: Status
+    description: Server health check
+  - name: Snippets
+    description: Search, retrieve, and expand snippets
+  - name: Clipboard
+    description: Clipboard history retrieval and search
+  - name: Folders
+    description: Snippet folder and rule retrieval
+  - name: Stats
+    description: Snippet usage statistics
+  - name: Triggers
+    description: Trigger key retrieval
+  - name: CLI
+    description: fSnippetCli helper app management
+  - name: Settings
+    description: Application settings (read-only)
+  - name: Import
+    description: External snippet database import
+  - name: Reload
+    description: Runtime reload of snippets, rules, and settings
+
+paths:
+  /:
+    get:
+      summary: Health Check
+      description: Returns server status and basic statistics.
+      operationId: healthCheck
+      tags:
+        - Status
+      responses:
+        '200':
+          description: Server is running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: ok
+                app: fSnippet
+                version: "2.1.0"
+                port: 3015
+                uptime_seconds: 3600
+                snippet_count: 1937
+                clipboard_count: 245
+
+  /snippets:
+    get:
+      summary: List all snippets
+      description: |
+        Retrieve all snippets with optional folder filtering and pagination.
+      operationId: listSnippets
+      tags:
+        - Snippets
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 200
+          description: Maximum number of results
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+          description: Pagination offset
+        - name: folder
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by folder name
+          example: "AWS"
+      responses:
+        '200':
+          description: Snippet list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnippetSearchResponse'
+    post:
+      summary: Create snippet
+      description: |
+        Create a new snippet file in the specified folder.
+        File is created as `keyword===name.txt` format.
+        If keyword is empty, the file is created as `===name.txt`.
+      operationId: createSnippet
+      tags:
+        - Snippets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSnippetRequest'
+            example:
+              folder: "Docker"
+              keyword: "dps"
+              name: "docker ps"
+              content: "docker ps -a --format 'table {{.Names}}\\t{{.Status}}'"
+      responses:
+        '201':
+          description: Snippet created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnippetMutationResponse'
+        '400':
+          description: Invalid request (missing fields, path traversal)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Target folder not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Snippet already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /snippets/search:
+    get:
+      summary: Search snippets
+      description: |
+        Search snippets by keyword across abbreviations, folder names, tags, and descriptions.
+        Results are sorted by relevance score.
+      operationId: searchSnippets
+      tags:
+        - Snippets
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search query
+          example: "docker"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+          description: Maximum number of results
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+          description: Pagination offset
+        - name: folder
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by folder name
+          example: "AWS"
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnippetSearchResponse'
+        '400':
+          description: Missing search query
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /snippets/by-abbreviation/{abbrev}:
+    get:
+      summary: Get snippet by abbreviation
+      description: Retrieve a snippet by exact abbreviation match.
+      operationId: getSnippetByAbbreviation
+      tags:
+        - Snippets
+      parameters:
+        - name: abbrev
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Abbreviation (URL-encoded)
+          example: "awsec2{right_command}"
+      responses:
+        '200':
+          description: Snippet detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnippetDetailResponse'
+        '404':
+          description: Snippet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /snippets/{id}:
+    get:
+      summary: Get snippet detail
+      description: Retrieve full snippet content by ID.
+      operationId: getSnippetDetail
+      tags:
+        - Snippets
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "Snippet ID (URL-encoded, e.g. AWS%2Fec2%3D%3D%3DEC2.txt)"
+      responses:
+        '200':
+          description: Snippet detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnippetDetailResponse'
+        '404':
+          description: Snippet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete snippet
+      description: |
+        Delete a snippet file by ID.
+        ID format is `folder/keyword===name.txt` (URL-encoded).
+        After deletion, the snippet index cache is invalidated and rebuilt.
+      operationId: deleteSnippet
+      tags:
+        - Snippets
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "Snippet ID (URL-encoded, e.g. Docker%2Fdps%3D%3D%3Ddocker%20ps.txt)"
+      responses:
+        '200':
+          description: Snippet deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnippetMutationResponse'
+        '400':
+          description: Invalid ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Snippet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /snippets/expand:
+    post:
+      summary: Expand snippet
+      description: |
+        Expand an abbreviation to its full text.
+        Does not simulate keyboard input; returns text data only.
+        For snippets with placeholders, pass values via placeholder_values.
+      operationId: expandSnippet
+      tags:
+        - Snippets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpandRequest'
+            examples:
+              simple:
+                summary: Simple abbreviation expansion
+                value:
+                  abbreviation: "bb{right_command}"
+              with_placeholder:
+                summary: With placeholder values
+                value:
+                  abbreviation: "awsec2{right_command}"
+                  placeholder_values:
+                    clipboard: "i-0123456789abcdef0"
+      responses:
+        '200':
+          description: Expanded snippet text
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpandResponse'
+        '400':
+          description: Invalid request (JSON parse failure)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No snippet matches the abbreviation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /clipboard/history:
+    get:
+      summary: Get clipboard history
+      description: Retrieve clipboard history in reverse chronological order.
+      operationId: getClipboardHistory
+      tags:
+        - Clipboard
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 200
+          description: Maximum number of results
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+          description: Pagination offset
+        - name: kind
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [plain_text, image, file_list]
+          description: Filter by content kind
+        - name: app
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by source app bundle ID
+          example: "com.apple.Safari"
+        - name: pinned
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Filter pinned items only
+      responses:
+        '200':
+          description: Clipboard history list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClipboardHistoryResponse'
+
+  /clipboard/history/{id}:
+    get:
+      summary: Get clipboard item detail
+      description: Retrieve full text of a specific clipboard item.
+      operationId: getClipboardDetail
+      tags:
+        - Clipboard
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: Clipboard item ID
+      responses:
+        '200':
+          description: Clipboard item detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClipboardDetailResponse'
+        '400':
+          description: Invalid ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Item not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /clipboard/search:
+    get:
+      summary: Search clipboard history
+      description: Search text within clipboard history.
+      operationId: searchClipboard
+      tags:
+        - Clipboard
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search query
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+          description: Maximum number of results
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+          description: Pagination offset
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClipboardHistoryResponse'
+        '400':
+          description: Missing search query
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /folders:
+    get:
+      summary: List folders
+      description: Retrieve all snippet folders with rule information.
+      operationId: getFolders
+      tags:
+        - Folders
+      responses:
+        '200':
+          description: Folder list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FolderListResponse'
+    post:
+      summary: Create folder
+      description: |
+        Create a new snippet folder in the snippets directory.
+        Folder name must not contain '/' or '..'.
+      operationId: createFolder
+      tags:
+        - Folders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFolderRequest'
+            example:
+              name: "MyNewFolder"
+      responses:
+        '201':
+          description: Folder created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FolderMutationResponse'
+        '400':
+          description: Invalid request (empty name, path traversal)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Folder already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /folders/{name}:
+    get:
+      summary: Get folder detail with snippets
+      description: Retrieve a folder's rule information and its snippet list.
+      operationId: getFolderDetail
+      tags:
+        - Folders
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Folder name (URL-encoded)
+          example: "AWS"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+          description: Maximum number of snippets
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+          description: Pagination offset
+      responses:
+        '200':
+          description: Folder detail with snippet list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FolderDetailResponse'
+        '404':
+          description: Folder not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete folder
+      description: |
+        Delete a snippet folder. Only empty folders can be deleted.
+        Hidden files (starting with '.') and rule files (starting with '_') are ignored when checking emptiness.
+      operationId: deleteFolder
+      tags:
+        - Folders
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Folder name (URL-encoded)
+          example: "MyNewFolder"
+      responses:
+        '200':
+          description: Folder deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FolderMutationResponse'
+        '404':
+          description: Folder not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Folder is not empty
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /stats/top:
+    get:
+      summary: Top N usage statistics
+      description: Retrieve the most frequently used snippets.
+      operationId: getTopStats
+      tags:
+        - Stats
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 50
+          description: Number of top results
+      responses:
+        '200':
+          description: Usage statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatsTopResponse'
+
+  /stats/history:
+    get:
+      summary: Usage history
+      description: Retrieve snippet usage history in chronological order.
+      operationId: getStatsHistory
+      tags:
+        - Stats
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 100
+          description: Maximum number of results
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+          description: Pagination offset
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: Start date (ISO 8601)
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: End date (ISO 8601)
+      responses:
+        '200':
+          description: Usage history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatsHistoryResponse'
+
+  /triggers:
+    get:
+      summary: Get trigger keys
+      description: Retrieve the list of active trigger keys.
+      operationId: getTriggers
+      tags:
+        - Triggers
+      responses:
+        '200':
+          description: Trigger key information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TriggerResponse'
+
+  /cli/status:
+    get:
+      summary: CLI helper status
+      description: Retrieve fSnippetCli helper app status including uptime, snippet count, PID, and memory usage.
+      operationId: getCliStatus
+      tags:
+        - CLI
+      responses:
+        '200':
+          description: CLI status information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CliStatusResponse'
+
+  /cli/version:
+    get:
+      summary: CLI helper version
+      description: Retrieve fSnippetCli version and build information.
+      operationId: getCliVersion
+      tags:
+        - CLI
+      responses:
+        '200':
+          description: CLI version information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CliVersionResponse'
+
+  /cli/quit:
+    post:
+      summary: Quit CLI helper
+      description: |
+        Terminate the fSnippetCli helper app gracefully.
+        Requires `X-Confirm: true` header to prevent accidental termination.
+        The app shuts down 1 second after sending the response.
+      operationId: quitCli
+      tags:
+        - CLI
+      parameters:
+        - name: X-Confirm
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: ["true"]
+          description: Confirmation header to prevent accidental quit
+      responses:
+        '200':
+          description: Quit command accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CliQuitResponse'
+        '400':
+          description: Missing X-Confirm header
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /settings:
+    get:
+      summary: Get application settings
+      description: |
+        Retrieve application settings including paths and _config.yml values.
+        This is a read-only endpoint; settings cannot be modified via API.
+      operationId: getSettings
+      tags:
+        - Settings
+      responses:
+        '200':
+          description: Application settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsResponse'
+
+  /reload:
+    post:
+      summary: Reload all resources
+      description: |
+        Reload snippets, rules, settings, and trigger keys at runtime.
+        Useful for test automation and reflecting configuration changes without restarting the app.
+      operationId: reload
+      tags:
+        - Reload
+      responses:
+        '200':
+          description: Reload completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReloadResponse'
+              example:
+                success: true
+                data:
+                  reloaded_components:
+                    - settings
+                    - rules
+                    - snippets
+                    - index
+                    - triggers
+                  snippet_count: 1937
+                  errors: null
+                  duration_ms: 125.3
+
+  /import/alfred:
+    post:
+      summary: Import Alfred snippets
+      description: |
+        Import snippets from an Alfred snippet database (.alfdb).
+        If `db_path` is provided in the request body, imports from that path directly.
+        If no body is provided, opens an NSOpenPanel file picker (GUI only).
+      operationId: importAlfred
+      tags:
+        - Import
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportAlfredRequest'
+            examples:
+              with_path:
+                summary: Import from specific path
+                value:
+                  db_path: "~/Library/Application Support/Alfred/Databases/snippets.alfdb"
+              no_path:
+                summary: Open file picker
+                value: {}
+      responses:
+        '200':
+          description: Import completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportAlfredResponse'
+        '400':
+          description: Import failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    # === Common ===
+    APIMetadata:
+      type: object
+      properties:
+        count:
+          type: integer
+          description: Number of items returned
+        total:
+          type: integer
+          description: Total number of items
+        duration_ms:
+          type: number
+          format: double
+          description: Processing time in milliseconds
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: "NOT_FOUND"
+            message:
+              type: string
+              example: "Snippet not found"
+          required:
+            - code
+            - message
+      required:
+        - success
+        - error
+
+    # === Status ===
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        app:
+          type: string
+          example: fSnippet
+        version:
+          type: string
+          example: "2.1.0"
+        port:
+          type: integer
+          example: 3015
+        uptime_seconds:
+          type: integer
+          example: 3600
+        snippet_count:
+          type: integer
+          example: 1937
+        clipboard_count:
+          type: integer
+          example: 245
+      required:
+        - status
+        - app
+        - port
+        - version
+        - uptime_seconds
+        - snippet_count
+        - clipboard_count
+
+    # === Snippets ===
+    SnippetSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          description: "Unique ID in folder/filename format"
+          example: "AWS/ec2===EC2 Instance.txt"
+        abbreviation:
+          type: string
+          example: "awsec2{right_command}"
+        folder:
+          type: string
+          example: "AWS"
+        keyword:
+          type: string
+          example: "ec2"
+        description:
+          type: string
+          example: "EC2 Instance"
+        content_preview:
+          type: string
+          description: "Content preview (truncated to 100 characters)"
+        tags:
+          type: array
+          items:
+            type: string
+        relevance_score:
+          type: number
+          format: double
+          description: "Search relevance score"
+        usage_count:
+          type: integer
+        last_used:
+          type: string
+          format: date-time
+
+    SnippetDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        abbreviation:
+          type: string
+        folder:
+          type: string
+        keyword:
+          type: string
+        description:
+          type: string
+        content:
+          type: string
+          description: "Full snippet content"
+        tags:
+          type: array
+          items:
+            type: string
+        file_size:
+          type: integer
+        modified_at:
+          type: string
+          format: date-time
+        has_placeholders:
+          type: boolean
+        placeholders:
+          type: array
+          items:
+            type: string
+          description: "List of placeholder names in the snippet"
+
+    SnippetSearchResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SnippetSummary'
+        meta:
+          $ref: '#/components/schemas/APIMetadata'
+
+    SnippetDetailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/SnippetDetail'
+
+    ExpandRequest:
+      type: object
+      properties:
+        abbreviation:
+          type: string
+          description: "Abbreviation to expand"
+          example: "bb{right_command}"
+        placeholder_values:
+          type: object
+          additionalProperties:
+            type: string
+          description: "Placeholder value mapping (key: placeholder name, value: replacement text)"
+      required:
+        - abbreviation
+
+    ExpandResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            original_abbreviation:
+              type: string
+            snippet_id:
+              type: string
+            expanded_text:
+              type: string
+              description: "Final expanded text"
+            delete_count:
+              type: integer
+              description: "Number of characters to delete from original input"
+            placeholders_resolved:
+              type: array
+              items:
+                type: string
+
+    # === Clipboard ===
+    ClipboardItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        kind:
+          type: string
+          enum: [plain_text, image, file_list, other]
+        text_preview:
+          type: string
+          description: "Text preview (truncated to 100 characters)"
+        text_length:
+          type: integer
+        app_bundle:
+          type: string
+          example: "com.apple.Safari"
+        pinned:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    ClipboardItemDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        kind:
+          type: string
+          enum: [plain_text, image, file_list, other]
+        text:
+          type: string
+          description: "Full text content"
+        uti:
+          type: string
+        size_bytes:
+          type: integer
+          format: int64
+        hash:
+          type: string
+        app_bundle:
+          type: string
+        pinned:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    ClipboardHistoryResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClipboardItem'
+        meta:
+          $ref: '#/components/schemas/APIMetadata'
+
+    ClipboardDetailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/ClipboardItemDetail'
+
+    # === Folders ===
+    FolderSummary:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "AWS"
+        prefix:
+          type: string
+          example: "aws"
+        suffix:
+          type: string
+          example: "{right_command}"
+        snippet_count:
+          type: integer
+        trigger_bias:
+          type: integer
+        is_special:
+          type: boolean
+          description: "Whether this is a special folder (starts with _)"
+
+    FolderListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/FolderSummary'
+        meta:
+          $ref: '#/components/schemas/APIMetadata'
+
+    FolderDetailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            folder:
+              $ref: '#/components/schemas/FolderSummary'
+            snippets:
+              type: array
+              items:
+                $ref: '#/components/schemas/SnippetSummary'
+        meta:
+          $ref: '#/components/schemas/APIMetadata'
+
+    # === Stats ===
+    UsageStat:
+      type: object
+      properties:
+        abbreviation:
+          type: string
+        folder:
+          type: string
+        description:
+          type: string
+        usage_count:
+          type: integer
+        last_used:
+          type: string
+          format: date-time
+
+    UsageLog:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        abbreviation:
+          type: string
+        snippet_path:
+          type: string
+        used_at:
+          type: string
+          format: date-time
+        trigger_by:
+          type: string
+          enum: [popup, key, suffix, unknown]
+
+    StatsTopResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/UsageStat'
+        meta:
+          $ref: '#/components/schemas/APIMetadata'
+
+    StatsHistoryResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/UsageLog'
+        meta:
+          $ref: '#/components/schemas/APIMetadata'
+
+    # === CLI ===
+    CliStatusResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            app:
+              type: string
+              example: "fSnippetCli"
+            status:
+              type: string
+              example: "running"
+            uptime_seconds:
+              type: integer
+              example: 3600
+            snippet_count:
+              type: integer
+              example: 1937
+            pid:
+              type: integer
+              example: 12345
+            memory_usage_mb:
+              type: integer
+              example: 64
+
+    CliVersionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            app:
+              type: string
+              example: "fSnippetCli"
+            version:
+              type: string
+              example: "1.0.0"
+            build:
+              type: string
+              example: "1"
+            swift_version:
+              type: string
+              example: "5.0"
+            macos_target:
+              type: string
+              example: "14.0"
+
+    CliQuitResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "fSnippetCli가 1초 후 종료됩니다"
+
+    # === Import ===
+    ImportAlfredRequest:
+      type: object
+      properties:
+        db_path:
+          type: string
+          description: "Path to Alfred .alfdb file (tilde expansion supported)"
+          example: "~/Library/Application Support/Alfred/Databases/snippets.alfdb"
+
+    ImportAlfredResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            total:
+              type: integer
+              description: "Total number of snippets imported"
+              example: 1937
+            collections:
+              type: integer
+              description: "Number of collections processed"
+              example: 45
+            destination:
+              type: string
+              description: "Destination path for imported snippets"
+              example: "~/Documents/finfra/fSnippetData/snippets_from_alfred"
+
+    # === Settings ===
+    SettingsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            app_root_path:
+              type: string
+              description: "Application data root path"
+              example: "~/Documents/finfra/fSnippetData"
+            config_path:
+              type: string
+              description: "Path to _config.yml"
+              example: "~/Documents/finfra/fSnippetData/_config.yml"
+            config:
+              type: object
+              additionalProperties: true
+              description: "Parsed _config.yml content (preferences key-value pairs)"
+
+    # === Reload ===
+    ReloadResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            reloaded_components:
+              type: array
+              items:
+                type: string
+              description: "List of reloaded components (settings, rules, snippets, index, triggers)"
+              example: ["settings", "rules", "snippets", "index", "triggers"]
+            snippet_count:
+              type: integer
+              description: "Total snippet count after reload"
+              example: 1937
+            errors:
+              type: array
+              items:
+                type: string
+              nullable: true
+              description: "List of errors occurred during reload (null if none)"
+            duration_ms:
+              type: number
+              format: double
+              description: "Reload processing time in milliseconds"
+              example: 125.3
+
+    # === Triggers ===
+    TriggerKey:
+      type: object
+      properties:
+        symbol:
+          type: string
+          example: "{right_command}"
+        key_code:
+          type: integer
+          example: 42
+        description:
+          type: string
+          example: "Option+X"
+
+    TriggerResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            default:
+              $ref: '#/components/schemas/TriggerKey'
+            active:
+              type: array
+              items:
+                $ref: '#/components/schemas/TriggerKey'
+
+    # === CRUD ===
+    CreateFolderRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: "New folder name (must not contain '/' or '..')"
+          example: "MyNewFolder"
+      required:
+        - name
+
+    CreateSnippetRequest:
+      type: object
+      properties:
+        folder:
+          type: string
+          description: "Target folder name"
+          example: "Docker"
+        keyword:
+          type: string
+          description: "Snippet keyword (can be empty for keyless snippets)"
+          example: "dps"
+        name:
+          type: string
+          description: "Snippet description/name"
+          example: "docker ps"
+        content:
+          type: string
+          description: "Snippet content text"
+          example: "docker ps -a"
+      required:
+        - folder
+        - keyword
+        - name
+        - content
+
+    FolderMutationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            name:
+              type: string
+              example: "MyNewFolder"
+            message:
+              type: string
+              example: "폴더 생성 완료"
+
+    SnippetMutationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+              description: "Snippet ID (folder/filename)"
+              example: "Docker/dps===docker ps.txt"
+            message:
+              type: string
+              example: "스니펫 생성 완료"

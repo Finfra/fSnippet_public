@@ -1,0 +1,47 @@
+# agent
+.claude/
+CLAUDE.md
+
+# 작업 문서 (로컬 전용)
+cli/_doc_work/
+cli/_doc_design/
+
+# claudeCode_xcode_Skel
+Issue.md
+noteForHuman.md
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Report (날짜별 리포트 — 로컬 전용)
+cli/_doc_work/report/*_????-??-??_*.md
+
+# VSCode
+.history
+*.local.vscode/
+
+# Xcode
+xcuserdata/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.xcarchive
+*.canvas
+*.xcframework

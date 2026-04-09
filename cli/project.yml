@@ -1,0 +1,35 @@
+name: fSnippetCli
+options:
+  bundleIdPrefix: com.finfra
+  deploymentTarget:
+    macOS: "14.0"
+  xcodeVersion: "16.0"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    CODE_SIGN_STYLE: Automatic
+    PRODUCT_NAME: fSnippetCli
+
+targets:
+  fSnippetCli:
+    type: application
+    platform: macOS
+    sources:
+      - path: fSnippetCli
+        excludes:
+          - "**/.gitkeep"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.finfra.fSnippetCli
+        INFOPLIST_FILE: fSnippetCli/Info.plist
+        CODE_SIGN_ENTITLEMENTS: fSnippetCli/fSnippetCli.entitlements
+        GENERATE_INFOPLIST_FILE: false
+        ENABLE_HARDENED_RUNTIME: true
+        LD_RUNPATH_SEARCH_PATHS:
+          - $(inherited)
+          - "@executable_path/../Frameworks"
+    entitlements:
+      path: fSnippetCli/fSnippetCli.entitlements
