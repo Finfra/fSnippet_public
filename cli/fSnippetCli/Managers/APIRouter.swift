@@ -220,6 +220,75 @@ class APIRouter {
     case ("PUT", "/api/v2/settings/snapshot"):
       return handleV2PutSnapshot(request: request)
 
+    // ======================================================================
+    // v2 — Data endpoints (v1 슈퍼셋, Issue33)
+    // ======================================================================
+    // Snippets
+    case ("GET", "/api/v2/snippets"):
+      return handleSnippetList(request: request)
+    case ("GET", _) where decodedPath.hasPrefix("/api/v2/snippets/search"):
+      return handleSnippetSearch(request: request)
+    case ("GET", _) where decodedPath.hasPrefix("/api/v2/snippets/by-abbreviation/"):
+      let abbrev = String(decodedPath.dropFirst("/api/v2/snippets/by-abbreviation/".count))
+      return handleGetByAbbreviation(abbrev: abbrev.removingPercentEncoding ?? abbrev)
+    case ("POST", "/api/v2/snippets/expand"):
+      return handleExpandSnippet(request: request)
+    case ("POST", "/api/v2/snippets"):
+      return handleCreateSnippet(request: request)
+    case ("DELETE", _) where decodedPath.hasPrefix("/api/v2/snippets/"):
+      let id = String(decodedPath.dropFirst("/api/v2/snippets/".count))
+      return handleDeleteSnippet(id: id.removingPercentEncoding ?? id)
+    case ("GET", _) where decodedPath.hasPrefix("/api/v2/snippets/"):
+      let id = String(decodedPath.dropFirst("/api/v2/snippets/".count))
+      return handleGetSnippetDetail(id: id.removingPercentEncoding ?? id)
+
+    // Clipboard
+    case ("GET", _) where decodedPath.hasPrefix("/api/v2/clipboard/search"):
+      return handleClipboardSearch(request: request)
+    case ("GET", _) where decodedPath.hasPrefix("/api/v2/clipboard/history/"):
+      let idStr = String(decodedPath.dropFirst("/api/v2/clipboard/history/".count))
+      return handleGetClipboardDetail(idStr: idStr)
+    case ("GET", _) where decodedPath.hasPrefix("/api/v2/clipboard/history"):
+      return handleGetClipboardHistory(request: request)
+
+    // Folders
+    case ("GET", "/api/v2/folders"):
+      return handleGetFolders()
+    case ("POST", "/api/v2/folders"):
+      return handleCreateFolder(request: request)
+    case ("DELETE", _) where decodedPath.hasPrefix("/api/v2/folders/"):
+      let name = String(decodedPath.dropFirst("/api/v2/folders/".count))
+      return handleDeleteFolder(name: name.removingPercentEncoding ?? name)
+    case ("GET", _) where decodedPath.hasPrefix("/api/v2/folders/"):
+      let name = String(decodedPath.dropFirst("/api/v2/folders/".count))
+      return handleGetFolderDetail(name: name.removingPercentEncoding ?? name, request: request)
+
+    // Stats
+    case ("GET", "/api/v2/stats/top"):
+      return handleGetTopStats(request: request)
+    case ("GET", _) where decodedPath.hasPrefix("/api/v2/stats/history"):
+      return handleGetStatsHistory(request: request)
+
+    // Triggers
+    case ("GET", "/api/v2/triggers"):
+      return handleGetTriggers()
+
+    // CLI
+    case ("GET", "/api/v2/cli/status"):
+      return handleCliStatus(server: server)
+    case ("GET", "/api/v2/cli/version"):
+      return handleCliVersion()
+    case ("POST", "/api/v2/cli/quit"):
+      return handleCliQuit(request: request)
+
+    // Reload
+    case ("POST", "/api/v2/reload"):
+      return handleReload()
+
+    // Import
+    case ("POST", "/api/v2/import/alfred"):
+      return handleAlfredImport(request: request)
+
     default:
       return notFound()
     }
@@ -315,7 +384,7 @@ class APIRouter {
     // prefix/suffix 중 하나라도 있으면 _rule.yml 갱신
     if patch.prefix != nil || patch.suffix != nil {
       var collections = RuleManager.shared.getAllRules()
-      var existing = collections.first(where: { $0.name == folder })
+      let existing = collections.first(where: { $0.name == folder })
       if existing == nil {
         // rule 에 없던 폴더면 새 항목 추가
         let newRule = RuleManager.CollectionRule(

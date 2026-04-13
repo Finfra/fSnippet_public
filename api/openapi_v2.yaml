@@ -33,6 +33,26 @@ servers:
     description: Local fSnippet app REST server (API v2)
 
 tags:
+  # Data Endpoints (from v1)
+  - name: Health
+    description: 서버 상태 확인
+  - name: Snippets
+    description: 스니펫 조회/검색/확장/생성/삭제
+  - name: Clipboard
+    description: 클립보드 히스토리 조회 및 검색
+  - name: Folders
+    description: 스니펫 폴더 조회/생성/삭제
+  - name: Stats
+    description: 스니펫 사용 통계
+  - name: Triggers
+    description: 트리거 키 조회
+  - name: CLI
+    description: fSnippetCli 앱 관리 (상태/버전/종료)
+  - name: Reload
+    description: 스니펫/규칙/설정 런타임 리로드
+  - name: Import
+    description: 외부 스니펫 데이터베이스 임포트
+  # Settings (v2)
   - name: Settings General
     description: General 탭 — 언어/외형/경로/핫키/트리거/권한
   - name: Settings Popup
@@ -828,6 +848,784 @@ paths:
       responses:
         '200': { description: Restored }
         '400': { $ref: '#/components/responses/BadRequest' }
+
+  # ========================================================================
+  # Data Endpoints (from v1)
+  # ========================================================================
+
+  /:
+    get:
+      summary: Health Check
+      description: Returns server status and basic statistics.
+      operationId: healthCheck
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Server is running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: ok
+                app: fSnippet
+                version: "2.1.0"
+                port: 3015
+                uptime_seconds: 3600
+                snippet_count: 1937
+                clipboard_count: 245
+
+  /snippets:
+    get:
+      summary: List all snippets
+      description: |
+        Retrieve all snippets with optional folder filtering and pagination.
+      operationId: listSnippets
+      tags:
+        - Snippets
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 200
+          description: Maximum number of results
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+          description: Pagination offset
+        - name: folder
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by folder name
+          example: "AWS"
+      responses:
+        '200':
+          description: Snippet list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnippetSearchResponse'
+    post:
+      summary: Create snippet
+      description: |
+        Create a new snippet file in the specified folder.
+        File is created as `keyword===name.txt` format.
+        If keyword is empty, the file is created as `===name.txt`.
+      operationId: createSnippet
+      tags:
+        - Snippets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSnippetRequest'
+            example:
+              folder: "Docker"
+              keyword: "dps"
+              name: "docker ps"
+              content: "docker ps -a --format 'table {{.Names}}\\t{{.Status}}'"
+      responses:
+        '201':
+          description: Snippet created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnippetMutationResponse'
+        '400':
+          description: Invalid request (missing fields, path traversal)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Target folder not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Snippet already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /snippets/search:
+    get:
+      summary: Search snippets
+      description: |
+        Search snippets by keyword across abbreviations, folder names, tags, and descriptions.
+        Results are sorted by relevance score.
+      operationId: searchSnippets
+      tags:
+        - Snippets
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search query
+          example: "docker"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+          description: Maximum number of results
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+          description: Pagination offset
+        - name: folder
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by folder name
+          example: "AWS"
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnippetSearchResponse'
+        '400':
+          description: Missing search query
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /snippets/by-abbreviation/{abbrev}:
+    get:
+      summary: Get snippet by abbreviation
+      description: Retrieve a snippet by exact abbreviation match.
+      operationId: getSnippetByAbbreviation
+      tags:
+        - Snippets
+      parameters:
+        - name: abbrev
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Abbreviation (URL-encoded)
+          example: "awsec2{right_command}"
+      responses:
+        '200':
+          description: Snippet detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnippetDetailResponse'
+        '404':
+          description: Snippet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /snippets/{id}:
+    get:
+      summary: Get snippet detail
+      description: Retrieve full snippet content by ID.
+      operationId: getSnippetDetail
+      tags:
+        - Snippets
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "Snippet ID (URL-encoded, e.g. AWS%2Fec2%3D%3D%3DEC2.txt)"
+      responses:
+        '200':
+          description: Snippet detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnippetDetailResponse'
+        '404':
+          description: Snippet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete snippet
+      description: |
+        Delete a snippet file by ID.
+        ID format is `folder/keyword===name.txt` (URL-encoded).
+        After deletion, the snippet index cache is invalidated and rebuilt.
+      operationId: deleteSnippet
+      tags:
+        - Snippets
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "Snippet ID (URL-encoded, e.g. Docker%2Fdps%3D%3D%3Ddocker%20ps.txt)"
+      responses:
+        '200':
+          description: Snippet deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnippetMutationResponse'
+        '400':
+          description: Invalid ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Snippet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /snippets/expand:
+    post:
+      summary: Expand snippet
+      description: |
+        Expand an abbreviation to its full text.
+        Does not simulate keyboard input; returns text data only.
+        For snippets with placeholders, pass values via placeholder_values.
+      operationId: expandSnippet
+      tags:
+        - Snippets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpandRequest'
+            examples:
+              simple:
+                summary: Simple abbreviation expansion
+                value:
+                  abbreviation: "bb{right_command}"
+              with_placeholder:
+                summary: With placeholder values
+                value:
+                  abbreviation: "awsec2{right_command}"
+                  placeholder_values:
+                    clipboard: "i-0123456789abcdef0"
+      responses:
+        '200':
+          description: Expanded snippet text
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpandResponse'
+        '400':
+          description: Invalid request (JSON parse failure)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No snippet matches the abbreviation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /clipboard/history:
+    get:
+      summary: Get clipboard history
+      description: Retrieve clipboard history in reverse chronological order.
+      operationId: getClipboardHistory
+      tags:
+        - Clipboard
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 200
+          description: Maximum number of results
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+          description: Pagination offset
+        - name: kind
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [plain_text, image, file_list]
+          description: Filter by content kind
+        - name: app
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by source app bundle ID
+          example: "com.apple.Safari"
+        - name: pinned
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Filter pinned items only
+      responses:
+        '200':
+          description: Clipboard history list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClipboardHistoryResponse'
+
+  /clipboard/history/{id}:
+    get:
+      summary: Get clipboard item detail
+      description: Retrieve full text of a specific clipboard item.
+      operationId: getClipboardDetail
+      tags:
+        - Clipboard
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: Clipboard item ID
+      responses:
+        '200':
+          description: Clipboard item detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClipboardDetailResponse'
+        '400':
+          description: Invalid ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Item not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /clipboard/search:
+    get:
+      summary: Search clipboard history
+      description: Search text within clipboard history.
+      operationId: searchClipboard
+      tags:
+        - Clipboard
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search query
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+          description: Maximum number of results
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+          description: Pagination offset
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClipboardHistoryResponse'
+        '400':
+          description: Missing search query
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /folders:
+    get:
+      summary: List folders
+      description: Retrieve all snippet folders with rule information.
+      operationId: getFolders
+      tags:
+        - Folders
+      responses:
+        '200':
+          description: Folder list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FolderListResponse'
+    post:
+      summary: Create folder
+      description: |
+        Create a new snippet folder in the snippets directory.
+        Folder name must not contain '/' or '..'.
+      operationId: createFolder
+      tags:
+        - Folders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFolderRequest'
+            example:
+              name: "MyNewFolder"
+      responses:
+        '201':
+          description: Folder created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FolderMutationResponse'
+        '400':
+          description: Invalid request (empty name, path traversal)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Folder already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /folders/{name}:
+    get:
+      summary: Get folder detail with snippets
+      description: Retrieve a folder's rule information and its snippet list.
+      operationId: getFolderDetail
+      tags:
+        - Folders
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Folder name (URL-encoded)
+          example: "AWS"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+          description: Maximum number of snippets
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+          description: Pagination offset
+      responses:
+        '200':
+          description: Folder detail with snippet list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FolderDetailResponse'
+        '404':
+          description: Folder not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete folder
+      description: |
+        Delete a snippet folder. Only empty folders can be deleted.
+        Hidden files (starting with '.') and rule files (starting with '_') are ignored when checking emptiness.
+      operationId: deleteFolder
+      tags:
+        - Folders
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Folder name (URL-encoded)
+          example: "MyNewFolder"
+      responses:
+        '200':
+          description: Folder deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FolderMutationResponse'
+        '404':
+          description: Folder not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Folder is not empty
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /stats/top:
+    get:
+      summary: Top N usage statistics
+      description: Retrieve the most frequently used snippets.
+      operationId: getTopStats
+      tags:
+        - Stats
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 50
+          description: Number of top results
+      responses:
+        '200':
+          description: Usage statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatsTopResponse'
+
+  /stats/history:
+    get:
+      summary: Usage history
+      description: Retrieve snippet usage history in chronological order.
+      operationId: getStatsHistory
+      tags:
+        - Stats
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 100
+          description: Maximum number of results
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+          description: Pagination offset
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: Start date (ISO 8601)
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: End date (ISO 8601)
+      responses:
+        '200':
+          description: Usage history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatsHistoryResponse'
+
+  /triggers:
+    get:
+      summary: Get trigger keys
+      description: Retrieve the list of active trigger keys.
+      operationId: getTriggers
+      tags:
+        - Triggers
+      responses:
+        '200':
+          description: Trigger key information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TriggerResponse'
+
+  /cli/status:
+    get:
+      summary: CLI helper status
+      description: Retrieve fSnippetCli helper app status including uptime, snippet count, PID, and memory usage.
+      operationId: getCliStatus
+      tags:
+        - CLI
+      responses:
+        '200':
+          description: CLI status information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CliStatusResponse'
+
+  /cli/version:
+    get:
+      summary: CLI helper version
+      description: Retrieve fSnippetCli version and build information.
+      operationId: getCliVersion
+      tags:
+        - CLI
+      responses:
+        '200':
+          description: CLI version information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CliVersionResponse'
+
+  /cli/quit:
+    post:
+      summary: Quit CLI helper
+      description: |
+        Terminate the fSnippetCli helper app gracefully.
+        Requires `X-Confirm: true` header to prevent accidental termination.
+        The app shuts down 1 second after sending the response.
+      operationId: quitCli
+      tags:
+        - CLI
+      parameters:
+        - name: X-Confirm
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: ["true"]
+          description: Confirmation header to prevent accidental quit
+      responses:
+        '200':
+          description: Quit command accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CliQuitResponse'
+        '400':
+          description: Missing X-Confirm header
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /reload:
+    post:
+      summary: Reload all resources
+      description: |
+        Reload snippets, rules, settings, and trigger keys at runtime.
+        Useful for test automation and reflecting configuration changes without restarting the app.
+      operationId: reload
+      tags:
+        - Reload
+      responses:
+        '200':
+          description: Reload completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReloadResponse'
+              example:
+                success: true
+                data:
+                  reloaded_components:
+                    - settings
+                    - rules
+                    - snippets
+                    - index
+                    - triggers
+                  snippet_count: 1937
+                  errors: null
+                  duration_ms: 125.3
+
+  /import/alfred:
+    post:
+      summary: Import Alfred snippets
+      description: |
+        Import snippets from an Alfred snippet database (.alfdb).
+        If `db_path` is provided in the request body, imports from that path directly.
+        If no body is provided, opens an NSOpenPanel file picker (GUI only).
+      operationId: importAlfred
+      tags:
+        - Import
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportAlfredRequest'
+            examples:
+              with_path:
+                summary: Import from specific path
+                value:
+                  db_path: "~/Library/Application Support/Alfred/Databases/snippets.alfdb"
+              no_path:
+                summary: Open file picker
+                value: {}
+      responses:
+        '200':
+          description: Import completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportAlfredResponse'
+        '400':
+          description: Import failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   responses:

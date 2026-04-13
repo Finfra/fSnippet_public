@@ -19,6 +19,7 @@ date: 2026-04-07
 
 ## Issue33: v1 제거 대비 v2 슈퍼셋 전환 (스니펫/클립보드/통계/CLI 엔드포인트 v2 편입)
 
+* 태스크 파일: [`cli/_doc_work/tasks/issue33_task.md`](cli/_doc_work/tasks/issue33_task.md)
 * 목적: 향후 v1 API 제거 시 클라이언트가 v2로 마이그레이션 가능하도록, v2를 v1의 슈퍼셋으로 전환
 * 상세: 현재 v2는 Settings CRUD 전용이고 v1이 스니펫/클립보드/통계/CLI 등을 담당. v1 제거 후에도 모든 기능을 v2에서 제공해야 함
 * 구현 명세:
