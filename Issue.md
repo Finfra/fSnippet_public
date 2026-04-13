@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-- Issue HWM: 30
+- Issue HWM: 31
 - Save Point: - 2026-04-13 (ed3ae75)
 
 # 🤔 결정사항
@@ -44,6 +44,29 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
+
+## Issue31: CLI 바이너리 v2 settings 서브커맨드 구현 (등록: 2026-04-13)
+
+* 목적: `fsnippetcli settings` 서브커맨드를 추가하여 터미널에서 v2 Settings CRUD를 직접 제어할 수 있도록 함. 현재 `CLI/Commands/`는 `/api/v1/`만 호출하므로 v2 엔드포인트 접근 불가.
+* 상세:
+    - `CLI/Commands/SettingsCommand.swift` 신규 생성:
+        - `settings get [key]` — v2 GET 엔드포인트 호출, key 생략 시 전체 설정 출력
+        - `settings set <key> <value>` — v2 PATCH 엔드포인트 호출 (ex: `popup.popupRows 10`)
+        - `settings reset [--confirm]` — `POST /api/v2/settings/actions/reset-settings` + confirm 토큰 전달
+        - `settings snapshot [export|import] [file]` — GET/PUT snapshot, json 파일 입출력
+    - `CLI/CLIRouter.swift` — `settings` 케이스 분기 추가
+    - `CLI/CommandParser.swift` — settings 서브커맨드 파싱 로직 추가
+    - `cli/_doc_design/cmd_design.md` — `settings` 커맨드 스펙 섹션 추가
+    - cmdTest 확장 — `cli/_tool/cmdTest/` (또는 Issue30 이후 `cmdTest/v2/`) 에 settings 시나리오 추가
+* 의존성:
+    - Issue29 완료 ✅ (APIRouter v2 쓰기 엔드포인트 구현)
+    - Issue30 완료 권장 (cmdTest 디렉터리 구조 확정 후 통합 용이)
+* 검증:
+    - `fsnippetcli settings get general` → JSON 응답 출력
+    - `fsnippetcli settings set popup.popupRows 10` → 설정 반영 확인
+    - `fsnippetcli settings reset --confirm` → 403 없이 정상 리셋
+    - cmdTest settings 시나리오 전체 PASS
+    - Release 빌드 경고 0
 
 # 📗 선택
 
