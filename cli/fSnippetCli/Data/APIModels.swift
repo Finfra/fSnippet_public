@@ -517,6 +517,21 @@ struct APIV2InputPatch: Decodable {
   // clear 명령은 빈 문자열("")로 전달하는 규약을 사용함
 }
 
+struct APIV2GeneralSettingsPatch: Decodable {
+  let language: String?
+  let appearance: String?
+  let settingsFolder: String?
+  let snippetFolder: String?
+  let triggerBias: Int?
+  let quickSelectModifier: String?
+}
+
+struct APIV2HistorySettingsPatch: Decodable {
+  let viewer: [String: AnyCodable]?
+  let hotkeysAndFilters: [String: AnyCodable]?
+  let retention: [String: AnyCodable]?
+}
+
 // MARK: - v2 Snapshot
 
 struct APIV2SettingsSnapshot: Codable {
@@ -587,7 +602,9 @@ struct AnyCodable: Codable {
 }
 
 struct APIV2HistorySettings: Codable {
-  // Simplified stub; full structure not needed for snapshot restore
+  let viewer: [String: AnyCodable]?
+  let hotkeysAndFilters: [String: AnyCodable]?
+  let retention: [String: AnyCodable]?
 }
 
 struct APIV2RestApiSettings: Codable {

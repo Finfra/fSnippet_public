@@ -116,6 +116,8 @@ class APIRouter {
     // ======================================================================
     case ("GET", "/api/v2/settings/general"):
       return handleV2GetGeneral()
+    case ("PATCH", "/api/v2/settings/general"):
+      return handleV2PatchGeneral(request: request)
     case ("GET", "/api/v2/settings/popup"):
       return handleV2GetPopup()
     case ("PATCH", "/api/v2/settings/popup"):
@@ -124,6 +126,10 @@ class APIRouter {
       return handleV2GetBehavior()
     case ("PATCH", "/api/v2/settings/behavior"):
       return handleV2PatchBehavior(request: request)
+    case ("GET", "/api/v2/settings/history"):
+      return handleV2GetHistory()
+    case ("PATCH", "/api/v2/settings/history"):
+      return handleV2PatchHistory(request: request)
     case ("GET", "/api/v2/settings/advanced/info"):
       return handleV2GetAdvancedInfo()
     case ("GET", "/api/v2/settings/advanced/debug"):
@@ -1021,7 +1027,7 @@ class APIRouter {
       general: buildV2General(),
       popup: buildV2Popup(),
       behavior: buildV2Behavior(),
-      history: APIV2HistorySettings(),
+      history: buildV2History(),
       advanced: advanced,
       snippetFolders: snippetFolders,
       perFolderExcludedFiles: perFolder
@@ -1973,5 +1979,82 @@ class APIRouter {
       logE("🌐 ❌ 스니펫 삭제 실패: \(error)")
       return errorResponse(code: "DELETE_FAILED", message: "스니펫 삭제 실패: \(error.localizedDescription)", statusCode: 500)
     }
+  }
+
+  // MARK: - v2 General PATCH
+
+  private func handleV2PatchGeneral(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    let (maybe, err) = decodeV2Body(request, as: APIV2GeneralSettingsPatch.self)
+    if let err = err { return err }
+    guard let patch = maybe else { return v2Error(code: "internal", message: "decode failed", statusCode: 500) }
+
+    // Validate appearance enum
+    if let appearance = patch.appearance {
+      let allowed = ["system", "light", "dark"]
+      guard allowed.contains(appearance) else {
+        return v2Error(code: "invalid_argument", message: "appearance must be one of \(allowed)", statusCode: 400)
+      }
+    }
+
+    // Validate quickSelectModifier enum
+    if let modifier = patch.quickSelectModifier {
+      let allowed = ["command", "option", "control", "shift"]
+      guard allowed.contains(modifier) else {
+        return v2Error(code: "invalid_argument", message: "quickSelectModifier must be one of \(allowed)", statusCode: 400)
+      }
+    }
+
+    // Validate triggerBias range
+    if let bias = patch.triggerBias, !(-10...10).contains(bias) {
+      return v2Error(code: "invalid_argument", message: "triggerBias must be between -10 and 10", statusCode: 400)
+    }
+
+    PreferencesManager.shared.batchUpdate { config in
+      if let v = patch.language { config["language"] = v }
+      if let v = patch.appearance { config["appearance"] = v }
+      if let v = patch.settingsFolder { config["app_root_path"] = v }
+      if let v = patch.snippetFolder { config["snippet_base_path"] = v }
+      if let v = patch.triggerBias { config["snippet_trigger_bias"] = v }
+      if let v = patch.quickSelectModifier { config["quick_select_modifier"] = v }
+    }
+    return jsonResponse(buildV2General())
+  }
+
+  // MARK: - v2 History GET/PATCH
+
+  private func buildV2History() -> APIV2HistorySettings {
+    // For now, return a simplified structure
+    // In a full implementation, this would extract all history-related settings
+    return APIV2HistorySettings(
+      viewer: nil,
+      hotkeysAndFilters: nil,
+      retention: nil
+    )
+  }
+
+  private func handleV2GetHistory() -> APIServer.HTTPResponse {
+    return jsonResponse(buildV2History())
+  }
+
+  private func handleV2PatchHistory(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    let (maybe, err) = decodeV2Body(request, as: APIV2HistorySettingsPatch.self)
+    if let err = err { return err }
+    guard let patch = maybe else { return v2Error(code: "internal", message: "decode failed", statusCode: 500) }
+
+    // Patch implementation: store subsection updates
+    // For now, this is a simplified implementation
+    if let _ = patch.viewer {
+      // Update viewer settings (to be implemented with full schema)
+    }
+    if let _ = patch.hotkeysAndFilters {
+      // Update hotkeys and filters (to be implemented with full schema)
+    }
+    if let _ = patch.retention {
+      // Update retention settings (to be implemented with full schema)
+    }
+
+    return jsonResponse(buildV2History())
   }
 }
