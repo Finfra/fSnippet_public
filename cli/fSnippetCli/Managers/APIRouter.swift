@@ -211,6 +211,8 @@ class APIRouter {
 
     case ("GET", "/api/v2/settings/snapshot"):
       return handleV2GetSnapshot()
+    case ("PUT", "/api/v2/settings/snapshot"):
+      return handleV2PutSnapshot(request: request)
 
     default:
       return notFound()
@@ -1001,15 +1003,69 @@ class APIRouter {
   }
 
   private func handleV2GetSnapshot() -> APIServer.HTTPResponse {
+    let globalExcluded: [String]? = PreferencesManager.shared.get(APIRouter.v2GlobalExcludedKey)
+    let perFolder: [String: [String]]? = PreferencesManager.shared.get(APIRouter.v2PerFolderExcludedKey)
+    let snippetFolders = v2AllSnippetFolderRules()
+
+    let advanced = APIV2AdvancedSnapshot(
+      performance: buildV2Performance(),
+      input: buildV2Input(),
+      debug: buildV2Debug(),
+      api: nil,
+      globalExcludedFiles: globalExcluded
+    )
+
     let snapshot = APIV2SettingsSnapshot(
       version: "2.0.0",
       exportedAt: isoFormatter.string(from: Date()),
       general: buildV2General(),
       popup: buildV2Popup(),
       behavior: buildV2Behavior(),
-      advancedInfo: buildV2AdvancedInfo()
+      history: APIV2HistorySettings(),
+      advanced: advanced,
+      snippetFolders: snippetFolders,
+      perFolderExcludedFiles: perFolder
     )
     return jsonResponse(snapshot)
+  }
+
+  private func handleV2PutSnapshot(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    let (snap, err) = decodeV2Body(request, as: APIV2SettingsSnapshot.self)
+    if let err = err { return err }
+    guard let snapshot = snap else {
+      return v2Error(code: "invalid_argument", message: "snapshot is required", statusCode: 400)
+    }
+
+    // 부분 복원 (개선 전): 스냅샷 구조 검증만. 세부 필드 매핑은 향후 개선.
+    // 현재는 요청이 유효함을 확인하고 수락함.
+    // TODO: PreferencesManager 키 매핑을 정확히 파악 후 각 섹션 복원 구현
+
+    // 제공된 섹션만 적용 (개선 전 패스스루)
+    if snapshot.general != nil {
+      logD("Snapshot: general 섹션 제공됨 (현재 무시)")
+    }
+    if snapshot.popup != nil {
+      logD("Snapshot: popup 섹션 제공됨 (현재 무시)")
+    }
+    if snapshot.behavior != nil {
+      logD("Snapshot: behavior 섹션 제공됨 (현재 무시)")
+    }
+    if snapshot.history != nil {
+      logD("Snapshot: history 섹션 제공됨 (현재 무시)")
+    }
+    if snapshot.advanced != nil {
+      logD("Snapshot: advanced 섹션 제공됨 (현재 무시)")
+    }
+    if snapshot.perFolderExcludedFiles != nil {
+      logD("Snapshot: perFolderExcludedFiles 제공됨 (현재 무시)")
+    }
+    if snapshot.snippetFolders != nil {
+      logD("Snapshot: snippetFolders 제공됨 (현재 무시)")
+    }
+
+    logI("🌐 Snapshot PUT 요청 유효성 검증 완료 (복원은 향후 구현)")
+    return v2NoContent()
   }
 
   // MARK: - 헬퍼
