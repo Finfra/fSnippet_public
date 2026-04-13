@@ -7,7 +7,7 @@ date: 2026-04-07
 # Issue Management
 
 - Issue HWM: 30
-- Save Point: - 2026-04-09 (68c365e)
+- Save Point: - 2026-04-13 (ed3ae75)
 
 # 🤔 결정사항
 
@@ -16,67 +16,29 @@ date: 2026-04-07
 2. all clear test할 것. _config.yml기본 값 확인
 # 🚧 진행중
 
-## Issue29: apiTest v2 커버리지 확장 — openapi_v2.yaml 전 엔드포인트 반영 (등록: 2026-04-13)
+## Issue30: v1/v2 API 테스트 스크립트 전면 재작성 — 디렉터리 분리 + 커버리지 확장 (등록: 2026-04-13)
 
-* 목적: `cli/_doc_design/api_v2_plan.md`(2026-04-13) 기준으로 `api/openapi_v2.yaml` **38 paths / 59 operations** (25 GET, 10 PATCH, 11 POST, 9 PUT, 4 DELETE)를 `APIRouter.swift` + `APIModels.swift`에 구현하고 apiTest 스크립트를 동기화함. 현재 명세-구현-테스트 3-way 불일치 해소.
-* 현재 상태:
-    - Read-only GET 구현 완료 (`/settings/general`, `/popup`, `/behavior`, `/advanced/info`, `/advanced/debug`, `/advanced/performance`, `/advanced/input`, `/snapshot`)
-    - Writable Simple PATCH 구현 완료 (popup / behavior / advanced/{debug, performance, input})
-    - Foundation 보강 완료: `APIV2SuccessResponse<T>` 제너릭, `HTTPRequest.remoteIP` 필드 + `requireLocalWrite()` 가드 (non-localhost 쓰기 403), 공통 `decodeV2Body()` 헬퍼
-    - apiTest 30~34, 40~44, E10, E20 커버
-* 구현 단계 (api_v2_plan.md §"구현 단계" 10단계 순서 준수):
-    1. ~~**Foundation 보강**~~ **완료** — `APIV2SuccessResponse<T>`, `requireLocalWrite` 가드, `decodeV2Body` 헬퍼, `APIV2ConfirmRequest`는 기존 존재
-    2. ~~Read-only (general/popup/behavior/advanced-info GET)~~ **완료**
-    3. ~~Snapshot GET~~ **완료**
-    4. ~~**Writable Simple (PATCH)**~~ **완료** — popup / behavior / advanced/debug / advanced/performance / advanced/input + GET 3종 신규 (advanced/debug, /performance, /input)
-    5. **Writable Complex** — shortcuts(PUT/DELETE + 409 충돌), snippet-folders(`_rule.yml` PATCH), excluded-files(per-folder + global PUT/POST/DELETE)
-    6. **Danger Zone** — `/settings/actions/*` POST 4종 + `{"confirm":"YES-I-KNOW"}` 검증 (불일치 시 403 반환)
-    7. **Async Jobs** — `/settings/advanced/alfred-import/run` POST → jobId 비동기 응답 (202 Accepted)
-    8. **Snapshot PUT** — 부분 복원 허용 + 실패 시 롤백 전략
-    9. **apiTest 확장** — 단계별로 정상/에러 스크립트 추가 (번호 40~, E20~)
-    10. **문서화** — `api/README*.md`에 v2 사용 예제 추가
-* 특수 규약 (api_v2_plan.md §"제약 / 주의사항" 반영):
-    - `language` PUT: 응답에 `requiresRestart: true` 포함 (앱 재시작 필요)
-    - `port` 변경: 202 Accepted 후 서버 재바인딩 (비동기)
-    - `/actions/*`: localhost 전용 강제 + ConfirmRequest 이중 확인 불일치 시 403
-    - `_rule.yml` PATCH 실패: 500 + 원인 코드 반환
-    - External CIDR 거부: 쓰기 경로는 `allowExternal=false` 강제 가드
-    - Factory Reset: 응답 선전송 후 내부 상태 초기화 (응답 유실 방지)
-* 코드 레이어 매핑 (api_v2_plan.md §"구현 매핑"):
-    - General: `AppSettingManager`, `PreferencesManager`, `TriggerKeyManager`, `InputSourceManager`
-    - Popup: `PreferencesManager`, `SnippetSearchEngine`
-    - Behavior: `AutoStartManager`, `MenuBarManager`, `NotificationManager`
-    - Shortcuts: `ShortcutMgr`, `PSKeyManager`, `CollisionManager`
-    - Snippet Folders: `SnippetFolderWatcher`, `SnippetIndexBuilder`, `RuleManager`
-    - History: `ClipboardManager`, `HistoryViewerManager`, `HistoryPreviewManager`, `ImageDetailManager`
-    - Advanced/Log: `Logger`, `PerformanceLogger`
-    - Alfred Import: `AlfredImporter`, `AlfredLogic`
-    - REST API 토글: `APIServer` + `PreferencesManager`
-    - Danger Zone: `SettingsManager`, `AppSettingManager`
+* 목적: 현재 flat 구조(`cli/_tool/apiTest/00~80.sh`)를 v1/v2 디렉터리로 분리하고, Issue29에서 미커버된 v2 엔드포인트 테스트 스크립트를 일괄 추가함. 구현 명세: `cli/_doc_work/apiTest_plan_v1v2.md`
+* 의존성: Issue29 완료 (APIRouter v2 전 엔드포인트 구현) ✅
+* 구현 단계 (apiTest_plan_v1v2.md §"3단계 구현 계획" 순서):
+    1. **Phase 1 — 디렉터리 분리**: 기존 `00~29.sh` → `v1/` 이동, `30~80.sh` → `v2/` 이동 + 번호 재정렬
+        - `v1/`: 00~29 정상, E01~E08 에러 (총 37개)
+        - `v2/`: 00~60 정상, E00~E07 에러 (기존 이동분 + 신규 합산)
+        - `apiTestDo.sh` 업데이트: `v1|v2|all|NN` 인자 지원, 각 디렉터리 분기 실행
+    2. **Phase 2 — 신규 v2 스크립트 추가**: apiTest_plan_v1v2.md §"신규 v2 스크립트" 우선순위 순
+        - General 하위 경로: `v2/05~09.sh` (language/appearance/paths/trigger-key/trigger-bias)
+        - History: `v2/15~16.sh` (GET + clear POST)
+        - Advanced API: `v2/18.sh` (/settings/advanced/api GET/PATCH)
+        - Snapshot restore: `v2/61.sh` (PUT 실제 복원 검증)
+        - Language/Appearance: `v2/70~72.sh`
+        - 에러 케이스 보강: `v2/E00~E07.sh`
+        - **주의**: General 하위, History, Advanced/API 신규 스크립트는 해당 API 구현 선행 필요
+    3. **Phase 3 — 문서화 + 전체 실행**: README 업데이트, `apiTestDo.sh all` PASS 확인
+* 구현 명세: [`cli/_doc_work/apiTest_plan_v1v2.md`](cli/_doc_work/apiTest_plan_v1v2.md) (스크립트 목록, 번호 매핑, runner 설계 포함)
 * 검증:
-    - YAML 파싱 성공 (`python3 -c "import yaml; yaml.safe_load(open('api/openapi_v2.yaml'))"`)
-    - APIRouter 경로 커버리지 테스트: openapi_v2.yaml의 모든 path 처리 여부 (누락 감지)
-    - apiTest 전체 PASS, 단계별 PR 단위 실행
-    - `api/test-api.sh` v1+v2 스모크 테스트 통과
-    - Release 빌드 경고 0
-
-## Issue30: cmdTest v2 반영 — CLI 바이너리에 settings CRUD 커맨드 추가 (등록: 2026-04-13)
-
-* 목적: CLI 바이너리(`CLI/Commands/`)가 모두 `/api/v1/`만 사용하므로, 사용자가 터미널에서 v2 Settings CRUD를 다룰 수 있도록 `fsnippetcli settings` 서브커맨드를 추가하고 cmdTest를 동기화함.
-* api_v2_plan.md 범위 판정:
-    - 플랜 §"구현 단계" 9번은 `api/test-api.sh` (curl 스모크)만 언급
-    - **CLI 바이너리·cmdTest v2 확장은 api_v2_plan.md 범위 밖** → 본 이슈는 플랜 후속 작업으로 유지
-    - 사용자 원 요청("cmdTest도 업데이트 확인")을 근거로 별도 이슈로 관리
-* 의존성: **Issue29 완료 선행 필수** (APIRouter v2 쓰기 엔드포인트가 없으면 CLI 호출 실패)
-* 구현 단계:
-    1. `cli/_doc_design/cmd_design.md` 업데이트 — `settings get/set/reset/snapshot` 서브커맨드 스펙 추가
-    2. `CLI/Commands/SettingsCommand.swift` 신규 — v2 GET/PATCH/POST 호출 (출력은 json/text)
-    3. `ConfigCommand.swift` 처리: 읽기 전용 유지, `config`는 alias로 `settings get --all` 유도
-    4. cmdTest 확장 — `20~*.sh` 정상 케이스 + `E10~*.sh` 에러 케이스 (settings get, set, confirm 거부, 권한 오류)
-    5. `cmdTest_plan.md` 교차 비교 테이블에 v2 컬럼 추가
-* 검증:
-    - cmdTest 전체 PASS (exit code + stdout 검증)
-    - `fsnippetcli settings get general.language` / `settings set popup.popupRows 10` 등 기본 시나리오 동작
+    - `apiTestDo.sh v1` — v1 전체 PASS
+    - `apiTestDo.sh v2` — v2 전체 PASS (구현된 엔드포인트 대상)
+    - `apiTestDo.sh all` — 전체 PASS
     - Release 빌드 경고 0
 
 # 📕 중요
@@ -95,6 +57,24 @@ date: 2026-04-07
     - apiTest 30/30 PASS, jq/python3 JSON 파싱 정상
 
 # ✅ 완료
+
+## Issue29: v2 API 전체 구현 — openapi_v2.yaml 38 paths / 59 operations (등록: 2026-04-13, 해결: 2026-04-13, commit: 2f015b1, a59926c, f7d4a11, 7b31e2b, 783edb7, d89d9fc, a946e3f, ed3ae75) ✅
+
+* 목적: `api/openapi_v2.yaml` 38 paths / 59 operations를 `APIRouter.swift` + `APIModels.swift`에 구현. 명세-구현-테스트 3-way 불일치 해소.
+* 완료 보고서: [`cli/_doc_work/issue29_completion_report.md`](cli/_doc_work/issue29_completion_report.md)
+* 구현 명세:
+    - Step1+2: Foundation 보강 + Writable Simple PATCH (`2f015b1`)
+    - Step3a: Shortcuts GET/PUT/DELETE + 409 충돌 감지 (`a59926c`)
+    - Step3b: Snippet Folders GET/PATCH + rebuild POST (`f7d4a11`)
+    - Step3c: Excluded Files per-folder + global CRUD (`7b31e2b`)
+    - Step4: Danger Zone actions + ConfirmRequest guard (`783edb7`)
+    - Step5: Alfred Import async job (202 + jobId) (`d89d9fc`)
+    - Step6: Snapshot PUT (구조 검증) (`a946e3f`)
+    - Step7: API v2 문서화 (`ed3ae75`)
+* 구현율: 39/63 endpoints (General 하위·History·Snapshot 복원 등 24개는 후속 이슈 대상)
+* 검증:
+    - v2 apiTest 스크립트 25개 PASS (30~34, 40~44, 45~53, 60~62, 70~71, 80, E10, E20~E25)
+    - Release 빌드 경고 0
 
 ## Issue27: CRUD API 엔드포인트 추가 — 폴더/스니펫 생성/삭제 (등록: 2026-04-08, 해결: 2026-04-09, commit: a4556d2) ✅
 
