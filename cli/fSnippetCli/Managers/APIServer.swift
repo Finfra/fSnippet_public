@@ -108,6 +108,8 @@ class APIServer {
     let query: [String: String]
     let headers: [String: String]
     let body: Data?
+    /// 원격 클라이언트 IP (v2 쓰기 경로의 localhost 강제 가드용)
+    let remoteIP: String
   }
 
   struct HTTPResponse {
@@ -157,7 +159,7 @@ class APIServer {
         return
       }
 
-      let request = self.parseHTTPRequest(requestString)
+      let request = self.parseHTTPRequest(requestString, remoteIP: remoteIP)
       let response = APIRouter.shared.route(request: request, server: self)
       self.sendAndClose(connection: connection, data: self.buildHTTPResponse(statusCode: response.statusCode, body: response.body, headers: response.headers, rawBodyData: response.rawBodyData))
     }
@@ -174,10 +176,10 @@ class APIServer {
 
   // MARK: - HTTP 파싱
 
-  private func parseHTTPRequest(_ raw: String) -> HTTPRequest {
+  private func parseHTTPRequest(_ raw: String, remoteIP: String) -> HTTPRequest {
     let lines = raw.components(separatedBy: "\r\n")
     guard let requestLine = lines.first else {
-      return HTTPRequest(method: "GET", path: "/", query: [:], headers: [:], body: nil)
+      return HTTPRequest(method: "GET", path: "/", query: [:], headers: [:], body: nil, remoteIP: remoteIP)
     }
 
     let parts = requestLine.split(separator: " ")
@@ -216,7 +218,7 @@ class APIServer {
       }
     }
 
-    return HTTPRequest(method: method, path: path, query: query, headers: headers, body: bodyData)
+    return HTTPRequest(method: method, path: path, query: query, headers: headers, body: bodyData, remoteIP: remoteIP)
   }
 
   func buildHTTPResponse(statusCode: Int, body: String, headers: [String: String] = [:], rawBodyData: Data? = nil) -> Data {

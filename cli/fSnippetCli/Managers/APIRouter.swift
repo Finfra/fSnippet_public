@@ -111,9 +111,327 @@ class APIRouter {
       let id = String(decodedPath.dropFirst("/api/v1/snippets/".count))
       return handleDeleteSnippet(id: id.removingPercentEncoding ?? id)
 
+    // ======================================================================
+    // v2 — Settings CRUD
+    // ======================================================================
+    case ("GET", "/api/v2/settings/general"):
+      return handleV2GetGeneral()
+    case ("GET", "/api/v2/settings/popup"):
+      return handleV2GetPopup()
+    case ("PATCH", "/api/v2/settings/popup"):
+      return handleV2PatchPopup(request: request)
+    case ("GET", "/api/v2/settings/behavior"):
+      return handleV2GetBehavior()
+    case ("PATCH", "/api/v2/settings/behavior"):
+      return handleV2PatchBehavior(request: request)
+    case ("GET", "/api/v2/settings/advanced/info"):
+      return handleV2GetAdvancedInfo()
+    case ("GET", "/api/v2/settings/advanced/debug"):
+      return handleV2GetDebug()
+    case ("PATCH", "/api/v2/settings/advanced/debug"):
+      return handleV2PatchDebug(request: request)
+    case ("GET", "/api/v2/settings/advanced/performance"):
+      return handleV2GetPerformance()
+    case ("PATCH", "/api/v2/settings/advanced/performance"):
+      return handleV2PatchPerformance(request: request)
+    case ("GET", "/api/v2/settings/advanced/input"):
+      return handleV2GetInput()
+    case ("PATCH", "/api/v2/settings/advanced/input"):
+      return handleV2PatchInput(request: request)
+    case ("GET", "/api/v2/settings/snapshot"):
+      return handleV2GetSnapshot()
+
     default:
       return notFound()
     }
+  }
+
+  // MARK: - v2 에러 헬퍼
+
+  private func v2Error(code: String, message: String, statusCode: Int) -> APIServer.HTTPResponse {
+    let err = APIV2ErrorResponse(ok: false, error: APIErrorDetail(code: code, message: message))
+    return jsonResponse(err, statusCode: statusCode)
+  }
+
+  // MARK: - v2 Phase 1 핸들러
+
+  private func buildV2General() -> APIV2GeneralSettings {
+    let prefs = PreferencesManager.shared
+    let language: String = prefs.get("language") ?? "system"
+    let appearance: String = prefs.get("appearance") ?? "system"
+    let settingsFolder: String = prefs.get("app_root_path")
+      ?? (FileManager.default.homeDirectoryForCurrentUser
+          .appendingPathComponent("Documents/finfra/fSnippetData").path)
+    let snippetFolder: String = prefs.get("snippet_base_path") ?? "./snippets"
+
+    let triggerKeyToken: String = prefs.get("snippet_trigger_key") ?? "{right_command}"
+    let triggerBias: Int = prefs.get("snippet_trigger_bias") ?? 0
+    let quickModifier: String = prefs.get("quick_select_modifier") ?? "command"
+
+    let settingsHotkeyStr: String = prefs.get("settings.hotkey") ?? ""
+    let popupHotkeyStr: String = prefs.get("snippet_popup_hotkey") ?? ""
+    let popupKeyCode: Int? = prefs.get("snippet_popup_key_code")
+
+    let permissions = APIV2Permissions(
+      accessibility: AXIsProcessTrusted(),
+      automation: false
+    )
+
+    return APIV2GeneralSettings(
+      language: language,
+      appearance: appearance,
+      settingsFolder: settingsFolder,
+      snippetFolder: snippetFolder,
+      settingsHotkey: APIV2Shortcut(keyCode: nil, modifiers: [], display: settingsHotkeyStr, token: settingsHotkeyStr),
+      popupHotkey: APIV2Shortcut(keyCode: popupKeyCode, modifiers: [], display: popupHotkeyStr, token: popupHotkeyStr),
+      triggerKey: APIV2TriggerKey(keyCode: nil, display: triggerKeyToken, token: triggerKeyToken),
+      triggerBias: triggerBias,
+      quickSelectModifier: quickModifier,
+      permissions: permissions
+    )
+  }
+
+  private func buildV2Popup() -> APIV2PopupSettings {
+    let prefs = PreferencesManager.shared
+    let scope: String = prefs.get("snippet_popup_search_scope") ?? "keyword"
+    let rows: Int = prefs.get("snippet_popup_rows") ?? 10
+    let width: Int = {
+      if let d: Double = prefs.get("snippet_popup_width") { return Int(d) }
+      return prefs.get("snippet_popup_width") ?? 350
+    }()
+    let previewWidth: Int = {
+      if let d: Double = prefs.get("history.preview.width") { return Int(d) }
+      return prefs.get("history.preview.width") ?? 400
+    }()
+    return APIV2PopupSettings(
+      searchScope: scope,
+      popupRows: rows,
+      popupWidth: width,
+      previewWindowWidth: previewWidth
+    )
+  }
+
+  private func buildV2Behavior() -> APIV2BehaviorSettings {
+    let prefs = PreferencesManager.shared
+    return APIV2BehaviorSettings(
+      launchAtLogin: prefs.bool(forKey: "start_at_login"),
+      hideFromMenuBar: prefs.bool(forKey: "hide_menu_bar_icon"),
+      showInAppSwitcher: prefs.bool(forKey: "show_in_app_switcher"),
+      showNotifications: prefs.bool(forKey: "show_notifications"),
+      playSoundOnReady: prefs.bool(forKey: "play_ready_sound")
+    )
+  }
+
+  private func buildV2AdvancedInfo() -> APIV2AdvancedInfo {
+    let prefs = PreferencesManager.shared
+    let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+    let loaded = SnippetIndexManager.shared.entries.count
+    let retention: Int = prefs.get("stats.retentionDays") ?? 30
+    return APIV2AdvancedInfo(
+      appVersion: version,
+      loadedSnippets: loaded,
+      statisticsRetentionDays: retention
+    )
+  }
+
+  private func handleV2GetGeneral() -> APIServer.HTTPResponse {
+    return jsonResponse(buildV2General())
+  }
+
+  private func handleV2GetPopup() -> APIServer.HTTPResponse {
+    return jsonResponse(buildV2Popup())
+  }
+
+  private func handleV2GetBehavior() -> APIServer.HTTPResponse {
+    return jsonResponse(buildV2Behavior())
+  }
+
+  private func handleV2GetAdvancedInfo() -> APIServer.HTTPResponse {
+    return jsonResponse(buildV2AdvancedInfo())
+  }
+
+  // MARK: - v2 공통 가드 / 헬퍼
+
+  /// 쓰기(PATCH/PUT/POST/DELETE) 경로용 localhost 강제 가드.
+  /// 비(非)localhost IP로 들어온 쓰기 요청은 `allowExternal` 설정과 무관하게 403으로 거부함.
+  private func requireLocalWrite(_ request: APIServer.HTTPRequest) -> APIServer.HTTPResponse? {
+    let ip = request.remoteIP
+    let isLocal = ip == "127.0.0.1" || ip == "::1" || ip == "localhost" || ip.isEmpty || ip == "unknown"
+    if !isLocal {
+      return v2Error(code: "forbidden", message: "Write endpoints require localhost access", statusCode: 403)
+    }
+    return nil
+  }
+
+  /// JSON 바디 디코딩. 실패 시 (nil, errorResponse) 반환; 성공 시 (value, nil).
+  private func decodeV2Body<T: Decodable>(_ request: APIServer.HTTPRequest, as type: T.Type) -> (T?, APIServer.HTTPResponse?) {
+    guard let data = request.body, !data.isEmpty else {
+      return (nil, v2Error(code: "invalid_argument", message: "Request body is required", statusCode: 400))
+    }
+    do {
+      let value = try JSONDecoder().decode(T.self, from: data)
+      return (value, nil)
+    } catch {
+      return (nil, v2Error(code: "invalid_argument", message: "Invalid JSON body: \(error.localizedDescription)", statusCode: 400))
+    }
+  }
+
+  // MARK: - v2 Advanced GET builders
+
+  private func buildV2Debug() -> APIV2DebugSettings {
+    let prefs = PreferencesManager.shared
+    let rawLevel: String = prefs.get("log_level") ?? "verbose"
+    let level = rawLevel.lowercased()
+    return APIV2DebugSettings(
+      logLevel: level,
+      debugLogging: prefs.bool(forKey: "debug_logging"),
+      performanceMonitoring: prefs.bool(forKey: "performance_monitoring")
+    )
+  }
+
+  private func buildV2Performance() -> APIV2PerformanceSettings {
+    let prefs = PreferencesManager.shared
+    let keyBuf: Int = prefs.get("performance.key_buffer_size") ?? 100
+    let searchCache: Int = prefs.get("performance.search_cache_size") ?? 100
+    return APIV2PerformanceSettings(keyBufferSize: keyBuf, searchCacheSize: searchCache)
+  }
+
+  private func buildV2Input() -> APIV2InputSettings {
+    let prefs = PreferencesManager.shared
+    let val: String? = prefs.get("force_search_input_language")
+    let normalized = (val?.isEmpty == true) ? nil : val
+    return APIV2InputSettings(forceSearchInputLanguage: normalized)
+  }
+
+  private func handleV2GetDebug() -> APIServer.HTTPResponse {
+    return jsonResponse(buildV2Debug())
+  }
+
+  private func handleV2GetPerformance() -> APIServer.HTTPResponse {
+    return jsonResponse(buildV2Performance())
+  }
+
+  private func handleV2GetInput() -> APIServer.HTTPResponse {
+    return jsonResponse(buildV2Input())
+  }
+
+  // MARK: - v2 PATCH handlers
+
+  private func handleV2PatchPopup(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    let (maybe, err) = decodeV2Body(request, as: APIV2PopupPatch.self)
+    if let err = err { return err }
+    guard let patch = maybe else { return v2Error(code: "internal", message: "decode failed", statusCode: 500) }
+
+    if let scope = patch.searchScope {
+      let allowed = ["keyword", "keywordName", "keywordNameContent"]
+      guard allowed.contains(scope) else {
+        return v2Error(code: "invalid_argument", message: "searchScope must be one of \(allowed)", statusCode: 400)
+      }
+    }
+    if let rows = patch.popupRows, !(1...30).contains(rows) {
+      return v2Error(code: "invalid_argument", message: "popupRows must be between 1 and 30", statusCode: 400)
+    }
+    if let w = patch.popupWidth, !(200...2000).contains(w) {
+      return v2Error(code: "invalid_argument", message: "popupWidth must be between 200 and 2000", statusCode: 400)
+    }
+    if let pw = patch.previewWindowWidth, !(0...2000).contains(pw) {
+      return v2Error(code: "invalid_argument", message: "previewWindowWidth must be between 0 and 2000", statusCode: 400)
+    }
+
+    PreferencesManager.shared.batchUpdate { config in
+      if let v = patch.searchScope { config["snippet_popup_search_scope"] = v }
+      if let v = patch.popupRows { config["snippet_popup_rows"] = v }
+      if let v = patch.popupWidth { config["snippet_popup_width"] = Double(v) }
+      if let v = patch.previewWindowWidth { config["history.preview.width"] = Double(v) }
+    }
+    return jsonResponse(buildV2Popup())
+  }
+
+  private func handleV2PatchBehavior(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    let (maybe, err) = decodeV2Body(request, as: APIV2BehaviorPatch.self)
+    if let err = err { return err }
+    guard let patch = maybe else { return v2Error(code: "internal", message: "decode failed", statusCode: 500) }
+
+    PreferencesManager.shared.batchUpdate { config in
+      if let v = patch.launchAtLogin { config["start_at_login"] = v }
+      if let v = patch.hideFromMenuBar { config["hide_menu_bar_icon"] = v }
+      if let v = patch.showInAppSwitcher { config["show_in_app_switcher"] = v }
+      if let v = patch.showNotifications { config["show_notifications"] = v }
+      if let v = patch.playSoundOnReady { config["play_ready_sound"] = v }
+    }
+    return jsonResponse(buildV2Behavior())
+  }
+
+  private func handleV2PatchDebug(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    let (maybe, err) = decodeV2Body(request, as: APIV2DebugPatch.self)
+    if let err = err { return err }
+    guard let patch = maybe else { return v2Error(code: "internal", message: "decode failed", statusCode: 500) }
+
+    if let level = patch.logLevel {
+      let allowed = ["verbose", "debug", "info", "warning", "error", "critical"]
+      guard allowed.contains(level.lowercased()) else {
+        return v2Error(code: "invalid_argument", message: "logLevel must be one of \(allowed)", statusCode: 400)
+      }
+    }
+
+    PreferencesManager.shared.batchUpdate { config in
+      if let v = patch.logLevel { config["log_level"] = v.lowercased() }
+      if let v = patch.debugLogging { config["debug_logging"] = v }
+      if let v = patch.performanceMonitoring { config["performance_monitoring"] = v }
+    }
+    return jsonResponse(buildV2Debug())
+  }
+
+  private func handleV2PatchPerformance(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    let (maybe, err) = decodeV2Body(request, as: APIV2PerformancePatch.self)
+    if let err = err { return err }
+    guard let patch = maybe else { return v2Error(code: "internal", message: "decode failed", statusCode: 500) }
+
+    if let v = patch.keyBufferSize, !(10...10000).contains(v) {
+      return v2Error(code: "invalid_argument", message: "keyBufferSize must be between 10 and 10000", statusCode: 400)
+    }
+    if let v = patch.searchCacheSize, !(10...10000).contains(v) {
+      return v2Error(code: "invalid_argument", message: "searchCacheSize must be between 10 and 10000", statusCode: 400)
+    }
+
+    PreferencesManager.shared.batchUpdate { config in
+      if let v = patch.keyBufferSize { config["performance.key_buffer_size"] = v }
+      if let v = patch.searchCacheSize { config["performance.search_cache_size"] = v }
+    }
+    return jsonResponse(buildV2Performance())
+  }
+
+  private func handleV2PatchInput(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    let (maybe, err) = decodeV2Body(request, as: APIV2InputPatch.self)
+    if let err = err { return err }
+    guard let patch = maybe else { return v2Error(code: "internal", message: "decode failed", statusCode: 500) }
+    PreferencesManager.shared.batchUpdate { config in
+      if let v = patch.forceSearchInputLanguage {
+        if v.isEmpty {
+          config.removeValue(forKey: "force_search_input_language")
+        } else {
+          config["force_search_input_language"] = v
+        }
+      }
+    }
+    return jsonResponse(buildV2Input())
+  }
+
+  private func handleV2GetSnapshot() -> APIServer.HTTPResponse {
+    let snapshot = APIV2SettingsSnapshot(
+      version: "2.0.0",
+      exportedAt: isoFormatter.string(from: Date()),
+      general: buildV2General(),
+      popup: buildV2Popup(),
+      behavior: buildV2Behavior(),
+      advancedInfo: buildV2AdvancedInfo()
+    )
+    return jsonResponse(snapshot)
   }
 
   // MARK: - 헬퍼

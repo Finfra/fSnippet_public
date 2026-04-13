@@ -357,3 +357,148 @@ struct APISnippetMutationData: Codable {
   let id: String
   let message: String
 }
+
+// MARK: - v2 공통 (Phase 1)
+
+/// v2 표준 에러 응답 (`{ ok: false, error: {code, message} }`)
+struct APIV2ErrorResponse: Codable {
+  let ok: Bool
+  let error: APIErrorDetail
+}
+
+/// v2 성공 래퍼 (`{ ok: true, data: ... }`) — 리소스 본체 직접 반환 대신 쓸 때 사용
+struct APIV2SuccessResponse<T: Encodable>: Encodable {
+  let ok: Bool
+  let data: T
+  init(_ data: T) {
+    self.ok = true
+    self.data = data
+  }
+}
+
+/// 파괴적 동작 확인 요청 (Danger Zone)
+struct APIV2ConfirmRequest: Codable {
+  let confirm: String
+}
+
+// MARK: - v2 Settings General
+
+struct APIV2TriggerKey: Codable {
+  let keyCode: Int?
+  let display: String
+  let token: String
+}
+
+struct APIV2Shortcut: Codable {
+  let keyCode: Int?
+  let modifiers: [String]
+  let display: String
+  let token: String
+}
+
+struct APIV2Permissions: Codable {
+  let accessibility: Bool
+  let automation: Bool
+}
+
+struct APIV2GeneralSettings: Codable {
+  let language: String
+  let appearance: String
+  let settingsFolder: String
+  let snippetFolder: String
+  let settingsHotkey: APIV2Shortcut
+  let popupHotkey: APIV2Shortcut
+  let triggerKey: APIV2TriggerKey
+  let triggerBias: Int
+  let quickSelectModifier: String
+  let permissions: APIV2Permissions
+}
+
+// MARK: - v2 Settings Popup
+
+struct APIV2PopupSettings: Codable {
+  let searchScope: String
+  let popupRows: Int
+  let popupWidth: Int
+  let previewWindowWidth: Int
+}
+
+// MARK: - v2 Settings Behavior
+
+struct APIV2BehaviorSettings: Codable {
+  let launchAtLogin: Bool
+  let hideFromMenuBar: Bool
+  let showInAppSwitcher: Bool
+  let showNotifications: Bool
+  let playSoundOnReady: Bool
+}
+
+// MARK: - v2 Advanced Info
+
+struct APIV2AdvancedInfo: Codable {
+  let appVersion: String
+  let loadedSnippets: Int
+  let statisticsRetentionDays: Int
+}
+
+// MARK: - v2 Advanced Debug / Performance / Input
+
+struct APIV2DebugSettings: Codable {
+  let logLevel: String
+  let debugLogging: Bool
+  let performanceMonitoring: Bool
+}
+
+struct APIV2PerformanceSettings: Codable {
+  let keyBufferSize: Int
+  let searchCacheSize: Int
+}
+
+struct APIV2InputSettings: Codable {
+  let forceSearchInputLanguage: String?
+}
+
+// MARK: - v2 Patch Requests (partial, all fields optional)
+
+struct APIV2PopupPatch: Decodable {
+  let searchScope: String?
+  let popupRows: Int?
+  let popupWidth: Int?
+  let previewWindowWidth: Int?
+}
+
+struct APIV2BehaviorPatch: Decodable {
+  let launchAtLogin: Bool?
+  let hideFromMenuBar: Bool?
+  let showInAppSwitcher: Bool?
+  let showNotifications: Bool?
+  let playSoundOnReady: Bool?
+}
+
+struct APIV2DebugPatch: Decodable {
+  let logLevel: String?
+  let debugLogging: Bool?
+  let performanceMonitoring: Bool?
+}
+
+struct APIV2PerformancePatch: Decodable {
+  let keyBufferSize: Int?
+  let searchCacheSize: Int?
+}
+
+struct APIV2InputPatch: Decodable {
+  let forceSearchInputLanguage: String?
+  // nil vs absent 구분을 위해 codingPath 체크 — 기본 Decodable 동작은 absent == nil이므로
+  // clear 명령은 빈 문자열("")로 전달하는 규약을 사용함
+}
+
+// MARK: - v2 Snapshot
+
+struct APIV2SettingsSnapshot: Codable {
+  let version: String
+  let exportedAt: String
+  let general: APIV2GeneralSettings
+  let popup: APIV2PopupSettings
+  let behavior: APIV2BehaviorSettings
+  let advancedInfo: APIV2AdvancedInfo
+}

@@ -1,0 +1,1089 @@
+openapi: 3.0.3
+info:
+  title: fSnippet REST API v2 (Settings CRUD)
+  description: |
+    fSnippet REST API **v2** — Settings 전 항목 읽기/쓰기 지원.
+
+    v1(`openapi_v1.yaml`)이 스니펫/클립보드/통계/상태 조회 중심이라면,
+    v2는 Settings 창(General / Snippets / Folders / History / Advanced) 5개 탭의
+    모든 설정 항목을 REST로 제어할 수 있도록 확장함.
+
+    ## 구현 상태
+    - **Shortcuts**: 구현됨 (v1에서 제공, v2에서도 동일 모델 사용)
+    - **기타 Settings 항목**: v2 신규 추가 (구현 예정)
+
+    ## 인증 / 보안
+    - v1과 동일 CIDR 기반 필터링 (기본 `127.0.0.1/32`)
+    - 외부 접근 허용 시 `Allow External Access` + CIDR 설정 필요
+    - 설정 변경 엔드포인트(쓰기)는 반드시 localhost 또는 허용 CIDR 내부에서만 호출 가능
+
+    ## 공통 응답 규칙
+    - 성공: `{ "ok": true, "data": ... }` 또는 리소스 본체
+    - 실패: `{ "ok": false, "error": { "code": "...", "message": "..." } }`
+    - 상태 코드: 200/201/204/400/401/403/404/409/422/500
+  version: 2.0.0
+  contact:
+    name: fSnippet
+    url: https://github.com/finfra/fSnippet_public
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3015/api/v2
+    description: Local fSnippet app REST server (API v2)
+
+tags:
+  - name: Settings General
+    description: General 탭 — 언어/외형/경로/핫키/트리거/권한
+  - name: Settings Popup
+    description: Popup Settings — 검색 범위, 행 수, 너비, 프리뷰 너비
+  - name: Settings Behavior
+    description: App Behavior — 로그인 시작, 메뉴바 숨김, 앱 스위처 표시 등
+  - name: Settings Snippets
+    description: Snippets 탭 — 폴더별 prefix/suffix/open 규칙
+  - name: Settings Folders
+    description: Folders 탭 — 폴더별 Excluded Files 관리
+  - name: Settings History
+    description: History 탭 — 뷰어/필터/수집/보관 정책
+  - name: Settings Advanced
+    description: Advanced 탭 — 로그/성능/입력/임포트/REST API/Danger Zone
+  - name: Settings Shortcuts
+    description: 핫키 조회/수정 (이미 구현됨)
+  - name: Settings Snapshot
+    description: 전체 설정 스냅샷 (일괄 조회/복원)
+  - name: Settings Actions
+    description: 파괴적 동작 (Reset, Clear, Factory Reset)
+
+paths:
+  # ========================================================================
+  # General
+  # ========================================================================
+  /settings/general:
+    get:
+      tags: [Settings General]
+      summary: General 설정 일괄 조회
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GeneralSettings' }
+    patch:
+      tags: [Settings General]
+      summary: General 설정 부분 수정
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GeneralSettingsPatch' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GeneralSettings' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /settings/general/language:
+    get:
+      tags: [Settings General]
+      summary: UI 언어 조회
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  language: { type: string, example: "en", description: "BCP47 code 또는 'system'" }
+                  requiresRestart: { type: boolean }
+    put:
+      tags: [Settings General]
+      summary: UI 언어 변경 (재시작 필요)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [language]
+              properties:
+                language: { type: string, enum: [system, en, ko, ja, zh-Hans, zh-Hant] }
+      responses:
+        '200': { description: Accepted, requires app restart }
+
+  /settings/general/appearance:
+    get:
+      tags: [Settings General]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  appearance: { type: string, enum: [system, light, dark] }
+    put:
+      tags: [Settings General]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [appearance]
+              properties:
+                appearance: { type: string, enum: [system, light, dark] }
+      responses:
+        '200': { description: OK }
+
+  /settings/general/paths:
+    get:
+      tags: [Settings General]
+      summary: Settings Folder 및 Snippet Folder 경로 조회
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  settingsFolder: { type: string, example: "~/Documents/finfra/fSnippetData2" }
+                  snippetFolder:  { type: string, example: "./snippets" }
+    patch:
+      tags: [Settings General]
+      summary: Settings/Snippet 경로 변경
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                settingsFolder: { type: string }
+                snippetFolder:  { type: string }
+      responses:
+        '200': { description: OK }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /settings/general/snippet-folder/rebuild-index:
+    post:
+      tags: [Settings General]
+      summary: Snippet Folder 인덱스 재빌드
+      responses:
+        '202': { description: Accepted, index rebuild started }
+
+  /settings/general/snippet-folder/open:
+    post:
+      tags: [Settings General]
+      summary: Snippet Folder를 Finder에서 열기
+      responses:
+        '200': { description: OK }
+
+  /settings/general/trigger-key:
+    get:
+      tags: [Settings General]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TriggerKey' }
+    put:
+      tags: [Settings General]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TriggerKey' }
+      responses:
+        '200': { description: OK }
+
+  /settings/general/trigger-bias:
+    get:
+      tags: [Settings General]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  triggerBias: { type: integer, description: "Backspace adjust count", example: 0 }
+    put:
+      tags: [Settings General]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [triggerBias]
+              properties:
+                triggerBias: { type: integer, minimum: -10, maximum: 10 }
+      responses:
+        '200': { description: OK }
+
+  /settings/general/quick-select-modifier:
+    get:
+      tags: [Settings General]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  modifier: { type: string, enum: [command, option, control, shift] }
+    put:
+      tags: [Settings General]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [modifier]
+              properties:
+                modifier: { type: string, enum: [command, option, control, shift] }
+      responses:
+        '200': { description: OK }
+
+  /settings/general/permissions:
+    get:
+      tags: [Settings General]
+      summary: 접근성/자동화 권한 상태 조회
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessibility: { type: boolean }
+                  automation:    { type: boolean }
+                  overall:       { type: string, enum: [granted, partial, denied] }
+
+  # ========================================================================
+  # Popup Settings
+  # ========================================================================
+  /settings/popup:
+    get:
+      tags: [Settings Popup]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PopupSettings' }
+    patch:
+      tags: [Settings Popup]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PopupSettingsPatch' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PopupSettings' }
+
+  # ========================================================================
+  # App Behavior
+  # ========================================================================
+  /settings/behavior:
+    get:
+      tags: [Settings Behavior]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BehaviorSettings' }
+    patch:
+      tags: [Settings Behavior]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BehaviorSettingsPatch' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BehaviorSettings' }
+
+  # ========================================================================
+  # Shortcuts (already implemented in v1, mirrored here)
+  # ========================================================================
+  /settings/shortcuts:
+    get:
+      tags: [Settings Shortcuts]
+      summary: 모든 단축키 조회
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  $ref: '#/components/schemas/Shortcut'
+                example:
+                  settingsHotkey: { keyCode: 41, modifiers: ["control","shift","command"], display: "^⇧⌘;" }
+                  popupHotkey:    { keyCode: 49, modifiers: ["control"],                  display: "^Space" }
+  /settings/shortcuts/{name}:
+    parameters:
+      - name: name
+        in: path
+        required: true
+        schema: { type: string, enum: [settingsHotkey, popupHotkey, togglePreviewHotkey, registerAsSnippetHotkey, toggleCollectionPauseHotkey, viewerHotkey] }
+    get:
+      tags: [Settings Shortcuts]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Shortcut' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Settings Shortcuts]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Shortcut' }
+      responses:
+        '200': { description: Updated }
+        '409':
+          description: Conflict (duplicate shortcut)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    delete:
+      tags: [Settings Shortcuts]
+      summary: 단축키 해제 (unset)
+      responses:
+        '204': { description: Cleared }
+
+  # ========================================================================
+  # Snippets Tab — folder rules
+  # ========================================================================
+  /settings/snippet-folders:
+    get:
+      tags: [Settings Snippets]
+      summary: 스니펫 폴더 및 규칙 목록
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SnippetFolderRule' }
+  /settings/snippet-folders/{folder}:
+    parameters:
+      - name: folder
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [Settings Snippets]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SnippetFolderRule' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Settings Snippets]
+      summary: 특정 폴더의 prefix/suffix/open 설정 수정 (_rule.yml 반영)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SnippetFolderRulePatch' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SnippetFolderRule' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /settings/snippet-folders/{folder}/rebuild:
+    parameters:
+      - name: folder
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [Settings Snippets]
+      summary: 해당 폴더 인덱스만 재빌드
+      responses:
+        '202': { description: Accepted }
+
+  # ========================================================================
+  # Folders Tab — Per-Folder Excluded Files
+  # ========================================================================
+  /settings/excluded-files/per-folder:
+    get:
+      tags: [Settings Folders]
+      summary: 폴더별 제외 파일 설정 전체 조회
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: array
+                  items: { type: string }
+                example:
+                  Docker: ["README.md", "_README.md"]
+  /settings/excluded-files/per-folder/{folder}:
+    parameters:
+      - name: folder
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [Settings Folders]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: string }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Settings Folders]
+      summary: 해당 폴더의 제외 파일 목록 전체 교체
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { type: string }
+      responses:
+        '200': { description: OK }
+    delete:
+      tags: [Settings Folders]
+      summary: 해당 폴더 설정 제거 (No Folder 상태)
+      responses:
+        '204': { description: Cleared }
+  /settings/excluded-files/per-folder/{folder}/entries:
+    parameters:
+      - name: folder
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [Settings Folders]
+      summary: 제외 파일 한 건 추가
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [filename]
+              properties:
+                filename: { type: string }
+      responses:
+        '201': { description: Created }
+        '409': { description: Already exists }
+  /settings/excluded-files/per-folder/{folder}/entries/{filename}:
+    parameters:
+      - name: folder
+        in: path
+        required: true
+        schema: { type: string }
+      - name: filename
+        in: path
+        required: true
+        schema: { type: string }
+    delete:
+      tags: [Settings Folders]
+      summary: 제외 파일 한 건 삭제
+      responses:
+        '204': { description: Removed }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ========================================================================
+  # History Tab
+  # ========================================================================
+  /settings/history:
+    get:
+      tags: [Settings History]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HistorySettings' }
+    patch:
+      tags: [Settings History]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HistorySettingsPatch' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HistorySettings' }
+
+  /settings/history/clear:
+    post:
+      tags: [Settings History]
+      summary: 히스토리 및 통계 전체 삭제 (Danger)
+      description: 이미지/파일리스트/텍스트 포함 전 데이터 삭제.
+      responses:
+        '200':
+          description: Cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  removedEntries: { type: integer }
+
+  # ========================================================================
+  # Advanced Tab
+  # ========================================================================
+  /settings/advanced/info:
+    get:
+      tags: [Settings Advanced]
+      summary: App 정보 (버전, 스니펫 개수, 보관 기간 등)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdvancedInfo' }
+
+  /settings/advanced/performance:
+    get:
+      tags: [Settings Advanced]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PerformanceSettings' }
+    patch:
+      tags: [Settings Advanced]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PerformanceSettingsPatch' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PerformanceSettings' }
+
+  /settings/advanced/input:
+    get:
+      tags: [Settings Advanced]
+      summary: 입력 설정 (Force Search Input Language 등)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InputSettings' }
+    patch:
+      tags: [Settings Advanced]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InputSettingsPatch' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InputSettings' }
+
+  /settings/advanced/debug:
+    get:
+      tags: [Settings Advanced]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DebugSettings' }
+    patch:
+      tags: [Settings Advanced]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DebugSettingsPatch' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DebugSettings' }
+
+  /settings/advanced/alfred-import:
+    get:
+      tags: [Settings Advanced]
+      summary: Alfred Import 소스 경로 조회
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sourcePath: { type: string, example: "./snippets_r_..._for_import.yml" }
+    put:
+      tags: [Settings Advanced]
+      summary: Alfred Import 소스 경로 변경
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sourcePath]
+              properties:
+                sourcePath: { type: string }
+      responses:
+        '200': { description: OK }
+  /settings/advanced/alfred-import/run:
+    post:
+      tags: [Settings Advanced]
+      summary: Alfred Import 실행
+      responses:
+        '202':
+          description: Accepted, import started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobId: { type: string }
+
+  /settings/advanced/excluded-files/global:
+    get:
+      tags: [Settings Advanced]
+      summary: 전역 제외 파일 목록 조회
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: string }
+                example: ["README.md", "_README.md", "z_old", ".gitignore"]
+  /settings/advanced/excluded-files/global/entries:
+    post:
+      tags: [Settings Advanced]
+      summary: 전역 제외 파일 추가
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [filename]
+              properties:
+                filename: { type: string }
+      responses:
+        '201': { description: Created }
+        '409': { description: Already exists }
+  /settings/advanced/excluded-files/global/entries/{filename}:
+    parameters:
+      - name: filename
+        in: path
+        required: true
+        schema: { type: string }
+    delete:
+      tags: [Settings Advanced]
+      responses:
+        '204': { description: Removed }
+
+  /settings/advanced/api:
+    get:
+      tags: [Settings Advanced]
+      summary: REST API 서버 설정 조회
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RestApiSettings' }
+    patch:
+      tags: [Settings Advanced]
+      summary: REST API 서버 설정 수정
+      description: |
+        `allowExternal=false` 이면 `allowedCidr`은 `127.0.0.1/32`로 강제됨.
+        `enabled` 변경 시 서버 재바인딩 필요.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RestApiSettingsPatch' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RestApiSettings' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  # ========================================================================
+  # Danger Zone
+  # ========================================================================
+  /settings/actions/reset-settings:
+    post:
+      tags: [Settings Actions]
+      summary: 설정만 초기화
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfirmRequest' }
+      responses:
+        '200': { description: Reset }
+        '403': { description: Confirmation mismatch }
+  /settings/actions/reset-snippets:
+    post:
+      tags: [Settings Actions]
+      summary: 스니펫 데이터만 초기화
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfirmRequest' }
+      responses:
+        '200': { description: Reset }
+  /settings/actions/clear-stats:
+    post:
+      tags: [Settings Actions]
+      summary: 통계 삭제
+      responses:
+        '200': { description: Cleared }
+  /settings/actions/factory-reset:
+    post:
+      tags: [Settings Actions]
+      summary: 공장 초기화 (설정+스니펫+통계+히스토리 전부)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfirmRequest' }
+      responses:
+        '200': { description: Factory reset done }
+        '403': { description: Confirmation mismatch }
+
+  # ========================================================================
+  # Snapshot
+  # ========================================================================
+  /settings/snapshot:
+    get:
+      tags: [Settings Snapshot]
+      summary: 전체 설정 스냅샷 조회 (export)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SettingsSnapshot' }
+    put:
+      tags: [Settings Snapshot]
+      summary: 전체 설정 스냅샷 복원 (import, 부분 허용)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SettingsSnapshot' }
+      responses:
+        '200': { description: Restored }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+components:
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    Error:
+      type: object
+      required: [ok, error]
+      properties:
+        ok: { type: boolean, example: false }
+        error:
+          type: object
+          properties:
+            code:    { type: string, example: "invalid_argument" }
+            message: { type: string, example: "triggerBias must be between -10 and 10" }
+
+    # --- General -----------------------------------------------------------
+    TriggerKey:
+      type: object
+      properties:
+        keyCode:   { type: integer, example: 54 }
+        display:   { type: string,  example: "⌘ (right_command)" }
+        token:     { type: string,  example: "{right_command}" }
+
+    GeneralSettings:
+      type: object
+      properties:
+        language:             { type: string }
+        appearance:           { type: string, enum: [system, light, dark] }
+        settingsFolder:       { type: string }
+        snippetFolder:        { type: string }
+        settingsHotkey:       { $ref: '#/components/schemas/Shortcut' }
+        popupHotkey:          { $ref: '#/components/schemas/Shortcut' }
+        triggerKey:           { $ref: '#/components/schemas/TriggerKey' }
+        triggerBias:          { type: integer }
+        quickSelectModifier:  { type: string, enum: [command, option, control, shift] }
+        permissions:
+          type: object
+          properties:
+            accessibility: { type: boolean }
+            automation:    { type: boolean }
+
+    GeneralSettingsPatch:
+      type: object
+      properties:
+        language:             { type: string }
+        appearance:           { type: string, enum: [system, light, dark] }
+        settingsFolder:       { type: string }
+        snippetFolder:        { type: string }
+        triggerBias:          { type: integer, minimum: -10, maximum: 10 }
+        quickSelectModifier:  { type: string, enum: [command, option, control, shift] }
+
+    # --- Popup -------------------------------------------------------------
+    PopupSettings:
+      type: object
+      properties:
+        searchScope:        { type: string, enum: [keyword, keywordName, keywordNameContent] }
+        popupRows:          { type: integer, minimum: 1, maximum: 30, example: 9 }
+        popupWidth:         { type: integer, description: "points", example: 500 }
+        previewWindowWidth: { type: integer, description: "points", example: 400 }
+    PopupSettingsPatch:
+      type: object
+      properties:
+        searchScope:        { type: string, enum: [keyword, keywordName, keywordNameContent] }
+        popupRows:          { type: integer, minimum: 1, maximum: 30 }
+        popupWidth:         { type: integer, minimum: 200, maximum: 2000 }
+        previewWindowWidth: { type: integer, minimum: 0,   maximum: 2000 }
+
+    # --- Behavior ----------------------------------------------------------
+    BehaviorSettings:
+      type: object
+      properties:
+        launchAtLogin:      { type: boolean }
+        hideFromMenuBar:    { type: boolean }
+        showInAppSwitcher:  { type: boolean, description: "Cmd+Tab 노출 여부" }
+        showNotifications:  { type: boolean }
+        playSoundOnReady:   { type: boolean, description: "Ding-Dong" }
+    BehaviorSettingsPatch:
+      type: object
+      properties:
+        launchAtLogin:     { type: boolean }
+        hideFromMenuBar:   { type: boolean }
+        showInAppSwitcher: { type: boolean }
+        showNotifications: { type: boolean }
+        playSoundOnReady:  { type: boolean }
+
+    # --- Shortcut (reused) -------------------------------------------------
+    Shortcut:
+      type: object
+      properties:
+        keyCode:
+          type: integer
+          description: macOS virtual keycode (nullable to represent unset)
+          nullable: true
+        modifiers:
+          type: array
+          items: { type: string, enum: [command, option, control, shift, fn] }
+        display: { type: string, description: "사람이 읽는 표기 (ex: ⌃⇧⌘;)" }
+        token:   { type: string, description: "내부 토큰 (ex: ^⇧⌘;)" }
+
+    # --- Snippet Folder Rules ---------------------------------------------
+    SnippetFolderRule:
+      type: object
+      properties:
+        folder:   { type: string, example: "_emoji" }
+        prefix:   { type: string, nullable: true, example: "," }
+        suffix:   { type: string, nullable: true, example: ",{right_command}" }
+        openable: { type: boolean, description: "Open Folder 버튼 활성" }
+        ruleManaged: { type: boolean, description: "_rule.yml 에 정의됨" }
+    SnippetFolderRulePatch:
+      type: object
+      properties:
+        prefix:   { type: string, nullable: true }
+        suffix:   { type: string, nullable: true }
+        openable: { type: boolean }
+
+    # --- History -----------------------------------------------------------
+    HistorySettings:
+      type: object
+      properties:
+        viewer:
+          type: object
+          properties:
+            showStatusBar:              { type: boolean }
+            showPreviewPanel:           { type: boolean }
+            imageDetailAlwaysOnTop:     { type: boolean }
+            togglePreviewHotkey:        { $ref: '#/components/schemas/Shortcut' }
+            registerAsSnippetHotkey:    { $ref: '#/components/schemas/Shortcut' }
+            historyWindowWidth:         { type: integer, example: 350 }
+            previewWindowWidth:         { type: integer, example: 400 }
+        hotkeysAndFilters:
+          type: object
+          properties:
+            toggleCollectionPauseHotkey: { $ref: '#/components/schemas/Shortcut' }
+            viewerHotkey:                { $ref: '#/components/schemas/Shortcut' }
+            moveDuplicatesToTop:         { type: boolean }
+            excludeImagesFromSearch:     { type: boolean }
+            excludeFileListsFromSearch:  { type: boolean }
+        retention:
+          type: object
+          properties:
+            text:      { type: object, properties: { enabled: { type: boolean }, keepDays: { type: integer, example: 90 } } }
+            images:    { type: object, properties: { enabled: { type: boolean }, keepDays: { type: integer, example: 7 } } }
+            fileLists: { type: object, properties: { enabled: { type: boolean }, keepDays: { type: integer, example: 30 } } }
+
+    HistorySettingsPatch:
+      type: object
+      description: |
+        부분 업데이트 지원. 서브 섹션(`viewer`, `hotkeysAndFilters`, `retention`)만 포함 가능.
+      properties:
+        viewer:              { type: object, additionalProperties: true }
+        hotkeysAndFilters:   { type: object, additionalProperties: true }
+        retention:           { type: object, additionalProperties: true }
+
+    # --- Advanced ----------------------------------------------------------
+    AdvancedInfo:
+      type: object
+      properties:
+        appVersion:             { type: string, example: ".97" }
+        loadedSnippets:         { type: integer, example: 1954 }
+        statisticsRetentionDays: { type: integer, example: 30 }
+
+    PerformanceSettings:
+      type: object
+      properties:
+        keyBufferSize:   { type: integer, example: 100 }
+        searchCacheSize: { type: integer, example: 100 }
+    PerformanceSettingsPatch:
+      type: object
+      properties:
+        keyBufferSize:   { type: integer, minimum: 10, maximum: 10000 }
+        searchCacheSize: { type: integer, minimum: 10, maximum: 10000 }
+
+    InputSettings:
+      type: object
+      properties:
+        forceSearchInputLanguage: { type: string, example: "U.S.", nullable: true }
+    InputSettingsPatch:
+      type: object
+      properties:
+        forceSearchInputLanguage: { type: string, nullable: true }
+
+    DebugSettings:
+      type: object
+      properties:
+        logLevel:              { type: string, enum: [verbose, debug, info, warning, error, critical] }
+        debugLogging:          { type: boolean, description: "flog.log 파일 쓰기 마스터 스위치" }
+        performanceMonitoring: { type: boolean }
+    DebugSettingsPatch:
+      type: object
+      properties:
+        logLevel:              { type: string, enum: [verbose, debug, info, warning, error, critical] }
+        debugLogging:          { type: boolean }
+        performanceMonitoring: { type: boolean }
+
+    RestApiSettings:
+      type: object
+      properties:
+        enabled:       { type: boolean }
+        port:          { type: integer, example: 3015 }
+        allowExternal: { type: boolean }
+        allowedCidr:   { type: string, example: "127.0.0.1/32" }
+        running:       { type: boolean, description: "현재 서버 기동 여부" }
+    RestApiSettingsPatch:
+      type: object
+      properties:
+        enabled:       { type: boolean }
+        port:          { type: integer, minimum: 1024, maximum: 65535 }
+        allowExternal: { type: boolean }
+        allowedCidr:   { type: string }
+
+    # --- Snapshot / Confirm -----------------------------------------------
+    SettingsSnapshot:
+      type: object
+      description: 모든 Settings 섹션의 집계 스냅샷. 부분 필드도 허용(PUT 시 누락된 섹션은 유지).
+      properties:
+        version:   { type: string, example: "2.0.0" }
+        exportedAt: { type: string, format: date-time }
+        general:   { $ref: '#/components/schemas/GeneralSettings' }
+        popup:     { $ref: '#/components/schemas/PopupSettings' }
+        behavior:  { $ref: '#/components/schemas/BehaviorSettings' }
+        history:   { $ref: '#/components/schemas/HistorySettings' }
+        advanced:
+          type: object
+          properties:
+            performance: { $ref: '#/components/schemas/PerformanceSettings' }
+            input:       { $ref: '#/components/schemas/InputSettings' }
+            debug:       { $ref: '#/components/schemas/DebugSettings' }
+            api:         { $ref: '#/components/schemas/RestApiSettings' }
+            globalExcludedFiles:
+              type: array
+              items: { type: string }
+        snippetFolders:
+          type: array
+          items: { $ref: '#/components/schemas/SnippetFolderRule' }
+        perFolderExcludedFiles:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+
+    ConfirmRequest:
+      type: object
+      required: [confirm]
+      properties:
+        confirm:
+          type: string
+          description: "파괴적 동작 확인 문자열. 반드시 'YES-I-KNOW' 이어야 함."
+          example: "YES-I-KNOW"
