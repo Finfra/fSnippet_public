@@ -138,6 +138,16 @@ class APIRouter {
       return handleV2GetInput()
     case ("PATCH", "/api/v2/settings/advanced/input"):
       return handleV2PatchInput(request: request)
+    // Danger Zone — Settings Actions
+    case ("POST", "/api/v2/settings/actions/reset-settings"):
+      return handleV2ActionResetSettings(request: request)
+    case ("POST", "/api/v2/settings/actions/reset-snippets"):
+      return handleV2ActionResetSnippets(request: request)
+    case ("POST", "/api/v2/settings/actions/clear-stats"):
+      return handleV2ActionClearStats(request: request)
+    case ("POST", "/api/v2/settings/actions/factory-reset"):
+      return handleV2ActionFactoryReset(request: request)
+
     // Excluded files — global (Advanced tab)
     case ("GET", "/api/v2/settings/advanced/excluded-files/global"):
       return handleV2GetGlobalExcluded()
@@ -335,6 +345,72 @@ class APIRouter {
     }
     let body = "{\"ok\":true,\"data\":{\"folder\":\"\(folder)\",\"status\":\"accepted\"}}"
     return APIServer.HTTPResponse(statusCode: 202, body: body)
+  }
+
+  // MARK: - v2 Danger Zone handlers
+  // 모든 Danger Zone 은:
+  //   1) localhost 강제 (requireLocalWrite)
+  //   2) ConfirmRequest 의 confirm == "YES-I-KNOW" 필수 (clear-stats 는 spec 상 예외)
+  //   3) 불일치 시 403 forbidden 반환 (spec §"제약")
+
+  private static let v2ConfirmToken = "YES-I-KNOW"
+
+  private func requireV2Confirm(_ request: APIServer.HTTPRequest) -> APIServer.HTTPResponse? {
+    let (maybe, err) = decodeV2Body(request, as: APIV2ConfirmRequest.self)
+    if let err = err { return err }
+    guard let req = maybe else {
+      return v2Error(code: "internal", message: "decode failed", statusCode: 500)
+    }
+    if req.confirm != APIRouter.v2ConfirmToken {
+      return v2Error(
+        code: "forbidden",
+        message: "confirm token mismatch (expected \"\(APIRouter.v2ConfirmToken)\")",
+        statusCode: 403
+      )
+    }
+    return nil
+  }
+
+  private func v2ActionSuccess(_ action: String) -> APIServer.HTTPResponse {
+    let body = "{\"ok\":true,\"data\":{\"action\":\"\(action)\",\"status\":\"done\"}}"
+    return APIServer.HTTPResponse(statusCode: 200, body: body)
+  }
+
+  private func handleV2ActionResetSettings(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    if let err = requireV2Confirm(request) { return err }
+    DispatchQueue.main.async {
+      SettingsObservableObject.shared.resetSettingsOnly()
+    }
+    return v2ActionSuccess("reset-settings")
+  }
+
+  private func handleV2ActionResetSnippets(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    if let err = requireV2Confirm(request) { return err }
+    DispatchQueue.main.async {
+      SettingsObservableObject.shared.resetSnippetsDataOnly()
+    }
+    return v2ActionSuccess("reset-snippets")
+  }
+
+  private func handleV2ActionClearStats(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    // spec 상 ConfirmRequest 불필요. body 생략 허용.
+    SnippetUsageManager.shared.deleteAllHistory()
+    return v2ActionSuccess("clear-stats")
+  }
+
+  private func handleV2ActionFactoryReset(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    if let err = requireV2Confirm(request) { return err }
+    // spec §"Factory Reset: 응답 선전송 후 내부 상태 초기화"
+    // 먼저 응답을 만들고, 실제 파괴 작업은 약간 지연 후 main 큐에서 수행.
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+      SettingsObservableObject.shared.resetToDefaults(includeSnippets: true)
+      SnippetUsageManager.shared.deleteAllHistory()
+    }
+    return v2ActionSuccess("factory-reset")
   }
 
   // MARK: - v2 Excluded Files handlers
