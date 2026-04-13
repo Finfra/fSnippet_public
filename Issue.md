@@ -19,28 +19,6 @@ date: 2026-04-07
 
 # 📙 일반
 
-## Issue32: _tool 폴더 v1/v2 구조 정비 및 cmdTest v2 스크립트 신규 작성 (등록: 2026-04-13)
-
-* 목적: `cli/_tool` 폴더를 `api_v2_plan.md` 기준 및 fWarrange 레퍼런스 구조에 맞게 정비
-* 상세:
-    - `apiTest/v1/apiTest_plan_v1.md` → `apiTest/apiTest_plan_v1.md` 로 이동 (fWarrange 레퍼런스 정합)
-    - `apiTest/apiTest_plan_v2.md` 신규 작성 (v2 엔드포인트 커버리지 정리)
-    - `cmdTest/` flat 구조 → `cmdTest/v1/` + `cmdTest/v2/` 분리 (fWarrange 레퍼런스 정합)
-    - `cmdTest/cmdTest_plan.md` → `cmdTest/cmdTest_plan_v1.md` 로 이름 변경
-    - `cmdTest/cmdTest_plan_v2.md` 신규 작성
-    - `cmdTest/v2/` 하위에 `api_v2_plan.md` settings 엔드포인트 기반 v2 cmdTest 스크립트 신규 작성
-        - settings get/patch (general, popup, behavior, shortcuts, snippet-folders)
-        - settings snapshot export/import
-        - 에러 케이스 (서비스 미실행, 잘못된 인자 등)
-* 구현 명세:
-    - `cli/_tool/apiTest/apiTest_plan_v1.md` (이동)
-    - `cli/_tool/apiTest/apiTest_plan_v2.md` (신규)
-    - `cli/_tool/cmdTest/v1/` (기존 스크립트 이동, `cmdTestDo.sh` 포함)
-    - `cli/_tool/cmdTest/v2/` (신규 스크립트 작성)
-    - `cli/_tool/cmdTest/cmdTest_plan_v1.md` (rename)
-    - `cli/_tool/cmdTest/cmdTest_plan_v2.md` (신규)
-    - `cli/_tool/cmdTestDo.sh` 루트 실행기 v1|v2|all 인자 지원 확인/업데이트
-
 # 📗 선택
 
 ## Issue28: expand 응답 제어문자 이스케이프 처리 — jq 호환성 (등록: 2026-04-08, 해결: 2026-04-09, commit: a4556d2) ✅
@@ -53,6 +31,19 @@ date: 2026-04-07
     - apiTest 30/30 PASS, jq/python3 JSON 파싱 정상
 
 # ✅ 완료
+
+## Issue32: _tool 폴더 v1/v2 구조 정비 및 cmdTest v2 스크립트 신규 작성 (등록: 2026-04-13, 해결: 2026-04-13, commit: 47bcd29) ✅
+
+* 목적: `cli/_tool` 폴더를 `api_v2_plan.md` 기준 및 fWarrange 레퍼런스 구조에 맞게 정비
+* 구현 명세:
+    - `apiTest/apiTest_plan_v1.md` (v1/ → 루트 이동), `apiTest_plan_v2.md` 신규 작성
+    - `cmdTest/` flat 구조 → `v1/` (기존 스크립트 이동) + `v2/` (settings 신규) 분리
+    - `cmdTest/cmdTest_plan.md` → `cmdTest_plan_v1.md` rename, `cmdTest_plan_v2.md` 신규
+    - `cmdTest/v2/`: 00~11 정상 케이스 + E01~E03 에러 케이스 (settings 서브커맨드 기반)
+    - `cmdTestDo.sh`: v1|v2|all|단건 인자 지원으로 업데이트 (apiTestDo.sh 동일 패턴)
+* 검증:
+    - 전체 48 files changed, 628 insertions, 103 deletions
+    - git rename 정상 감지 (R 표시)
 
 ## Issue31: CLI 바이너리 v2 settings 서브커맨드 구현 (등록: 2026-04-13, 해결: 2026-04-13, commit: fda3595) ✅
 
