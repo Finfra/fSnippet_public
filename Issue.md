@@ -6,14 +6,26 @@ date: 2026-04-07
 
 # Issue Management
 
-- Issue HWM: 32
+- Issue HWM: 33
 - Save Point: - 2026-04-13 (ed3ae75)
 
 # 🤔 결정사항
 
 # 🌱 이슈후보
 1. all clear test할 것. _config.yml기본 값 확인
+2. "[2026-04-13 21:00:20.565] ⚠️ WARNING: 🎨 [KeyRenderingManager] visual_key_definitions.json not found in Bundle." 시작로그 워닝 제거
+
 # 🚧 진행중
+
+## Issue33: v1 제거 대비 v2 슈퍼셋 전환 (스니펫/클립보드/통계/CLI 엔드포인트 v2 편입)
+
+* 목적: 향후 v1 API 제거 시 클라이언트가 v2로 마이그레이션 가능하도록, v2를 v1의 슈퍼셋으로 전환
+* 상세: 현재 v2는 Settings CRUD 전용이고 v1이 스니펫/클립보드/통계/CLI 등을 담당. v1 제거 후에도 모든 기능을 v2에서 제공해야 함
+* 구현 명세:
+    - `api/openapi_v2.yaml`: v1의 스니펫(CRUD), 클립보드, 폴더, 통계, 트리거, CLI 제어, reload, import, health check 엔드포인트 추가 + tags 확장
+    - `cli/fSnippetCli/Managers/APIRouter.swift`: 모든 `/api/v1/` 라우트를 `/api/v2/` prefix로 복제 (기존 핸들러 함수 재사용)
+    - `cli/_tool/cmdTest/v2/`: v1 기능 커버리지 테스트 스크립트 신규 추가 (snippet, clipboard, folder, stats, trigger, cli, reload)
+    - `cli/README.md`: v2 슈퍼셋 전환 내용 반영
 
 # 📕 중요
 
@@ -21,14 +33,7 @@ date: 2026-04-07
 
 # 📗 선택
 
-## Issue28: expand 응답 제어문자 이스케이프 처리 — jq 호환성 (등록: 2026-04-08, 해결: 2026-04-09, commit: a4556d2) ✅
 
-* 목적: expand API 응답에서 제어문자가 포함될 때 jq 파싱이 실패하는 문제 해결
-* 구현 명세:
-    - `APIRouter.jsonResponse()`: Data→String→Data 왕복 변환 제거, 원본 Data 직접 전달
-    - `APIServer.HTTPResponse`: `bodyData` 프로퍼티 추가
-* 검증:
-    - apiTest 30/30 PASS, jq/python3 JSON 파싱 정상
 
 # ✅ 완료
 
@@ -79,7 +84,14 @@ date: 2026-04-07
 * 검증:
     - v2 apiTest 스크립트 전체 PASS (v2/ 디렉터리 기준)
 
+## Issue28: expand 응답 제어문자 이스케이프 처리 — jq 호환성 (등록: 2026-04-08, 해결: 2026-04-09, commit: a4556d2) ✅
 
+* 목적: expand API 응답에서 제어문자가 포함될 때 jq 파싱이 실패하는 문제 해결
+* 구현 명세:
+    - `APIRouter.jsonResponse()`: Data→String→Data 왕복 변환 제거, 원본 Data 직접 전달
+    - `APIServer.HTTPResponse`: `bodyData` 프로퍼티 추가
+* 검증:
+    - apiTest 30/30 PASS, jq/python3 JSON 파싱 정상
 ## Issue27: CRUD API 엔드포인트 추가 — 폴더/스니펫 생성/삭제 (등록: 2026-04-08, 해결: 2026-04-09, commit: a4556d2) ✅
 
 * 목적: REST API를 통한 폴더 및 스니펫의 CRUD(생성/삭제) 기능 추가
