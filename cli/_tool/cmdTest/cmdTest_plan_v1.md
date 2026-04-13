@@ -1,17 +1,21 @@
 ---
-name: cmdTest_plan
-description: fSnippetCli CLI 커맨드 테스트 계획 (cmd_design.md 기반)
-date: 2026-04-08
+name: cmdTest_plan_v1
+description: fSnippetCli CLI v1 커맨드 테스트 계획 (cmd_design.md 기반)
+date: 2026-04-13
 ---
 
 # 디렉토리 구조
 
 ```
 cli/_tool/cmdTest/
-├── cmdTestDo.sh                    ← 실행기 (전체 또는 단건)
-├── cmdTest_plan.md                 ← 본 문서
-├── 00.help.sh ~ 19.*.sh           ← 정상 케이스
-└── E01.*.sh ~ E06.*.sh            ← 에러 케이스
+├── cmdTestDo.sh                    ← 실행기 (v1|v2|all|단건)
+├── cmdTest_plan_v1.md              ← 본 문서 (v1 계획)
+├── cmdTest_plan_v2.md              ← v2 계획
+├── v1/                             ← v1 테스트 스크립트
+│   ├── cmdTestDo.sh                ← v1 전용 실행기
+│   ├── 00.help.sh ~ 23.*.sh       ← 정상 케이스 (24개)
+│   └── E01.*.sh ~ E06.*.sh        ← 에러 케이스 (6개)
+└── v2/                             ← v2 테스트 스크립트 (settings)
 ```
 
 # 파일명 규칙
@@ -27,18 +31,30 @@ E{01~99}.{내역}.sh      ← 에러 케이스
 # 실행 방법
 
 ```bash
-# 전체 순서대로 실행
-source cli/_tool/cmdTest/cmdTestDo.sh
+# v1 전체 실행 (기본)
+bash cli/_tool/cmdTest/cmdTestDo.sh
+bash cli/_tool/cmdTest/cmdTestDo.sh v1
 
-# 특정 번호만 실행
-source cli/_tool/cmdTest/cmdTestDo.sh 0     # → 00.help.sh
-source cli/_tool/cmdTest/cmdTestDo.sh 5     # → 05.snippet-search.sh
+# v2 전체 실행
+bash cli/_tool/cmdTest/cmdTestDo.sh v2
+
+# 전체 (v1 + v2)
+bash cli/_tool/cmdTest/cmdTestDo.sh all
+
+# v1 특정 번호만 실행
+bash cli/_tool/cmdTest/cmdTestDo.sh 0     # → v1/00.help.sh
+bash cli/_tool/cmdTest/cmdTestDo.sh 5     # → v1/05.snippet-search.sh
+bash cli/_tool/cmdTest/cmdTestDo.sh v2 3  # → v2/03.*.sh
 ```
 
 # cmdTestDo.sh 동작
 
-* 인자 없음: `[0-9]*.sh`, `E*.sh` 를 번호순 정렬 후 전체 실행
-* 인자 있음(숫자): `{00~99}.*.sh` 패턴 매칭하여 해당 스크립트만 실행 (0 → 00으로 자동 패딩)
+* 인자 없음: v1 전체 실행 (기본)
+* `v1`: v1/[0-9]*.sh, v1/E*.sh 번호순 전체 실행
+* `v2`: v2/[0-9]*.sh, v2/E*.sh 번호순 전체 실행
+* `all`: v1 전체 → v2 전체 순서
+* 숫자 인자: v1/{00~99}.*.sh 실행 (0 → 00으로 자동 패딩)
+* `v2 숫자`: v2/{00~99}.*.sh 실행
 
 # 전제 조건
 

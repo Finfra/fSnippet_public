@@ -1,13 +1,17 @@
 #!/bin/bash
-# cmdTestDo.sh - CLI 커맨드 테스트 실행기
+# cmdTestDo.sh - CLI 커맨드 테스트 실행기 (v1/v2 분리 지원)
 # Usage:
-#   bash cli/_tool/cmdTest/cmdTestDo.sh        # 전체 순서대로 실행
-#   bash cli/_tool/cmdTest/cmdTestDo.sh 0      # 00.help.sh 만 실행
-#   source cli/_tool/cmdTestDo.sh 0            # wrapper 경유 실행
-# 파일명: 00~99 두 자리, E01~E99 에러 케이스
+#   bash cli/_tool/cmdTest/cmdTestDo.sh              # v1 전체 (기본)
+#   bash cli/_tool/cmdTest/cmdTestDo.sh v1           # v1만
+#   bash cli/_tool/cmdTest/cmdTestDo.sh v2           # v2만
+#   bash cli/_tool/cmdTest/cmdTestDo.sh all          # v1 + v2 전체
+#   bash cli/_tool/cmdTest/cmdTestDo.sh 5            # v1/05.*.sh 실행
+#   bash cli/_tool/cmdTest/cmdTestDo.sh v2 3         # v2/03.*.sh 실행
+#   bash cli/_tool/cmdTest/cmdTestDo.sh v1 E         # v1 에러 전체
+#   bash cli/_tool/cmdTest/cmdTestDo.sh v2 E01       # v2/E01.*.sh 실행
 
 # source 호환: BASH_SOURCE 우선, fallback으로 $0
-if [ -n "${BASH_SOURCE[0]}" ]; then
+if [ -n "${BASH_SOURCE[0]:-}" ]; then
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 else
   SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -34,40 +38,102 @@ fi
 echo "📍 CLI: $CLI"
 echo
 
-if [ -n "$1" ]; then
-  # 단건 실행: 숫자 → 00 패딩
-  NUM=$(printf '%02d' "$1" 2>/dev/null)
-  MATCHED=$(ls "$SCRIPT_DIR"/"$NUM".*.sh 2>/dev/null)
-  if [ -z "$MATCHED" ]; then
-    # E 에러 케이스 매칭 시도
-    MATCHED=$(ls "$SCRIPT_DIR"/E"$NUM".*.sh 2>/dev/null)
-  fi
-  if [ -z "$MATCHED" ]; then
-    echo "❌ $NUM.*.sh 또는 E$NUM.*.sh 를 찾을 수 없음"
-    return 1 2>/dev/null || exit 1
-  fi
-  echo "=== $(basename "$MATCHED") ==="
-  bash "$MATCHED"
-else
-  # 전체 실행: 정상 + 에러 케이스 순서대로
-  PASS=0
-  FAIL=0
-  TOTAL=0
-  for f in $(ls "$SCRIPT_DIR"/[0-9]*.sh "$SCRIPT_DIR"/E*.sh 2>/dev/null \
-    | grep -v 'cmdTestDo' \
-    | awk -F'/' '{print $NF" "$0}' | sort | awk '{print $2}'); do
-    TOTAL=$((TOTAL + 1))
+run_normal() {
+  local dir="$1"
+  local pass=0 fail=0 total=0
+  for f in $(ls "$dir"/[0-9]*.sh 2>/dev/null \
+    | awk -F'/' '{print $NF" "$0}' | sort -V | awk '{print $2}'); do
+    total=$((total + 1))
     echo "=== $(basename "$f") ==="
     bash "$f"
-    RC=$?
-    if [ $RC -eq 0 ]; then
-      PASS=$((PASS + 1))
-    else
-      FAIL=$((FAIL + 1))
-    fi
+    if [ $? -eq 0 ]; then pass=$((pass + 1)); else fail=$((fail + 1)); fi
     echo
   done
   echo "==============================="
-  echo "결과: 전체=$TOTAL  성공=$PASS  실패=$FAIL"
+  echo "결과: 전체=$total  성공=$pass  실패=$fail"
   echo "==============================="
+}
+
+run_error() {
+  local dir="$1"
+  local pass=0 fail=0 total=0
+  for f in $(ls "$dir"/E*.sh 2>/dev/null | sort); do
+    total=$((total + 1))
+    echo "=== $(basename "$f") ==="
+    bash "$f"
+    if [ $? -eq 0 ]; then pass=$((pass + 1)); else fail=$((fail + 1)); fi
+    echo
+  done
+  echo "==============================="
+  echo "결과: 전체=$total  성공=$pass  실패=$fail"
+  echo "==============================="
+}
+
+run_single() {
+  local dir="$1"
+  local arg="$2"
+  local ver="$3"
+  # E 에러 케이스 전체
+  if [ "$arg" = "E" ] || [ "$arg" = "e" ]; then
+    run_error "$dir"
+    return
+  fi
+  # E01 등 특정 에러
+  if [[ "$arg" =~ ^E[0-9] ]]; then
+    MATCHED=$(ls "$dir"/"$arg".*.sh 2>/dev/null)
+    if [ -z "$MATCHED" ]; then
+      echo "❌ [$ver] $arg.*.sh 를 찾을 수 없음"
+      return 1
+    fi
+    echo "=== [$ver] $(basename "$MATCHED") ==="
+    bash "$MATCHED"
+    return
+  fi
+  # 숫자 → 00 패딩
+  NUM=$(printf '%02d' "$arg" 2>/dev/null)
+  MATCHED=$(ls "$dir"/"$NUM".*.sh 2>/dev/null)
+  if [ -z "$MATCHED" ]; then
+    echo "❌ [$ver] $NUM.*.sh 를 찾을 수 없음"
+    return 1
+  fi
+  echo "=== [$ver] $(basename "$MATCHED") ==="
+  bash "$MATCHED"
+}
+
+# 인자 파싱
+VERSION="${1:-v1}"
+TEST_ARG="${2:---all}"
+
+# v1/v2/all 이외 값이 버전으로 넘어온 경우 처리
+if [[ ! "$VERSION" =~ ^(v1|v2|all)$ ]]; then
+  TEST_ARG="$VERSION"
+  VERSION="v1"
+fi
+
+if [ "$VERSION" = "all" ]; then
+  echo "📋 v1 정상 테스트..."
+  run_normal "$SCRIPT_DIR/v1"
+  echo ""
+  echo "📋 v1 에러 테스트..."
+  run_error "$SCRIPT_DIR/v1"
+  echo ""
+  echo "📋 v2 정상 테스트..."
+  run_normal "$SCRIPT_DIR/v2"
+  echo ""
+  echo "📋 v2 에러 테스트..."
+  run_error "$SCRIPT_DIR/v2"
+else
+  BASE="$SCRIPT_DIR/$VERSION"
+  if [ ! -d "$BASE" ]; then
+    echo "❌ $BASE 디렉터리 없음"
+    return 1 2>/dev/null || exit 1
+  fi
+  if [ "$TEST_ARG" = "--all" ]; then
+    run_normal "$BASE"
+    echo ""
+    echo "📋 에러 케이스..."
+    run_error "$BASE"
+  else
+    run_single "$BASE" "$TEST_ARG" "$VERSION"
+  fi
 fi

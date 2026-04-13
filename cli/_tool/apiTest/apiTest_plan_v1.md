@@ -1,17 +1,22 @@
 ---
-name: apiTest_plan
-description: openapi.yaml 기반 API 테스트 스크립트 생성 계획
-date: 2026-04-07
+name: apiTest_plan_v1
+description: openapi_v1.yaml 기반 API v1 테스트 스크립트 계획
+date: 2026-04-13
 ---
 
 # 디렉토리 구조
 
 ```
 cli/_tool/apiTest/
-├── apiTestDo.sh                    ← 실행기 (전체 또는 단건)
-├── apiTest_plan.md                 ← 본 문서
-├── 00.health.sh ~ 29.*.sh          ← 정상 케이스 (30개)
-└── E01.*.sh ~ E08.*.sh             ← 에러 케이스 (8개)
+├── apiTestDo.sh                    ← 실행기 (v1|v2|all|단건)
+├── apiTest_plan_v1.md              ← 본 문서 (v1 계획)
+├── apiTest_plan_v2.md              ← v2 계획
+├── v1/                             ← v1 테스트 스크립트
+│   ├── 00.health.sh ~ 29.*.sh     ← 정상 케이스 (30개)
+│   └── E01.*.sh ~ E08.*.sh        ← 에러 케이스 (8개)
+└── v2/                             ← v2 테스트 스크립트
+    ├── 00.*.sh ~ 60.*.sh           ← 정상 케이스
+    └── E00.*.sh ~ E06.*.sh         ← 에러 케이스
 ```
 
 # 파일명 규칙
@@ -27,18 +32,29 @@ E{01~99}.{내역}.sh      ← 에러 케이스
 # 실행 방법
 
 ```bash
-# 전체 순서대로 실행
-source cli/_tool/apiTestDo.sh
+# v1 전체 실행 (기본)
+bash cli/_tool/apiTest/apiTestDo.sh
+bash cli/_tool/apiTest/apiTestDo.sh v1
 
-# 특정 번호만 실행
-source cli/_tool/apiTestDo.sh 0     # → 00.hello.sh
-source cli/_tool/apiTestDo.sh 3     # → 03.snippets-search.sh
+# v2 전체 실행
+bash cli/_tool/apiTest/apiTestDo.sh v2
+
+# 전체 (v1 + v2)
+bash cli/_tool/apiTest/apiTestDo.sh all
+
+# v1 특정 번호 실행
+bash cli/_tool/apiTest/apiTestDo.sh 5      # → v1/05.*.sh
+bash cli/_tool/apiTest/apiTestDo.sh v2 5   # → v2/05.*.sh
 ```
 
-# apiTestDo.sh 동작
+# 공통 변수
 
-* 인자 없음: `[0-9]*.sh`, `E*.sh` 를 번호순 정렬 후 전체 실행 (17.cli-quit은 마지막)
-* 인자 있음(숫자): `{00~99}.*.sh` 패턴 매칭하여 해당 스크립트만 실행 (0 → 00으로 자동 패딩)
+```bash
+BASE="http://localhost:3015/api/v1"
+```
+
+* `00.health.sh`만 `http://localhost:3015/` (루트) 대상
+* 나머지는 모두 `$BASE` prefix 사용
 
 # 테스트 스크립트 목록
 
@@ -72,10 +88,10 @@ source cli/_tool/apiTestDo.sh 3     # → 03.snippets-search.sh
 |   23 | `23.clipboard-history-pinned.sh` | GET    | `/clipboard/history?pinned=true`             | Clipboard |
 |   24 | `24.stats-history-date.sh`       | GET    | `/stats/history?from=...&to=...`             | Stats     |
 |   25 | `25.snippets-expand-placeholder.sh` | POST | `/snippets/expand` + `placeholder_values`   | Snippets  |
-|   26 | `26.folders-create.sh`               | POST   | `/folders`                                   | Folders   |
-|   27 | `27.folders-delete.sh`               | DELETE | `/folders/{name}`                            | Folders   |
-|   28 | `28.snippets-create.sh`              | POST   | `/snippets`                                  | Snippets  |
-|   29 | `29.snippets-delete.sh`              | DELETE | `/snippets/{id}`                             | Snippets  |
+|   26 | `26.folders-create.sh`           | POST   | `/folders`                                   | Folders   |
+|   27 | `27.folders-delete.sh`           | DELETE | `/folders/{name}`                            | Folders   |
+|   28 | `28.snippets-create.sh`          | POST   | `/snippets`                                  | Snippets  |
+|   29 | `29.snippets-delete.sh`          | DELETE | `/snippets/{id}`                             | Snippets  |
 
 ## 에러 케이스 (8개)
 
@@ -90,18 +106,9 @@ source cli/_tool/apiTestDo.sh 3     # → 03.snippets-search.sh
 | `E07.snippets-create-no-folder.sh`  |        404 | 존재하지 않는 폴더에 스니펫   |
 | `E08.snippets-delete-404.sh`        |        404 | 존재하지 않는 스니펫 삭제     |
 
-# 공통 변수
-
-```bash
-BASE="http://localhost:3015/api/v1"
-```
-
-* `00.health.sh`만 `http://localhost:3015/` (루트) 대상
-* 나머지는 모두 `$BASE` prefix 사용
-
 # apiTest ↔ cmdTest 교차 비교
 
-| 기능             | apiTest                  | cmdTest                  | 비고                          |
+| 기능             | apiTest v1               | cmdTest v1               | 비고                          |
 | :--------------- | :----------------------- | :----------------------- | :---------------------------- |
 | Health check     | 00.health                | -                        | API 전용 (CLI에 대응 없음)    |
 | Settings/Config  | 01.settings              | 18.config, 19.config-json | 동일 데이터, 다른 포맷       |
@@ -110,22 +117,13 @@ BASE="http://localhost:3015/api/v1"
 | Snippet by-abbr  | 04.snippets-by-abbrev    | -                        | CLI 미구현                    |
 | Snippet detail   | 05.snippets-detail       | 06.snippet-get           | ✅ 대응                       |
 | Snippet expand   | 06.snippets-expand       | 07.snippet-expand        | ✅ 대응                       |
-| Snippet expand+placeholder | 25.snippets-expand-placeholder | -              | placeholder_values 파라미터  |
-| Snippet folder filter | 19.snippets-list-folder | -                       | folder 파라미터              |
-| Search folder filter | 20.snippets-search-folder | -                      | search + folder 파라미터     |
-| Snippet limit    | -                        | 08.snippet-list-limit    | API에서는 02에서 limit 사용   |
-| Snippet JSON     | -                        | 09.snippet-list-json     | API는 항상 JSON               |
 | Clipboard list   | 07.clipboard-history     | 10.clipboard-list        | ✅ 대응                       |
 | Clipboard detail | 08.clipboard-detail      | 11.clipboard-get         | ✅ 대응                       |
 | Clipboard search | 09.clipboard-search      | 12.clipboard-search      | ✅ 대응                       |
-| Clipboard kind   | 21.clipboard-history-kind | -                       | kind 파라미터                |
-| Clipboard app    | 22.clipboard-history-app  | -                       | app 파라미터                 |
-| Clipboard pinned | 23.clipboard-history-pinned | -                     | pinned 파라미터              |
 | Folder list      | 10.folders-list          | 13.folder-list           | ✅ 대응                       |
 | Folder detail    | 11.folders-detail        | 14.folder-get            | ✅ 대응                       |
 | Stats top        | 12.stats-top             | 15.stats-top             | ✅ 대응                       |
 | Stats history    | 13.stats-history         | 16.stats-history         | ✅ 대응                       |
-| Stats date range | 24.stats-history-date    | -                        | from/to 파라미터             |
 | Triggers         | 14.triggers              | 17.trigger               | ✅ 대응                       |
 | CLI status       | 15.cli-status            | 03.status                | ✅ 대응                       |
 | CLI version      | 16.cli-version           | 01.version, 02.version-short | ✅ 대응                  |
@@ -136,15 +134,4 @@ BASE="http://localhost:3015/api/v1"
 | Snippet create   | 28.snippets-create       | -                        | CRUD: POST /snippets          |
 | Snippet delete   | 29.snippets-delete       | -                        | CRUD: DELETE /snippets/{id}   |
 | Help             | -                        | 00.help                  | CLI 전용                      |
-
-# openapi.yaml ↔ Swift 구현 검증 결과
-
-| 영역     | 결과    | 비고                                           |
-| :------- | :------ | :--------------------------------------------- |
-| Snippets  | ✅ 일치 | 7개 엔드포인트 모두 정확 (CRUD 포함)           |
-| Clipboard | ✅ 일치 | 3개 엔드포인트 모두 정확                       |
-| Folders   | ✅ 일치 | 4개 엔드포인트 모두 정확 (CRUD 포함)           |
-| Stats    | ⚠️ 부분 | `/stats/top` description 필드 값 로직 부정확   |
-| Triggers | ✅ 일치 | -                                              |
-| CLI      | ⚠️ 모델 | Codable 구조체 미정의 (JSONSerialization 사용) |
-| Import   | ⚠️ 모델 | Request/Response Codable 모델 미정의           |
+| Settings v2      | → apiTest_plan_v2.md 참조 | → cmdTest_plan_v2.md 참조 | v2 API/CLI 대응               |
