@@ -15,7 +15,9 @@ The API exposes snippet search/expansion, clipboard history, usage statistics, a
 | Default Port | 3015                                                    |
 | API Enabled  | OFF by default (must be explicitly enabled in Settings) |
 | Binding      | `127.0.0.1` (localhost only) by default                 |
-> OpenAPI 3.0 spec: [openapi.yaml](./openapi.yaml)
+> OpenAPI 3.0 specs:
+> - v1 (read operations): [openapi_v1.yaml](./openapi_v1.yaml)
+> - v2 (settings CRUD): [openapi_v2.yaml](./openapi_v2.yaml)
 
 ---
 
@@ -285,6 +287,126 @@ GET /api/triggers
   }
 }
 ```
+
+---
+
+# v2 API — Settings CRUD (Advanced)
+
+The v2 API provides comprehensive read/write access to all fSnippet settings, enabling full-featured remote configuration and automation.
+
+## Security & Constraints
+
+- **Write Protection**: All PATCH/PUT/POST/DELETE operations are restricted to localhost (`127.0.0.1`).
+- **Confirmation Guard**: Destructive operations (reset-settings, reset-snippets, factory-reset) require a confirmation token in the request body.
+- **Partial Updates**: All PATCH endpoints support partial updates — only provide the fields you want to change.
+
+### Confirmation Guard Pattern
+
+```json
+// Request
+POST /api/v2/settings/actions/factory-reset
+{
+  "confirm": "YES-I-KNOW"
+}
+
+// Response (403 if wrong confirm)
+{
+  "ok": false,
+  "error": {
+    "code": "confirmation_mismatch",
+    "message": "Confirmation token does not match",
+    "statusCode": 403
+  }
+}
+```
+
+## Common v2 Response Format
+
+**Success**:
+```json
+{
+  "ok": true,
+  "data": { ... }
+}
+```
+
+**Error**:
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "invalid_argument",
+    "message": "...",
+    "statusCode": 400
+  }
+}
+```
+
+## Example: Update Popup Settings
+
+```bash
+# PATCH /api/v2/settings/popup
+curl -X PATCH http://localhost:3015/api/v2/settings/popup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "popupRows": 8,
+    "searchScope": "keyword"
+  }'
+
+# Response (200)
+{
+  "ok": true,
+  "data": {
+    "searchScope": "keyword",
+    "popupRows": 8,
+    "popupWidth": 350,
+    "previewWindowWidth": 400
+  }
+}
+```
+
+## Example: Add Excluded File
+
+```bash
+# POST /api/v2/settings/advanced/excluded-files/global/entries
+curl -X POST http://localhost:3015/api/v2/settings/advanced/excluded-files/global/entries \
+  -H "Content-Type: application/json" \
+  -d '{"filename": ".DS_Store"}'
+
+# Response (201 created) / (409 duplicate)
+```
+
+## Example: Snapshot Export & Restore
+
+```bash
+# Export settings
+curl http://localhost:3015/api/v2/settings/snapshot > backup.json
+
+# Restore (partial)
+curl -X PUT http://localhost:3015/api/v2/settings/snapshot \
+  -H "Content-Type: application/json" \
+  -d '{
+    "version": "2.0.0",
+    "general": {...},
+    "popup": {...}
+  }'
+
+# Response (204 no content)
+```
+
+## Example: Async Job (Alfred Import)
+
+```bash
+# Start import job (returns immediately)
+curl -X POST http://localhost:3015/api/v2/settings/advanced/alfred-import/run
+
+# Response (202 accepted)
+{
+  "jobId": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+For complete endpoint reference, see [openapi_v2.yaml](./openapi_v2.yaml).
 
 ---
 
