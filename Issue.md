@@ -17,17 +17,6 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue33: v1 제거 대비 v2 슈퍼셋 전환 (스니펫/클립보드/통계/CLI 엔드포인트 v2 편입)
-
-* 태스크 파일: [`cli/_doc_work/tasks/issue33_task.md`](cli/_doc_work/tasks/issue33_task.md)
-* 목적: 향후 v1 API 제거 시 클라이언트가 v2로 마이그레이션 가능하도록, v2를 v1의 슈퍼셋으로 전환
-* 상세: 현재 v2는 Settings CRUD 전용이고 v1이 스니펫/클립보드/통계/CLI 등을 담당. v1 제거 후에도 모든 기능을 v2에서 제공해야 함
-* 구현 명세:
-    - `api/openapi_v2.yaml`: v1의 스니펫(CRUD), 클립보드, 폴더, 통계, 트리거, CLI 제어, reload, import, health check 엔드포인트 추가 + tags 확장
-    - `cli/fSnippetCli/Managers/APIRouter.swift`: 모든 `/api/v1/` 라우트를 `/api/v2/` prefix로 복제 (기존 핸들러 함수 재사용)
-    - `cli/_tool/cmdTest/v2/`: v1 기능 커버리지 테스트 스크립트 신규 추가 (snippet, clipboard, folder, stats, trigger, cli, reload)
-    - `cli/README.md`: v2 슈퍼셋 전환 내용 반영
-
 # 📕 중요
 
 # 📙 일반
@@ -37,6 +26,17 @@ date: 2026-04-07
 
 
 # ✅ 완료
+
+## Issue33: v1 제거 대비 v2 슈퍼셋 전환 (스니펫/클립보드/통계/CLI 엔드포인트 v2 편입) (등록: 2026-04-13, 해결: 2026-04-13, commit: 74c2482) ✅
+
+* 태스크 파일: [`cli/_doc_work/tasks/issue33_task.md`](cli/_doc_work/tasks/issue33_task.md)
+* 목적: 향후 v1 API 제거 시 클라이언트가 v2로 마이그레이션 가능하도록, v2를 v1의 슈퍼셋으로 전환
+* 구현 명세:
+    - `api/openapi_v2.yaml`: v1 데이터 엔드포인트 19개 경로 추가 (tags 9개 포함) — 1,089 → 1,887줄
+    - `cli/fSnippetCli/Managers/APIRouter.swift`: `/api/v2/` prefix 데이터 라우트 28개 추가 (기존 핸들러 재사용), var→let 경고 1건 수정
+    - `cli/_tool/cmdTest/v2/`: 테스트 스크립트 17개 추가 (20~36번, snippet/clipboard/folder/stats/trigger/cli/reload)
+* 검증:
+    - Release 빌드 경고 0 (BUILD SUCCEEDED)
 
 ## Issue32: _tool 폴더 v1/v2 구조 정비 및 cmdTest v2 스크립트 신규 작성 (등록: 2026-04-13, 해결: 2026-04-13, commit: 47bcd29) ✅
 
