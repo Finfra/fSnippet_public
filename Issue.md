@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-- Issue HWM: 31
+- Issue HWM: 32
 - Save Point: - 2026-04-13 (ed3ae75)
 
 # 🤔 결정사항
@@ -18,6 +18,28 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
+
+## Issue32: _tool 폴더 v1/v2 구조 정비 및 cmdTest v2 스크립트 신규 작성 (등록: 2026-04-13)
+
+* 목적: `cli/_tool` 폴더를 `api_v2_plan.md` 기준 및 fWarrange 레퍼런스 구조에 맞게 정비
+* 상세:
+    - `apiTest/v1/apiTest_plan_v1.md` → `apiTest/apiTest_plan_v1.md` 로 이동 (fWarrange 레퍼런스 정합)
+    - `apiTest/apiTest_plan_v2.md` 신규 작성 (v2 엔드포인트 커버리지 정리)
+    - `cmdTest/` flat 구조 → `cmdTest/v1/` + `cmdTest/v2/` 분리 (fWarrange 레퍼런스 정합)
+    - `cmdTest/cmdTest_plan.md` → `cmdTest/cmdTest_plan_v1.md` 로 이름 변경
+    - `cmdTest/cmdTest_plan_v2.md` 신규 작성
+    - `cmdTest/v2/` 하위에 `api_v2_plan.md` settings 엔드포인트 기반 v2 cmdTest 스크립트 신규 작성
+        - settings get/patch (general, popup, behavior, shortcuts, snippet-folders)
+        - settings snapshot export/import
+        - 에러 케이스 (서비스 미실행, 잘못된 인자 등)
+* 구현 명세:
+    - `cli/_tool/apiTest/apiTest_plan_v1.md` (이동)
+    - `cli/_tool/apiTest/apiTest_plan_v2.md` (신규)
+    - `cli/_tool/cmdTest/v1/` (기존 스크립트 이동, `cmdTestDo.sh` 포함)
+    - `cli/_tool/cmdTest/v2/` (신규 스크립트 작성)
+    - `cli/_tool/cmdTest/cmdTest_plan_v1.md` (rename)
+    - `cli/_tool/cmdTest/cmdTest_plan_v2.md` (신규)
+    - `cli/_tool/cmdTestDo.sh` 루트 실행기 v1|v2|all 인자 지원 확인/업데이트
 
 # 📗 선택
 
