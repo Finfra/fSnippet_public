@@ -12,6 +12,7 @@ date: 2026-04-07
 # 🤔 결정사항
 
 # 🌱 이슈후보
+1./Users/nowage/_git/__all/fWarrange/_public/cli/_doc_work/api_cmd_testScript_plan_for_v2.md 참고해서 api와 cli 테스트 스크립트 업데이트. 29완료후. 
 2. all clear test할 것. _config.yml기본 값 확인
 # 🚧 진행중
 

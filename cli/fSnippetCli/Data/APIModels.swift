@@ -441,6 +441,15 @@ struct APIV2AdvancedInfo: Codable {
   let statisticsRetentionDays: Int
 }
 
+// MARK: - v2 Shortcut (named shortcut CRUD)
+
+struct APIV2ShortcutRW: Codable {
+  let keyCode: Int?
+  let modifiers: [String]
+  let display: String
+  let token: String
+}
+
 // MARK: - v2 Advanced Debug / Performance / Input
 
 struct APIV2DebugSettings: Codable {

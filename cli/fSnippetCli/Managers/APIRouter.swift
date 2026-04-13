@@ -138,12 +138,129 @@ class APIRouter {
       return handleV2GetInput()
     case ("PATCH", "/api/v2/settings/advanced/input"):
       return handleV2PatchInput(request: request)
+    case ("GET", "/api/v2/settings/shortcuts"):
+      return handleV2GetShortcuts()
+    case ("GET", _) where decodedPath.hasPrefix("/api/v2/settings/shortcuts/"):
+      let name = String(decodedPath.dropFirst("/api/v2/settings/shortcuts/".count))
+      return handleV2GetShortcut(name: name)
+    case ("PUT", _) where decodedPath.hasPrefix("/api/v2/settings/shortcuts/"):
+      let name = String(decodedPath.dropFirst("/api/v2/settings/shortcuts/".count))
+      return handleV2PutShortcut(name: name, request: request)
+    case ("DELETE", _) where decodedPath.hasPrefix("/api/v2/settings/shortcuts/"):
+      let name = String(decodedPath.dropFirst("/api/v2/settings/shortcuts/".count))
+      return handleV2DeleteShortcut(name: name, request: request)
+
     case ("GET", "/api/v2/settings/snapshot"):
       return handleV2GetSnapshot()
 
     default:
       return notFound()
     }
+  }
+
+  // MARK: - v2 Shortcut name <-> preference key
+
+  private static let v2ShortcutKeyMap: [(name: String, prefKey: String)] = [
+    ("settingsHotkey", "settings.hotkey"),
+    ("popupHotkey", "snippet_popup_hotkey"),
+    ("togglePreviewHotkey", "history.preview.hotkey"),
+    ("registerAsSnippetHotkey", "history.registerSnippet.hotkey"),
+    ("toggleCollectionPauseHotkey", "history.pause.hotkey"),
+    ("viewerHotkey", "history.viewer.hotkey"),
+  ]
+
+  private func v2PrefKey(forShortcutName name: String) -> String? {
+    return APIRouter.v2ShortcutKeyMap.first(where: { $0.name == name })?.prefKey
+  }
+
+  /// 토큰(ex: "^⇧⌘;")을 modifiers 배열과 메인 키로 분해.
+  private func v2ParseShortcutToken(_ token: String) -> (modifiers: [String], mainKey: String) {
+    var mods: [String] = []
+    var key = ""
+    for ch in token {
+      switch ch {
+      case "⌃", "^": if !mods.contains("control") { mods.append("control") }
+      case "⌥": if !mods.contains("option") { mods.append("option") }
+      case "⌘": if !mods.contains("command") { mods.append("command") }
+      case "⇧": if !mods.contains("shift") { mods.append("shift") }
+      default:
+        key.append(ch)
+      }
+    }
+    return (mods, key)
+  }
+
+  private func v2BuildShortcut(token: String) -> APIV2ShortcutRW {
+    let (mods, _) = v2ParseShortcutToken(token)
+    return APIV2ShortcutRW(keyCode: nil, modifiers: mods, display: token, token: token)
+  }
+
+  // MARK: - v2 Shortcut handlers
+
+  private func handleV2GetShortcuts() -> APIServer.HTTPResponse {
+    let prefs = PreferencesManager.shared
+    var result: [String: APIV2ShortcutRW] = [:]
+    for (name, key) in APIRouter.v2ShortcutKeyMap {
+      let token: String = prefs.get(key) ?? ""
+      result[name] = v2BuildShortcut(token: token)
+    }
+    return jsonResponse(result)
+  }
+
+  private func handleV2GetShortcut(name: String) -> APIServer.HTTPResponse {
+    guard let prefKey = v2PrefKey(forShortcutName: name) else {
+      return v2Error(code: "not_found", message: "Unknown shortcut: \(name)", statusCode: 404)
+    }
+    let token: String = PreferencesManager.shared.get(prefKey) ?? ""
+    return jsonResponse(v2BuildShortcut(token: token))
+  }
+
+  private func handleV2PutShortcut(name: String, request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    guard let prefKey = v2PrefKey(forShortcutName: name) else {
+      return v2Error(code: "not_found", message: "Unknown shortcut: \(name)", statusCode: 404)
+    }
+    let (maybe, err) = decodeV2Body(request, as: APIV2ShortcutRW.self)
+    if let err = err { return err }
+    guard let payload = maybe else { return v2Error(code: "internal", message: "decode failed", statusCode: 500) }
+
+    // 우선순위: token 필드 > (modifiers + display 조합). display 가 비어 있으면 모디파이어만.
+    let newToken: String
+    if !payload.token.isEmpty {
+      newToken = payload.token
+    } else if !payload.display.isEmpty {
+      newToken = payload.display
+    } else {
+      return v2Error(code: "invalid_argument", message: "token or display is required", statusCode: 400)
+    }
+
+    // 409 충돌 감지: 같은 토큰이 다른 name 에 이미 바인딩돼 있으면 거절.
+    let prefs = PreferencesManager.shared
+    for (otherName, otherKey) in APIRouter.v2ShortcutKeyMap where otherName != name {
+      let existing: String = prefs.get(otherKey) ?? ""
+      if !existing.isEmpty && existing == newToken {
+        return v2Error(
+          code: "conflict",
+          message: "Shortcut \(newToken) already bound to \(otherName)",
+          statusCode: 409
+        )
+      }
+    }
+
+    prefs.set(newToken, forKey: prefKey)
+    // 런타임 재등록 시도 (ShortcutMgr 는 Preferences 변경 관찰자 보유 시 자동 반영)
+    ShortcutMgr.shared.refreshAll()
+    return jsonResponse(v2BuildShortcut(token: newToken))
+  }
+
+  private func handleV2DeleteShortcut(name: String, request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    guard let prefKey = v2PrefKey(forShortcutName: name) else {
+      return v2Error(code: "not_found", message: "Unknown shortcut: \(name)", statusCode: 404)
+    }
+    PreferencesManager.shared.set("", forKey: prefKey)
+    ShortcutMgr.shared.refreshAll()
+    return APIServer.HTTPResponse(statusCode: 204, body: "")
   }
 
   // MARK: - v2 에러 헬퍼
