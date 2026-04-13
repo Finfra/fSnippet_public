@@ -138,6 +138,34 @@ class APIRouter {
       return handleV2GetInput()
     case ("PATCH", "/api/v2/settings/advanced/input"):
       return handleV2PatchInput(request: request)
+    // Excluded files — global (Advanced tab)
+    case ("GET", "/api/v2/settings/advanced/excluded-files/global"):
+      return handleV2GetGlobalExcluded()
+    case ("POST", "/api/v2/settings/advanced/excluded-files/global/entries"):
+      return handleV2PostGlobalExcluded(request: request)
+    case ("DELETE", _) where decodedPath.hasPrefix("/api/v2/settings/advanced/excluded-files/global/entries/"):
+      let name = String(decodedPath.dropFirst("/api/v2/settings/advanced/excluded-files/global/entries/".count))
+      return handleV2DeleteGlobalExcluded(filename: name.removingPercentEncoding ?? name, request: request)
+
+    // Excluded files — per-folder (Folders tab)
+    case ("GET", "/api/v2/settings/excluded-files/per-folder"):
+      return handleV2GetPerFolderExcluded()
+    case ("DELETE", _) where decodedPath.hasPrefix("/api/v2/settings/excluded-files/per-folder/") && decodedPath.contains("/entries/"):
+      return handleV2DeletePerFolderEntry(decodedPath: decodedPath, request: request)
+    case ("POST", _) where decodedPath.hasPrefix("/api/v2/settings/excluded-files/per-folder/") && decodedPath.hasSuffix("/entries"):
+      let rest = String(decodedPath.dropFirst("/api/v2/settings/excluded-files/per-folder/".count))
+      let folder = String(rest.dropLast("/entries".count))
+      return handleV2PostPerFolderEntry(folder: folder.removingPercentEncoding ?? folder, request: request)
+    case ("GET", _) where decodedPath.hasPrefix("/api/v2/settings/excluded-files/per-folder/"):
+      let folder = String(decodedPath.dropFirst("/api/v2/settings/excluded-files/per-folder/".count))
+      return handleV2GetPerFolderExcludedOne(folder: folder.removingPercentEncoding ?? folder)
+    case ("PUT", _) where decodedPath.hasPrefix("/api/v2/settings/excluded-files/per-folder/"):
+      let folder = String(decodedPath.dropFirst("/api/v2/settings/excluded-files/per-folder/".count))
+      return handleV2PutPerFolderExcluded(folder: folder.removingPercentEncoding ?? folder, request: request)
+    case ("DELETE", _) where decodedPath.hasPrefix("/api/v2/settings/excluded-files/per-folder/"):
+      let folder = String(decodedPath.dropFirst("/api/v2/settings/excluded-files/per-folder/".count))
+      return handleV2DeletePerFolderExcluded(folder: folder.removingPercentEncoding ?? folder, request: request)
+
     case ("GET", "/api/v2/settings/snippet-folders"):
       return handleV2GetSnippetFolders()
     case ("POST", _) where decodedPath.hasPrefix("/api/v2/settings/snippet-folders/") && decodedPath.hasSuffix("/rebuild"):
@@ -307,6 +335,151 @@ class APIRouter {
     }
     let body = "{\"ok\":true,\"data\":{\"folder\":\"\(folder)\",\"status\":\"accepted\"}}"
     return APIServer.HTTPResponse(statusCode: 202, body: body)
+  }
+
+  // MARK: - v2 Excluded Files handlers
+  // 저장소: PreferencesManager 의 두 키를 직접 읽고 씀 (SettingsManager.save 는
+  // saveQueue + cachedSettings 이중 비동기 레이어 때문에 연속 호출 시 race 발생).
+  // 한 가지 부작용: SettingsManager.cachedSettings 가 오래될 수 있으므로 쓰기 후
+  // invalidateCache() 를 호출하여 다음 SnippetFileManager 로딩 시 신규 값을 읽게 함.
+  private static let v2GlobalExcludedKey = "snippet_excluded_files"
+  private static let v2PerFolderExcludedKey = "snippet_folder_excluded_files"
+
+  private func v2NoContent() -> APIServer.HTTPResponse {
+    return APIServer.HTTPResponse(statusCode: 204, body: "")
+  }
+
+  private func v2DecodeSingleFilename(_ request: APIServer.HTTPRequest) -> (String?, APIServer.HTTPResponse?) {
+    struct Entry: Decodable { let filename: String? }
+    let (maybe, err) = decodeV2Body(request, as: Entry.self)
+    if let err = err { return (nil, err) }
+    guard let e = maybe, let name = e.filename, !name.isEmpty else {
+      return (nil, v2Error(code: "invalid_argument", message: "filename is required", statusCode: 400))
+    }
+    return (name, nil)
+  }
+
+  private func v2ReadGlobalExcluded() -> [String] {
+    return PreferencesManager.shared.get(APIRouter.v2GlobalExcludedKey) ?? []
+  }
+
+  private func v2ReadPerFolderExcluded() -> [String: [String]] {
+    return PreferencesManager.shared.get(APIRouter.v2PerFolderExcludedKey) ?? [:]
+  }
+
+  // --- Global (Advanced 탭) ---
+
+  private func handleV2GetGlobalExcluded() -> APIServer.HTTPResponse {
+    return jsonResponse(v2ReadGlobalExcluded())
+  }
+
+  private func handleV2PostGlobalExcluded(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    let (name, err) = v2DecodeSingleFilename(request)
+    if let err = err { return err }
+    guard let filename = name else { return v2Error(code: "internal", message: "decode failed", statusCode: 500) }
+
+    var list = v2ReadGlobalExcluded()
+    if list.contains(filename) {
+      return v2Error(code: "conflict", message: "Already exists: \(filename)", statusCode: 409)
+    }
+    list.append(filename)
+    PreferencesManager.shared.set(list, forKey: APIRouter.v2GlobalExcludedKey)
+    return APIServer.HTTPResponse(statusCode: 201, body: "{\"ok\":true,\"data\":{\"filename\":\"\(filename)\"}}")
+  }
+
+  private func handleV2DeleteGlobalExcluded(filename: String, request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    var list = v2ReadGlobalExcluded()
+    guard list.contains(filename) else {
+      return v2Error(code: "not_found", message: "Not in global excluded: \(filename)", statusCode: 404)
+    }
+    list.removeAll { $0 == filename }
+    PreferencesManager.shared.set(list, forKey: APIRouter.v2GlobalExcludedKey)
+    return v2NoContent()
+  }
+
+  // --- Per-folder (Folders 탭) ---
+
+  private func handleV2GetPerFolderExcluded() -> APIServer.HTTPResponse {
+    return jsonResponse(v2ReadPerFolderExcluded())
+  }
+
+  private func handleV2GetPerFolderExcludedOne(folder: String) -> APIServer.HTTPResponse {
+    let map = v2ReadPerFolderExcluded()
+    guard let list = map[folder] else {
+      return v2Error(code: "not_found", message: "Per-folder excluded not set: \(folder)", statusCode: 404)
+    }
+    return jsonResponse(list)
+  }
+
+  private func handleV2PutPerFolderExcluded(folder: String, request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    let (maybe, err) = decodeV2Body(request, as: [String].self)
+    if let err = err { return err }
+    guard let list = maybe else { return v2Error(code: "internal", message: "decode failed", statusCode: 500) }
+
+    var map = v2ReadPerFolderExcluded()
+    map[folder] = list
+    PreferencesManager.shared.set(map, forKey: APIRouter.v2PerFolderExcludedKey)
+    return jsonResponse(list)
+  }
+
+  private func handleV2DeletePerFolderExcluded(folder: String, request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    var map = v2ReadPerFolderExcluded()
+    guard map[folder] != nil else {
+      return v2Error(code: "not_found", message: "Per-folder excluded not set: \(folder)", statusCode: 404)
+    }
+    map.removeValue(forKey: folder)
+    PreferencesManager.shared.set(map, forKey: APIRouter.v2PerFolderExcludedKey)
+    return v2NoContent()
+  }
+
+  private func handleV2PostPerFolderEntry(folder: String, request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    let (name, err) = v2DecodeSingleFilename(request)
+    if let err = err { return err }
+    guard let filename = name else { return v2Error(code: "internal", message: "decode failed", statusCode: 500) }
+
+    var map = v2ReadPerFolderExcluded()
+    var list = map[folder] ?? []
+    if list.contains(filename) {
+      return v2Error(code: "conflict", message: "Already exists in \(folder): \(filename)", statusCode: 409)
+    }
+    list.append(filename)
+    map[folder] = list
+    PreferencesManager.shared.set(map, forKey: APIRouter.v2PerFolderExcludedKey)
+    return APIServer.HTTPResponse(
+      statusCode: 201,
+      body: "{\"ok\":true,\"data\":{\"folder\":\"\(folder)\",\"filename\":\"\(filename)\"}}"
+    )
+  }
+
+  private func handleV2DeletePerFolderEntry(decodedPath: String, request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    let prefix = "/api/v2/settings/excluded-files/per-folder/"
+    guard decodedPath.hasPrefix(prefix) else {
+      return v2Error(code: "invalid_path", message: "Bad path", statusCode: 400)
+    }
+    let tail = String(decodedPath.dropFirst(prefix.count))
+    guard let range = tail.range(of: "/entries/") else {
+      return v2Error(code: "invalid_path", message: "Expected /entries/{filename}", statusCode: 400)
+    }
+    let folder = String(tail[..<range.lowerBound]).removingPercentEncoding ?? ""
+    let filename = String(tail[range.upperBound...]).removingPercentEncoding ?? ""
+
+    var map = v2ReadPerFolderExcluded()
+    guard var list = map[folder] else {
+      return v2Error(code: "not_found", message: "Folder not set: \(folder)", statusCode: 404)
+    }
+    guard list.contains(filename) else {
+      return v2Error(code: "not_found", message: "Not in \(folder): \(filename)", statusCode: 404)
+    }
+    list.removeAll { $0 == filename }
+    map[folder] = list
+    PreferencesManager.shared.set(map, forKey: APIRouter.v2PerFolderExcludedKey)
+    return v2NoContent()
   }
 
   // MARK: - v2 Shortcut name <-> preference key
