@@ -441,6 +441,22 @@ struct APIV2AdvancedInfo: Codable {
   let statisticsRetentionDays: Int
 }
 
+// MARK: - v2 Snippet Folder Rule
+
+struct APIV2SnippetFolderRule: Codable {
+  let folder: String
+  let prefix: String?
+  let suffix: String?
+  let openable: Bool
+  let ruleManaged: Bool
+}
+
+struct APIV2SnippetFolderRulePatch: Decodable {
+  let prefix: String?
+  let suffix: String?
+  let openable: Bool?
+}
+
 // MARK: - v2 Shortcut (named shortcut CRUD)
 
 struct APIV2ShortcutRW: Codable {

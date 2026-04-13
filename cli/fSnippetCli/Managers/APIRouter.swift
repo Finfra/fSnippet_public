@@ -138,6 +138,19 @@ class APIRouter {
       return handleV2GetInput()
     case ("PATCH", "/api/v2/settings/advanced/input"):
       return handleV2PatchInput(request: request)
+    case ("GET", "/api/v2/settings/snippet-folders"):
+      return handleV2GetSnippetFolders()
+    case ("POST", _) where decodedPath.hasPrefix("/api/v2/settings/snippet-folders/") && decodedPath.hasSuffix("/rebuild"):
+      let rest = String(decodedPath.dropFirst("/api/v2/settings/snippet-folders/".count))
+      let folder = String(rest.dropLast("/rebuild".count))
+      return handleV2RebuildSnippetFolder(folder: folder.removingPercentEncoding ?? folder, request: request)
+    case ("GET", _) where decodedPath.hasPrefix("/api/v2/settings/snippet-folders/"):
+      let folder = String(decodedPath.dropFirst("/api/v2/settings/snippet-folders/".count))
+      return handleV2GetSnippetFolder(folder: folder.removingPercentEncoding ?? folder)
+    case ("PATCH", _) where decodedPath.hasPrefix("/api/v2/settings/snippet-folders/"):
+      let folder = String(decodedPath.dropFirst("/api/v2/settings/snippet-folders/".count))
+      return handleV2PatchSnippetFolder(folder: folder.removingPercentEncoding ?? folder, request: request)
+
     case ("GET", "/api/v2/settings/shortcuts"):
       return handleV2GetShortcuts()
     case ("GET", _) where decodedPath.hasPrefix("/api/v2/settings/shortcuts/"):
@@ -156,6 +169,144 @@ class APIRouter {
     default:
       return notFound()
     }
+  }
+
+  // MARK: - v2 Snippet Folder handlers
+
+  /// 폴더의 openable 플래그 저장 pref key (폴더명 포함)
+  private func v2FolderOpenableKey(_ folder: String) -> String {
+    return "snippet_folder_openable.\(folder)"
+  }
+
+  private func v2BuildSnippetFolderRule(
+    folder: String,
+    ruleManaged: Bool,
+    prefix: String?,
+    suffix: String?
+  ) -> APIV2SnippetFolderRule {
+    let openable: Bool = PreferencesManager.shared.get(v2FolderOpenableKey(folder)) ?? true
+    return APIV2SnippetFolderRule(
+      folder: folder,
+      prefix: (prefix?.isEmpty ?? true) ? nil : prefix,
+      suffix: (suffix?.isEmpty ?? true) ? nil : suffix,
+      openable: openable,
+      ruleManaged: ruleManaged
+    )
+  }
+
+  /// 디스크의 실제 폴더 목록을 rule 정보와 합쳐서 SnippetFolderRule 배열 생성.
+  private func v2AllSnippetFolderRules() -> [APIV2SnippetFolderRule] {
+    let allRules = RuleManager.shared.getAllRules()
+    let rulesByName: [String: RuleManager.CollectionRule] =
+      Dictionary(uniqueKeysWithValues: allRules.map { ($0.name, $0) })
+
+    let folderURLs = SnippetFileManager.shared.getSnippetFolders()
+    let diskFolderNames = Set(folderURLs.map { $0.lastPathComponent })
+
+    var result: [APIV2SnippetFolderRule] = []
+    var seen = Set<String>()
+
+    // 1) 디스크 기준 폴더
+    for name in diskFolderNames.sorted() {
+      seen.insert(name)
+      let rule = rulesByName[name]
+      result.append(v2BuildSnippetFolderRule(
+        folder: name,
+        ruleManaged: rule != nil,
+        prefix: rule?.prefix,
+        suffix: rule?.suffix
+      ))
+    }
+    // 2) rule 에만 존재하는 폴더 (디스크에는 없음)
+    for (name, rule) in rulesByName where !seen.contains(name) {
+      result.append(v2BuildSnippetFolderRule(
+        folder: name,
+        ruleManaged: true,
+        prefix: rule.prefix,
+        suffix: rule.suffix
+      ))
+    }
+    return result
+  }
+
+  private func handleV2GetSnippetFolders() -> APIServer.HTTPResponse {
+    return jsonResponse(v2AllSnippetFolderRules())
+  }
+
+  private func handleV2GetSnippetFolder(folder: String) -> APIServer.HTTPResponse {
+    let all = v2AllSnippetFolderRules()
+    guard let rule = all.first(where: { $0.folder == folder }) else {
+      return v2Error(code: "not_found", message: "Snippet folder not found: \(folder)", statusCode: 404)
+    }
+    return jsonResponse(rule)
+  }
+
+  private func handleV2PatchSnippetFolder(folder: String, request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    let (maybe, err) = decodeV2Body(request, as: APIV2SnippetFolderRulePatch.self)
+    if let err = err { return err }
+    guard let patch = maybe else { return v2Error(code: "internal", message: "decode failed", statusCode: 500) }
+
+    // 폴더 존재 확인 (디스크 또는 rule)
+    let all = v2AllSnippetFolderRules()
+    guard all.contains(where: { $0.folder == folder }) else {
+      return v2Error(code: "not_found", message: "Snippet folder not found: \(folder)", statusCode: 404)
+    }
+
+    // openable 은 preference 에만 저장
+    if let openable = patch.openable {
+      PreferencesManager.shared.set(openable, forKey: v2FolderOpenableKey(folder))
+    }
+
+    // prefix/suffix 중 하나라도 있으면 _rule.yml 갱신
+    if patch.prefix != nil || patch.suffix != nil {
+      var collections = RuleManager.shared.getAllRules()
+      var existing = collections.first(where: { $0.name == folder })
+      if existing == nil {
+        // rule 에 없던 폴더면 새 항목 추가
+        let newRule = RuleManager.CollectionRule(
+          name: folder,
+          suffix: patch.suffix ?? "",
+          prefix: patch.prefix ?? "",
+          description: nil,
+          triggerBias: nil,
+          prefixComment: nil,
+          suffixComment: nil,
+          triggerBiasComment: nil,
+          descriptionComment: nil
+        )
+        collections.append(newRule)
+      } else {
+        var updated = existing!
+        if let p = patch.prefix { updated.prefix = p }
+        if let s = patch.suffix { updated.suffix = s }
+        collections = collections.map { $0.name == folder ? updated : $0 }
+      }
+
+      let ok = RuleManager.shared.saveRules(to: nil, newCollections: collections)
+      if !ok {
+        return v2Error(code: "rule_save_failed", message: "Failed to save _rule.yml", statusCode: 500)
+      }
+    }
+
+    // 최신 상태 재조회 후 반환
+    let refreshed = v2AllSnippetFolderRules().first(where: { $0.folder == folder })
+      ?? v2BuildSnippetFolderRule(folder: folder, ruleManaged: false, prefix: nil, suffix: nil)
+    return jsonResponse(refreshed)
+  }
+
+  private func handleV2RebuildSnippetFolder(folder: String, request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    let all = v2AllSnippetFolderRules()
+    guard all.contains(where: { $0.folder == folder }) else {
+      return v2Error(code: "not_found", message: "Snippet folder not found: \(folder)", statusCode: 404)
+    }
+    // 폴더 개별 재빌드 API 가 없으므로 전체 재로딩으로 위임
+    DispatchQueue.global().async {
+      SnippetFileManager.shared.loadAllSnippets(reason: "API v2 rebuild(\(folder))", force: true)
+    }
+    let body = "{\"ok\":true,\"data\":{\"folder\":\"\(folder)\",\"status\":\"accepted\"}}"
+    return APIServer.HTTPResponse(statusCode: 202, body: body)
   }
 
   // MARK: - v2 Shortcut name <-> preference key
