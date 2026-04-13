@@ -12,61 +12,12 @@ date: 2026-04-07
 # 🤔 결정사항
 
 # 🌱 이슈후보
-1./Users/nowage/_git/__all/fWarrange/_public/cli/_doc_work/api_cmd_testScript_plan_for_v2.md 참고해서 api와 cli 테스트 스크립트 업데이트. 29완료후. 
-2. all clear test할 것. _config.yml기본 값 확인
+1. all clear test할 것. _config.yml기본 값 확인
 # 🚧 진행중
-
-## Issue30: v1/v2 API 테스트 스크립트 전면 재작성 — 디렉터리 분리 + 커버리지 확장 (등록: 2026-04-13)
-
-* 목적: 현재 flat 구조(`cli/_tool/apiTest/00~80.sh`)를 v1/v2 디렉터리로 분리하고, Issue29에서 미커버된 v2 엔드포인트 테스트 스크립트를 일괄 추가함. 구현 명세: `cli/_doc_work/apiTest_plan_v1v2.md`
-* 의존성: Issue29 완료 (APIRouter v2 전 엔드포인트 구현) ✅
-* 구현 단계 (apiTest_plan_v1v2.md §"3단계 구현 계획" 순서):
-    1. **Phase 1 — 디렉터리 분리**: 기존 `00~29.sh` → `v1/` 이동, `30~80.sh` → `v2/` 이동 + 번호 재정렬
-        - `v1/`: 00~29 정상, E01~E08 에러 (총 37개)
-        - `v2/`: 00~60 정상, E00~E07 에러 (기존 이동분 + 신규 합산)
-        - `apiTestDo.sh` 업데이트: `v1|v2|all|NN` 인자 지원, 각 디렉터리 분기 실행
-    2. **Phase 2 — 신규 v2 스크립트 추가**: apiTest_plan_v1v2.md §"신규 v2 스크립트" 우선순위 순
-        - General 하위 경로: `v2/05~09.sh` (language/appearance/paths/trigger-key/trigger-bias)
-        - History: `v2/15~16.sh` (GET + clear POST)
-        - Advanced API: `v2/18.sh` (/settings/advanced/api GET/PATCH)
-        - Snapshot restore: `v2/61.sh` (PUT 실제 복원 검증)
-        - Language/Appearance: `v2/70~72.sh`
-        - 에러 케이스 보강: `v2/E00~E07.sh`
-        - **주의**: General 하위, History, Advanced/API 신규 스크립트는 해당 API 구현 선행 필요
-    3. **Phase 3 — 문서화 + 전체 실행**: README 업데이트, `apiTestDo.sh all` PASS 확인
-* 구현 명세: [`cli/_doc_work/apiTest_plan_v1v2.md`](cli/_doc_work/apiTest_plan_v1v2.md) (스크립트 목록, 번호 매핑, runner 설계 포함)
-* 검증:
-    - `apiTestDo.sh v1` — v1 전체 PASS
-    - `apiTestDo.sh v2` — v2 전체 PASS (구현된 엔드포인트 대상)
-    - `apiTestDo.sh all` — 전체 PASS
-    - Release 빌드 경고 0
 
 # 📕 중요
 
 # 📙 일반
-
-## Issue31: CLI 바이너리 v2 settings 서브커맨드 구현 (등록: 2026-04-13)
-
-* 목적: `fsnippetcli settings` 서브커맨드를 추가하여 터미널에서 v2 Settings CRUD를 직접 제어할 수 있도록 함. 현재 `CLI/Commands/`는 `/api/v1/`만 호출하므로 v2 엔드포인트 접근 불가.
-* 상세:
-    - `CLI/Commands/SettingsCommand.swift` 신규 생성:
-        - `settings get [key]` — v2 GET 엔드포인트 호출, key 생략 시 전체 설정 출력
-        - `settings set <key> <value>` — v2 PATCH 엔드포인트 호출 (ex: `popup.popupRows 10`)
-        - `settings reset [--confirm]` — `POST /api/v2/settings/actions/reset-settings` + confirm 토큰 전달
-        - `settings snapshot [export|import] [file]` — GET/PUT snapshot, json 파일 입출력
-    - `CLI/CLIRouter.swift` — `settings` 케이스 분기 추가
-    - `CLI/CommandParser.swift` — settings 서브커맨드 파싱 로직 추가
-    - `cli/_doc_design/cmd_design.md` — `settings` 커맨드 스펙 섹션 추가
-    - cmdTest 확장 — `cli/_tool/cmdTest/` (또는 Issue30 이후 `cmdTest/v2/`) 에 settings 시나리오 추가
-* 의존성:
-    - Issue29 완료 ✅ (APIRouter v2 쓰기 엔드포인트 구현)
-    - Issue30 완료 권장 (cmdTest 디렉터리 구조 확정 후 통합 용이)
-* 검증:
-    - `fsnippetcli settings get general` → JSON 응답 출력
-    - `fsnippetcli settings set popup.popupRows 10` → 설정 반영 확인
-    - `fsnippetcli settings reset --confirm` → 403 없이 정상 리셋
-    - cmdTest settings 시나리오 전체 PASS
-    - Release 빌드 경고 0
 
 # 📗 선택
 
@@ -81,23 +32,40 @@ date: 2026-04-07
 
 # ✅ 완료
 
-## Issue29: v2 API 전체 구현 — openapi_v2.yaml 38 paths / 59 operations (등록: 2026-04-13, 해결: 2026-04-13, commit: 2f015b1, a59926c, f7d4a11, 7b31e2b, 783edb7, d89d9fc, a946e3f, ed3ae75) ✅
+## Issue31: CLI 바이너리 v2 settings 서브커맨드 구현 (등록: 2026-04-13, 해결: 2026-04-13, commit: fda3595) ✅
 
-* 목적: `api/openapi_v2.yaml` 38 paths / 59 operations를 `APIRouter.swift` + `APIModels.swift`에 구현. 명세-구현-테스트 3-way 불일치 해소.
-* 완료 보고서: [`cli/_doc_work/issue29_completion_report.md`](cli/_doc_work/issue29_completion_report.md)
+* 목적: `fsnippetcli settings` 서브커맨드 추가 — 터미널에서 v2 Settings CRUD 직접 제어
 * 구현 명세:
-    - Step1+2: Foundation 보강 + Writable Simple PATCH (`2f015b1`)
-    - Step3a: Shortcuts GET/PUT/DELETE + 409 충돌 감지 (`a59926c`)
-    - Step3b: Snippet Folders GET/PATCH + rebuild POST (`f7d4a11`)
-    - Step3c: Excluded Files per-folder + global CRUD (`7b31e2b`)
-    - Step4: Danger Zone actions + ConfirmRequest guard (`783edb7`)
-    - Step5: Alfred Import async job (202 + jobId) (`d89d9fc`)
-    - Step6: Snapshot PUT (구조 검증) (`a946e3f`)
-    - Step7: API v2 문서화 (`ed3ae75`)
-* 구현율: 39/63 endpoints (General 하위·History·Snapshot 복원 등 24개는 후속 이슈 대상)
+    - `CLI/Commands/SettingsCommand.swift` 신규: get/set/reset/snapshot 서브커맨드
+    - `CLIAPIClient.swift`: PATCH, PUT, DELETE 메서드 추가
+    - `CLIRouter.swift`: settings 케이스 분기 추가
+    - `CommandParser.swift`: set/reset/snapshot 서브커맨드 인식 추가
+    - `HelpCommand.swift`: settings 커맨드 설명 추가
+    - `cmdTest/20~23`: settings cmdTest 시나리오 4개 추가
 * 검증:
-    - v2 apiTest 스크립트 25개 PASS (30~34, 40~44, 45~53, 60~62, 70~71, 80, E10, E20~E25)
+    - cmdTest 20~23 전체 PASS
     - Release 빌드 경고 0
+
+## Issue30: v1/v2 API 테스트 스크립트 전면 재작성 (등록: 2026-04-13, 해결: 2026-04-13, commit: 436951f) ✅
+
+* 목적: flat 구조 apiTest를 v1/v2 디렉터리로 분리, 미커버 v2 엔드포인트 구현 + 테스트 추가
+* 구현 명세:
+    - Phase 1: v1/(37개) + v2/(34개) 디렉터리 분리, 번호 재정렬
+    - Phase 2: PATCH /settings/general, GET/PATCH /settings/history 신규 구현
+    - Phase 2: 신규 테스트 스크립트 05/15/16 + 에러 케이스 E00~E06 재작성
+    - Phase 3: apiTestDo.sh v1|v2|all|NN 인자 지원 추가
+* 검증:
+    - apiTestDo.sh v1 PASS, apiTestDo.sh v2 PASS
+    - Release 빌드 경고 0
+
+## Issue29: v2 API 전체 구현 — openapi_v2.yaml 38 paths / 59 operations (등록: 2026-04-13, 해결: 2026-04-13, commit: 2f015b1, a59926c, f7d4a11, 7b31e2b, 783edb7, d89d9fc, a946e3f, ed3ae75, 436951f) ✅
+
+* 목적: `api/openapi_v2.yaml` 38 paths / 59 operations 구현. Issue30 테스트로 검증 완료.
+* 완료 보고서: [`cli/_doc_work/issue29_completion_report.md`](cli/_doc_work/issue29_completion_report.md)
+* 구현율: 39/63 endpoints (나머지 24개는 후속 이슈 대상)
+* 검증:
+    - v2 apiTest 스크립트 전체 PASS (v2/ 디렉터리 기준)
+
 
 ## Issue27: CRUD API 엔드포인트 추가 — 폴더/스니펫 생성/삭제 (등록: 2026-04-08, 해결: 2026-04-09, commit: a4556d2) ✅
 
