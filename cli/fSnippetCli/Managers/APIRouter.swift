@@ -148,6 +148,14 @@ class APIRouter {
     case ("POST", "/api/v2/settings/actions/factory-reset"):
       return handleV2ActionFactoryReset(request: request)
 
+    // Alfred Import (Advanced tab)
+    case ("GET", "/api/v2/settings/advanced/alfred-import"):
+      return handleV2GetAlfredImportSource()
+    case ("PUT", "/api/v2/settings/advanced/alfred-import"):
+      return handleV2PutAlfredImportSource(request: request)
+    case ("POST", "/api/v2/settings/advanced/alfred-import/run"):
+      return handleV2RunAlfredImport(request: request)
+
     // Excluded files — global (Advanced tab)
     case ("GET", "/api/v2/settings/advanced/excluded-files/global"):
       return handleV2GetGlobalExcluded()
@@ -411,6 +419,59 @@ class APIRouter {
       SnippetUsageManager.shared.deleteAllHistory()
     }
     return v2ActionSuccess("factory-reset")
+  }
+
+  // MARK: - v2 Alfred Import handlers
+  private static let v2AlfredSourceKey = "alfred_import_source_path"
+
+  private func handleV2GetAlfredImportSource() -> APIServer.HTTPResponse {
+    let path: String = PreferencesManager.shared.string(forKey: APIRouter.v2AlfredSourceKey, defaultValue: "")
+    return jsonResponse(["sourcePath": path])
+  }
+
+  private func handleV2PutAlfredImportSource(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    struct Body: Decodable { let sourcePath: String? }
+    let (maybe, err) = decodeV2Body(request, as: Body.self)
+    if let err = err { return err }
+    guard let path = maybe?.sourcePath, !path.isEmpty else {
+      return v2Error(code: "invalid_argument", message: "sourcePath is required", statusCode: 400)
+    }
+    PreferencesManager.shared.set(path, forKey: APIRouter.v2AlfredSourceKey)
+    return jsonResponse(["sourcePath": path])
+  }
+
+  private func handleV2RunAlfredImport(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    let jobId = UUID().uuidString
+    let dest = PreferencesManager.shared.string(forKey: "snippet_base_path", defaultValue: "~/Documents/finfra/fSnippetData/snippets_from_alfred")
+    let sourcePath: String = PreferencesManager.shared.string(forKey: APIRouter.v2AlfredSourceKey, defaultValue: "")
+    DispatchQueue.global(qos: .userInitiated).async {
+      logI("🌐 v2 alfred-import job 시작: \(jobId)")
+      let result: Result<AlfredImporter.ImportedStats, Error>
+      if !sourcePath.isEmpty {
+        let dbURL = URL(fileURLWithPath: (sourcePath as NSString).expandingTildeInPath)
+        result = AlfredImporter.shared.importFromDB(dbURL: dbURL, destination: dest)
+      } else {
+        var panelResult: Result<AlfredImporter.ImportedStats, Error>?
+        DispatchQueue.main.sync {
+          panelResult = AlfredImporter.shared.pickAndImport(destination: dest)
+        }
+        result = panelResult ?? .failure(NSError(domain: "APIRouter", code: 1, userInfo: [NSLocalizedDescriptionKey: "Import 실행 실패"]))
+      }
+      switch result {
+      case .success(let stats):
+        logI("🌐 v2 alfred-import job \(jobId) 완료: total=\(stats.total)")
+      case .failure(let error):
+        logE("🌐 v2 alfred-import job \(jobId) 실패: \(error.localizedDescription)")
+      }
+    }
+    let body: [String: Any] = ["jobId": jobId]
+    if let data = try? JSONSerialization.data(withJSONObject: body),
+       let json = String(data: data, encoding: .utf8) {
+      return APIServer.HTTPResponse(statusCode: 202, body: json, headers: ["Content-Type": "application/json"])
+    }
+    return v2Error(code: "internal_error", message: "serialization failed", statusCode: 500)
   }
 
   // MARK: - v2 Excluded Files handlers
