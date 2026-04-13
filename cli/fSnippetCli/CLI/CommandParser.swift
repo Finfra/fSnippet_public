@@ -47,9 +47,9 @@ struct CommandParser {
 
         // 서브 커맨드 또는 위치 인자
         if i < args.count && !args[i].hasPrefix("-") {
-            // snippet list, snippet search 등
+            // snippet list, snippet search, settings get/set/reset/snapshot 등
             let next = args[i]
-            if ["list", "search", "get", "expand", "top", "history", "alfred"].contains(next) {
+            if ["list", "search", "get", "expand", "top", "history", "alfred", "set", "reset", "snapshot"].contains(next) {
                 subcommand = next
                 i += 1
             }

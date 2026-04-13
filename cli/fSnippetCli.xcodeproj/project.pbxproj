@@ -17,6 +17,7 @@
 		128C19D586BB193A5787CC44 /* KeyEventDataExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9DA40EF50ABD406C3985B73 /* KeyEventDataExtractor.swift */; };
 		1307B400F5F22512FACE9338 /* SettingsWindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE9C89140D1A966668F78173 /* SettingsWindowManager.swift */; };
 		13F7598718829BC666B06ADC /* BufferController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4C69CC6DA04287843F41BE9 /* BufferController.swift */; };
+		145D6AFD251311635FF9D4BB /* SettingsCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E2EA2D63BB66A8309B7986E /* SettingsCommand.swift */; };
 		14EFF333895B6E5CE1C59826 /* TextReplacer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94194E19A2FE81BE16A70227 /* TextReplacer.swift */; };
 		16102C150747FC46BBF2FC9F /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9634515FE076860240809B9E /* Logger.swift */; };
 		18567037DF7E70F497541EB2 /* SingleShortcutMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DBDAB2FD89E71FA46B0B08E /* SingleShortcutMapper.swift */; };
@@ -196,6 +197,7 @@
 		893EFD68F808F44AA0BDC332 /* PaidAppManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaidAppManager.swift; sourceTree = "<group>"; };
 		8AA214BF5A4285681D6848DF /* CollisionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollisionManager.swift; sourceTree = "<group>"; };
 		8B30D9F8F834FF0E67BB161A /* CGEventTapManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CGEventTapManager.swift; sourceTree = "<group>"; };
+		8E2EA2D63BB66A8309B7986E /* SettingsCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsCommand.swift; sourceTree = "<group>"; };
 		8F2497560590EF95E9EB33F1 /* HistoryViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryViewer.swift; sourceTree = "<group>"; };
 		94194E19A2FE81BE16A70227 /* TextReplacer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextReplacer.swift; sourceTree = "<group>"; };
 		9634515FE076860240809B9E /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
@@ -442,6 +444,7 @@
 				62BB87A5066D3E5ED28F512C /* FolderCommand.swift */,
 				3CA31356553F2DC8BEEB8204 /* HelpCommand.swift */,
 				C41FD080D16A77439B7A38B0 /* ImportCommand.swift */,
+				8E2EA2D63BB66A8309B7986E /* SettingsCommand.swift */,
 				1D606FDBA0D4ECEB63A53E9A /* SnippetCommand.swift */,
 				407B0655339D9E14F7345941 /* StatsCommand.swift */,
 				FF5931F850FDDE979F7AAD37 /* StatusCommand.swift */,
@@ -657,6 +660,7 @@
 				D0DD60E369ACABEFF0F030D4 /* Relauncher.swift in Sources */,
 				672B72D7B7B31F1CDFB212EC /* RuleManager.swift in Sources */,
 				3315240656F1BDBDC3589AFB /* SQLiteDatabase.swift in Sources */,
+				145D6AFD251311635FF9D4BB /* SettingsCommand.swift in Sources */,
 				915B933502E15F6C43DCA21C /* SettingsManager.swift in Sources */,
 				B71D3B08CBE15AFF366BE706 /* SettingsObservableObject.swift in Sources */,
 				1307B400F5F22512FACE9338 /* SettingsWindowManager.swift in Sources */,
@@ -713,9 +717,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = fSnippetCli/fSnippetCli.entitlements;
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = BZDZFZWF6K;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = fSnippetCli/Info.plist;
@@ -790,9 +792,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = fSnippetCli/fSnippetCli.entitlements;
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = BZDZFZWF6K;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = fSnippetCli/Info.plist;

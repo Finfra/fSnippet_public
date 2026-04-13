@@ -61,6 +61,9 @@ struct CLIRouter {
         case "import":
             return ImportCommand.run(parsed: parsed, client: client, formatter: formatter)
 
+        case "settings":
+            return SettingsCommand.run(parsed: parsed, client: client, formatter: formatter)
+
         default:
             OutputFormatter.printError("알 수 없는 커맨드: '\(parsed.command)'")
             print("  → fSnippetCli --help 로 사용법을 확인하세요")

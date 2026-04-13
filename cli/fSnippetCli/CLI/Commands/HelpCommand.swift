@@ -34,9 +34,16 @@ struct HelpCommand {
           stats top               사용 빈도 Top N
           stats history           사용 이력
 
+        설정 (v2 API):
+          settings get [key]      설정 조회 (general, popup, behavior, history, advanced, snapshot, shortcuts)
+          settings set <k> <v>    설정 변경 (예: popup.popupRows 10)
+          settings reset --confirm 모든 설정을 기본값으로 초기화
+          settings snapshot export [file]  스냅샷 내보내기
+          settings snapshot import <file>  스냅샷 가져오기
+
         기타:
           trigger                 트리거 키 정보
-          config                  현재 설정 출력
+          config                  현재 설정 출력 (v1 API)
           import alfred <path>    Alfred 스니펫 임포트
 
         글로벌 옵션:

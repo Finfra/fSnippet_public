@@ -71,6 +71,60 @@ struct CLIAPIClient {
         return syncRequest(request)
     }
 
+    /// PATCH 요청
+    func patch(path: String, body: [String: Any]? = nil) -> APIResult {
+        let urlString = "http://localhost:\(port)\(path)"
+        guard let url = URL(string: urlString) else {
+            return APIResult(statusCode: 0, data: nil, error: CLIError.invalidURL(urlString))
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        if let body = body {
+            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        }
+
+        return syncRequest(request)
+    }
+
+    /// PUT 요청
+    func put(path: String, body: [String: Any]? = nil) -> APIResult {
+        let urlString = "http://localhost:\(port)\(path)"
+        guard let url = URL(string: urlString) else {
+            return APIResult(statusCode: 0, data: nil, error: CLIError.invalidURL(urlString))
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        if let body = body {
+            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        }
+
+        return syncRequest(request)
+    }
+
+    /// DELETE 요청
+    func delete(path: String, body: [String: Any]? = nil) -> APIResult {
+        let urlString = "http://localhost:\(port)\(path)"
+        guard let url = URL(string: urlString) else {
+            return APIResult(statusCode: 0, data: nil, error: CLIError.invalidURL(urlString))
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        if let body = body {
+            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        }
+
+        return syncRequest(request)
+    }
+
     // MARK: - 동기식 URLSession 호출
 
     private func syncRequest(_ request: URLRequest) -> APIResult {
