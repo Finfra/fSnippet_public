@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-- Issue HWM: 34
+- Issue HWM: 35
 - Save Point: - 2026-04-13 (ed3ae75)
 
 # 🤔 결정사항
@@ -20,6 +20,23 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
+
+## Issue35: UI 전체 다국어(i18n) 누락 — PlaceholderInputWindow·SnippetPopup·HistoryViewer 문자열 미등록
+
+* 목적: `LocalizedStringManager.strings` 딕셔너리에 토스트 메시지만 등록되어 있고, 플레이스홀더 입력창·스니펫 팝업·클립보드 히스토리 뷰어 등 UI 전반의 문자열 키가 누락되어 번역 없이 key 원문이 그대로 화면에 표시되는 문제 해결
+* 상세:
+    - 현상: 이미지처럼 "placeholder.window.title", "placeholder.button.cancel", "history.search.placeholder" 등 key 문자열이 UI에 노출됨
+    - 원인: UI 파일들이 `LocalizedStringManager.shared.string(_:)` 대신 `Text("key")` 형태로 직접 key를 하드코딩하거나, `LocalizedStringManager`에 해당 key 자체가 미등록 상태
+    - 영향 파일:
+        - `PlaceholderInputWindow.swift`: "placeholder.window.title", "placeholder.label.preview", "placeholder.button.cancel", "placeholder.button.confirm"
+        - `HistorySearchBar.swift`: "history.search.placeholder", "history.filter.all", "history.filter.images", "history.filter.apps"
+        - `UnifiedSnippetPopupView.swift`: "popup.preview.empty"
+        - `SnippetPopupView.swift`: "popup.create.help", "popup.empty.no_results"
+        - `HistoryViewer.swift` / `UnifiedHistoryViewer.swift`: "alert.delete_items.message", "viewer.button.delete_matches", "viewer.help.shortcuts", "viewer.footer.items", "viewer.footer.selected", "viewer.status.active", "viewer.preview.empty", "menu.copy", "menu.register", "menu.delete", "Tab: Edit", "Esc: Back to List" 등
+* 구현 명세:
+    - `cli/fSnippetCli/Utils/LocalizedStringManager.swift`: `strings` 딕셔너리의 "en"·"ko"·"ja" 테이블에 누락된 UI 키 전체 추가 (영어 기본값 + 한국어 + 일본어 번역)
+    - 각 UI 파일에서 `Text("key")` 형태로 하드코딩된 부분을 `Text(L10n("key"))` 또는 `Text(LocalizedStringManager.shared.string("key"))` 로 교체 (현재 프로젝트에서 사용하는 패턴 확인 후 통일)
+    - 추가 후 영어/한국어 언어 전환 시 정상 번역 확인
 
 ## Issue34: 스니펫 확장 후 포커스가 이전 앱으로 잘못 이동하는 버그 수정
 
