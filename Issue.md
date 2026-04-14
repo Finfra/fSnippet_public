@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-- Issue HWM: 33
+- Issue HWM: 34
 - Save Point: - 2026-04-13 (ed3ae75)
 
 # 🤔 결정사항
@@ -20,6 +20,18 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
+
+## Issue34: 스니펫 확장 후 포커스가 이전 앱으로 잘못 이동하는 버그 수정
+
+* 목적: 스니펫 확장(특히 비팝업 직접 트리거) 후 현재 작업 앱(iTerm2 등)이 아닌 더 이전 앱(Sublime Text 등)으로 포커스가 이탈하는 버그 수정
+* 상세:
+    - 원인1 — stale `inputApp`: `AppActivationMonitor.inputApp`은 팝업 오픈 시 설정되나, 팝업 종료 시 초기화되지 않아 이전 값이 유지됨
+    - 원인2 — `show_in_app_switcher` 미분기: paid 미설치 시에도 `NSApp.hide(nil)` 또는 stale `inputApp.activate()`가 호출되어 잘못된 앱으로 포커스 이동
+    - 사용자 요구: paid 설치 시에만 `show_in_app_switcher` 동작 → `NSApp.hide(nil)`, paid 미설치 시 현재 frontmost 앱으로 명시적 복귀
+* 구현 명세:
+    - `cli/fSnippetCli/Core/KeyEventMonitor.swift` ~L71-74: `onExpansionSuccess`에서 `hidePopup(hideApp: false)`로 변경 (비팝업 확장 시 불필요한 activation 제거)
+    - `cli/fSnippetCli/Core/PopupController.swift` L294-338: `wasVisible` 캡처 + paid/switcher 분기 — paid+switcher=true 시 `NSApp.hide(nil)`, 그 외 `NSWorkspace.shared.frontmostApplication?.activate()` (stale inputApp 사용 안 함)
+    - `cli/fSnippetCli/UI/SnippetNonActivatingWindow.swift` L379-409: `NSApp.hide(nil)` 호출을 paid+switcher 조건으로 게이팅
 
 # 📗 선택
 
