@@ -2,6 +2,9 @@
 .claude/
 CLAUDE.md
 
+# wiki
+wiki/
+
 # 작업 문서 (로컬 전용)
 cli/_doc_work/
 cli/_doc_design/
@@ -28,9 +31,6 @@ Icon?
 Network Trash Folder
 Temporary Items
 .apdisk
-
-# Report (날짜별 리포트 — 로컬 전용)
-cli/_doc_work/report/*_????-??-??_*.md
 
 # VSCode
 .history

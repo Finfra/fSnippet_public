@@ -147,7 +147,7 @@ date: 2026-04-07
 ## Issue29: v2 API 전체 구현 — openapi_v2.yaml 38 paths / 59 operations (등록: 2026-04-13, 해결: 2026-04-13, commit: 2f015b1, a59926c, f7d4a11, 7b31e2b, 783edb7, d89d9fc, a946e3f, ed3ae75, 436951f) ✅
 
 * 목적: `api/openapi_v2.yaml` 38 paths / 59 operations 구현. Issue30 테스트로 검증 완료.
-* 완료 보고서: [`cli/_doc_work/issue29_completion_report.md`](cli/_doc_work/issue29_completion_report.md)
+* 완료 보고서: [`cli/_doc_work/report/issue29_completion_report.md`](cli/_doc_work/report/issue29_completion_report.md)
 * 구현율: 39/63 endpoints (나머지 24개는 후속 이슈 대상)
 * 검증:
     - v2 apiTest 스크립트 전체 PASS (v2/ 디렉터리 기준)
