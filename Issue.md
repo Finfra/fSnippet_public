@@ -19,27 +19,6 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue37: nPTiR 환경 정비 — 폴더 구조·SCAR 빈 파일·.gitignore 정비 (등록: 2026-04-14)
-
-* 목적: nPTiR 체계 원활 작업을 위한 사전 정비 (check-nNPTiR 리포트 기반)
-* plan: `cli/_doc_work/plan/start-nPTiR_plan.md`
-* task: `cli/_doc_work/tasks/start-nPTiR_task.md`
-* 상세:
-    - A-1: `cli/_doc_work/_rlease/` 오타 폴더 삭제
-    - A-2: `cli/_doc_work/` 루트 산재 파일 3개를 `plan/`·`report/` 하위로 이동, Issue.md 경로 업데이트
-    - A-3: `z_done/` 폴더 활용 기준 결정 (완료 task 보관소로 활용)
-    - B-1: `.claude/commands/dev.md` 개발 주기 내용 작성
-    - B-2: `.claude/commands/issue.md` 이슈 통합 워크플로우 내용 작성
-    - C-1: `.gitignore` 중복 라인 제거 (`cli/_doc_work/report/*_????-??-??_*.md`)
-* 구현 명세:
-    - `cli/_doc_work/_rlease/` → `rm -rf`
-    - `cli/_doc_work/{api_v2_phase1_report,issue29_completion_report}.md` → `cli/_doc_work/report/`로 이동
-    - `cli/_doc_work/apiTest_plan_v1v2.md` → `cli/_doc_work/plan/`으로 이동
-    - `Issue.md` Issue29 참조 경로 업데이트
-    - `.claude/commands/dev.md` 작성 (빌드→실행→테스트→이슈 등록 흐름)
-    - `.claude/commands/issue.md` 작성 (reg/fix/closer 라우팅)
-    - `.gitignore` 중복 라인 삭제
-
 ## Issue36: /run 커맨드에 full 옵션 추가 — ZTest 스니펫 확장 통합 테스트 자동화
 
 * 목적: `/run full` 실행 시 testForCli 환경에서 ZTest 스니펫 확장까지 자동으로 검증하는 통합 테스트 흐름을 `/run` 커맨드에 `full` 옵션으로 장착
@@ -81,6 +60,19 @@ date: 2026-04-07
 
 
 # ✅ 완료
+
+## Issue37: nPTiR 환경 정비 — 폴더 구조·SCAR 빈 파일·.gitignore 정비 (등록: 2026-04-14, 해결: 2026-04-14, commit: 6458058, 03c3bbd) ✅
+
+* 목적: nPTiR 체계 원활 작업을 위한 사전 정비 (check-nNPTiR 리포트 기반)
+* plan: `cli/_doc_work/plan/start-nPTiR_plan.md`
+* task: `cli/_doc_work/tasks/start-nPTiR_task.md`
+* 구현:
+    - `cli/_doc_work/_rlease/` 오타 폴더 삭제
+    - `cli/_doc_work/` 루트 파일 3개 → `plan/`, `report/` 하위 이동
+    - `Issue.md` Issue29 참조 경로 업데이트
+    - `z_done/` 완료 task 보관소로 활용 결정 (issue33_task.md 이동)
+    - `.claude/commands/dev.md` 개발 주기 상세 내용 추가
+    - `.gitignore` 중복 라인 제거
 
 ## Issue34: 스니펫 확장 후 포커스가 이전 앱으로 잘못 이동하는 버그 수정 (등록: 2026-04-14, 해결: 2026-04-14, commit: 8ab4824, 1ba0d59, 3c48133) ✅
 
