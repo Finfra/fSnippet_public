@@ -292,7 +292,9 @@ class PopupController: PopupControllerProtocol {
     }
 
     func hidePopup(hideApp: Bool = true) {
-        logV("📦 [PopupController] hidePopup 호출 (hideApp: \(hideApp))")
+        // ✅ [Issue34] wasVisible 캡처 — 닫기 전 상태 저장 (포커스 복원 조건 판단용)
+        let wasVisible = isVisible
+        logV("📦 [PopupController] hidePopup 호출 (hideApp: \(hideApp), wasVisible: \(wasVisible))")
 
         // ✅ Issue392: 팝업 닫을 때 검색 버퍼 초기화
         currentSearchTerm = ""
@@ -320,20 +322,30 @@ class PopupController: PopupControllerProtocol {
             logD("📦 [PopupController] chvMode restored to .list")
         }
 
-        if hideApp {
-            // 앱 숨기기 (이전 앱으로 포커스 복귀)
-            // ✅ Issue Fix: 명시적 앱 활성화 (NSApp.hide(nil) 대체)
-            if let inputApp = AppActivationMonitor.shared.getInputApp() {
-                logV("📦 [PopupController] 이전 앱 명시적 활성화: \(inputApp.localizedName ?? "Unknown")")
-                if #available(macOS 14.0, *) {
-                    // activateIgnoringOtherApps 대신 빈 옵션([])을 사용하여 워닝 방지
-                    inputApp.activate(options: [])
-                } else {
-                    inputApp.activate(options: .activateIgnoringOtherApps)
-                }
+        // ✅ [Issue34] 팝업이 실제로 열려있었을 때만 포커스 복원 처리
+        if hideApp && wasVisible {
+            let isPaidRunning = PaidAppManager.shared.isRunning()
+            let showInSwitcher = SettingsObservableObject.shared.showInAppSwitcher
+
+            if isPaidRunning && showInSwitcher {
+                // paid + 앱 전환기 모드: NSApp.hide(nil)은 SnippetNonActivatingWindow.hide()에서 이미 호출됨
+                logV("📦 [PopupController] paid + show_in_app_switcher 모드 — NSApp.hide 사용 (이미 호출됨)")
             } else {
-                logW("📦 ⚠️ [PopupController] 입력 앱 정보 없음 - NSApp.hide(nil) Fallback 사용")
-                NSApp.hide(nil)
+                // paid 미설치 또는 show_in_app_switcher=false:
+                // stale inputApp 대신 현재 실제 frontmost 앱으로 명시적 복귀
+                if let currentApp = NSWorkspace.shared.frontmostApplication,
+                    currentApp.bundleIdentifier != Bundle.main.bundleIdentifier
+                {
+                    logV("📦 [PopupController] 현재 앱으로 명시적 복귀: \(currentApp.localizedName ?? "Unknown")")
+                    if #available(macOS 14.0, *) {
+                        currentApp.activate(options: [])
+                    } else {
+                        currentApp.activate(options: .activateIgnoringOtherApps)
+                    }
+                } else {
+                    logW("📦 ⚠️ [PopupController] 복귀 대상 앱 없음 — NSApp.hide(nil) Fallback")
+                    NSApp.hide(nil)
+                }
             }
         }
     }

@@ -385,8 +385,18 @@ class SnippetNonActivatingWindow: NSObject, NSWindowDelegate {
         popupWindow.orderOut(nil)
 
         // 2. 앱 비활성화 (이전 앱으로 포커스 복귀) - Issue118
+        // ✅ [Issue34] paid + show_in_app_switcher 모드에서만 NSApp.hide 사용
+        // 그 외에는 PopupController.hidePopup()에서 현재 frontmost 앱으로 명시적 복귀 처리
         if hideApp {
-            NSApp.hide(nil)
+            let isPaidRunning = PaidAppManager.shared.isRunning()
+            let showInSwitcher = SettingsObservableObject.shared.showInAppSwitcher
+
+            if isPaidRunning && showInSwitcher {
+                NSApp.hide(nil)
+                logV("👻 [SnippetWindow] NSApp.hide(nil) 실행 (paid + show_in_app_switcher 모드)")
+            } else {
+                logV("👻 [SnippetWindow] NSApp.hide 스킵 — paid 미설치 또는 switcher 꺼짐, PopupController에서 복귀 처리")
+            }
         }
 
         // ✅ 숨김 직후 로깅
