@@ -38,23 +38,23 @@ date: 2026-04-07
     - 각 UI 파일에서 `Text("key")` 형태로 하드코딩된 부분을 `Text(L10n("key"))` 또는 `Text(LocalizedStringManager.shared.string("key"))` 로 교체 (현재 프로젝트에서 사용하는 패턴 확인 후 통일)
     - 추가 후 영어/한국어 언어 전환 시 정상 번역 확인
 
-## Issue34: 스니펫 확장 후 포커스가 이전 앱으로 잘못 이동하는 버그 수정
-
-* 목적: 스니펫 확장(특히 비팝업 직접 트리거) 후 현재 작업 앱(iTerm2 등)이 아닌 더 이전 앱(Sublime Text 등)으로 포커스가 이탈하는 버그 수정
-* 상세:
-    - 원인1 — stale `inputApp`: `AppActivationMonitor.inputApp`은 팝업 오픈 시 설정되나, 팝업 종료 시 초기화되지 않아 이전 값이 유지됨
-    - 원인2 — `show_in_app_switcher` 미분기: paid 미설치 시에도 `NSApp.hide(nil)` 또는 stale `inputApp.activate()`가 호출되어 잘못된 앱으로 포커스 이동
-    - 사용자 요구: paid 설치 시에만 `show_in_app_switcher` 동작 → `NSApp.hide(nil)`, paid 미설치 시 현재 frontmost 앱으로 명시적 복귀
-* 구현 명세:
-    - `cli/fSnippetCli/Core/KeyEventMonitor.swift` ~L71-74: `onExpansionSuccess`에서 `hidePopup(hideApp: false)`로 변경 (비팝업 확장 시 불필요한 activation 제거)
-    - `cli/fSnippetCli/Core/PopupController.swift` L294-338: `wasVisible` 캡처 + paid/switcher 분기 — paid+switcher=true 시 `NSApp.hide(nil)`, 그 외 `NSWorkspace.shared.frontmostApplication?.activate()` (stale inputApp 사용 안 함)
-    - `cli/fSnippetCli/UI/SnippetNonActivatingWindow.swift` L379-409: `NSApp.hide(nil)` 호출을 paid+switcher 조건으로 게이팅
-
 # 📗 선택
 
 
 
 # ✅ 완료
+
+## Issue34: 스니펫 확장 후 포커스가 이전 앱으로 잘못 이동하는 버그 수정 (등록: 2026-04-14, 해결: 2026-04-14, commit: 8ab4824, 1ba0d59, 3c48133) ✅
+
+* 목적: 스니펫 확장(특히 비팝업 직접 트리거) 후 현재 작업 앱(iTerm2 등)이 아닌 더 이전 앱(Sublime Text 등)으로 포커스가 이탈하는 버그 수정
+* 원인:
+    - 원인1 — stale `inputApp`: `AppActivationMonitor.inputApp`이 팝업 종료 시 초기화되지 않아 이전 앱 참조가 유지됨
+    - 원인2 — `show_in_app_switcher` 미분기: paid 미설치 시에도 stale `inputApp.activate()`가 호출되어 잘못된 앱으로 포커스 이동
+* 구현:
+    - `cli/fSnippetCli/Core/KeyEventMonitor.swift`: `onExpansionSuccess`에서 `hidePopup(hideApp: false)`로 변경 (비팝업 확장 시 불필요한 activation 제거)
+    - `cli/fSnippetCli/Core/PopupController.swift`: `wasVisible` 캡처 + paid/switcher 분기 — paid+switcher=true 시 `NSApp.hide(nil)`, 그 외 `NSWorkspace.shared.frontmostApplication?.activate()`로 stale inputApp 대체
+    - `cli/fSnippetCli/UI/SnippetNonActivatingWindow.swift`: `NSApp.hide(nil)` 호출을 paid+show_in_app_switcher 조건으로 게이팅
+* 검증: Release 빌드 경고 0 (BUILD SUCCEEDED)
 
 ## Issue33: v1 제거 대비 v2 슈퍼셋 전환 (스니펫/클립보드/통계/CLI 엔드포인트 v2 편입) (등록: 2026-04-13, 해결: 2026-04-13, commit: 74c2482) ✅
 
