@@ -6,16 +6,54 @@ date: 2026-04-07
 
 # Issue Management
 
-- Issue HWM: 35
+- Issue HWM: 37
 - Save Point: - 2026-04-13 (ed3ae75)
 
 # 🤔 결정사항
 
 # 🌱 이슈후보
 1. all clear test할 것. _config.yml기본 값 확인
-2. "[2026-04-13 21:00:20.565] ⚠️ WARNING: 🎨 [KeyRenderingManager] visual_key_definitions.json not found in Bundle." 시작로그 워닝 제거
+2. 클립보드 히스토리 기능 중에서 고급 기능은 Paid 앱이 활성화 되어 있어야 실행 가능하게끔 해 줘 활성화 되어 있지 않다면 활성화 창[기존 코드 찾아서] 열게 해야함. 
+   1. Paid 앱의 기능이 모듈로 구성되어 있는지 확인
+3. "[2026-04-13 21:00:20.565] ⚠️ WARNING: 🎨 [KeyRenderingManager] visual_key_definitions.json not found in Bundle." 시작로그 워닝 제거
 
 # 🚧 진행중
+
+## Issue37: nPTiR 환경 정비 — 폴더 구조·SCAR 빈 파일·.gitignore 정비 (등록: 2026-04-14)
+
+* 목적: nPTiR 체계 원활 작업을 위한 사전 정비 (check-nNPTiR 리포트 기반)
+* plan: `cli/_doc_work/plan/start-nPTiR_plan.md`
+* task: `cli/_doc_work/tasks/start-nPTiR_task.md`
+* 상세:
+    - A-1: `cli/_doc_work/_rlease/` 오타 폴더 삭제
+    - A-2: `cli/_doc_work/` 루트 산재 파일 3개를 `plan/`·`report/` 하위로 이동, Issue.md 경로 업데이트
+    - A-3: `z_done/` 폴더 활용 기준 결정 (완료 task 보관소로 활용)
+    - B-1: `.claude/commands/dev.md` 개발 주기 내용 작성
+    - B-2: `.claude/commands/issue.md` 이슈 통합 워크플로우 내용 작성
+    - C-1: `.gitignore` 중복 라인 제거 (`cli/_doc_work/report/*_????-??-??_*.md`)
+* 구현 명세:
+    - `cli/_doc_work/_rlease/` → `rm -rf`
+    - `cli/_doc_work/{api_v2_phase1_report,issue29_completion_report}.md` → `cli/_doc_work/report/`로 이동
+    - `cli/_doc_work/apiTest_plan_v1v2.md` → `cli/_doc_work/plan/`으로 이동
+    - `Issue.md` Issue29 참조 경로 업데이트
+    - `.claude/commands/dev.md` 작성 (빌드→실행→테스트→이슈 등록 흐름)
+    - `.claude/commands/issue.md` 작성 (reg/fix/closer 라우팅)
+    - `.gitignore` 중복 라인 삭제
+
+## Issue36: /run 커맨드에 full 옵션 추가 — ZTest 스니펫 확장 통합 테스트 자동화
+
+* 목적: `/run full` 실행 시 testForCli 환경에서 ZTest 스니펫 확장까지 자동으로 검증하는 통합 테스트 흐름을 `/run` 커맨드에 `full` 옵션으로 장착
+* 상세:
+    - `cli/_tool/run.sh`에 `full` 분기 추가: kill → appRootPath 설정 → 빌드·배포·실행 → ZTest 스니펫 생성 → testBoard.txt 초기화 → AppleScript 키 입력 → 결과 검증 → 로그 확인 → say 알림
+    - `.claude/commands/run.md`에 `/run full` 인자 설명 추가
+* 구현 명세:
+    - `cli/_tool/run.sh`: `if [ "$1" = "full" ]` 분기 — Step 0~9 순서대로 실행하는 `run_full()` 함수 구현
+    - testForCli 경로: `/Users/nowage/Documents/finfra/fSnippetData_testForCli`
+    - ZTest 스니펫: `snippets/ZTest/do.txt` (내용: `ZTest-do`), abbreviation: `ztdo` + right_command
+    - 검증: `testBoard.txt`에 `ZTest-do` 삽입 여부 + `flog.log`에 `🚦 트리거 확장` 존재 여부
+    - 결과 알림: 성공 시 `say "f-snippet-cli ok"`, 실패 시 `say "f-snippet-cli fail"`
+    - 완료 후 appRootPath 원복: `/Users/nowage/Documents/finfra/fSnippetData`
+* 참고: `cli/_doc_work/tasks/run-full-option_task.md`
 
 # 📕 중요
 
