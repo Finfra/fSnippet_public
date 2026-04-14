@@ -70,7 +70,10 @@ class KeyEventMonitor: PopupControllerDelegate, CollisionManagerDelegate, Trigge
 
         snippetExpansionCoordinator.onExpansionSuccess = { [weak self] in
             self?.bufferController.clear(reason: "Expansion Success")
-            self?.popupController.hidePopup()  // Ensure popup is closed
+            // ✅ [Issue34] hideApp: false — 팝업 정리만, 포커스 복원 없음.
+            // 팝업 선택 케이스는 handleSnippetSelection()에서 이미 hidePopup(hideApp: true) 호출됨.
+            // 비팝업 직접 확장 케이스는 fSnippetCli가 포커스를 가져간 적 없으므로 activation 불필요.
+            self?.popupController.hidePopup(hideApp: false)
         }
 
         snippetExpansionCoordinator.onExpansionFailure = { [weak self] in
