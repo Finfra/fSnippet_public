@@ -100,15 +100,18 @@ APPLESCRIPT
 tell application "TextEdit" to activate
 delay 0.3
 tell application "System Events" to keystroke "s" using {command down}
-delay 1
--- "Save Anyway" 다이얼로그가 나타나면 클릭
-tell application "System Events"
-    tell process "TextEdit"
-        if exists sheet 1 of window 1 then
-            click button "Save Anyway" of sheet 1 of window 1
-        end if
+-- "Save Anyway" 다이얼로그 대기 및 클릭 (최대 5초)
+repeat 10 times
+    delay 0.5
+    tell application "System Events"
+        tell process "TextEdit"
+            if exists sheet 1 of window 1 then
+                click button "Save Anyway" of sheet 1 of window 1
+                exit repeat
+            end if
+        end tell
     end tell
-end tell
+end repeat
 APPLESCRIPT
     sleep 0.5
 
