@@ -10,6 +10,7 @@
 		AA000001000000000000CF01 /* _config.yml in Resources */ = {isa = PBXBuildFile; fileRef = AA000002000000000000CF01 /* _config.yml */; };
 		AA000001000000000000RL01 /* _rule.yml in Resources */ = {isa = PBXBuildFile; fileRef = AA000002000000000000RL01 /* _rule.yml */; };
 		AA000001000000000000RI01 /* _rule_for_import.yml in Resources */ = {isa = PBXBuildFile; fileRef = AA000002000000000000RI01 /* _rule_for_import.yml */; };
+		AA000001000000000000VK01 /* visual_key_definitions.json in Resources */ = {isa = PBXBuildFile; fileRef = AA000002000000000000VK01 /* visual_key_definitions.json */; };
 		015DF5AB1A53EAF760F1E1F1 /* SnippetIconProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EEEF28C78DC5887737C1D8B /* SnippetIconProvider.swift */; };
 		0809371B00344E88F41F91B8 /* AtomicPropertyWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = D416F125ACE2417E35E68007 /* AtomicPropertyWrapper.swift */; };
 		08E1434902003EEF39902D7E /* FileUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 106EB42A6154CB1CEC250B9B /* FileUtilities.swift */; };
@@ -157,6 +158,7 @@
 		AA000002000000000000CF01 /* _config.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = _config.yml; sourceTree = "<group>"; };
 		AA000002000000000000RL01 /* _rule.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = _rule.yml; sourceTree = "<group>"; };
 		AA000002000000000000RI01 /* _rule_for_import.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = _rule_for_import.yml; sourceTree = "<group>"; };
+		AA000002000000000000VK01 /* visual_key_definitions.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = visual_key_definitions.json; sourceTree = "<group>"; };
 		1D606FDBA0D4ECEB63A53E9A /* SnippetCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetCommand.swift; sourceTree = "<group>"; };
 		1F2753E73A12BC286B07322F /* ShortcutMgr.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutMgr.swift; sourceTree = "<group>"; };
 		1FDDB98DF69E423CC1DBA777 /* TriggerKeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TriggerKeyManager.swift; sourceTree = "<group>"; };
@@ -481,6 +483,7 @@
 				AA000002000000000000CF01 /* _config.yml */,
 				AA000002000000000000RL01 /* _rule.yml */,
 				AA000002000000000000RI01 /* _rule_for_import.yml */,
+				AA000002000000000000VK01 /* visual_key_definitions.json */,
 				CA99A063D2EA630A1846BFC8 /* fSnippetCli.entitlements */,
 				ABBCEAFB17DED6BC31F0E0D9 /* fSnippetCliApp.swift */,
 				48B4EB102AC686165B86F8ED /* Info.plist */,
@@ -589,6 +592,7 @@
 				AA000001000000000000CF01 /* _config.yml in Resources */,
 				AA000001000000000000RL01 /* _rule.yml in Resources */,
 				AA000001000000000000RI01 /* _rule_for_import.yml in Resources */,
+				AA000001000000000000VK01 /* visual_key_definitions.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
