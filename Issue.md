@@ -12,37 +12,26 @@ date: 2026-04-07
 # 🤔 결정사항
 
 # 🌱 이슈후보
-* 클립보드 히스토리 기능 중에서 고급 기능은 Paid 앱이 활성화 되어 있어야 실행 가능하게끔 해 줘 활성화 되어 있지 않다면 활성화 창[기존 코드 찾아서] 열게 해야함. 
+1. 클립보드 히스토리 기능 중에서 고급 기능은 Paid 앱이 활성화 되어 있어야 실행 가능하게끔 해 줘 활성화 되어 있지 않다면 활성화 창[기존 코드 찾아서] 열게 해야함. 
     - Paid 앱의 기능이 모듈로 구성되어 있는지 확인
-* "[2026-04-13 21:00:20.565] ⚠️ WARNING: 🎨 [KeyRenderingManager] visual_key_definitions.json not found in Bundle." 시작로그 워닝 제거
+2. "[2026-04-13 21:00:20.565] ⚠️ WARNING: 🎨 [KeyRenderingManager] visual_key_definitions.json not found in Bundle." 시작로그 워닝 제거
 # 🚧 진행중
-
-# 📕 중요
-
-# 📙 일반
-
-## Issue35: UI 전체 다국어(i18n) 누락 — PlaceholderInputWindow·SnippetPopup·HistoryViewer 문자열 미등록
-
-* 목적: `LocalizedStringManager.strings` 딕셔너리에 토스트 메시지만 등록되어 있고, 플레이스홀더 입력창·스니펫 팝업·클립보드 히스토리 뷰어 등 UI 전반의 문자열 키가 누락되어 번역 없이 key 원문이 그대로 화면에 표시되는 문제 해결
-* 상세:
-    - 현상: 이미지처럼 "placeholder.window.title", "placeholder.button.cancel", "history.search.placeholder" 등 key 문자열이 UI에 노출됨
-    - 원인: UI 파일들이 `LocalizedStringManager.shared.string(_:)` 대신 `Text("key")` 형태로 직접 key를 하드코딩하거나, `LocalizedStringManager`에 해당 key 자체가 미등록 상태
-    - 영향 파일:
-        - `PlaceholderInputWindow.swift`: "placeholder.window.title", "placeholder.label.preview", "placeholder.button.cancel", "placeholder.button.confirm"
-        - `HistorySearchBar.swift`: "history.search.placeholder", "history.filter.all", "history.filter.images", "history.filter.apps"
-        - `UnifiedSnippetPopupView.swift`: "popup.preview.empty"
-        - `SnippetPopupView.swift`: "popup.create.help", "popup.empty.no_results"
-        - `HistoryViewer.swift` / `UnifiedHistoryViewer.swift`: "alert.delete_items.message", "viewer.button.delete_matches", "viewer.help.shortcuts", "viewer.footer.items", "viewer.footer.selected", "viewer.status.active", "viewer.preview.empty", "menu.copy", "menu.register", "menu.delete", "Tab: Edit", "Esc: Back to List" 등
-* 구현 명세:
-    - `cli/fSnippetCli/Utils/LocalizedStringManager.swift`: `strings` 딕셔너리의 "en"·"ko"·"ja" 테이블에 누락된 UI 키 전체 추가 (영어 기본값 + 한국어 + 일본어 번역)
-    - 각 UI 파일에서 `Text("key")` 형태로 하드코딩된 부분을 `Text(L10n("key"))` 또는 `Text(LocalizedStringManager.shared.string("key"))` 로 교체 (현재 프로젝트에서 사용하는 패턴 확인 후 통일)
-    - 추가 후 영어/한국어 언어 전환 시 정상 번역 확인
 
 # 📗 선택
 
 
 
 # ✅ 완료
+
+## Issue35: UI 전체 다국어(i18n) 누락 — PlaceholderInputWindow·SnippetPopup·HistoryViewer 문자열 미등록 (등록: 2026-04-17, 해결: 2026-04-17, commit: 0043003) ✅
+
+* 목적: `LocalizedStringManager.strings` 딕셔너리에 토스트 메시지만 등록되어 있고, UI 전반의 문자열 키가 누락되어 key 원문이 그대로 화면에 표시되는 문제 해결
+* 해결:
+    - `LocalizedStringManager.swift`에 전역 `L10n()` 헬퍼 함수 추가
+    - en/ko/ja 3개 언어 50+ UI 키 등록 (placeholder, popup, history, viewer, alert 카테고리)
+    - 7개 UI 파일에서 `Text("key")`/`NSLocalizedString`/하드코딩 영문 → `L10n()` 패턴으로 통일
+    - 수정 파일: `LocalizedStringManager.swift`, `PlaceholderInputWindow.swift`, `HistorySearchBar.swift`, `UnifiedSnippetPopupView.swift`, `SnippetPopupView.swift`, `HistoryViewer.swift`, `UnifiedHistoryViewer.swift`
+* 검증: Release 빌드 성공 (경고 0)
 
 ## Issue36: /run 커맨드에 full 옵션 추가 — ZTest 스니펫 확장 통합 테스트 자동화 (등록: 2026-04-14, 해결: 2026-04-17, commit: 8b236b9) ✅
 
