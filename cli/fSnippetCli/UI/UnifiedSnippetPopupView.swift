@@ -30,7 +30,7 @@ struct UnifiedSnippetPopupView: View {
                 // 선택된 스니펫이 없는 경우 빈 영역 처리 (너비 유지하여 레이아웃 고정)
                 VStack {
                     Spacer()
-                    Text("popup.preview.empty")
+                    Text(L10n("popup.preview.empty"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                     Spacer()

@@ -105,17 +105,17 @@ struct HistoryViewer: View {
                             }
                         }
                         .contextMenu {
-                            Button("menu.copy") { confirmSelection(item) }
+                            Button(L10n("menu.copy")) { confirmSelection(item) }
                             if item.type == .image {
-                                Button("Save Image") {
+                                Button(L10n("menu.save_image")) {
                                     viewModel.saveImageLocally(item: item)
                                 }
                             } else {
-                                Button("menu.register") {
+                                Button(L10n("menu.register")) {
                                     viewModel.registerAndEditAsSnippet(item: item)
                                 }
                             }
-                            Button("menu.delete", role: .destructive) {
+                            Button(L10n("menu.delete"), role: .destructive) {
                                 viewModel.selectedIds = [item.id!]
                                 viewModel.deleteSelectedItems()
                             }
@@ -223,33 +223,33 @@ struct HistoryViewer: View {
         }
         .confirmationDialog(
             String(
-                format: NSLocalizedString("alert.delete_items.title", comment: ""),
+                format: L10n("alert.delete_items.title"),
                 viewModel.selectedIds.count),
             isPresented: $showingDeleteConfirmation,
             titleVisibility: .visible
         ) {
-            Button("alert.common.delete", role: .destructive) {
+            Button(L10n("alert.common.delete"), role: .destructive) {
                 viewModel.deleteSelectedItems()
                 HistoryViewerManager.shared.hide()
             }
-            Button("alert.common.cancel", role: .cancel) {}
+            Button(L10n("alert.common.cancel"), role: .cancel) {}
         } message: {
-            Text("alert.delete_items.message")
+            Text(L10n("alert.delete_items.message"))
         }
         // CL066: Filtered Delete Confirmation
         .confirmationDialog(
-            "Delete all items matching query?",
+            L10n("alert.filtered_delete.title"),
             isPresented: $viewModel.showingFilteredDeleteConfirmation,
             titleVisibility: .visible
         ) {
-            Button("Delete \(viewModel.filteredDeleteCount) Items", role: .destructive) {
+            Button(String(format: L10n("alert.filtered_delete.button"), viewModel.filteredDeleteCount), role: .destructive) {
                 viewModel.confirmFilteredDelete()
                 HistoryViewerManager.shared.hide()
             }
-            Button("Cancel", role: .cancel) {}
+            Button(L10n("alert.common.cancel"), role: .cancel) {}
         } message: {
             Text(
-                "This will permanently delete \(viewModel.filteredDeleteCount) items that match '\(viewModel.searchText)'. This finding logic is exactly same as your search result.\nThis action cannot be undone."
+                String(format: L10n("alert.filtered_delete.message"), viewModel.filteredDeleteCount, viewModel.searchText)
             )
         }
         .onChange(of: showingDeleteConfirmation) { _, newValue in }
@@ -569,7 +569,7 @@ struct HistoryViewer: View {
             HStack {
                 Text(
                     String(
-                        format: NSLocalizedString("viewer.footer.items", comment: ""),
+                        format: L10n("viewer.footer.items"),
                         viewModel.items.count)
                 )
                 .font(.caption2)
@@ -585,7 +585,7 @@ struct HistoryViewer: View {
 
                 if !viewModel.selectedIds.isEmpty {
                     Text(
-                        " • \(String(format: NSLocalizedString("viewer.footer.selected", comment: ""), viewModel.selectedIds.count))"
+                        " • \(String(format: L10n("viewer.footer.selected"), viewModel.selectedIds.count))"
                     )
                     .font(.caption2)
                     .foregroundColor(.blue)
@@ -599,8 +599,8 @@ struct HistoryViewer: View {
                                 ? "pause.circle.fill" : "play.circle.fill")
                         Text(
                             viewModel.isPaused
-                                ? NSLocalizedString("viewer.status.paused", comment: "")
-                                : NSLocalizedString("viewer.status.active", comment: ""))
+                                ? L10n("viewer.status.paused")
+                                : L10n("viewer.status.active"))
                     }
                     .font(.caption2.bold())
                     .foregroundColor(viewModel.isPaused ? .red : .green)
@@ -609,8 +609,8 @@ struct HistoryViewer: View {
                 .padding(.leading, 8)
                 .instantTooltip(
                     viewModel.isPaused
-                        ? NSLocalizedString("viewer.help.resume", comment: "")
-                        : NSLocalizedString("viewer.help.pause", comment: ""))
+                        ? L10n("viewer.help.resume")
+                        : L10n("viewer.help.pause"))
 
                 Spacer()
                 Spacer()
@@ -626,7 +626,7 @@ struct HistoryViewer: View {
                     helpPopoverContent
                         .padding()
                 }
-                .instantTooltip("Show Keyboard Shortcuts")
+                .instantTooltip(L10n("viewer.help.show_shortcuts"))
 
                 // 개별 로우에 버튼이 있으므로 하단 버튼은 유지하되 다중 선택 시에만 유용하게 작동함
                 if viewModel.selectedIds.count > 1 {
@@ -636,7 +636,7 @@ struct HistoryViewer: View {
                     }
                     .buttonStyle(PlainButtonStyle())
                     .padding(.leading, 8)
-                    .instantTooltip("alert.common.delete")
+                    .instantTooltip(L10n("alert.common.delete"))
                 }
 
                 // CL066: Filtered Delete Button
@@ -644,13 +644,13 @@ struct HistoryViewer: View {
                     Button(action: { viewModel.prepareFilteredDelete() }) {
                         HStack(spacing: 4) {
                             Image(systemName: "trash.slash")
-                            Text("viewer.button.delete_matches")
+                            Text(L10n("viewer.button.delete_matches"))
                         }
                         .foregroundColor(.red)
                     }
                     .buttonStyle(PlainButtonStyle())
                     .padding(.leading, 12)
-                    .instantTooltip("viewer.help.delete_matches")
+                    .instantTooltip(L10n("viewer.help.delete_matches"))
                 }
             }
             .padding(.top, 4)  // Reduced top padding
@@ -663,35 +663,35 @@ struct HistoryViewer: View {
     // ✅ Issue 356: Help Popover Content
     private var helpPopoverContent: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("viewer.help.shortcuts")
+            Text(L10n("viewer.help.shortcuts"))
                 .font(.headline)
                 .padding(.bottom, 4)
 
             Group {
                 shortcutRow(
-                    key: NSLocalizedString("viewer.key.tab", comment: ""),
-                    action: NSLocalizedString("viewer.action.preview_edit", comment: ""))
+                    key: L10n("viewer.key.tab"),
+                    action: L10n("viewer.action.preview_edit"))
                 shortcutRow(
-                    key: NSLocalizedString("viewer.key.enter", comment: ""),
-                    action: NSLocalizedString("viewer.action.copy_paste", comment: ""))
+                    key: L10n("viewer.key.enter"),
+                    action: L10n("viewer.action.copy_paste"))
                 shortcutRow(
                     key: "\(getModifierSymbol())1-9",
-                    action: NSLocalizedString("viewer.action.quick_select", comment: ""))
+                    action: L10n("viewer.action.quick_select"))
                 shortcutRow(
-                    key: NSLocalizedString("viewer.key.backspace", comment: ""),
-                    action: NSLocalizedString("viewer.action.delete", comment: ""))
+                    key: L10n("viewer.key.backspace"),
+                    action: L10n("viewer.action.delete"))
             }
 
             Group {
                 shortcutRow(
                     key: settings.historyRegisterSnippetHotkey.displayString,
-                    action: NSLocalizedString("viewer.action.register", comment: ""))
+                    action: L10n("viewer.action.register"))
                 shortcutRow(
                     key: settings.historyPauseHotkey.displayString,
-                    action: NSLocalizedString("viewer.action.toggle_pause", comment: ""))
+                    action: L10n("viewer.action.toggle_pause"))
                 shortcutRow(
-                    key: NSLocalizedString("viewer.key.esc", comment: ""),
-                    action: NSLocalizedString("viewer.action.close", comment: ""))
+                    key: L10n("viewer.key.esc"),
+                    action: L10n("viewer.action.close"))
             }
         }
         .fixedSize()

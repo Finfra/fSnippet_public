@@ -19,7 +19,7 @@ struct HistorySearchBar: View {
             
             FocusAwareTextField(
                 text: $text,
-                placeholder: NSLocalizedString("history.search.placeholder", comment: "Search placeholder"),
+                placeholder: L10n("history.search.placeholder"),
                 onExitCommand: onCancel
             )
             .frame(height: 20) // Ensure consistent height with previous layout
@@ -36,22 +36,22 @@ struct HistorySearchBar: View {
             Menu {
                 Button(action: { selectedFilter = .all }) {
                     if selectedFilter == .all {
-                        Label(NSLocalizedString("history.filter.all", comment: ""), systemImage: "checkmark")
+                        Label(L10n("history.filter.all"), systemImage: "checkmark")
                     } else {
-                        Label(NSLocalizedString("history.filter.all", comment: ""), systemImage: "line.3.horizontal.decrease.circle")
+                        Label(L10n("history.filter.all"), systemImage: "line.3.horizontal.decrease.circle")
                     }
                 }
                 Button(action: { selectedFilter = .images }) {
                     if selectedFilter == .images {
-                        Label(NSLocalizedString("history.filter.images", comment: ""), systemImage: "checkmark")
+                        Label(L10n("history.filter.images"), systemImage: "checkmark")
                     } else {
-                        Label(NSLocalizedString("history.filter.images", comment: ""), systemImage: "photo")
+                        Label(L10n("history.filter.images"), systemImage: "photo")
                     }
                 }
                 
                 if !availableApps.isEmpty {
                     Divider()
-                    Text(NSLocalizedString("history.filter.apps", comment: ""))
+                    Text(L10n("history.filter.apps"))
                     ForEach(availableApps, id: \.self) { appBundle in
                         Button(action: { selectedFilter = .app(appBundle) }) {
                             HStack {

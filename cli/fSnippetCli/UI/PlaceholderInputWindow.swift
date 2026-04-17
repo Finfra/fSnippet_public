@@ -130,7 +130,7 @@ struct PlaceholderInputView: View {
     @ViewBuilder
     private var headerView: some View {
         HStack {
-            Text("placeholder.window.title")
+            Text(L10n("placeholder.window.title"))
                 .font(.headline)
                 .foregroundColor(.primary)
 
@@ -142,7 +142,7 @@ struct PlaceholderInputView: View {
                     .foregroundColor(.blue)
             }
             .buttonStyle(PlainButtonStyle())
-            .instantTooltip(NSLocalizedString("placeholder.help.history", comment: ""))
+            .instantTooltip(L10n("placeholder.help.history"))
             .focusable(false)
 
             Spacer()
@@ -203,14 +203,14 @@ struct PlaceholderInputView: View {
     @ViewBuilder
     private var buttonView: some View {
         HStack(spacing: 12) {
-            Button("placeholder.button.cancel") {
+            Button(L10n("placeholder.button.cancel")) {
                 viewModel.cancel()
             }
             .focused($focusedComponent, equals: .cancelButton)  // ✅ 포커스 연결
             .keyboardShortcut(.cancelAction)  // ESC
             .focusable(false)  // 탭 사이클에서 제외 (ESC 사용 권장)
 
-            Button("placeholder.button.confirm") {
+            Button(L10n("placeholder.button.confirm")) {
                 viewModel.confirm()
             }
             .buttonStyle(.borderedProminent)
@@ -231,7 +231,7 @@ struct PlaceholderInputView: View {
     @ViewBuilder
     private var previewView: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("placeholder.label.preview")
+            Text(L10n("placeholder.label.preview"))
                 .font(.caption)
                 .foregroundColor(.secondary)
 
@@ -588,7 +588,7 @@ class PlaceholderInputWindow: NSObject, NSWindowDelegate {
 
         // 윈도우 속성 설정
         window.contentView = hostingView
-        window.title = NSLocalizedString("placeholder.window.title", comment: "")
+        window.title = L10n("placeholder.window.title")
         window.isReleasedWhenClosed = false
         // Issue796: .floating 레벨로 다른 윈도우 위에 표시 (앱 활성화 없이)
         window.level = .floating

@@ -26,7 +26,7 @@ struct UnifiedHistoryViewer: View {
                     // 선택된 항목이 없는 경우 빈 영역 처리
                     VStack {
                         Spacer()
-                        Text("viewer.preview.empty")
+                        Text(L10n("viewer.preview.empty"))
                             .font(.caption)
                             .foregroundColor(.secondary)
                         Spacer()

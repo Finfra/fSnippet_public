@@ -152,7 +152,7 @@ struct SnippetPopupView: View {
     }
 
     private var searchTextField: some View {
-        TextField(NSLocalizedString("popup.search.placeholder", comment: ""), text: $searchText)
+        TextField(L10n("popup.search.placeholder"), text: $searchText)
             .textFieldStyle(PlainTextFieldStyle())
             .font(.system(size: 13))  // 컨테이너에 맞게 폰트 크기 약간 조정
             .focused($isSearchFocused)
@@ -299,7 +299,7 @@ struct SnippetPopupView: View {
                                 .font(.system(size: 16))
                             Text(
                                 String(
-                                    format: NSLocalizedString("popup.create.button", comment: ""),
+                                    format: L10n("popup.create.button"),
                                     suggestedTerm)
                             )
                             .fontWeight(.medium)
@@ -315,7 +315,7 @@ struct SnippetPopupView: View {
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
 
-                    Text("popup.create.help")
+                    Text(L10n("popup.create.help"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .padding(.bottom, 8)
@@ -326,7 +326,7 @@ struct SnippetPopupView: View {
                     // Controller에서 Top10으로 Fallback하므로 이 경로는 거의 타지 않음
                     VStack {
                         Spacer()
-                        Text("popup.empty.no_results")
+                        Text(L10n("popup.empty.no_results"))
                             .foregroundColor(.secondary)
                         Spacer()
                     }
