@@ -12,13 +12,9 @@ date: 2026-04-07
 # 🤔 결정사항
 
 # 🌱 이슈후보
-1. all clear test할 것. _config.yml기본 값 확인
-2. 클립보드 히스토리 기능 중에서 고급 기능은 Paid 앱이 활성화 되어 있어야 실행 가능하게끔 해 줘 활성화 되어 있지 않다면 활성화 창[기존 코드 찾아서] 열게 해야함. 
-   1. Paid 앱의 기능이 모듈로 구성되어 있는지 확인
-3. "[2026-04-13 21:00:20.565] ⚠️ WARNING: 🎨 [KeyRenderingManager] visual_key_definitions.json not found in Bundle." 시작로그 워닝 제거
-4. 클립보드 히스토리 기능 중에서 고급 기능은 Paid 앱이 활성화 되어 있어야 실행 가능하게끔 해 줘 활성화 되어 있지 않다면 활성화 창[기존 코드 찾아서] 열게 해야함. 
-   1. Paid 앱의 기능이 모듈로 구성되어 있는지 확인
-3. 
+* 클립보드 히스토리 기능 중에서 고급 기능은 Paid 앱이 활성화 되어 있어야 실행 가능하게끔 해 줘 활성화 되어 있지 않다면 활성화 창[기존 코드 찾아서] 열게 해야함. 
+    - Paid 앱의 기능이 모듈로 구성되어 있는지 확인
+* "[2026-04-13 21:00:20.565] ⚠️ WARNING: 🎨 [KeyRenderingManager] visual_key_definitions.json not found in Bundle." 시작로그 워닝 제거
 # 🚧 진행중
 
 # 📕 중요
