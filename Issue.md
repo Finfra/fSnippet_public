@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-- Issue HWM: 37
+- Issue HWM: 38
 - Save Point: - 2026-04-13 (ed3ae75)
 
 # 🤔 결정사항
@@ -14,14 +14,26 @@ date: 2026-04-07
 # 🌱 이슈후보
 1. 클립보드 히스토리 기능 중에서 고급 기능은 Paid 앱이 활성화 되어 있어야 실행 가능하게끔 해 줘 활성화 되어 있지 않다면 활성화 창[기존 코드 찾아서] 열게 해야함. 
     - Paid 앱의 기능이 모듈로 구성되어 있는지 확인
-2. "[2026-04-13 21:00:20.565] ⚠️ WARNING: 🎨 [KeyRenderingManager] visual_key_definitions.json not found in Bundle." 시작로그 워닝 제거
 # 🚧 진행중
+
+# 📕 중요
+
+# 📙 일반
 
 # 📗 선택
 
-
-
 # ✅ 완료
+
+## Issue38: KeyRenderingManager visual_key_definitions.json 번들 누락 — 시작 로그 워닝 제거 (등록: 2026-04-17, 해결: 2026-04-17, commit: 7f8adfd) ✅
+
+* 목적: `visual_key_definitions.json`이 fSnippetCli 번들에 포함되지 않아 앱 시작 시 WARNING 로그(`🎨 [KeyRenderingManager] visual_key_definitions.json not found in Bundle.`)가 항상 출력되는 문제 해결
+* 구현:
+    - `cli/fSnippetCli/visual_key_definitions.json` 추가 (fSnippet 원본 복사, 472B)
+    - `cli/fSnippetCli.xcodeproj/project.pbxproj`에 3개 위치 등록 (PBXBuildFile / FileReference / Resources 빌드 단계)
+    - 기존 `_config.yml`/`_rule.yml` 등록 패턴 준수
+* 검증:
+    - Release 빌드 BUILD SUCCEEDED
+    - 번들 내 `fSnippetCli.app/Contents/Resources/visual_key_definitions.json` 포함 확인
 
 ## Issue35: UI 전체 다국어(i18n) 누락 — PlaceholderInputWindow·SnippetPopup·HistoryViewer 문자열 미등록 (등록: 2026-04-17, 해결: 2026-04-17, commit: 0043003) ✅
 
