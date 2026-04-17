@@ -16,23 +16,10 @@ date: 2026-04-07
 2. 클립보드 히스토리 기능 중에서 고급 기능은 Paid 앱이 활성화 되어 있어야 실행 가능하게끔 해 줘 활성화 되어 있지 않다면 활성화 창[기존 코드 찾아서] 열게 해야함. 
    1. Paid 앱의 기능이 모듈로 구성되어 있는지 확인
 3. "[2026-04-13 21:00:20.565] ⚠️ WARNING: 🎨 [KeyRenderingManager] visual_key_definitions.json not found in Bundle." 시작로그 워닝 제거
-
+4. 클립보드 히스토리 기능 중에서 고급 기능은 Paid 앱이 활성화 되어 있어야 실행 가능하게끔 해 줘 활성화 되어 있지 않다면 활성화 창[기존 코드 찾아서] 열게 해야함. 
+   1. Paid 앱의 기능이 모듈로 구성되어 있는지 확인
+3. 
 # 🚧 진행중
-
-## Issue36: /run 커맨드에 full 옵션 추가 — ZTest 스니펫 확장 통합 테스트 자동화
-
-* 목적: `/run full` 실행 시 testForCli 환경에서 ZTest 스니펫 확장까지 자동으로 검증하는 통합 테스트 흐름을 `/run` 커맨드에 `full` 옵션으로 장착
-* 상세:
-    - `cli/_tool/run.sh`에 `full` 분기 추가: kill → appRootPath 설정 → 빌드·배포·실행 → ZTest 스니펫 생성 → testBoard.txt 초기화 → AppleScript 키 입력 → 결과 검증 → 로그 확인 → say 알림
-    - `.claude/commands/run.md`에 `/run full` 인자 설명 추가
-* 구현 명세:
-    - `cli/_tool/run.sh`: `if [ "$1" = "full" ]` 분기 — Step 0~9 순서대로 실행하는 `run_full()` 함수 구현
-    - testForCli 경로: `/Users/nowage/Documents/finfra/fSnippetData_testForCli`
-    - ZTest 스니펫: `snippets/ZTest/do.txt` (내용: `ZTest-do`), abbreviation: `ztdo` + right_command
-    - 검증: `testBoard.txt`에 `ZTest-do` 삽입 여부 + `flog.log`에 `🚦 트리거 확장` 존재 여부
-    - 결과 알림: 성공 시 `say "f-snippet-cli ok"`, 실패 시 `say "f-snippet-cli fail"`
-    - 완료 후 appRootPath 원복: `/Users/nowage/Documents/finfra/fSnippetData`
-* 참고: `cli/_doc_work/tasks/run-full-option_task.md`
 
 # 📕 중요
 
@@ -60,6 +47,17 @@ date: 2026-04-07
 
 
 # ✅ 완료
+
+## Issue36: /run 커맨드에 full 옵션 추가 — ZTest 스니펫 확장 통합 테스트 자동화 (등록: 2026-04-14, 해결: 2026-04-17, commit: PENDING) ✅
+
+* 목적: `/run full` 실행 시 testForCli 환경에서 ZTest 스니펫 확장까지 자동으로 검증하는 통합 테스트 흐름 구현
+* 해결:
+    - `cli/_tool/run.sh`에 `full` 분기 구현 (Step 0~9: kill → 환경변수 → 빌드·배포·실행 → ZTest 생성 → 키 입력 → 검증 → 알림 → 원복)
+    - `cli/_tool/kill.sh`, `cli/_tool/send_right_cmd.py` 보조 스크립트 추가
+    - `_config.yml`, `_rule.yml`, `_rule_for_import.yml` 번들 리소스 등록 (신규 환경에서 자동 복사)
+    - `_config.yml` 기본 `log_level` "critical" → "info" 수정
+    - `PreferencesManager.getDefaults()` fallback 기본값 "VERBOSE" → "info" 변경
+    - TextEdit 포커스 경쟁 방지 + "Save Anyway" 다이얼로그 자동 처리
 
 ## Issue37: nPTiR 환경 정비 — 폴더 구조·SCAR 빈 파일·.gitignore 정비 (등록: 2026-04-14, 해결: 2026-04-14, commit: 6458058, 03c3bbd) ✅
 

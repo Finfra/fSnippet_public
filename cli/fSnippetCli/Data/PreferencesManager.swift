@@ -476,7 +476,7 @@ class PreferencesManager: PreferencesManagerProtocol {
         let snippetsPath =
             defaults.string(forKey: "snippet_base_path")
             ?? appBaseURL.appendingPathComponent("snippets").path
-        let logLevel = defaults.string(forKey: "log_level") ?? "VERBOSE"
+        let logLevel = defaults.string(forKey: "log_level") ?? "info"
         let startAtLogin = defaults.bool(forKey: "start_at_login")
         let hideMenuBar = defaults.bool(forKey: "hide_menu_bar_icon")
         let showNotifications = defaults.bool(forKey: "show_notifications")

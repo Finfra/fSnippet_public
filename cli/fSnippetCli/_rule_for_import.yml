@@ -1,0 +1,34 @@
+# fSnippet Rule File (For Import Settings)
+
+global:
+  imported_date: "{{current_date}}"
+  generator: "fSnippet Settings"
+
+trigger_repapping:
+  - "◊": "{keypad_comma}"
+
+collections:
+  - name: "_한글속기"
+    suffix: "`"
+  - name: "_한글Snippet"
+    suffix: "¬"
+  - name: "_alfred"
+    prefix: "{keypad_comma}"
+    suffix: "{keypad_comma}"
+  - name: "_Bullets"
+    prefix: "{keypad_comma}"
+    suffix: "{keypad_comma}"
+  - name: "_emoji"
+    prefix: ",,"
+    suffix: "{keypad_comma}"
+  - name: "_FUNDAMENTAL"
+    suffix: "∆"
+  - name: "_FUNDAMENTAL-hangul"
+    suffix: "˚"
+    trigger_bias: 0
+  - name: "_symbol"
+    suffix: ",,"
+  - name: "_symbol_space"
+    suffix: " "
+  - name: "Ansible"
+    suffix: "!"

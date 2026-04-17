@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AA000001000000000000CF01 /* _config.yml in Resources */ = {isa = PBXBuildFile; fileRef = AA000002000000000000CF01 /* _config.yml */; };
+		AA000001000000000000RL01 /* _rule.yml in Resources */ = {isa = PBXBuildFile; fileRef = AA000002000000000000RL01 /* _rule.yml */; };
+		AA000001000000000000RI01 /* _rule_for_import.yml in Resources */ = {isa = PBXBuildFile; fileRef = AA000002000000000000RI01 /* _rule_for_import.yml */; };
 		015DF5AB1A53EAF760F1E1F1 /* SnippetIconProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EEEF28C78DC5887737C1D8B /* SnippetIconProvider.swift */; };
 		0809371B00344E88F41F91B8 /* AtomicPropertyWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = D416F125ACE2417E35E68007 /* AtomicPropertyWrapper.swift */; };
 		08E1434902003EEF39902D7E /* FileUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 106EB42A6154CB1CEC250B9B /* FileUtilities.swift */; };
@@ -87,6 +90,7 @@
 		ABA436970D6214002F3BDBC5 /* CommandHandlingWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 717BC88E398254D6C1632A79 /* CommandHandlingWindow.swift */; };
 		AD475CD7F27CEE5A59B7CDF5 /* DeleteLengthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5892C7920135BCD6DCB68E53 /* DeleteLengthManager.swift */; };
 		AD855BF9446D935C78F2E0C9 /* ShortcutMgr.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F2753E73A12BC286B07322F /* ShortcutMgr.swift */; };
+		B10A5BC78327BEB1C86CF0EF /* ChangeTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC31B6FFEA528B10B99384FB /* ChangeTracker.swift */; };
 		B2E9EA2CD97AE3AB45DF4013 /* PreviewTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CADD3DF55353E78D3013744 /* PreviewTextView.swift */; };
 		B6E6F497D652472CF6478A61 /* KeyEventInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F669FCE7A41C4A866349396 /* KeyEventInfo.swift */; };
 		B71D3B08CBE15AFF366BE706 /* SettingsObservableObject.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05B60D421C1B6B2D434925F3 /* SettingsObservableObject.swift */; };
@@ -150,6 +154,9 @@
 		19F5145F6B5B048581E12385 /* SnippetRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetRepository.swift; sourceTree = "<group>"; };
 		1BCDB7564B528A091130F061 /* CLIAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CLIAPIClient.swift; sourceTree = "<group>"; };
 		1D0AF406BD3768E89A278318 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		AA000002000000000000CF01 /* _config.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = _config.yml; sourceTree = "<group>"; };
+		AA000002000000000000RL01 /* _rule.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = _rule.yml; sourceTree = "<group>"; };
+		AA000002000000000000RI01 /* _rule_for_import.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = _rule_for_import.yml; sourceTree = "<group>"; };
 		1D606FDBA0D4ECEB63A53E9A /* SnippetCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetCommand.swift; sourceTree = "<group>"; };
 		1F2753E73A12BC286B07322F /* ShortcutMgr.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutMgr.swift; sourceTree = "<group>"; };
 		1FDDB98DF69E423CC1DBA777 /* TriggerKeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TriggerKeyManager.swift; sourceTree = "<group>"; };
@@ -218,6 +225,7 @@
 		B9B34A717829BD00FFC0E011 /* SnippetFileManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetFileManager.swift; sourceTree = "<group>"; };
 		BA33EF0CBB940011645E0605 /* AppActivationMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppActivationMonitor.swift; sourceTree = "<group>"; };
 		BB71637CFFCB16DCEB3A5B15 /* TextBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextBuffer.swift; sourceTree = "<group>"; };
+		BC31B6FFEA528B10B99384FB /* ChangeTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangeTracker.swift; sourceTree = "<group>"; };
 		BE5CAA197951A55688E1117D /* NSEvent+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSEvent+Extensions.swift"; sourceTree = "<group>"; };
 		BE9C89140D1A966668F78173 /* SettingsWindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowManager.swift; sourceTree = "<group>"; };
 		BFE4E0741D23BD483DC13C42 /* APIServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIServer.swift; sourceTree = "<group>"; };
@@ -470,6 +478,9 @@
 			isa = PBXGroup;
 			children = (
 				1D0AF406BD3768E89A278318 /* Assets.xcassets */,
+				AA000002000000000000CF01 /* _config.yml */,
+				AA000002000000000000RL01 /* _rule.yml */,
+				AA000002000000000000RI01 /* _rule_for_import.yml */,
 				CA99A063D2EA630A1846BFC8 /* fSnippetCli.entitlements */,
 				ABBCEAFB17DED6BC31F0E0D9 /* fSnippetCliApp.swift */,
 				48B4EB102AC686165B86F8ED /* Info.plist */,
@@ -493,6 +504,7 @@
 			children = (
 				DDCDCF071147818FC4C5F849 /* AbbreviationCalculator.swift */,
 				4586AC27872D3AF56063DDBE /* APIModels.swift */,
+				BC31B6FFEA528B10B99384FB /* ChangeTracker.swift */,
 				96DA9C992DD456AF681A4DC8 /* CIDRFilter.swift */,
 				CBB3B206501109A2A167AD12 /* ClipboardDB.swift */,
 				EEE8D6EDB8B6EEDA4A9ED62C /* CursorTracker.swift */,
@@ -574,6 +586,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				5D91C1E3F618A59E8BC3B801 /* Assets.xcassets in Resources */,
+				AA000001000000000000CF01 /* _config.yml in Resources */,
+				AA000001000000000000RL01 /* _rule.yml in Resources */,
+				AA000001000000000000RI01 /* _rule_for_import.yml in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -603,6 +618,7 @@
 				1F063FD1B1238DEAB12E08EB /* CIDRFilter.swift in Sources */,
 				EC754A06858945DC1BF8E292 /* CLIAPIClient.swift in Sources */,
 				687C4D11E31F07E790D062A6 /* CLIRouter.swift in Sources */,
+				B10A5BC78327BEB1C86CF0EF /* ChangeTracker.swift in Sources */,
 				D49E419D90AB9DA5F0E5A3F1 /* ClipboardCommand.swift in Sources */,
 				09DDE19F48CC704C4EC882F8 /* ClipboardDB.swift in Sources */,
 				4986088272AB0C5D29D138B9 /* ClipboardManager.swift in Sources */,
@@ -718,6 +734,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = fSnippetCli/fSnippetCli.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = BZDZFZWF6K;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = fSnippetCli/Info.plist;
@@ -793,6 +810,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = fSnippetCli/fSnippetCli.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = BZDZFZWF6K;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = fSnippetCli/Info.plist;
