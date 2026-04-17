@@ -13,15 +13,18 @@ class AppState: ObservableObject {
 
 struct fSnippetCliApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @ObservedObject private var appState = AppState.shared
 
     var body: some Scene {
         // MenuBarExtra: macOS 13+ 메뉴바 아이콘
         // isInserted: fSnippet(유료) 실행 시 메뉴바에서 제거
-        // 커스텀 Binding 사용 — @ObservedObject + @Published 직접 바인딩은
-        // MenuBarExtraController KVO와 피드백 루프를 일으켜 makeMainMenu 무한 루프 발생
+        // @ObservedObject로 AppState 변경 감지 + 동일 값 가드로 KVO 피드백 루프 차단
         MenuBarExtra(isInserted: Binding(
-            get: { AppState.shared.showMenuBar },
-            set: { AppState.shared.showMenuBar = $0 }
+            get: { self.appState.showMenuBar },
+            set: { newValue in
+                guard newValue != self.appState.showMenuBar else { return }
+                self.appState.showMenuBar = newValue
+            }
         )) {
             MenuBarView()
         } label: {
@@ -148,9 +151,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// 접근성 권한 확인 및 요청
     /// CGEventTap, 키 시뮬레이션 등 핵심 기능에 필수
     private func checkAccessibilityPermission() {
-        // prompt: false — 팝업 없이 권한 상태만 확인
-        // 빌드마다 바이너리 서명이 변경되면 prompt: true 시 매번 팝업 발생
-        let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: false]
+        // prompt: true — 권한 미승인 시 macOS 시스템 팝업 표시 + Accessibility 목록 자동 추가 (Issue816)
+        // 참고: 개발 빌드 시 바이너리 서명 변경으로 매번 팝업 발생할 수 있으나, Release 배포에서는 정상
+        let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
         let trusted = AXIsProcessTrustedWithOptions(options)
 
         if trusted {
