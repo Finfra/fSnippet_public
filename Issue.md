@@ -6,8 +6,8 @@ date: 2026-04-07
 
 # Issue Management
 
-- Issue HWM: 39
-- Save Point: - 2026-04-13 (ed3ae75)
+- Issue HWM: 41
+- Save Point: 2026-04-18 (e8bff18) Fix(Issue40): Xcode GUI 진입점 재설계
 
 # 🤔 결정사항
 
@@ -20,9 +20,69 @@ date: 2026-04-07
 
 # 📙 일반
 
+## Issue41: fsc-run-xcode.sh inline stop 중복 제거 (DRY · xcode_stop 함수 호출로 통일) (등록: 2026-04-18)
+* 목적: `xcode_build()` 진입부의 inline AppleScript stop 블록을 `xcode_stop()` 함수 호출로 교체하여 stop 로직 단일 지점 유지 (DRY)
+* 배경: 2026-04-18 run_diff_pairApp 레포트로 cliApp(fWarrangeCli #26)과 구조 비교 결과, pairApp 설계(자기완결 build)는 이미 우수하나 `xcode_stop()` 본체와 `xcode_build()` 진입 inline이 같은 AppleScript를 중복 포함. 양 레포 공통 표준 형태로 수렴 필요
+* report: 본체 cliApp 경로 `~/_git/__all/fWarrange/_public/cli/_doc_work/report/run_diff_pairApp.md`
+* 상세:
+    - `fsc-run-xcode.sh`:
+        * `xcode_build()` 진입부 L84~90 inline AppleScript stop 블록 제거
+        * 해당 위치에서 `xcode_stop` 함수 호출로 교체 (open_project는 xcode_stop 내부에서 이미 수행)
+        * activate + build 로직은 그대로 유지
+    - pairApp(cliApp Issue33)과 동일 최종 형태 — DRY 확보 + 자기완결성 유지
+* 구현 명세:
+    - stop AppleScript 소스 중복 제거: `xcode_stop()` 한 곳만 유지
+    - 기능 동작은 변화 없음 (stop → activate → build 순서 동일)
+    - `pkill -f xcodebuild` 재도입 절대 금지
+* 검증:
+    - [ ] `/run` (build-deploy) REST 3015 정상 응답
+    - [ ] `/run kill` → fSnippetCli만 종료, 타 Xcode 워크스페이스 유지
+    - [ ] `bash cli/_tool/fsc-run-xcode.sh stop` 단독 실행 안전
+    - [ ] `bash cli/_tool/fsc-test.sh` ZTest 9단계 전체 통과
+
 # 📗 선택
 
 # ✅ 완료
+
+## Issue40: Xcode GUI 기반 빌드·테스트 진입점 재설계 (TCC 회피 · 향후 앱 모델) (등록: 2026-04-18, 해결: 2026-04-18, commit: e8bff18) ✅
+
+* 목적: `/run` 계열 개발 흐름에서 TCC 재요청을 제거하고, 래퍼 스크립트 없는 역할 분리 구조를 확립해 향후 모든 앱의 표준 모델로 제시
+* 위상: fSnippetCli(#25)가 향후 신규 앱 전체의 reference model. pairApp fWarrangeCli(#26) Issue31 POC에서 `run.sh` 래퍼 유지 → 래퍼 완전 제거 구조로 진화
+* 설계 경로: office-hours 세션(2026-04-18) — run.sh 완전 제거 + `fsc-test.sh` 독립 + `/run` 커맨드 인자 분기
+* 완료 내용:
+    - 신규 Script: `cli/_tool/fsc-config.sh`, `cli/_tool/fsc-run-xcode.sh`, `cli/_tool/fsc-test.sh`
+    - 이동 Script: `cli/_tool/run.sh` → `cli/_tool/run.sh_old` (git rename 100%, 히스토리 보존)
+    - `kill.sh` workspace 스코프화 — `every workspace document` 전역 stop 제거 + `fsc-config.sh` source
+    - `.claude/commands/run.md` 인자 분기 재작성 (build-run/run-only/kill/full/기타)
+    - `.claude/agents/build.md` Debug 섹션만 `fsc-run-xcode.sh`로 전환 (Release는 xcodebuild 유지)
+    - `.claude/settings.local.json`: `Bash(osascript:*)` + `fsc-*.sh` 권한 추가
+    - `.gitignore`: `cli/_tool/.last_build_path` 캐시 제외
+* 진입점 아키텍처:
+    - `/run` (기본) → `fsc-run-xcode.sh build-deploy` (Xcode GUI Debug 빌드+배포+실행)
+    - `/run run-only` → `fsc-run-xcode.sh run-only`
+    - `/run kill` → `kill.sh`
+    - `/run full` → `fsc-test.sh` (ZTest 9단계)
+    - `/build`·`/verify`·`/deploy`·`/brew-apply` → `xcodebuild` 유지 (Release 또는 빌드만)
+* 핵심 개선 (pairApp 대비 진화):
+    - `pkill -f xcodebuild` 전역 종료 제거 — 다른 Xcode 프로젝트 CLI 빌드 영향 없음
+    - `xcode_build` 내부에서 workspace 한정 stop 흡수 — dispatch 간결화
+    - `xcode_stop` 내부 `open_project` 선행 호출 — workspace 미로드 상태 안정
+* 검증:
+    - ✅ Xcode 미실행 상태에서 `/run` → 자동 오픈 → Debug 빌드+배포+실행 성공
+    - ✅ Xcode 실행 중 상태에서 `/run` 반복 → 중복 오픈 없이 빌드 성공
+    - ✅ 반복 `/run` 실행 시 **TCC 재요청 없음** (핵심 목적 달성)
+    - ✅ `/run run-only` → 재빌드 없이 실행, uptime 갱신 확인
+    - ✅ `/run kill` → 해당 workspace만 stop, 다른 Xcode 프로젝트 영향 없음
+    - ✅ `curl http://localhost:3015/` 정상 응답 (status ok, port 3015, snippet_count 1954)
+    - ✅ mtime skip 배포 캐싱 동작 (`[deploy] 변경 없음 (skip)`)
+    - ✅ pairApp `fwc-*.sh` 구조와 1:1 정합 (접두어·포트 값 차이만) — `run_diff_pairApp.md` 보고서 참조
+* 후속 이슈:
+    - Issue41: `xcode_build` inline stop 중복을 `xcode_stop` 함수 호출로 교체 (DRY)
+    - 별도 이슈: paidApp #15 fSnippet 메인 앱 동일 패턴 이식
+    - 별도 이슈: pairApp #26 — `xcode_build` 내부 stop 흡수 역이식 (Issue40 개선 모델 적용)
+* 참조:
+    - pairApp POC: `~/_git/__all/fWarrange/_public/cli/_doc_work/report/xcode-build-migration_issue31_report.md`
+    - 비교 보고서: `cli/_doc_work/report/run_diff_pairApp.md`
 
 ## Issue39: [Doc/Code] paidApp_version.md 문서 현행화 및 PaidAppManager 정리 (등록: 2026-04-18, 해결: 2026-04-18, commit: a7089d3) ✅
 
