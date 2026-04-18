@@ -147,15 +147,14 @@ final class PaidAppStateLoggerTests: XCTestCase {
 
     // 테스트 5: 디렉토리가 없으면 자동 생성
     func testRecord_createsDirectoryIfMissing() throws {
-        setupUserDefaults()
+        // 존재하지 않는 하위 경로를 appRootPath로 직접 등록 (setupUserDefaults 미사용)
+        let nonexistentPath = testTmpDir.appendingPathComponent("nonexistent").path
+        let suiteName = "PaidAppStateLoggerTests_\(UUID().uuidString)"
+        let testDefaults = UserDefaults(suiteName: suiteName)!
+        testDefaults.set(nonexistentPath, forKey: "appRootPath")
+        PaidAppStateLogger.testableDefaultsOverride = testDefaults
 
-        let nonexistentPath = testTmpDir.path + "/nonexistent"
-        UserDefaults(suiteName: "PaidAppStateLoggerTests")?.set(
-            nonexistentPath,
-            forKey: "appRootPath"
-        )
-
-        // PaidAppStateLogger는 logFileURL 접근 시 디렉토리 자동 생성
+        // record 호출 시 PaidAppStateLogger가 logs/ 하위 디렉토리를 자동 생성해야 함
         try PaidAppStateLogger.record(
             previous: "a",
             next: "b",
@@ -163,10 +162,9 @@ final class PaidAppStateLoggerTests: XCTestCase {
             extra: nil
         )
 
-        let fileManager = FileManager.default
-        let logsDir = testTmpDir.appendingPathComponent("nonexistent/logs")
-        let dirExists = fileManager.fileExists(atPath: logsDir.path)
-        XCTAssertTrue(dirExists, "로그 디렉토리가 자동으로 생성되어야 함")
+        let logsDir = URL(fileURLWithPath: nonexistentPath).appendingPathComponent("logs")
+        let dirExists = FileManager.default.fileExists(atPath: logsDir.path)
+        XCTAssertTrue(dirExists, "로그 디렉토리가 자동으로 생성되어야 함: \(logsDir.path)")
     }
 
     // 테스트 6: legacyEnabledCount는 fresh 상태에서 1부터 시작
