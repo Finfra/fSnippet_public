@@ -1,16 +1,19 @@
 #!/bin/bash
-# Issue40: Xcode GUI 기반 빌드·배포 스크립트 (TCC 회피 목적, fSnippetCli)
-# Usage: ./fsc-run-xcode.sh [build|build-deploy|run-only|deploy-run|stop|kill|open]
+# Issue40: Xcode GUI 기반 빌드·실행 스크립트 (TCC 회피 목적, fSnippetCli)
+# Issue41 Phase2: build-deploy 흐름에 xcode_run_stop 삽입 — Xcode에서 run→stop으로
+#                 TCC 권한을 앱에 귀속시킨 뒤 /deploy debug(= fsc-deploy-debug.sh)로 독립 기동
+#
+# Usage: ./fsc-run-xcode.sh [open|stop|build|build-deploy|deploy-run|run-only|kill]
 #
 #   open         : .xcodeproj 사전 오픈 + 로드 대기 (idempotent)
 #   build        : Xcode GUI 빌드만 (배포 없음)
-#   build-deploy : build + Applications 복사 + 실행 (기본값)
-#   run-only     : 빌드 없이 기존 배포 앱 실행
-#   deploy-run   : 배포만 + 실행 (이미 빌드된 결과물 사용)
+#   build-deploy : build + xcode_run_stop(TCC 획득) + fsc-deploy-debug.sh (기본값)
+#   deploy-run   : 배포만 + 실행 (이미 빌드된 결과물 사용, fsc-deploy-debug.sh 호출)
+#   run-only     : 빌드·배포 없이 기존 배포 앱 실행
 #   stop         : Xcode의 현재 scheme action 중단
 #   kill         : 배포 앱 프로세스 종료
 #
-# 설계 근거: Issue.md Issue40 (fWarrangeCli Issue31 POC 결과 이식)
+# 설계 근거: Issue.md Issue40 + Issue41 Phase2
 
 set -e
 
@@ -21,7 +24,6 @@ CLI_DIR="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/fsc-config.sh"
 
 XCODEPROJ="$CLI_DIR/$XCODEPROJ_NAME"
-CACHE_FILE="$SCRIPT_DIR/$CACHE_FILE_NAME"
 
 CMD="${1:-build-deploy}"
 
@@ -120,64 +122,53 @@ APPLESCRIPT
     return 1
 }
 
-# ---------- Step 2: 빌드 경로 동적 계산 (TCC 무관 메타 조회) ----------
-get_build_dir() {
-    if [ -f "$CACHE_FILE" ]; then
-        local cached
-        cached=$(cat "$CACHE_FILE")
-        if [ -n "$cached" ] && [ -d "$cached" ]; then
-            echo "$cached"
-            return 0
-        fi
-    fi
-    local dir
-    dir=$(cd "$CLI_DIR" && xcodebuild -scheme "$SCHEME" -configuration "$CONFIGURATION" -showBuildSettings 2>/dev/null | grep " TARGET_BUILD_DIR =" | awk -F " = " '{print $2}' | xargs)
-    if [ -z "$dir" ]; then
-        echo "[build-dir] ❌ BUILD_DIR 조회 실패" >&2
-        return 1
-    fi
-    echo "$dir" > "$CACHE_FILE"
-    echo "$dir"
-}
-
-# ---------- Step 3: 배포 (Applications 복사) ----------
-deploy() {
-    local build_dir src
-    build_dir=$(get_build_dir) || return 1
-    src="$build_dir/$APP_NAME"
-    if [ ! -d "$src" ]; then
-        echo "[deploy] ❌ 빌드 결과물 없음: $src"
-        return 1
-    fi
-
-    # 바이너리 타임스탬프 비교 (GNU stat 간섭 회피: date -r 사용)
-    local src_mtime dst_mtime
-    src_mtime=$(date -r "$src/Contents/MacOS/$PROJECT_NAME" +%s 2>/dev/null || echo 0)
-    dst_mtime=$(date -r "$APP_PATH/Contents/MacOS/$PROJECT_NAME" +%s 2>/dev/null || echo 0)
-    if [ "$src_mtime" -le "$dst_mtime" ] && [ -d "$APP_PATH" ]; then
-        echo "[deploy] 변경 없음 (skip)"
+# ---------- Step 2: Xcode run → stop (TCC 권한 획득용) ----------
+# Issue41 Phase2: Xcode 세션에서 앱을 1회 실행해 TCC 다이얼로그가 뜨게 한 뒤 즉시 stop.
+# 최초 1회는 사용자가 TCC 프롬프트(접근성/Automation)를 승인해야 함.
+# 이후 /deploy debug(= fsc-deploy-debug.sh)로 Applications 경로에서 독립 기동 시
+# TCC 권한은 앱 번들에 귀속된 상태로 승계됨.
+xcode_run_stop() {
+    echo "[run-stop] Xcode에서 run→stop 순서로 TCC 권한 획득 ($SCHEME)"
+    local result
+    result=$(osascript 2>&1 <<APPLESCRIPT
+tell application "Xcode"
+    set ws to workspace document "$XCODEPROJ_NAME"
+    try
+        set runRes to run ws
+        -- run 시작까지 짧게 대기 (TCC 프롬프트 표시 트리거)
+        delay 1.0
+    end try
+    try
+        stop ws
+    end try
+    return "OK"
+end tell
+APPLESCRIPT
+)
+    if [[ "$result" == *"OK"* ]]; then
+        echo "[run-stop] ✅ TCC 권한 획득 완료"
         return 0
     fi
-
-    echo "[deploy] $APP_NAME 복사 중..."
-    pkill -f "MacOS/$PROJECT_NAME" 2>/dev/null || true
-    sleep 0.3
-    mkdir -p "$DEPLOY_DIR"
-    rm -rf "$APP_PATH"
-    cp -R "$src" "$APP_PATH"
-    xattr -cr "$APP_PATH"
-    echo "[deploy] ✅ $APP_PATH"
+    echo "[run-stop] ⚠️ $result"
+    echo "             (최초 실행 시 TCC 프롬프트를 승인해야 합니다)"
+    return 0
 }
 
-# ---------- Step 4: 실행·종료 ----------
-run_app() {
-    echo "[run] $APP_PATH 실행"
-    open "$APP_PATH"
-}
-
+# ---------- Step 3: 프로세스 종료 ----------
 kill_app() {
     echo "[kill] $PROJECT_NAME 프로세스 종료"
     pkill -f "MacOS/$PROJECT_NAME" 2>/dev/null || true
+}
+
+# ---------- Step 4: 기존 배포 앱 실행 (빌드·배포 없음) ----------
+run_app_only() {
+    if [ ! -d "$APP_PATH" ]; then
+        echo "[run-only] ❌ 배포된 앱 없음: $APP_PATH"
+        echo "            먼저 /run build-deploy 또는 /deploy debug 실행 필요"
+        return 1
+    fi
+    echo "[run-only] $APP_PATH 실행"
+    open "$APP_PATH"
 }
 
 # ---------- 명령 디스패치 ----------
@@ -192,17 +183,18 @@ case "$CMD" in
         xcode_build
         ;;
     build-deploy)
+        # Issue41 Phase2: build → Xcode run/stop (TCC 획득) → /deploy debug (독립 기동)
         xcode_build
-        deploy
-        run_app
+        xcode_run_stop
+        bash "$SCRIPT_DIR/fsc-deploy-debug.sh"
         ;;
     deploy-run)
-        deploy
-        run_app
+        # 이미 빌드된 결과물을 배포+실행 (TCC 획득 단계 생략)
+        bash "$SCRIPT_DIR/fsc-deploy-debug.sh"
         ;;
     run-only)
         kill_app
-        run_app
+        run_app_only
         ;;
     kill)
         kill_app
