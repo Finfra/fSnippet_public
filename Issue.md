@@ -7,7 +7,7 @@ date: 2026-04-07
 # Issue Management
 
 - Issue HWM: 41
-- Save Point: 2026-04-18 (e8bff18) Fix(Issue40): Xcode GUI 진입점 재설계
+- Save Point: 2026-04-18 (2084147) Fix(Issue41): fsc-run-xcode.sh inline stop 중복 제거
 
 # 🤔 결정사항
 
@@ -20,29 +20,28 @@ date: 2026-04-07
 
 # 📙 일반
 
-## Issue41: fsc-run-xcode.sh inline stop 중복 제거 (DRY · xcode_stop 함수 호출로 통일) (등록: 2026-04-18)
+# 📗 선택
+
+# ✅ 완료
+
+## Issue41: fsc-run-xcode.sh inline stop 중복 제거 (DRY · xcode_stop 함수 호출로 통일) (등록: 2026-04-18, 해결: 2026-04-18, commit: 2084147) ✅
 * 목적: `xcode_build()` 진입부의 inline AppleScript stop 블록을 `xcode_stop()` 함수 호출로 교체하여 stop 로직 단일 지점 유지 (DRY)
 * 배경: 2026-04-18 run_diff_pairApp 레포트로 cliApp(fWarrangeCli #26)과 구조 비교 결과, pairApp 설계(자기완결 build)는 이미 우수하나 `xcode_stop()` 본체와 `xcode_build()` 진입 inline이 같은 AppleScript를 중복 포함. 양 레포 공통 표준 형태로 수렴 필요
 * report: 본체 cliApp 경로 `~/_git/__all/fWarrange/_public/cli/_doc_work/report/run_diff_pairApp.md`
-* 상세:
-    - `fsc-run-xcode.sh`:
-        * `xcode_build()` 진입부 L84~90 inline AppleScript stop 블록 제거
-        * 해당 위치에서 `xcode_stop` 함수 호출로 교체 (open_project는 xcode_stop 내부에서 이미 수행)
-        * activate + build 로직은 그대로 유지
+* 완료 내용:
+    - `fsc-run-xcode.sh` `xcode_build()` 진입부 `open_project` + inline AppleScript stop 블록(총 9줄) 제거
+    - 해당 위치에 `xcode_stop` 함수 호출 한 줄로 교체 (xcode_stop 내부에서 `open_project`와 stop 모두 수행)
+    - activate + build 로직은 그대로 유지
     - pairApp(cliApp Issue33)과 동일 최종 형태 — DRY 확보 + 자기완결성 유지
 * 구현 명세:
     - stop AppleScript 소스 중복 제거: `xcode_stop()` 한 곳만 유지
     - 기능 동작은 변화 없음 (stop → activate → build 순서 동일)
-    - `pkill -f xcodebuild` 재도입 절대 금지
+    - `pkill -f xcodebuild` 재도입 없음 (주석으로만 금지 표기)
 * 검증:
-    - [ ] `/run` (build-deploy) REST 3015 정상 응답
-    - [ ] `/run kill` → fSnippetCli만 종료, 타 Xcode 워크스페이스 유지
-    - [ ] `bash cli/_tool/fsc-run-xcode.sh stop` 단독 실행 안전
-    - [ ] `bash cli/_tool/fsc-test.sh` ZTest 9단계 전체 통과
-
-# 📗 선택
-
-# ✅ 완료
+    - ✅ `/run` (build-deploy) REST 3015 정상 응답 — fsc-test.sh Step 5 `"status": "ok"` 확인
+    - ✅ `/run kill` → fSnippetCli만 종료, 타 Xcode 워크스페이스 유지 — `pkill -f xcodebuild` 미사용 유지
+    - ✅ `bash cli/_tool/fsc-run-xcode.sh stop` 단독 실행 안전 — stop 명령 정상 동작 확인
+    - ✅ `bash cli/_tool/fsc-test.sh` ZTest 9단계 전체 통과 — "✅ 테스트 성공" (build→deploy→run→trigger 확장 확인)
 
 ## Issue40: Xcode GUI 기반 빌드·테스트 진입점 재설계 (TCC 회피 · 향후 앱 모델) (등록: 2026-04-18, 해결: 2026-04-18, commit: e8bff18) ✅
 
