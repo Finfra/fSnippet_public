@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-- Issue HWM: 38
+- Issue HWM: 39
 - Save Point: - 2026-04-13 (ed3ae75)
 
 # 🤔 결정사항
@@ -23,6 +23,23 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue39: [Doc/Code] paidApp_version.md 문서 현행화 및 PaidAppManager 정리 (등록: 2026-04-18, 해결: 2026-04-18, commit: a7089d3) ✅
+
+* 목적: `cli/_doc_design/paidApp_version.md`를 현재 `PaidAppManager.swift` 구현(NSAlert 4버튼)과 일치시키고, dead parameter·파일명 오류 등 소스 결함 정리
+* 완료 내용:
+    - 📄 문서 갱신: 5.1절 (토스트 → NSAlert 모달), 5.3절 (위치조정 제거), 7절 (향후 고도화 완료 반영), 8.1절 (Issue823 연계 명시), 9절 (메서드명 showPaidOnlyToast → showPaidOnlyAlert), 10절 (NSAlert 패턴 유지)
+    - 🔧 코드 정정:
+        - `PaidAppManager.handlePaidFeature()`: dead parameter `relativeTo frame` 제거
+        - 파일명 정정: `config.yaml` → `_config.yml` (line 159)
+        - 호출부 2곳 인자 제거: HistoryPreviewView (line 197), HistoryViewer (line 282-283)
+* 검증:
+    - ✅ Release 빌드: BUILD SUCCEEDED
+    - ✅ config.yaml 리터럴 제거: PaidAppManager에서만 처리 (마이그레이션 로직은 유지)
+    - ✅ handlePaidFeature 호출부 정정: 인자 완전 제거
+* 연계:
+    - paidApp Issue823: `fsnippet://` URL Scheme 등록 — Issue39 이후 추가 구현 예정
+    - paidApp Issue824: 메인 `_doc_design/` 동기화 (본 이슈 완료 후)
 
 ## Issue38: KeyRenderingManager visual_key_definitions.json 번들 누락 — 시작 로그 워닝 제거 (등록: 2026-04-17, 해결: 2026-04-17, commit: 7f8adfd) ✅
 
@@ -94,7 +111,7 @@ date: 2026-04-07
 
 ## Issue32: _tool 폴더 v1/v2 구조 정비 및 cmdTest v2 스크립트 신규 작성 (등록: 2026-04-13, 해결: 2026-04-13, commit: 47bcd29) ✅
 
-* 목적: `cli/_tool` 폴더를 `api_v2_plan.md` 기준 및 fWarrange 레퍼런스 구조에 맞게 정비
+* 목적: `cli/_tool` 폴더를 `cli/_doc_work/plan/api-v2_plan.md` 기준 및 fWarrange 레퍼런스 구조에 맞게 정비
 * 구현 명세:
     - `apiTest/apiTest_plan_v1.md` (v1/ → 루트 이동), `apiTest_plan_v2.md` 신규 작성
     - `cmdTest/` flat 구조 → `v1/` (기존 스크립트 이동) + `v2/` (settings 신규) 분리
@@ -180,9 +197,9 @@ date: 2026-04-07
 * 검증:
     - reload 후 snippet_count 즉시 반영 확인
 
-## Issue24: paid_version.md에 따라 유료 전용 코드 삭제 (등록: 2026-04-08, 해결: 2026-04-09, commit: a4556d2) ✅
+## Issue24: paidApp_version.md에 따라 유료 전용 코드 삭제 (등록: 2026-04-08, 해결: 2026-04-09, commit: a4556d2) ✅
 
-* 목적: `cli/_doc_design/paid_version.md`에 정의된 유료 전용 기능의 불필요한 코드를 fSnippetCli에서 제거
+* 목적: `cli/_doc_design/paidApp_version.md`에 정의된 유료 전용 기능의 불필요한 코드를 fSnippetCli에서 제거
 * 구현 명세:
     - `SettingsDraftManager.swift` 제거
     - 드래프트 모드 관련 코드 제거
@@ -324,19 +341,19 @@ date: 2026-04-07
 * 구현 명세:
     - `config` 커맨드: 설정 GUI 제거 반영, 읽기 전용 명시 (Issue5)
     - 유료 전용 기능 제한 섹션 추가 (Issue7~9)
-    - `paid_version.md` 참조 링크 추가
+    - `paidApp_version.md` 참조 링크 추가
 * 검증:
     - 문서 내용 확인 완료
 
 ## Issue10: 유료 기능 목록 문서화 (등록: 2026-04-08, 해결: 2026-04-08, commit: 97da9b7) ✅
 
-* 목적: Issue7, Issue8, Issue9를 포함한 유료 버전 전용 기능 목록을 `cli/_doc_design/paid_version.md`에 정리
+* 목적: Issue7, Issue8, Issue9를 포함한 유료 버전 전용 기능 목록을 `cli/_doc_design/paidApp_version.md`에 정리
 * 구현 명세:
     - 유료 전용 기능 3개 (⌘S Save, 설정 단축키, Tab 편집) 목록화
     - 각 기능별 차단 파일, 안내 방식, 관련 이슈 기록
     - 유료 버전 연동 설계 (앱 탐지 경로 3개, URL Scheme/CLI Args 전달 방식)
 * 검증:
-    - `paid_version.md` 생성 확인, Issue7/8/9 참조 포함
+    - `paidApp_version.md` 생성 확인, Issue7/8/9 참조 포함
 
 ## Issue9: 스니펫 팝업 Tab 키 편집 기능 유료 버전 전용 안내 (등록: 2026-04-08, 해결: 2026-04-08, commit: 1d536c5) ✅
 
