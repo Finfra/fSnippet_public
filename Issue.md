@@ -7,7 +7,7 @@ date: 2026-04-07
 # Issue Management
 
 - Issue HWM: 41
-- Save Point: 2026-04-18 (2084147) Fix(Issue41): fsc-run-xcode.sh inline stop 중복 제거
+- Save Point: 2026-04-19 (3513713) Fix(Issue41 Phase2): Xcode run→stop TCC 획득 + fsc-deploy-debug.sh 분리
 
 # 🤔 결정사항
 
@@ -24,24 +24,38 @@ date: 2026-04-07
 
 # ✅ 완료
 
-## Issue41: fsc-run-xcode.sh inline stop 중복 제거 (DRY · xcode_stop 함수 호출로 통일) (등록: 2026-04-18, 해결: 2026-04-18, commit: 2084147) ✅
-* 목적: `xcode_build()` 진입부의 inline AppleScript stop 블록을 `xcode_stop()` 함수 호출로 교체하여 stop 로직 단일 지점 유지 (DRY)
-* 배경: 2026-04-18 run_diff_pairApp 레포트로 cliApp(fWarrangeCli #26)과 구조 비교 결과, pairApp 설계(자기완결 build)는 이미 우수하나 `xcode_stop()` 본체와 `xcode_build()` 진입 inline이 같은 AppleScript를 중복 포함. 양 레포 공통 표준 형태로 수렴 필요
-* report: 본체 cliApp 경로 `~/_git/__all/fWarrange/_public/cli/_doc_work/report/run_diff_pairApp.md`
-* 완료 내용:
+## Issue41: fsc-run-xcode.sh 구조 정비 — Phase1(DRY) + Phase2(Xcode run→stop TCC 획득 + /deploy debug 신설) (등록: 2026-04-18, 해결: 2026-04-19, commit: 2084147, 3513713) ✅
+* 목적: fsc-run-xcode.sh의 빌드·실행 흐름을 TCC 권한 귀속 관점에서 올바르게 재설계. Xcode AppleScript로 `run ws`까지 시켜 TCC 권한을 앱에 귀속시킨 뒤 `stop`으로 Xcode 세션 분리, 그리고 `/deploy debug`로 Applications 배포·독립 기동
+* 배경: Phase1 완료 후 사용자 피드백 — "AppleScript로 build만 하고 open으로 기동"하는 흐름은 TCC가 Xcode 세션에 귀속된 상태가 아닌, 독립 프로세스로 open되므로 **TCC 권한 문제가 실제로는 해결되지 않음**. 올바른 흐름은 Xcode에서 run→stop으로 최초 1회 TCC 승인을 얻은 뒤 /deploy debug로 독립 실행
+* Phase 1 (commit: 2084147): inline stop 중복 제거
     - `fsc-run-xcode.sh` `xcode_build()` 진입부 `open_project` + inline AppleScript stop 블록(총 9줄) 제거
     - 해당 위치에 `xcode_stop` 함수 호출 한 줄로 교체 (xcode_stop 내부에서 `open_project`와 stop 모두 수행)
-    - activate + build 로직은 그대로 유지
-    - pairApp(cliApp Issue33)과 동일 최종 형태 — DRY 확보 + 자기완결성 유지
+    - activate + build 로직은 그대로 유지 — DRY 확보
+* Phase 2 (commit: 3513713): Xcode run→stop TCC 획득 + /deploy debug 신설
+    - `fsc-run-xcode.sh` `xcode_run_stop()` 신규 함수: AppleScript `run ws` → 1초 delay → `stop ws` (TCC 권한 획득)
+    - `build-deploy` 흐름 재구성: build → xcode_run_stop (TCC 획득) → `fsc-deploy-debug.sh` 호출 (Applications 배포 + 독립 open)
+    - `fsc-deploy-debug.sh` 신설: 기존 `deploy()` / `run_app()` / `get_build_dir()` 로직 이관. `/deploy debug` 및 `fsc-run-xcode.sh`에서 공용 호출
+    - `/deploy` 커맨드 `debug` 인자 분기 추가 (Debug 빌드 결과물 → `/Applications/_nowage_app/` 복사 + 실행, `xattr -cr` 포함)
+    - `fsc-run-xcode.sh`에서 기존 `get_build_dir/deploy/run_app` 함수 제거 — 중복 해소
+    - `run-only`는 `kill_app` + `open "$APP_PATH"`로 단순화 (배포 앱 미존재 시 안내)
 * 구현 명세:
-    - stop AppleScript 소스 중복 제거: `xcode_stop()` 한 곳만 유지
-    - 기능 동작은 변화 없음 (stop → activate → build 순서 동일)
-    - `pkill -f xcodebuild` 재도입 없음 (주석으로만 금지 표기)
+    - stop AppleScript 소스 단일 지점 (`xcode_stop()` 한 곳만 유지)
+    - 기능 동작: stop → activate → build → **run→stop (TCC)** → deploy → run (독립 open)
+    - TCC 다이얼로그 승인은 최초 1회만 필요 (접근성·Automation 권한)
+    - `/deploy debug`는 `fsc-config.sh`의 `APP_NAME/APP_PATH/DEPLOY_DIR` 재사용
+    - `pkill -f xcodebuild` 재도입 금지 (주석으로만 명시)
+    - Release 경로는 기존 `/deploy` 유지 (xcodebuild Release)
 * 검증:
-    - ✅ `/run` (build-deploy) REST 3015 정상 응답 — fsc-test.sh Step 5 `"status": "ok"` 확인
-    - ✅ `/run kill` → fSnippetCli만 종료, 타 Xcode 워크스페이스 유지 — `pkill -f xcodebuild` 미사용 유지
-    - ✅ `bash cli/_tool/fsc-run-xcode.sh stop` 단독 실행 안전 — stop 명령 정상 동작 확인
-    - ✅ `bash cli/_tool/fsc-test.sh` ZTest 9단계 전체 통과 — "✅ 테스트 성공" (build→deploy→run→trigger 확장 확인)
+    - ✅ `/run` (build-deploy) 전체 흐름 정상: stop → open → build → run-stop → deploy → run
+    - ✅ `/run kill` → fSnippetCli만 종료, 타 Xcode 워크스페이스 유지
+    - ✅ `bash cli/_tool/fsc-run-xcode.sh stop` 단독 실행 안전
+    - ✅ `/deploy debug` 단독 실행 시 Debug 빌드 결과물 배포 + 실행 (fsc-deploy-debug.sh)
+    - ✅ `bash cli/_tool/fsc-test.sh` ZTest 9단계 전체 통과 — "✅ 테스트 성공"
+    - ✅ REST 3015 정상 응답 (`"status": "ok"`, snippet_count 확인)
+* 관련 파일:
+    - `cli/_tool/fsc-run-xcode.sh` (수정)
+    - `cli/_tool/fsc-deploy-debug.sh` (신규)
+    - `.claude/commands/deploy.md` (로컬 전용, `release`/`debug` 인자 분기)
 
 ## Issue40: Xcode GUI 기반 빌드·테스트 진입점 재설계 (TCC 회피 · 향후 앱 모델) (등록: 2026-04-18, 해결: 2026-04-18, commit: e8bff18) ✅
 
