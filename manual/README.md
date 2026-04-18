@@ -15,7 +15,7 @@ date: 2026-03-26
 * 01_Overview/
   - Introduction.md: 제품 개요, 주요 기능, 기본 개념(트리거/스니펫/컬렉션)
   - Architecture.md: 아키텍처 요약 및 다이어그램 링크
-    - 참조: `_doc_design/design_ARCHITECTURE.md`, `_doc_design/diagram_COMPONENT.mermaid`, `_doc_design/diagram_CLASS.mermaid`, `_doc_design/diagram_SEQUENCE.mermaid`
+    - 참조: `_doc_design/ARCHITECTURE.md`, `_doc_design/diagram_COMPONENT.mermaid`, `_doc_design/diagram_CLASS.mermaid`, `_doc_design/diagram_SEQUENCE.mermaid`
 * 02_Install/
   - Install_macOS.md: 요구사항, 설치 방법, 첫 실행 체크리스트
   - Permissions.md: 접근성/자동화 권한 설정 가이드(스크린샷/검증 절차)
@@ -33,7 +33,7 @@ date: 2026-03-26
   - Placeholders.md: 동적 플레이스홀더/마커, 커서 이동, 입력 상호작용
   - Integrations.md: Alfred 호환, Karabiner 매핑(`karabiner_mappings`) 개요
   - REST_API.md: REST API 서버 활성화, 보안(CIDR), 엔드포인트 레퍼런스, 사용 예제
-    - 참조: `api/openapi.yaml`, `_doc_design/RestAPI.md`
+    - 참조: `api/openapi_v1.yaml`, `api/openapi_v2.yaml`, `_doc_design/RestAPI.md`
   - Claude_Skill.md: Claude Code Skill 플러그인 설치 및 사용 가이드
     - 참조: `agents/claude/`
   - MCP_Server.md: MCP (Model Context Protocol) 서버 연동 가이드
@@ -49,7 +49,7 @@ date: 2026-03-26
   - Commands.md: CLI/빌드/테스트 명령 모음(링크 포함)
     - 참조: `_doc_work/reference_COMMANDS.md`
   - REST_API_Reference.md: REST API 엔드포인트 상세, 요청/응답 형식, OpenAPI 스펙 링크
-    - 참조: `_doc_design/RestAPI.md`, `api/openapi.yaml`
+    - 참조: `_doc_design/RestAPI.md`, `api/openapi_v1.yaml`, `api/openapi_v2.yaml`
 * 09_FAQ/
   - FAQ.md: 자주 묻는 질문(설치/로그/트리거/Alfred/Karabiner/한글 입력)
 * 10_Release/
@@ -87,9 +87,9 @@ date: 2026-03-26
 * [ ] 09_FAQ/FAQ.md(Top 15 질문)
 
 # 관련 문서(핵심 링크)
-* 설계: `.agent/rules/snippet_rules.md`, `_doc_design/design_ARCHITECTURE.md`
+* 설계: `.agent/rules/snippet_rules.md`, `_doc_design/ARCHITECTURE.md`
 * 규칙: `.agent/rules/placeholder_rules.md`, `.agent/rules/import_rules.md`
-* REST API: `_doc_design/RestAPI.md`, `api/openapi.yaml`
+* REST API: `_doc_design/RestAPI.md`, `api/openapi_v1.yaml`, `api/openapi_v2.yaml`
 * Claude Skill: `agents/claude/` (플러그인 매니페스트 + Skill 정의)
 * MCP 서버: `mcp/` (MCP 프로토콜 어댑터)
 * 디버깅: `_doc_work/debug_TECH.md` (Hub), `_doc_work/debug_HISTORY.md` (Hub), `_doc_work/work_CAPTURE.md`

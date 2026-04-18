@@ -163,7 +163,7 @@ fSnippet GUI와 동일한 데이터 디렉토리를 공유함:
 | :------------ | :------------------------------------------- |
 | 스니펫 파일   | `~/Documents/finfra/fSnippetData/snippets/`  |
 | 클립보드 DB   | `~/Documents/finfra/fSnippetData/clipboard.sqlite` |
-| 설정 파일     | `~/Documents/finfra/fSnippetData/config.yaml` |
+| 설정 파일     | `~/Documents/finfra/fSnippetData/_config.yml` |
 | 로그          | `~/Documents/finfra/fSnippetData/logs/flog.log` |
 
 # 요구 사항

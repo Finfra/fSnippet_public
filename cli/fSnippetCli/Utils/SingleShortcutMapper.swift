@@ -10,7 +10,7 @@ import Foundation
 /// - Visual Count (e.g. 0, 1)
 /// - Description
 ///
-/// Ref: _doc_design/design_keyProcess.md
+/// Ref: _doc_design/key-event/design_keyProcess.md
 class SingleShortcutMapper {
 
     static let shared = SingleShortcutMapper()

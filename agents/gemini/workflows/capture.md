@@ -3,6 +3,8 @@ name: capture
 description: "설정창 UI 캡처 워크플로우 (스크린샷 -> 문서화/검증)"
 ---
 
+# UI 캡처 워크플로우
+
 1. **앱 실행 (Run App)**:
    - `/run` 워크플로우를 통해 앱을 실행합니다. (빌드 에러 확인 가능)
 
@@ -52,27 +54,27 @@ description: "설정창 UI 캡처 워크플로우 (스크린샷 -> 문서화/검
    - *참고: `_doc_work/work_CAPTURE.md` 확인*
 
 4. **캡처 실행 (Execute Capture)**:
-   - `.agent/skills/capture/scripts/capture.sh` 통합 스크립트를 사용합니다.
+   - `agents/gemini/skills/capture/scripts/capture.sh` 통합 스크립트를 사용합니다.
    // turbo
    ```bash
-   # 사용법: sh .agent/skills/capture/scripts/capture.sh [대상]
+   # 사용법: sh agents/gemini/skills/capture/scripts/capture.sh [대상]
    # 대상: 1, 2, 3, 4, 5, all, settings_..., clipboard, popup, popup_edit, clipboard_all, clipboard_regist...
    
    # 예: 고급(Advanced) 탭 캡처
-   sh .agent/skills/capture/scripts/capture.sh 5
+   sh agents/gemini/skills/capture/scripts/capture.sh 5
    
    # 예: 설정창 1번~3번 연속 캡처 (User Request)
-   sh .agent/skills/capture/scripts/capture.sh 1,2,3
+   sh agents/gemini/skills/capture/scripts/capture.sh 1,2,3
 
    # 예: 스니펫 팝업 + 프리뷰 캡처
-   sh .agent/skills/capture/scripts/capture.sh snippet
+   sh agents/gemini/skills/capture/scripts/capture.sh snippet
 
    # 예: 편집창 / 스니펫 등록창 캡처
-   sh .agent/skills/capture/scripts/capture.sh "snippet edit"
-   sh .agent/skills/capture/scripts/capture.sh "clipboard regist"
+   sh agents/gemini/skills/capture/scripts/capture.sh "snippet edit"
+   sh agents/gemini/skills/capture/scripts/capture.sh "clipboard regist"
 
    # 일괄 캡처 (모든 항목) - 권장
-   sh .agent/skills/capture/scripts/capture.sh all
+   sh agents/gemini/skills/capture/scripts/capture.sh all
    ```
 
 5. **결과 확인 (Check Result)**:

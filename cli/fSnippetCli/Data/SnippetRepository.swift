@@ -665,6 +665,7 @@ class SnippetRepository {
         }
         SnippetIndexManager.shared.removeEntry(fileURL: fileURL)
         NotificationCenter.default.post(name: .snippetFoldersDidChange, object: nil)
+        ChangeTracker.shared.record(type: "snippet.deleted", target: fileName)
         logI("📂 [SnippetRepository] 파일 삭제 즉시 캐시 무효화: \(fileName)")
       }
     } else if event.isFile && (event.isCreated || event.isModified) {
@@ -692,6 +693,8 @@ class SnippetRepository {
       }
       SnippetIndexManager.shared.addOrUpdateEntry(fileURL: fileURL, folderName: folderName)
       NotificationCenter.default.post(name: .snippetFoldersDidChange, object: nil)
+      let changeType = event.isCreated ? "snippet.created" : "snippet.updated"
+      ChangeTracker.shared.record(type: changeType, target: fileName)
       logI("📂 [SnippetRepository] 파일 변경 즉시 캐시 반영: \(fileName)")
     } else if event.isFile && event.isRenamed {
       // 파일 이름 변경: 기존 경로 제거 (새 이름은 생성 이벤트로 처리됨)

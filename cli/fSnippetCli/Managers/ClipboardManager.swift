@@ -275,6 +275,7 @@ class ClipboardManager: ObservableObject, ClipboardManagerProtocol {
             appBundle: appBundle
         )
         ClipboardDB.shared.insertItem(item)
+        ChangeTracker.shared.record(type: "clipboard.added", target: "clipboard")
     }
 
     /// ✅ Issue: 유출된 내부 문자열 히스토리에서 제거

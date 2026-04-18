@@ -317,7 +317,7 @@ class CGEventTapManager {
                     delegate.handleTriggerKeyAsync(
                         keyCode: keyCode, modifiers: event.flags, triggerChar: char)
                 }
-                logI(
+                logV(
                     "💉 ⚙️ [CGEventTapManager] Passing through Fallback Trigger: \(char) (Code: \(keyCode))"
                 )
                 return Unmanaged.passUnretained(event)

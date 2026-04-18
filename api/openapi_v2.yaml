@@ -76,6 +76,60 @@ tags:
 
 paths:
   # ========================================================================
+  # Change Tracking (Issue819: 적응형 Polling)
+  # ========================================================================
+  /changes:
+    get:
+      tags: [Change Tracking]
+      summary: CLI 변경 이벤트 조회 (GUI 적응형 Polling용)
+      description: |
+        since 이후의 변경 목록을 반환. GUI가 주기적으로 폴링하여
+        CLI 측 변경(스니펫/설정/규칙/클립보드)을 감지하는 용도.
+        currentSeq < lastKnownSeq이면 CLI 재시작으로 판단.
+      parameters:
+        - name: since
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+          description: 이 seq 이후의 변경만 반환. 생략 시 최근 10건
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  currentSeq:
+                    type: integer
+                    description: 서버의 현재 최신 시퀀스 번호
+                  changes:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        seq:
+                          type: integer
+                        type:
+                          type: string
+                          enum:
+                            - snippet.created
+                            - snippet.updated
+                            - snippet.deleted
+                            - folder.created
+                            - folder.deleted
+                            - rule.changed
+                            - settings.changed
+                            - clipboard.added
+                        target:
+                          type: string
+                        timestamp:
+                          type: string
+                          format: date-time
+
+  # ========================================================================
   # General
   # ========================================================================
   /settings/general:

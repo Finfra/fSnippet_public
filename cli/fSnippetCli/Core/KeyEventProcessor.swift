@@ -348,7 +348,7 @@ class KeyEventProcessor: CGEventTapManagerDelegate {
         // ✅ Issue 583 Fix: Use protocol method instead of casting to KeyEventMonitor
         // The delegate (KeyEventHandler) now implements this method via protocol.
         let success = delegate.handleKeyEventAndReturnSuccess(keyInfo)
-        logI("🎮 [Issue38] 트리거키 '\(triggerChar)' 동기 처리 결과: \(success ? "스니펫 확장 성공" : "스니펫 없음")")
+        logD("🎮 [Issue38] 트리거키 '\(triggerChar)' 동기 처리 결과: \(success ? "스니펫 확장 성공" : "스니펫 없음")")
         return success
     }
 

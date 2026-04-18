@@ -28,6 +28,24 @@ class APIRouter {
 
     logD("🌐 API 요청: \(method) \(decodedPath)")
 
+    let response = routeInternal(method: method, decodedPath: decodedPath, request: request, server: server)
+
+    // Issue819: PATCH/POST settings 성공 시 ChangeTracker 기록
+    if response.statusCode == 200,
+       (method == "PATCH" || method == "POST" || method == "PUT" || method == "DELETE"),
+       decodedPath.hasPrefix("/api/v2/settings") {
+      let section = decodedPath
+        .replacingOccurrences(of: "/api/v2/settings/", with: "")
+        .components(separatedBy: "/").first ?? "unknown"
+      ChangeTracker.shared.recordImmediate(type: "settings.changed", target: section)
+    }
+
+    return response
+  }
+
+  /// 내부 라우팅 로직
+  private func routeInternal(method: String, decodedPath: String, request: APIServer.HTTPRequest, server: APIServer) -> APIServer.HTTPResponse {
+
     switch (method, decodedPath) {
     case ("GET", "/"):
       return handleHealthCheck(server: server)
@@ -219,6 +237,12 @@ class APIRouter {
       return handleV2GetSnapshot()
     case ("PUT", "/api/v2/settings/snapshot"):
       return handleV2PutSnapshot(request: request)
+
+    // ======================================================================
+    // v2 — Change Tracking (Issue819: 적응형 Polling)
+    // ======================================================================
+    case ("GET", "/api/v2/changes"):
+      return handleV2GetChanges(request: request)
 
     // ======================================================================
     // v2 — Data endpoints (v1 슈퍼셋, Issue33)
@@ -2087,6 +2111,15 @@ class APIRouter {
       if let v = patch.triggerBias { config["snippet_trigger_bias"] = v }
       if let v = patch.quickSelectModifier { config["quick_select_modifier"] = v }
     }
+
+    // Issue821: 메뉴바 표시 상태 제어 (런타임 상태, 설정 파일 미저장)
+    if let showMenuBar = patch.showMenuBar {
+      DispatchQueue.main.async {
+        AppState.shared.showMenuBar = showMenuBar
+        logI("🔧 [Issue821] 메뉴바 표시 상태 변경: \(showMenuBar)")
+      }
+    }
+
     return jsonResponse(buildV2General())
   }
 
@@ -2125,5 +2158,19 @@ class APIRouter {
     }
 
     return jsonResponse(buildV2History())
+  }
+
+  // MARK: - v2 Change Tracking (Issue819)
+
+  private func handleV2GetChanges(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    let since: Int
+    if let sinceParam = request.query["since"], let sinceVal = Int(sinceParam) {
+      since = sinceVal
+    } else {
+      since = 0
+    }
+
+    let response = ChangeTracker.shared.changesSince(since)
+    return jsonResponse(response)
   }
 }

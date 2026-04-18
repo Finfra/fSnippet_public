@@ -3,6 +3,8 @@ name: run
 description: "애플리케이션 빌드 및 실행 (옵션: 설정창 열기)"
 ---
 
+# 앱 빌드 및 실행 워크플로우
+
 0. **디버그 로깅 활성화 (Optional)**:
    - 상세한 로그를 확인하려면 아래 명령어를 실행하여 디버그 로깅을 활성화합니다.(처음 한번만 유저가 실행하면 작동)
    ```bash
@@ -61,7 +63,7 @@ description: "애플리케이션 빌드 및 실행 (옵션: 설정창 열기)"
 
 ## 문제 해결 (Troubleshooting)
 빌드가 실패하거나 앱이 실행되지 않을 경우 **Build Doctor Skill**을 참고하세요.
-- **스킬 경로**: `.agent/skills/build_doctor/SKILL.md`
+- **스킬 경로**: `agents/gemini/skills/build-doctor/SKILL.md`
 - **빠른 복구**: `DerivedData` 삭제 및 `Clean Build` 시도
   ```bash
   rm -rf ~/Library/Developer/Xcode/DerivedData/fSnippet-*

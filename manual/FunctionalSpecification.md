@@ -169,7 +169,7 @@ $ curl -s http://localhost:3015/api/folders | python3 -m json.tool
 $ curl -s http://localhost:3015/api/triggers | python3 -m json.tool
 ```
 
-자동화 스크립트(Python, Node.js 등)에서도 동일한 HTTP 요청으로 fSnippet 데이터를 프로그래밍 방식으로 활용할 수 있으며, OpenAPI 스펙(`api/openapi.yaml`)을 참조하면 Swagger UI나 코드 제너레이터와의 연동도 가능합니다.
+자동화 스크립트(Python, Node.js 등)에서도 동일한 HTTP 요청으로 fSnippet 데이터를 프로그래밍 방식으로 활용할 수 있으며, OpenAPI 스펙(`api/openapi_v1.yaml`, `api/openapi_v2.yaml`)을 참조하면 Swagger UI나 코드 제너레이터와의 연동도 가능합니다.
 
 ## 4.5. 엔드포인트 상세 레퍼런스
 
@@ -291,7 +291,9 @@ curl -s -X POST -H "Content-Type: application/json" \
 
 fSnippet REST API의 전체 스펙은 OpenAPI 3.0.3 형식으로 제공됩니다.
 
-* **파일 위치**: `api/openapi.yaml`
+* **파일 위치**:
+    - `api/openapi_v1.yaml` (v1: 조회 중심)
+    - `api/openapi_v2.yaml` (v2: 설정 CRUD)
 * **활용 방법**:
   - [Swagger Editor](https://editor.swagger.io/)에 붙여넣어 인터랙티브 문서로 사용
   - `openapi-generator-cli`로 각 언어별 클라이언트 코드 자동 생성

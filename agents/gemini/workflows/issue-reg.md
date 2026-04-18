@@ -3,6 +3,8 @@ name: issue-reg
 description: "이슈 등록 (HWM 확인 -> ID 발급 -> 파일 업데이트)"
 ---
 
+# 이슈 등록 워크플로우
+
 **역할**: 새로운 이슈를 `Issue.md`에 등록합니다.
 
 > [!IMPORTANT]
@@ -35,7 +37,7 @@ description: "이슈 등록 (HWM 확인 -> ID 발급 -> 파일 업데이트)"
 
 4. **HWM 동기화 (Sync HWM)**:
     - 이슈 등록 전 HWM을 동기화하여 ID 충돌을 방지합니다.
-    - `python3 .agent/skills/issue-hwm/scripts/issue-hwm.py sync --file "Issue.md"`
+    - `python3 agents/gemini/skills/issue-hwm/scripts/issue-hwm.py sync --file "Issue.md"`
 
 5. **이슈 등록 (Register Issue via Skill)**:
     - **Issue Manager Skill**을 사용하여 이슈를 파일에 등록하고 ID를 발급받습니다.
@@ -49,7 +51,7 @@ description: "이슈 등록 (HWM 확인 -> ID 발급 -> 파일 업데이트)"
     - **주의**: `candidate` (이슈후보)는 더 이상 사용하지 마십시오.
 
     ```bash
-    python3 .agent/skills/issue-manager/scripts/issue-manager.py register \
+    python3 agents/gemini/skills/issue-manager/scripts/issue-manager.py register \
       --title "[이슈 제목]" \
       --type normal \
       --file "Issue.md" \
@@ -60,7 +62,7 @@ description: "이슈 등록 (HWM 확인 -> ID 발급 -> 파일 업데이트)"
         - 부모 이슈가 **진행 중**이면: 해당 부모 이슈 아래에 들여쓰기(`###`)로 등록됩니다.
         - 부모 이슈가 **완료(Closed)**되면: 새로운 독립 이슈(`##`)로 `📙 일반` 섹션에 등록됩니다. (ID는 `Parent_Child` 유지)
     ```bash
-    python3 .agent/skills/issue-manager/scripts/issue-manager.py register \
+    python3 agents/gemini/skills/issue-manager/scripts/issue-manager.py register \
       --title "[서브 이슈 제목]" \
       --type normal \
       --parent-id "Issue392" \
@@ -77,7 +79,7 @@ description: "이슈 등록 (HWM 확인 -> ID 발급 -> 파일 업데이트)"
 
 8. **Git 저장 (Commit matches)**:
     - `git add Issue.md`
-    - `.agent/skills/git/scripts/git-wrapper.sh commit "Docs: Register Issue[번호] and Cleanup Candidates"`
+    - `agents/gemini/skills/git/scripts/git-wrapper.sh commit "Docs: Register Issue[번호] and Cleanup Candidates"`
 
 9. **TOC 검증 (Verify TOC)**:
     - 등록 후 `Issue.md`의 목차가 깨지지 않았는지(특히 헤더 아이콘 및 레벨) 확인합니다.

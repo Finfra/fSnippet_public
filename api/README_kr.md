@@ -15,7 +15,9 @@ fSnippet은 macOS 텍스트 스니펫 확장 도구로, 내장 NWListener 기반
 | 기본 포트   | 3015                                                |
 | API 활성화 | 기본 OFF (설정에서 명시적 활성화 필요)                            |
 | 바인딩     | 기본 `127.0.0.1` (localhost 전용)                       |
-> OpenAPI 3.0 스펙: [openapi.yaml](./openapi.yaml)
+> OpenAPI 3.0 스펙:
+> - v1 (조회 중심): [openapi_v1.yaml](./openapi_v1.yaml)
+> - v2 (설정 CRUD): [openapi_v2.yaml](./openapi_v2.yaml)
 
 ---
 

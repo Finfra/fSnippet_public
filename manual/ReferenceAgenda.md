@@ -28,7 +28,7 @@ date: 2026-03-26
 
 # 5. REST API (External Integration)
 
-> **참조 문서**: [REST API 문서](../api/) | [OpenAPI 스펙](../api/openapi.yaml) | [한국어 README](../api/README_kr.md) | [테스트 스크립트](../api/test-api.sh)
+> **참조 문서**: [REST API 문서](../api/) | [OpenAPI v1](../api/openapi_v1.yaml) | [OpenAPI v2](../api/openapi_v2.yaml) | [한국어 README](../api/README_kr.md) | [테스트 스크립트](../api/test-api.sh)
 
 ## 5-1. 서버 활성화 및 보안 설정
 - NWListener 기반 내장 HTTP 서버 개요
@@ -44,7 +44,7 @@ date: 2026-03-26
 - HTTP 상태 코드 (200, 400, 404, 500 등)
 - Health Check(`/`) 응답 필드 설명
 ## 5-4. OpenAPI 스펙 참조
-- `api/openapi.yaml` 파일 위치 및 활용
+- `api/openapi_v1.yaml`, `api/openapi_v2.yaml` 파일 위치 및 활용
 - Swagger UI 연동 및 코드 제너레이터 사용 가이드
 - `_doc_design/RestAPI.md` 설계 문서 참조
 

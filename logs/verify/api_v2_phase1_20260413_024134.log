@@ -1,0 +1,108 @@
+# API v2 Phase 1 검증 로그 — 2026-04-13 02:41:34
+
+## === 30.v2-settings-general.sh ===
+{
+  "appearance": "system",
+  "language": "en",
+  "permissions": {
+    "accessibility": true,
+    "automation": false
+  },
+  "popupHotkey": {
+    "display": "⌃⇧Space",
+    "keyCode": 49,
+    "modifiers": [],
+    "token": "⌃⇧Space"
+  },
+  "quickSelectModifier": "command",
+  "settingsFolder": "/Users/nowage/Documents/finfra/fSnippetData",
+  "settingsHotkey": {
+    "display": "{^⌘⇧;}",
+    "modifiers": [],
+    "token": "{^⌘⇧;}"
+  },
+  "snippetFolder": "./snippets",
+  "triggerBias": 0,
+  "triggerKey": {
+    "display": "",
+    "token": ""
+  }
+}
+
+## === 31.v2-settings-popup.sh ===
+{
+  "popupRows": 9,
+  "popupWidth": 500,
+  "previewWindowWidth": 400,
+  "searchScope": "content"
+}
+
+## === 32.v2-settings-behavior.sh ===
+{
+  "hideFromMenuBar": false,
+  "launchAtLogin": true,
+  "playSoundOnReady": true,
+  "showInAppSwitcher": true,
+  "showNotifications": true
+}
+
+## === 33.v2-settings-advanced-info.sh ===
+{
+  "appVersion": "1.0.0",
+  "loadedSnippets": 1953,
+  "statisticsRetentionDays": 30
+}
+
+## === 34.v2-settings-snapshot.sh ===
+{
+  "advancedInfo": {
+    "appVersion": "1.0.0",
+    "loadedSnippets": 1953,
+    "statisticsRetentionDays": 30
+  },
+  "behavior": {
+    "hideFromMenuBar": false,
+    "launchAtLogin": true,
+    "playSoundOnReady": true,
+    "showInAppSwitcher": true,
+    "showNotifications": true
+  },
+  "exportedAt": "2026-04-12T17:41:34.907Z",
+  "general": {
+    "appearance": "system",
+    "language": "en",
+    "permissions": {
+      "accessibility": true,
+      "automation": false
+    },
+    "popupHotkey": {
+      "display": "⌃⇧Space",
+      "keyCode": 49,
+      "modifiers": [],
+      "token": "⌃⇧Space"
+    },
+    "quickSelectModifier": "command",
+    "settingsFolder": "/Users/nowage/Documents/finfra/fSnippetData",
+    "settingsHotkey": {
+      "display": "{^⌘⇧;}",
+      "modifiers": [],
+      "token": "{^⌘⇧;}"
+    },
+    "snippetFolder": "./snippets",
+    "triggerBias": 0,
+    "triggerKey": {
+      "display": "",
+      "token": ""
+    }
+  },
+  "popup": {
+    "popupRows": 9,
+    "popupWidth": 500,
+    "previewWindowWidth": 400,
+    "searchScope": "content"
+  },
+  "version": "2.0.0"
+}
+
+## === E10.v2-not-found.sh ===
+status=404

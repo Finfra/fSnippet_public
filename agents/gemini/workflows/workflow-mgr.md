@@ -3,12 +3,14 @@ name: workflow-mgr
 description: "워크플로우 관리 및 개선 (분석 -> 생성/수정 -> 표준화)"
 ---
 
+# 워크플로우 관리
+
 1. **니즈 분석 (Analyze Needs)**:
    - 새로운 반복 작업이 발견되거나, 기존 절차의 개선이 필요한지 분석합니다.
    - **소스**: `_doc_work/issue_OLD.md` (과거 이슈 패턴), `git log` (커밋 패턴), 또는 사용자 요청.
 
 2. **워크플로우 생성/수정 (Create or Modify)**:
-   - `.agent/workflows/` 폴더에 `.md` 파일을 생성하거나 수정합니다.
+   - `agents/gemini/workflows/` 폴더에 `.md` 파일을 생성하거나 수정합니다.
    - **언어**: 반드시 **한국어**로 작성합니다.
    - **형식**: 명확한 단계(Step)와 실행 가능한 명령어(Code Block)로 구성합니다.
 

@@ -3,7 +3,7 @@ import Foundation
 
 /// Centralized source of truth for Key Mapping definitions.
 /// Used by ShortcutMgr, KeyRenderingManager, TriggerKeyManager, etc.
-/// Based on `design_keyProcess.md`
+/// Based on `_doc_design/key-event/design_keyProcess.md`
 /// Used by `SingleShortcutMapper`
 struct SharedKeyMap {
 
@@ -185,7 +185,7 @@ struct SharedKeyMap {
     // MARK: - Option Key Mapping (Issue 524)
 
     /// Returns the character produced by Option + KeyCode combination
-    /// Based on `design_keyProcess.md` standardization
+    /// Based on `_doc_design/key-event/design_keyProcess.md` standardization
     static func getOptionKeyCharacter(keyCode: UInt16, modifiers: NSEvent.ModifierFlags) -> String?
     {
         guard modifiers.contains(.option) else { return nil }

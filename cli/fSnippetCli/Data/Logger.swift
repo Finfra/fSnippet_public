@@ -79,7 +79,7 @@ class Logger {
     var currentLogLevel: LogLevel = .debug  // AppInitializer에서 적절히 설정됨
 
     // [Issue225] 파일 로깅 활성화 여부 (Master Switch)
-    var isFileLoggingEnabled: Bool = false
+    var isFileLoggingEnabled: Bool = true
 
     // ✅ DateFormatter 싱글톤 (성능 향상)
     private lazy var timestampFormatter: DateFormatter = {
@@ -118,18 +118,22 @@ class Logger {
         #if DEBUG
             print("🔧 [DEBUG] createLogFileIfNeeded() 시작")
             print("🔧 [DEBUG] 로그 파일 경로: \(self.logFileURL.path)")
+        #endif
 
-            // Truncate 기능: 시작 시 항상 새로 생성/덮어쓰기
-            let startupMessage =
-                "\n=== fSnippet 로그 시작 [\(self.formatTimestamp(Date()))] ======================================================\n"
-            do {
-                // [수정] atomically: false로 설정하여 inode 유지 (tail -f 호환성)
-                try startupMessage.write(to: self.logFileURL, atomically: false, encoding: .utf8)
+        // Truncate 기능: 시작 시 항상 새로 생성/덮어쓰기 (Debug/Release 공통)
+        let startupMessage =
+            "\n=== fSnippet 로그 시작 [\(self.formatTimestamp(Date()))] ======================================================\n"
+        do {
+            // [수정] atomically: false로 설정하여 inode 유지 (tail -f 호환성)
+            try startupMessage.write(to: self.logFileURL, atomically: false, encoding: .utf8)
+            #if DEBUG
                 print("✅ 로그 파일 초기화(Truncate) 완료: \(self.logFileURL.path)")
-            } catch {
-                print("❌ 로그 파일 생성 실패: \(error)")
-            }
+            #endif
+        } catch {
+            print("❌ 로그 파일 생성 실패: \(error)")
+        }
 
+        #if DEBUG
             print("🔧 [DEBUG] createLogFileIfNeeded() 완료")
         #endif
     }

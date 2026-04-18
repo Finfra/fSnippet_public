@@ -1,0 +1,38 @@
+{
+  "name": "fSnippetCli",
+  "mode": "codebase",
+  "sources": [
+    {
+      "path": ".",
+      "exclude": ["wiki/", "node_modules/", ".git/", ".build/"]
+    }
+  ],
+  "output": "wiki",
+  "link_style": "obsidian",
+  "service_discovery": "auto",
+  "knowledge_files": [
+    "README.md",
+    "README_kr.md",
+    "CLAUDE.md",
+    "cli/README.md",
+    "cli/Issue.md",
+    "api/openapi_v1.yaml",
+    "api/openapi_v2.yaml",
+    "manual/**/*.md",
+    "agents/**/*.md",
+    "mcp/**/*.md"
+  ],
+  "deep_scan": true,
+  "code_extensions": [".swift", ".rb", ".yaml", ".yml", ".json"],
+  "topic_hints": [
+    "core-engine",
+    "rest-api",
+    "snippet-management",
+    "clipboard-history",
+    "ui-popup",
+    "homebrew-deployment",
+    "mcp-server",
+    "agents",
+    "manual"
+  ]
+}

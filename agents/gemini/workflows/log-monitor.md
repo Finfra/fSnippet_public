@@ -3,13 +3,15 @@ name: log-monitor
 description: "실시간 로그 분석 및 모니터링 시작 (Startup, Snippet, Spam check)"
 ---
 
+# 로그 모니터링 워크플로우
+
 **역할**: `flog.log`를 분석하여 앱의 상태를 진단하고 실시간 모니터링을 시작합니다. `/run` 워크플로우와 함께 사용됩니다.
 
 1.  **로그 분석 및 모니터링 실행**:
-    - `.agent/skills/log_monitor/scripts/monitor.sh`를 실행하여 현재 로그 상태(Startup, Snippet)를 분석합니다.
+    - `agents/gemini/skills/log-monitor/scripts/monitor.sh`를 실행하여 현재 로그 상태(Startup, Snippet)를 분석합니다.
     - 실행 후 팁에 따라 `tail -f` 명령어로 실시간 로그를 확인하세요.
     ```bash
-    sh .agent/skills/log_monitor/scripts/monitor.sh
+    sh agents/gemini/skills/log-monitor/scripts/monitor.sh
     ```
 
 2.  **분석 항목**:

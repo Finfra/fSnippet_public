@@ -3,6 +3,8 @@ name: dev
 description: "전체 개발 주기 통합 워크플로우 (인수 지원: 자동 또는 특정 후보 즉시 착수)"
 ---
 
+# 개발 주기 통합 워크플로우
+
 **역할**: 개발 주기를 관리합니다. 인자가 없으면 자동 우선순위(`issue`)를 따르고, 인자가 있으면 특정 후보를 즉시 착수합니다.
 
 > [!WARNING] 필수 규칙 (CRITICAL)
@@ -54,7 +56,7 @@ description: "전체 개발 주기 통합 워크플로우 (인수 지원: 자동
 ## 3. 작업 결과 등록 (Update Artifacts)
 - **Walkthrough 등록**: `walkthrough.md`가 생성/갱신되면 아래 명령으로 이슈에 연결합니다.
     ```bash
-    python3 .agent/skills/issue-manager/scripts/issue-manager.py link --id "Issue[번호]" --url "walkthrough.md" --title "Walkthrough"
+    python3 agents/gemini/skills/issue-manager/scripts/issue-manager.py link --id "Issue[번호]" --url "walkthrough.md" --title "Walkthrough"
     ```
 
 ## 4. 이슈 종결 및 동기화 (Close & Push)

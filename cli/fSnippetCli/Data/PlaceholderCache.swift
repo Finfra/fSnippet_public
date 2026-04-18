@@ -1,7 +1,7 @@
 import Foundation
 
 /// 플레이스홀더 입력값 캐시 (Issue792: UserDefaults 기반)
-/// placeholder-rules.md Phase 3 구현
+/// _doc_design/snippet/placeholder-rules.md Phase 3 구현
 class PlaceholderCache {
     static let shared = PlaceholderCache()
 

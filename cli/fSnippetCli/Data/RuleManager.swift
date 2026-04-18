@@ -53,6 +53,7 @@ class RuleManager: RuleManagerProtocol {
         // 이미 큐 내부에서 비동기로 실행될 수 있으므로,
         // invalidateEffectiveRulesCache() 호출로 충분함 (내부에서 barrier async 사용)
         invalidateEffectiveRulesCache()
+        ChangeTracker.shared.record(type: "rule.changed", target: "rule")
         logV("📐    [RuleManager] Cache Invalidated due to notification")
     }
 

@@ -1,6 +1,6 @@
 ---
 name: paidApp_version
-description: cliApp에서 paidApp 인식·실행·차단 설계 및 구현 현황
+description: cliApp에서 paidApp 인식·실행·차단 설계 및 구현 현황 (cliApp 측 SSOT)
 date: 2026-04-08
 ---
 
@@ -12,6 +12,10 @@ paidApp이 설치되어 있으면 자동 실행하고 메뉴바를 숨기며, pa
 * **fSnippetCli (cliApp)**: 비샌드박스 에이전트, 키 모니터링/텍스트 대체 엔진, REST API 서버
 * **fSnippet (paidApp)**: App Store 배포 Sandbox GUI 앱
 * **관계**: cliApp은 독립 실행 가능하되, paidApp 설치 시 GUI 기능을 위임함
+
+> **상위 설계 문서**: 본 문서는 cliApp 측 구현 세부 SSOT. 2-앱 협업 아키텍처 전반(6대 시나리오, 역할 분담, Status 표)은 메인 레포의 [`../../../_doc_design/fSnippetCli_design.md`](../../../_doc_design/fSnippetCli_design.md) 참조. 특히 §3.1(설치 감지 공통 API)은 본 문서 1.1~1.4절을 상위 관점에서 요약하고 있으므로 상호 참조.
+>
+> **정합성 공지 (2026-04-18)**: 본 문서 6/7/8.1절은 현재 Issue821(`showMenuBar` 토글·양쪽 메뉴바 모델) 기준으로 작성되어 있음. 상위 문서 Status 표의 "목표" 열이 적용될 경우(Issue825) 본 문서 해당 절은 Issue824에서 전면 개정 예정.
 
 # 기능 명세 (cliApp vs paidApp)
 

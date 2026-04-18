@@ -3,6 +3,8 @@ name: issue-fix
 description: "이슈 해결 및 완료 처리 (Fix -> Verify -> Doc -> Close) 워크플로우"
 ---
 
+# 이슈 해결 워크플로우
+
 1.  **문제 분석 및 재현 (Analyze & Reproduce)**:
     - 이슈의 원인을 분석합니다. (`_doc_work/debug_HISTORY.md` 허브 및 `debug_*.md` 참조)
     - **UI 이슈인 경우**: `/capture` 워크플로우를 실행하여 **'Before' 상태(문제 화면)**를 캡처해 둡니다.
