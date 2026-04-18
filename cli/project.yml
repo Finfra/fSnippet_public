@@ -1,6 +1,6 @@
 name: fSnippetCli
 options:
-  bundleIdPrefix: com.finfra
+  bundleIdPrefix: kr.finfra
   deploymentTarget:
     macOS: "14.0"
   xcodeVersion: "16.0"
@@ -11,6 +11,7 @@ settings:
     SWIFT_VERSION: "5.0"
     MACOSX_DEPLOYMENT_TARGET: "14.0"
     CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: BZDZFZWF6K
     PRODUCT_NAME: fSnippetCli
 
 targets:
@@ -23,7 +24,7 @@ targets:
           - "**/.gitkeep"
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.finfra.fSnippetCli
+        PRODUCT_BUNDLE_IDENTIFIER: kr.finfra.fSnippetCli
         INFOPLIST_FILE: fSnippetCli/Info.plist
         CODE_SIGN_ENTITLEMENTS: fSnippetCli/fSnippetCli.entitlements
         GENERATE_INFOPLIST_FILE: false
@@ -33,3 +34,36 @@ targets:
           - "@executable_path/../Frameworks"
     entitlements:
       path: fSnippetCli/fSnippetCli.entitlements
+    scheme:
+      testTargets:
+        - fSnippetTests
+        - fSnippetCliTests
+
+  fSnippetTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: fSnippetTests
+    dependencies:
+      - target: fSnippetCli
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: kr.finfra.fSnippetTests
+        PRODUCT_NAME: fSnippetTests
+        GENERATE_INFOPLIST_FILE: true
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/fSnippetCli.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/fSnippetCli"
+
+  fSnippetCliTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: fSnippetCliTests
+    dependencies:
+      - target: fSnippetCli
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: kr.finfra.fSnippetCliTests
+        PRODUCT_NAME: fSnippetCliTests
+        GENERATE_INFOPLIST_FILE: true
+        CODE_SIGN_IDENTITY: ""
