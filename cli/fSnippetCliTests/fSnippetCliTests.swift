@@ -5,14 +5,14 @@
 //  Created by nowage on 2026.04.18.
 //
 
-import Testing
+import XCTest
 
-struct fSnippetCliTests {
+final class fSnippetCliTests: XCTestCase {
 
-    @Test func example() async throws {
-        // Write your test here and use APIs like `#expect(...)` to check expected conditions.
-        // Swift Testing Documentation
-        // https://developer.apple.com/documentation/testing
+    func testExample() throws {
+        // Write your test here and use APIs like `XCTAssert` to check expected conditions.
+        // XCTest Documentation
+        // https://developer.apple.com/documentation/xctest
     }
 
 }
