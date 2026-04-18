@@ -68,16 +68,35 @@ APPLESCRIPT
 # ---------- Step 1: Xcode 빌드 제어 ----------
 # 다른 Xcode 프로젝트의 빌드에 영향을 주지 않도록 해당 workspace document만 stop.
 # pkill -f xcodebuild 같은 전역 종료 사용 금지 — 다른 프로젝트 CLI 빌드까지 죽임.
+#
+# AppleScript stop이 성공해도 앱 프로세스가 잔존하는 경우가 있어,
+# 이후 build → xcode_run_stop 단계에서 TCC가 새 바이너리에 적용되지 않는 문제가 발생함.
+# 따라서 stop 성공 시에는 `pkill -f "MacOS/$PROJECT_NAME"`으로 해당 앱 프로세스만 정리.
 xcode_stop() {
     echo "[stop] $XCODEPROJ_NAME scheme action 중단 (해당 workspace 한정)"
     open_project
-    osascript 2>/dev/null <<APPLESCRIPT || true
+    local stop_result
+    stop_result=$(osascript 2>&1 <<APPLESCRIPT || true
 tell application "Xcode"
     try
         stop (workspace document "$XCODEPROJ_NAME")
+        return "OK"
+    on error emsg
+        return "FAIL|" & emsg
     end try
 end tell
 APPLESCRIPT
+)
+    if [[ "$stop_result" == "OK" ]]; then
+        # Xcode stop 성공 — TCC 재적용 방해 방지용 잔존 프로세스 정리
+        if pgrep -f "MacOS/$PROJECT_NAME" > /dev/null 2>&1; then
+            echo "[stop] 잔존 프로세스 감지 — pkill -f MacOS/$PROJECT_NAME"
+            pkill -f "MacOS/$PROJECT_NAME" 2>/dev/null || true
+            sleep 0.3
+        fi
+    else
+        echo "[stop] ⚠️ $stop_result"
+    fi
 }
 
 xcode_build() {

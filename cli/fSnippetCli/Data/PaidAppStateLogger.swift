@@ -11,7 +11,7 @@ public enum PaidAppStateLogger {
     internal static var testableDefaultsOverride: UserDefaults?
 
     // MARK: - Private State
-    private static let serialQueue = DispatchQueue(label: "com.finfra.fSnippetCli.PaidAppStateLogger.serial")
+    private static let serialQueue = DispatchQueue(label: "kr.finfra.fSnippetCli.PaidAppStateLogger.serial")
 
     private static let dateFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()

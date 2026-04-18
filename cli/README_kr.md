@@ -57,7 +57,7 @@ fSnippetCli는 키보드 입력 모니터링과 텍스트 대체를 위해 **접
 
 | 항목             | 값                          |
 | :--------------- | :-------------------------- |
-| Bundle ID        | `com.finfra.fSnippetCli`    |
+| Bundle ID        | `kr.finfra.fSnippetCli`     |
 | 앱 유형          | macOS Agent (LSUIElement)   |
 | Dock 표시        | 안 함                       |
 | UI               | 메뉴바 아이콘만             |

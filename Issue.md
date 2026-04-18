@@ -14,6 +14,10 @@ date: 2026-04-07
 # 🌱 이슈후보
 1. 클립보드 히스토리 기능 중에서 고급 기능은 Paid 앱이 활성화 되어 있어야 실행 가능하게끔 해 줘 활성화 되어 있지 않다면 활성화 창[기존 코드 찾아서] 열게 해야함. 
     - Paid 앱의 기능이 모듈로 구성되어 있는지 확인
+2. TCC문제 해결되었으나 "/run"을 두번 실행해야 해결된 TCC가 적용됨. 처음 TCC적용(Accessibility 권한을 주는데 성공)하면 자동으로 앱이 자동 시작하는 기능 필요. 
+
+
+
 # 🚧 진행중
 
 # 📕 중요
@@ -149,8 +153,8 @@ date: 2026-04-07
 ## Issue37: nPTiR 환경 정비 — 폴더 구조·SCAR 빈 파일·.gitignore 정비 (등록: 2026-04-14, 해결: 2026-04-14, commit: 6458058, 03c3bbd) ✅
 
 * 목적: nPTiR 체계 원활 작업을 위한 사전 정비 (check-nNPTiR 리포트 기반)
-* plan: `cli/_doc_work/plan/start-nPTiR_plan.md`
-* task: `cli/_doc_work/tasks/start-nPTiR_task.md`
+* plan: `cli/_doc_work/z_done/plan/start-nPTiR_plan.md`
+* task: `cli/_doc_work/z_done/tasks/start-nPTiR_task.md`
 * 구현:
     - `cli/_doc_work/_rlease/` 오타 폴더 삭제
     - `cli/_doc_work/` 루트 파일 3개 → `plan/`, `report/` 하위 이동

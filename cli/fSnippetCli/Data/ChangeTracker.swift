@@ -7,7 +7,7 @@ import Foundation
 final class ChangeTracker {
   static let shared = ChangeTracker()
 
-  private let queue = DispatchQueue(label: "com.finfra.fSnippetCli.changeTracker")
+  private let queue = DispatchQueue(label: "kr.finfra.fSnippetCli.changeTracker")
   private var _currentSeq: Int = 0
   private var _history: [ChangeEvent] = []
   private let maxHistory = 100

@@ -1,6 +1,6 @@
 name: fSnippetCli
 options:
-  bundleIdPrefix: com.finfra
+  bundleIdPrefix: kr.finfra
   deploymentTarget:
     macOS: "14.0"
   xcodeVersion: "16.0"
@@ -23,7 +23,7 @@ targets:
           - "**/.gitkeep"
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.finfra.fSnippetCli
+        PRODUCT_BUNDLE_IDENTIFIER: kr.finfra.fSnippetCli
         INFOPLIST_FILE: fSnippetCli/Info.plist
         CODE_SIGN_ENTITLEMENTS: fSnippetCli/fSnippetCli.entitlements
         GENERATE_INFOPLIST_FILE: false
@@ -46,7 +46,7 @@ targets:
       - target: fSnippetCli
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.finfra.fSnippetCliTests
+        PRODUCT_BUNDLE_IDENTIFIER: kr.finfra.fSnippetCliTests
         PRODUCT_NAME: fSnippetCliTests
         GENERATE_INFOPLIST_FILE: true
         CODE_SIGN_IDENTITY: ""

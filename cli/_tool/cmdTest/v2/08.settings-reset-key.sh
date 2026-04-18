@@ -8,7 +8,7 @@ $CLI settings reset popup.popupRows
 RC=$?
 if [ $RC -eq 0 ]; then echo "✅ PASS (exit=$RC)"; else echo "❌ FAIL (exit=$RC)"; fi
 # 원래 값이 달랐다면 복원
-if [ "$ORIGINAL" != "$(defaults read com.finfra.fSnippetCli popupRows 2>/dev/null)" ]; then
+if [ "$ORIGINAL" != "$(defaults read kr.finfra.fSnippetCli popupRows 2>/dev/null)" ]; then
   $CLI settings set popup.popupRows "$ORIGINAL" > /dev/null 2>&1
 fi
 exit $RC

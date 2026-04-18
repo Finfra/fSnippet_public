@@ -57,7 +57,7 @@ fSnippetCli requires **Accessibility permission** for keyboard input monitoring 
 
 | Property          | Value                       |
 | :---------------- | :-------------------------- |
-| Bundle ID         | `com.finfra.fSnippetCli`    |
+| Bundle ID         | `kr.finfra.fSnippetCli`     |
 | App Type          | macOS Agent (LSUIElement)   |
 | Dock Visibility   | Hidden                      |
 | UI                | Menu bar icon only          |
