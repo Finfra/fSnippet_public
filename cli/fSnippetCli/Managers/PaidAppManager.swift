@@ -1,4 +1,5 @@
 import Cocoa
+import UniformTypeIdentifiers
 
 /// paid 앱(fSnippet GUI) 감지 및 실행을 전담하는 매니저
 /// - 감지: 설치 여부, 실행 파일 존재 여부
@@ -80,34 +81,93 @@ class PaidAppManager {
     // MARK: - paid 전용 기능 핸들링
 
     /// paid 전용 기능 시도 시 호출
-    /// - 감지 안 됨 → "Only Support the Paid Version" 토스트
-    /// - 감지됨 → paid 앱 실행 → "fSnippet에서 다시 실행해주세요" 알림
-    func handlePaidFeature(relativeTo frame: NSRect? = nil) {
+    /// - 감지됨 → paid 앱 실행 → 안내 알림
+    /// - 감지 안 됨 → NSAlert (App Store / Locate... / Show Config in Finder / Cancel)
+    func handlePaidFeature() {
         if isInstalled() {
             let launched = launchPaidApp()
             if launched {
-                ToastManager.shared.showToast(
-                    message: LocalizedStringManager.shared.string("toast.paid_launched"),
-                    iconName: "arrow.up.forward.app.fill",
-                    duration: 2.0,
-                    relativeTo: frame,
-                    fontSize: 24
-                )
+                let alert = NSAlert()
+                alert.messageText = "fSnippet launched"
+                alert.informativeText = "fSnippet (paid version) has been launched.\nPlease use the feature from fSnippet."
+                alert.alertStyle = .informational
+                alert.addButton(withTitle: "OK")
+                NSApplication.shared.activate(ignoringOtherApps: true)
+                alert.runModal()
             } else {
-                showPaidOnlyToast(relativeTo: frame)
+                showPaidOnlyAlert()
             }
         } else {
-            showPaidOnlyToast(relativeTo: frame)
+            showPaidOnlyAlert()
         }
     }
 
-    /// "Only Support the Paid Version" 토스트 표시 (Issue14: 다국어 대응)
-    private func showPaidOnlyToast(relativeTo frame: NSRect? = nil) {
-        ToastManager.shared.showToast(
-            message: LocalizedStringManager.shared.string("toast.paid_only"),
-            iconName: "lock.fill",
-            relativeTo: frame,
-            fontSize: 28
-        )
+    /// "Only support the paid version" NSAlert 표시
+    /// App Store / Locate... / Cancel 3개 버튼 제공
+    private func showPaidOnlyAlert() {
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "Only support the paid version"
+        alert.informativeText = "This feature requires fSnippet (App Store version).\nYou can get it from the App Store or locate an already installed copy."
+        alert.alertStyle = .informational
+
+        // 앱 아이콘 설정
+        if let appIcon = NSApplication.shared.applicationIconImage {
+            alert.icon = appIcon
+        }
+
+        alert.addButton(withTitle: "App Store")
+        alert.addButton(withTitle: "Locate...")
+        alert.addButton(withTitle: "Show Config in Finder")
+        alert.addButton(withTitle: "Cancel")
+
+        let response = alert.runModal()
+        switch response {
+        case .alertFirstButtonReturn:
+            // App Store 페이지 열기
+            if let url = URL(string: "macappstore://apps.apple.com/app/fsnippet/id6746205800") {
+                NSWorkspace.shared.open(url)
+            }
+        case .alertSecondButtonReturn:
+            // 파일 선택 패널로 fSnippet.app 찾기
+            let panel = NSOpenPanel()
+            panel.title = "Select fSnippet.app"
+            panel.allowedContentTypes = [.application]
+            panel.allowsMultipleSelection = false
+            panel.canChooseDirectories = false
+            panel.directoryURL = URL(fileURLWithPath: "/Applications")
+            if panel.runModal() == .OK, let selectedURL = panel.url {
+                // 선택한 앱의 Bundle ID 검증
+                if let bundle = Bundle(url: selectedURL),
+                   bundle.bundleIdentifier == paidBundleID {
+                    NSWorkspace.shared.open(selectedURL)
+                } else {
+                    let errorAlert = NSAlert()
+                    errorAlert.messageText = "Invalid application"
+                    errorAlert.informativeText = "The selected app is not fSnippet."
+                    errorAlert.alertStyle = .warning
+                    errorAlert.runModal()
+                }
+            }
+        case .alertThirdButtonReturn:
+            // 설정 파일을 Finder에서 보기
+            let homeDir = FileManager.default.homeDirectoryForCurrentUser
+            let configPath = homeDir
+                .appendingPathComponent("Documents")
+                .appendingPathComponent("finfra")
+                .appendingPathComponent("fSnippetData")
+                .appendingPathComponent("_config.yml")
+            if FileManager.default.fileExists(atPath: configPath.path) {
+                NSWorkspace.shared.activateFileViewerSelecting([configPath])
+            } else {
+                // 설정 디렉토리라도 열기
+                let configDir = configPath.deletingLastPathComponent()
+                if FileManager.default.fileExists(atPath: configDir.path) {
+                    NSWorkspace.shared.open(configDir)
+                }
+            }
+        default:
+            break
+        }
     }
 }

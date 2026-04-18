@@ -279,8 +279,7 @@ struct HistoryViewer: View {
             event: event, hotkeyString: settings.historyRegisterSnippetHotkey.toHotkeyString)
         {
             if clipboardManager.chvMode == .list {
-                PaidAppManager.shared.handlePaidFeature(
-                    relativeTo: HistoryViewerManager.shared.window?.frame)
+                PaidAppManager.shared.handlePaidFeature()
                 return true
             }
             // If in .previewView or .previewEdit, let the event pass to the child views (HistoryPreviewView / PreviewTextView)

@@ -194,7 +194,7 @@ struct HistoryPreviewView: View {
                                 "👓 [HistoryPreviewView] Cmd+S pressed in Interactive View. Paid version only."
                             )
                             // 유료 버전 전용 기능 안내
-                            PaidAppManager.shared.handlePaidFeature(relativeTo: window.frame)
+                            PaidAppManager.shared.handlePaidFeature()
                             return nil  // Consume
                         }
                     }
