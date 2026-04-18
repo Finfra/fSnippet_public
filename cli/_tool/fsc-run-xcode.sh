@@ -79,15 +79,9 @@ APPLESCRIPT
 }
 
 xcode_build() {
-    open_project
     # 기존 scheme action이 있으면 해당 workspace만 중단 후 새 빌드 시작
-    osascript 2>/dev/null <<APPLESCRIPT || true
-tell application "Xcode"
-    try
-        stop (workspace document "$XCODEPROJ_NAME")
-    end try
-end tell
-APPLESCRIPT
+    # (open_project는 xcode_stop 내부에서 수행)
+    xcode_stop
     # Xcode에 포커스 — 외부 파일 변경 감지 시 Revert 다이얼로그가 보이도록
     osascript -e 'tell application "Xcode" to activate' 2>/dev/null || true
     echo "[build] Xcode 빌드 시작 ($SCHEME)"
