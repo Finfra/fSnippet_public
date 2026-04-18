@@ -45,3 +45,6 @@ xcuserdata/
 *.xcarchive
 *.canvas
 *.xcframework
+
+# Issue40: fsc-run-xcode.sh TARGET_BUILD_DIR 캐시
+cli/_tool/.last_build_path
