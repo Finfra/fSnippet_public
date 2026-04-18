@@ -7,7 +7,7 @@ date: 2026-04-07
 # Issue Management
 
 - Issue HWM: 41
-- Save Point: 2026-04-19 (3513713) Fix(Issue41 Phase2): Xcode run→stop TCC 획득 + fsc-deploy-debug.sh 분리
+- Save Point: 2026-04-19 (f021bad) Chore: Bundle ID kr.finfra 통일 + Xcode 2640 업그레이드 + 테스트 리포팅 개선
 
 # 🤔 결정사항
 
