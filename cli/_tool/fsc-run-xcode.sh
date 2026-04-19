@@ -3,7 +3,7 @@
 # Issue41 Phase2: build-deploy 흐름에 xcode_run_stop 삽입 — Xcode에서 run→stop으로
 #                 TCC 권한을 앱에 귀속시킨 뒤 /deploy debug(= fsc-deploy-debug.sh)로 독립 기동
 #
-# Usage: ./fsc-run-xcode.sh [open|stop|build|build-deploy|deploy-run|run-only|kill]
+# Usage: ./fsc-run-xcode.sh [open|stop|build|build-deploy|deploy-run|run-only|kill|tcc]
 #
 #   open         : .xcodeproj 사전 오픈 + 로드 대기 (idempotent)
 #   build        : Xcode GUI 빌드만 (배포 없음)
@@ -12,6 +12,8 @@
 #   run-only     : 빌드·배포 없이 기존 배포 앱 실행
 #   stop         : Xcode의 현재 scheme action 중단
 #   kill         : 배포 앱 프로세스 종료
+#   tcc          : kill + tccutil reset Accessibility + build-deploy
+#                  (외부 빌드/brew 재설치로 꼬인 TCC 권한 재설정 목적)
 #
 # 설계 근거: Issue.md Issue40 + Issue41 Phase2
 
@@ -179,6 +181,19 @@ kill_app() {
     pkill -f "MacOS/$PROJECT_NAME" 2>/dev/null || true
 }
 
+# ---------- Step 3.5: TCC Accessibility 권한 초기화 ----------
+# 외부 빌드(스크립트/brew 재설치 등)로 번들 서명-권한 연결이 꼬였을 때,
+# TCC DB에서 해당 BundleID 엔트리를 제거하여 다음 실행 시 사용자가
+# 시스템 설정에서 접근성 권한을 재추가하게 강제함.
+reset_tcc_accessibility() {
+    echo "[tcc-reset] Accessibility 권한 초기화: $BUNDLE_ID"
+    if tccutil reset Accessibility "$BUNDLE_ID" 2>&1; then
+        echo "[tcc-reset] ✅ 초기화 완료 — Xcode run 시 사용자가 권한을 다시 승인해야 합니다"
+    else
+        echo "[tcc-reset] ⚠️ tccutil 실패 (이미 제거된 상태일 수 있음)"
+    fi
+}
+
 # ---------- Step 4: 기존 배포 앱 실행 (빌드·배포 없음) ----------
 run_app_only() {
     if [ ! -d "$APP_PATH" ]; then
@@ -218,8 +233,18 @@ case "$CMD" in
     kill)
         kill_app
         ;;
+    tcc)
+        # kill → TCC Accessibility reset → build-deploy
+        # 외부 빌드/brew 재설치로 꼬인 권한을 재설정하고, Xcode run 시점에
+        # 사용자가 접근성 권한을 다시 부여하도록 유도.
+        kill_app
+        reset_tcc_accessibility
+        xcode_build
+        xcode_run_stop
+        bash "$SCRIPT_DIR/fsc-deploy-debug.sh"
+        ;;
     *)
-        echo "Usage: $0 [open|stop|build|build-deploy|deploy-run|run-only|kill]"
+        echo "Usage: $0 [open|stop|build|build-deploy|deploy-run|run-only|kill|tcc]"
         exit 1
         ;;
 esac

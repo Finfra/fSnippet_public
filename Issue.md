@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-- Issue HWM: 42
+- Issue HWM: 44
 - Save Point: 2026-04-19 (353e8fe) Fix(Issue42): Accessibility 권한 UX 개선 (pairApp 패턴 이식)
 
 # 🤔 결정사항
@@ -18,6 +18,100 @@ date: 2026-04-07
 
 
 # 🚧 진행중
+
+## Issue44: Login Item 자동 등록 — brew 설치 앱 로그인 시 자동 기동 (등록: 2026-04-19)
+* 목적: `/deploy brew local`로 설치된 `fSnippetCli.app`을 사용자 로그인 시 자동으로 기동하도록 Login Item(`System Events` → `make login item`)에 등록하는 표준 경로 제공
+* 배경:
+    - `fSnippetCli`는 메뉴바 GUI 앱(LSUIElement) — `brew services`(launchd daemon) 경로는 GUI 세션 컨텍스트 부족·TCC 주체 꼬임으로 부적합
+    - Issue18에서 Formula `service do` 블록 제거 + AutoStartManager(SMAppService) 전담 결정 (commit: 7879ac2)
+    - 하지만 SMAppService는 **앱 내부 호출 경로** — Homebrew 설치 직후 배포 CLI에서 외부적으로 자동 시작을 보장하려면 외부 등록 수단 필요
+    - `brew services start fsnippet` 사용자 기대 경로가 현재 실패함(Formula명 불일치 + `service do` 블록 없음) → 대안으로 Login Item 안내 필요
+* 설계 근거: `~/_doc/3.Resource/_ICT/_OS/MacOS/homebrew_tap_deploy.md` §7-4 "심링크 전략" + §7-5-B "Login Item 경로" (본 이슈에서 신설·확장)
+* 🚨 구현 중 발견 (설계 변경 핵심): **AppleScript 심링크 자동 resolve 이슈**
+    - `System Events`의 `make login item with properties {path:"..."}` 는 내부적으로 **alias(FSRef/bookmark)** 로 저장
+    - path에 심링크(`/Applications/_nowage_app/fSnippetCli.app`)를 넘겨도 **자동 resolve 후 실제 번들 inode 기반으로 저장** — 저장값은 항상 `/opt/homebrew/Cellar/<formula>/<version>/<App>.app`
+    - 즉 §7-4의 `/Applications/_nowage_app` 심링크 전략은 **Login Item에는 통하지 않음** — Homebrew 버전 폴더(`<version>`) 변경 시 stale 발생
+    - **해결 전략 변경**: stale을 원천 차단하는 대신 **재등록을 일상화** — `register`를 항상 강제 재등록(unregister → register) 패턴으로 구현하여 `/deploy brew local` 재실행만으로 최신 Cellar 경로로 자동 갱신
+* 구현 명세:
+    - 신규 스크립트 `cli/_tool/fsc-loginitem.sh` (283줄): `register` / `unregister` / `status` 3-서브커맨드
+        - `register`: **강제 재등록** — 기존 등록 있으면 `whose name is` 일괄 제거 후 신규 등록 (Homebrew 버전 갱신 자동 반영)
+        - `unregister`: `every login item whose name is ...` whose절 일괄 제거 (중복 등록 잔재 정리 포함)
+        - `status`: 현재 등록 조회 + **stale 탐지** (missing value · Cellar 경로와 `brew --prefix` 버전 불일치)
+    - `fsc-deploy-brew.sh` 통합:
+        - `cmd_local` Step 7: `/Applications/_nowage_app/fSnippetCli.app` 심링크 생성 (사용자 접근 편의용, Login Item에는 resolve되어 저장됨)
+        - `cmd_local` Step 8 (신규): `FSC_AUTOSTART=1` 환경변수 설정 시 `fsc-loginitem.sh register` 호출 (강제 재등록). 기본값은 안내만 출력
+        - `cmd_local` Step 9: REST API 헬스 체크 (기존 Step 8에서 이동)
+        - `cmd_uninstall`: `fsc-loginitem.sh unregister` 자동 호출 + `/Applications/_nowage_app/fSnippetCli.app` 심링크 제거
+        - `cmd_status`: 심링크 섹션 + Login Item 섹션 신설 (stale 경고 포함)
+    - `.claude/commands/deploy.md`: 🚀 자동 시작 안내 블록 추가, `local` 행 "9단계" 표기
+* 설계 원칙:
+    - **AutoStartManager(SMAppService)** 와 **Login Item(osascript)** 는 **배타적** 선택 — 동시 등록 금지(중복 기동)
+    - Homebrew 배포본은 Login Item, App Store/서명 배포본은 SMAppService 권장
+    - ❌ 안티패턴: `if not (exists login item) then make ...` — "이미 있으면 스킵"은 Cellar 버전 갱신 반영 불가
+    - ❌ 안티패턴: `delete login item "name"` 단건 지정 — 중복 등록 시 1건씩만 삭제됨
+    - ✅ 올바른 패턴: `whose name is "..."` whose절 + 역순 repeat 일괄 삭제
+    - 암묵적 시스템 변경 금지 (옵트인만) — `FSC_AUTOSTART=1` 미설정 시 안내만
+* 검증:
+    - [x] `fsc-loginitem.sh register` 실행 후 시스템 설정 → 일반 → 로그인 항목에 `fSnippetCli` 표시 (스크린샷 확인)
+    - [x] `fsc-loginitem.sh status` → 등록 여부 + 실제 경로 + stale 탐지 출력
+    - [x] `fsc-loginitem.sh unregister` → 항목 제거 (중복 3건 일괄 정리 확인)
+    - [x] `register` 강제 재등록 — 기존 있으면 제거 후 재등록 (Cellar 버전 갱신)
+    - [ ] `FSC_AUTOSTART=1 /deploy brew local` → Step 8에서 자동 등록 로그 출력 (옵트인 플래그 직접 사용 미검증)
+    - [x] `/deploy brew local` (env 없음) → Step 8 등록 안내만 출력 (9 PASS / 0 FAIL)
+    - [ ] `/deploy brew uninstall` → Login Item 자동 해제 + 심링크 제거 (파괴적이라 미실행)
+    - [x] `/deploy brew status` → 심링크 + Login Item 섹션 노출
+    - [ ] 로그아웃 → 재로그인 시 fSnippetCli 자동 기동 + 메뉴바 아이콘 표시 (사용자 로그아웃 필요)
+    - [x] `brew services list` 에 `fsnippetcli` **미표시** — 의도된 정상 동작 (Formula `service do` 블록 없음)
+    - [x] Accessibility 권한 부여 상태에서 REST 3015 즉시 응답 (uptime_seconds=0, snippet_count=1954)
+* 관련 파일:
+    - `cli/_tool/fsc-loginitem.sh` (신규, 283줄)
+    - `cli/_tool/fsc-deploy-brew.sh` (Step 7/8/9 재구성, cmd_uninstall/cmd_status 통합)
+    - `.claude/commands/deploy.md` (9단계 표기 + 자동 시작 안내)
+    - `~/_doc/3.Resource/_ICT/_OS/MacOS/homebrew_tap_deploy.md` §7-4 심링크 전략 + §7-5-B Login Item 경로
+    - `cli/fSnippetCli/Managers/AutoStartManager.swift` (SMAppService, 참조·배타 관계만)
+
+## Issue43: /deploy brew 서브커맨드 확장 (local/publish/status/uninstall + TCC 안내) (등록: 2026-04-19)
+* 목적: `/deploy brew` 단독 호출 금지, 4개 서브커맨드로 분기하고 brew 설치 후 TCC 권한 꼬임 가능성을 `/run tcc` 안내로 유도
+* 선수: **Issue44 (Login Item 자동 등록)** — `brew local` 완료 후 사용자 로그인 시 자동 기동 흐름이 완성되려면 Issue44 구현이 필요
+* 배경:
+    - 현재 `/deploy brew`는 로컬 tap 재설치만 수행 — 원격 tap 반영/상태 조회/정리 기능이 섞여 있지 않아 확장성 부족
+    - brew 재설치 후 새 서명 바이너리로 TCC Accessibility 권한이 꼬여 키 감지 실패 가능 (이번 세션 실측)
+    - `fsc-run-xcode.sh tcc` 서브커맨드로 `tccutil reset Accessibility` 자동화 완료 (사용자 별도 수정)
+* 설계 근거: `~/_doc/3.Resource/_ICT/_OS/MacOS/homebrew_tap_deploy.md`
+    - Tap 레포 규칙: `homebrew-<name>` 형식 (= `finfra/homebrew-tap`)
+    - 배포 흐름: 태그 → Release → SHA256 → Formula `url`/`sha256` 갱신 → tap 레포 푸시
+    - 자동화: `dawidd6/action-homebrew-bump-formula` GitHub Action
+* 서브커맨드 스펙:
+
+    | 서브커맨드               | 동작                                                                                  | 상태               |
+    | :----------------------- | :------------------------------------------------------------------------------------ | :----------------- |
+    | `/deploy brew local`     | Release 빌드 + 로컬 tap(`finfra/tap`) 재설치 + 앱 실행 (기존 fsc-deploy-brew.sh 로직) | ✅ 구현 예정       |
+    | `/deploy brew publish`   | 원격 `finfra/homebrew-tap` 저장소 생성/푸시, 태그 기반 Formula 업데이트               | 🚧 TODO (Phase B) |
+    | `/deploy brew status`    | brew list, brew --prefix, 프로세스·REST 상태 조회                                     | ✅ 구현 예정       |
+    | `/deploy brew uninstall` | brew uninstall + 로컬 tap Formula 정리                                                | ✅ 구현 예정       |
+* Phase A (local/status/uninstall + Usage 강제): 🚧 진행중
+    - `fsc-deploy-brew.sh`를 서브커맨드 분기 구조로 재작성
+    - `deploy.md`에 `brew <sub>` 서브커맨드 필수 명시, 인자 없으면 Usage
+    - `local`/`publish` 완료 후 TCC 안내 출력 — "`/run tcc`로 권한 재설정 가능" 명시
+* Phase B (publish 구현): 미착수
+    - GitHub 태그 + Release 자동 생성 (`gh release create`)
+    - `cli/Formula/fsnippetcli.rb` 원격용 Formula 복원 (GitHub URL + SHA256)
+    - 원격 `finfra/homebrew-tap` 레포 푸시 스크립트
+    - 사전 조건: 원격 `finfra/homebrew-tap` 저장소 생성 필요
+* 구현 명세:
+    - Phase A만 먼저 완료·검증·커밋 (단계 분리)
+    - Phase B는 별도 커밋으로 진행
+    - TCC 안내는 로그/출력에 한국어로 표시, `/run tcc` 커맨드를 해결책으로 제시
+* 검증:
+    - [ ] `/deploy brew` 단독 → Usage 출력 + exit 1
+    - [ ] `/deploy brew local` → 기존 8단계 + TCC 안내
+    - [ ] `/deploy brew status` → brew/tap/프로세스/REST 한눈에 조회
+    - [ ] `/deploy brew uninstall` → brew uninstall + 로컬 tap Formula 제거
+    - [ ] `/deploy brew publish` → "🚧 TODO" 메시지 + 향후 구현 가이드 링크
+* 관련 파일:
+    - `cli/_tool/fsc-deploy-brew.sh` (서브커맨드 분기 재작성)
+    - `.claude/commands/deploy.md` (brew 서브커맨드 필수 명시)
+    - 참고: `~/_doc/3.Resource/_ICT/_OS/MacOS/homebrew_tap_deploy.md`
 
 # 📕 중요
 

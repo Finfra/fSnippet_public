@@ -7,6 +7,7 @@ PROJECT_NAME="fSnippetCli"
 SCHEME="fSnippetCli"
 XCODEPROJ_NAME="fSnippetCli.xcodeproj"
 APP_NAME="fSnippetCli.app"
+BUNDLE_ID="kr.finfra.${PROJECT_NAME}"   # PROJECT_NAME 재사용 (하드코딩 회피)
 DEPLOY_DIR="/Applications/_nowage_app"
 APP_PATH="${DEPLOY_DIR}/${APP_NAME}"
 CACHE_FILE_NAME=".last_build_path"
