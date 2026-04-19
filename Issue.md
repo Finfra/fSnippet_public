@@ -41,7 +41,7 @@ date: 2026-04-07
     - **채택**: 전략 A (단순 + 안정 + 코드 변경 없음). 전략 B는 brew 설치 환경 감지 로직이 추가로 필요하여 복잡도 증가
     - **앱 실행 시 서비스 시작**: 사용자가 Finder/Spotlight에서 앱을 `open` 으로 실행하면 앱이 직접 기동됨. `brew services start` 명령은 launchd 등록용이지 매번 실행하지 않음. **기존 Formula LaunchAgent가 로그인 시 자동 기동** 흐름이 이미 있으므로 추가 작업 불필요. 단, 종료 후 즉시 재개가 필요하면 사용자가 `brew services start fsnippet-cli` 재호출 (또는 앱 직접 실행)
 * 구현 명세:
-    - `cli/Formula/fsnippet-cli.rb` `service do` 블록 수정:
+    - `cli/Formula/fsnippet-cli.rb` `service do` 블록 수정 (`keep_alive` 조건만 변경):
         ```ruby
         service do
           run [opt_prefix/"fSnippetCli.app/Contents/MacOS/fSnippetCli"]
@@ -52,25 +52,35 @@ date: 2026-04-07
         end
         ```
     - `cli/_tool/fsc-deploy-brew.sh` Step 5 로컬 tap Formula heredoc 내 동일 수정 (Formula SSOT 동기화)
+    - `cli/_tool/fsc-deploy-brew.sh` Step 7 에서 `open "$STABLE_APP"` 호출 제거 — 심링크만 생성. 이유: Step 7 `open` + 기존 빌드 프로세스 + launchd 탐지가 각기 다른 경로로 TCC 승인을 요구하여 사용자가 3회 수동 승인을 해야 하는 문제 발생. 실행 경로를 LaunchAgent 단일 경로(`opt_prefix/...`)로 일원화
+    - `cli/_tool/fsc-deploy-brew.sh` Step 9 REST 헬스 체크는 `FSC_AUTOSTART=1` 일 때만 수행. 미설정 시 skip (앱 미기동 상태 안내)
     - `.claude/commands/deploy.md` 에 종료/재개 UX 안내 추가:
         - 메뉴바 "종료" → 서비스 완전 중지 (재로그인 전까지 재기동 안 됨)
-        - 재개 방법 1: Spotlight/Finder에서 `fSnippetCli.app` 직접 실행
-        - 재개 방법 2: `brew services start fsnippet-cli`
+        - 재개 방법 1: Spotlight/Finder 에서 `fSnippetCli.app` 직접 실행 (심링크 경유)
+        - 재개 방법 2: `brew services restart fsnippet-cli` (상태 무관 `stop`+`start` 원자 실행)
         - 재시작 동작은 **크래시 시에만** 발동됨 (데몬 안정성 유지)
     - 메뉴바 로직(`MenuBarView.swift`) 수정은 불필요 — `NSApp.terminate(nil)` 유지
+* 2026-04-19 보강 — TCC 3회 요청·꼬임 문제 대응 (사용자 실측 기반):
+    - 사용자 실측: `/deploy brew local` 수행 시 TCC 승인 요청이 3회 연속 발생 → 사용자가 승인 순서를 헷갈리면 꼬임. brew services 수동 등록도 실패
+    - 중간 시도(롤백됨): Formula `run` 을 `/Applications/_nowage_app/fSnippetCli.app/...` 로 변경(옵션 A) → 오히려 macOS TCC가 심링크 경로 + Cellar 경로 + opt 경로를 **독립 엔트리**로 취급하여 승인 횟수 증가, 문제 악화. 즉시 롤백
+    - 최종 채택: **Step 7 `open` 제거 + LaunchAgent 단일 경로** — `open` 호출로 유발되는 별도 TCC 승인 경로를 원천 제거하여, `FSC_AUTOSTART=1` 경유 `brew services start` 가 유일한 기동 경로가 되도록 함. 사용자는 1회만 접근성 승인
+    - 트레이드오프: `FSC_AUTOSTART` 미설정 시 `/deploy brew local` 이 앱을 자동 기동하지 않음 → 사용자가 `brew services start` 또는 Finder/Spotlight 로 직접 실행 필요. 자동화 편의보다 TCC 안정성을 우선한 설계
+    - Step 9 REST 헬스 체크는 `FSC_AUTOSTART=1` 일 때만 수행 — 앱 미기동 상태에서 false-FAIL 방지
 * 설계 원칙:
     - **크래시 복구 vs 사용자 종료 구분**: launchd `keep_alive` 를 조건부로 구성하여 서비스 안정성(크래시 자동 복구)과 사용자 제어권(메뉴바 종료)을 동시 확보
     - **배타 원칙 유지**: Issue45의 brew services ↔ SMAppService 배타 원칙은 그대로 유지 — 본 이슈는 brew services 경로 내부의 `keep_alive` 조건만 조정
     - **앱 실행 시 brew services 자동 start 금지**: 앱 내부에서 `brew services start` 를 호출하면 시스템 서비스 설정을 앱이 변경하는 권한 역전 발생. 사용자가 명시 제어해야 함
 * 검증:
-    - [ ] `cli/Formula/fsnippet-cli.rb` 에서 `keep_alive successful_exit: false` 로 수정됨
+    - [ ] `cli/Formula/fsnippet-cli.rb` 에서 `keep_alive successful_exit: false` 로 수정됨 (`run` 은 `opt_prefix` 유지)
     - [ ] `fsc-deploy-brew.sh` Step 5 로컬 Formula heredoc 에 동일 수정 반영
-    - [ ] `/deploy brew local` 재실행 → 정상 설치
-    - [ ] `brew services start fsnippet-cli` → 서비스 시작 + 메뉴바 bolt 아이콘 표시
-    - [ ] 메뉴바 "종료" 클릭 → 5~10초 대기 후에도 아이콘 재등장 안 함 (핵심 검증)
+    - [ ] `fsc-deploy-brew.sh` Step 7 에서 `open` 호출 제거 — 심링크만 생성
+    - [ ] `fsc-deploy-brew.sh` Step 9 가 `FSC_AUTOSTART=1` 일 때만 수행되도록 조건부 분기
+    - [ ] `FSC_AUTOSTART=1 /deploy brew local` 실행 시 **TCC 승인 요청이 1회만 발생** (핵심 검증 — 이전 3회 → 1회)
+    - [ ] `brew services list` → `fsnippet-cli started` 표시 + LaunchAgent plist 생성 확인
+    - [ ] 메뉴바 "종료" 클릭 → 5~10초 대기 후에도 아이콘 재등장 안 함 (keep_alive 검증)
     - [ ] `brew services list` → `fsnippet-cli` 상태가 `none` 또는 `stopped` 로 표시
-    - [ ] `brew services start fsnippet-cli` 재호출 → 서비스 재개 + 메뉴바 아이콘 재등장
-    - [ ] Spotlight로 `fSnippetCli.app` 직접 실행 → 앱 단독 기동 (launchd 등록과 무관)
+    - [ ] `brew services restart fsnippet-cli` 재호출 → 서비스 재개 + 메뉴바 아이콘 재등장
+    - [ ] Spotlight로 `fSnippetCli.app` (심링크 경유) 직접 실행 → 앱 단독 기동
     - [ ] 의도적 crash 유발(kill -9) → launchd가 자동 재시작 (데몬 안정성 유지 확인)
     - [ ] 로그아웃 → 재로그인 시 LaunchAgent 자동 기동 (기존 동작 유지)
 * 관련 파일:
@@ -86,6 +96,18 @@ date: 2026-04-07
 # 📙 일반
 
 # 📗 선택
+
+## Issue48: `/run tcc` — brew 서비스 경로 전용 TCC 재설정 서브커맨드 분리 (등록: 2026-04-19)
+* 목적: `/deploy brew local` 이후 TCC 이슈 발생 시 Xcode Debug 빌드 없이 TCC reset + brew services restart 만 수행하는 경량 경로 제공
+* 상세:
+    - 현재 `/run tcc` 동작: `kill + tccutil reset Accessibility kr.finfra.fSnippetCli + fsc-run-xcode.sh build-deploy` → Xcode Debug 빌드까지 수행
+    - brew 서비스 경로(Release 앱)만 사용하는 경우 Xcode 빌드는 불필요한 오버헤드
+    - `tcc-brew` 서브커맨드 신설: `tccutil reset Accessibility kr.finfra.fSnippetCli + brew services restart fsnippet-cli` 로 brew 전용 TCC 재설정
+    - `deploy.md`의 TCC 안내도 `/run tcc-brew` 로 경로 분기 추가
+* 구현 명세:
+    - `fsc-run-xcode.sh` 에 `tcc-brew` 케이스 추가 또는 별도 `fsc-tcc-brew.sh` 스크립트 신설
+    - `/run` 커맨드 라우팅 테이블에 `tcc-brew` 항목 추가
+    - 기존 `tcc` 옵션 유지 (Xcode Debug 경로 사용자용)
 
 # ✅ 완료
 

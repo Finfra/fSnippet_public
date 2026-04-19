@@ -4,6 +4,7 @@ CLAUDE.md
 
 # wiki
 wiki/
+.wiki-compiler.json
 
 # 작업 문서 (로컬 전용)
 cli/_doc_work/

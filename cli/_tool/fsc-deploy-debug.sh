@@ -36,7 +36,7 @@ get_build_dir() {
     echo "$dir"
 }
 
-# ---------- 배포 (Applications 복사) ----------
+# ---------- 배포 (brew var 영역 복사 + _nowage_app 심링크) ----------
 deploy() {
     local build_dir src
     build_dir=$(get_build_dir) || return 1
@@ -50,22 +50,33 @@ deploy() {
     local src_mtime dst_mtime
     src_mtime=$(date -r "$src/Contents/MacOS/$PROJECT_NAME" +%s 2>/dev/null || echo 0)
     dst_mtime=$(date -r "$APP_PATH/Contents/MacOS/$PROJECT_NAME" +%s 2>/dev/null || echo 0)
+    local skip_copy=0
     if [ "$src_mtime" -le "$dst_mtime" ] && [ -d "$APP_PATH" ]; then
-        echo "[deploy] 변경 없음 (skip)"
-        return 0
+        echo "[deploy] 실물 변경 없음 (복사 skip)"
+        skip_copy=1
     fi
 
-    echo "[deploy] $APP_NAME 복사 중..."
-    pkill -f "MacOS/$PROJECT_NAME" 2>/dev/null || true
-    sleep 0.3
-    mkdir -p "$DEPLOY_DIR"
-    rm -rf "$APP_PATH"
-    cp -R "$src" "$APP_PATH"
-    xattr -cr "$APP_PATH"
-    echo "[deploy] ✅ $APP_PATH"
+    if [ "$skip_copy" -eq 0 ]; then
+        echo "[deploy] $APP_NAME → $APP_PATH"
+        pkill -f "MacOS/$PROJECT_NAME" 2>/dev/null || true
+        sleep 0.3
+        mkdir -p "$DEPLOY_DIR"
+        rm -rf "$APP_PATH"
+        cp -R "$src" "$APP_PATH"
+        xattr -cr "$APP_PATH"
+        echo "[deploy] ✅ 실물 배치: $APP_PATH"
+    fi
+
+    # _nowage_app 심링크 갱신 (최근 배포를 가리키도록)
+    mkdir -p "$STABLE_LINK_DIR"
+    if [ -L "$STABLE_LINK" ] || [ -e "$STABLE_LINK" ]; then
+        rm -f "$STABLE_LINK"
+    fi
+    ln -sfn "$APP_PATH" "$STABLE_LINK"
+    echo "[deploy] ✅ 심링크: $STABLE_LINK → $APP_PATH"
 }
 
-# ---------- 실행 ----------
+# ---------- 실행 (실물 경로로 직접 open — 심링크는 편의용) ----------
 run_app() {
     echo "[run] $APP_PATH 실행"
     open "$APP_PATH"

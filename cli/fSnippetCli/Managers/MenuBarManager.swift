@@ -288,6 +288,14 @@ class MenuBarManager {
         // 폴더 감시 중지
         SnippetFileManager.shared.stopFolderWatching()
 
+        // brew services가 이미 등록된 서비스를 재등록(bootstrap)할 수 있도록 launchd에서 deregister.
+        // 미등록 상태면 조용히 실패하므로 직접 실행 시에도 안전.
+        let bootout = Process()
+        bootout.launchPath = "/bin/launchctl"
+        bootout.arguments = ["bootout", "gui/\(getuid())/homebrew.mxcl.fsnippet-cli"]
+        try? bootout.run()
+        bootout.waitUntilExit()
+
         // 앱 종료를 AppDelegate에 알림
         NotificationCenter.default.post(name: .quitRequested, object: nil)
 

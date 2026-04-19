@@ -7,27 +7,16 @@ class FsnippetCli < Formula
   license "MIT"
 
   depends_on :macos
-  depends_on xcode: ["15.0", :build]
 
   def install
-    # GitHub archive tarball 최상위는 레포 루트 — cli/ 하위로 이동 필요
-    cd "cli" do
-      system "xcodebuild", "-project", "fSnippetCli.xcodeproj",
-             "-scheme", "fSnippetCli",
-             "-configuration", "Release",
-             "-derivedDataPath", buildpath/"build",
-             "MACOSX_DEPLOYMENT_TARGET=14.0",
-             "SYMROOT=#{buildpath}/build",
-             "CODE_SIGN_IDENTITY=-",
-             "CODE_SIGNING_REQUIRED=NO",
-             "CODE_SIGNING_ALLOWED=NO"
-      prefix.install Dir["build/Release/fSnippetCli.app"]
-    end
+    # tarball에 사전 빌드된 fSnippetCli.app 포함됨 (Apple Development 서명 유지).
+    # brew sandbox에서는 키체인 접근이 제한되므로 재빌드하지 않고 그대로 복사.
+    prefix.install "fSnippetCli.app"
   end
 
   service do
     run [opt_prefix/"fSnippetCli.app/Contents/MacOS/fSnippetCli"]
-    keep_alive true
+    keep_alive successful_exit: false
     log_path var/"log/fsnippet-cli.log"
     error_log_path var/"log/fsnippet-cli.err.log"
     process_type :interactive

@@ -20,11 +20,13 @@ set +e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CLI_DIR="$(dirname "$SCRIPT_DIR")"
-ROOT_DIR="$(dirname "$CLI_DIR")"
 TAP_DIR="/opt/homebrew/Library/Taps/finfra/homebrew-tap"
 TAP_FORMULA="$TAP_DIR/Formula/fsnippet-cli.rb"
 TARBALL="/tmp/fSnippetCli-local.tar.gz"
-LOCAL_VERSION="0.0.0-local"
+# VERSION 파일에서 읽기 (없으면 0.0.0-local 폴백)
+_VERSION_FILE="$(git -C "$CLI_DIR" rev-parse --show-toplevel 2>/dev/null)/VERSION"
+LOCAL_VERSION="$(cat "$_VERSION_FILE" 2>/dev/null | tr -d '[:space:]')"
+[ -z "$LOCAL_VERSION" ] && LOCAL_VERSION="0.0.0-local"
 
 # shellcheck source=fsc-config.sh
 source "$SCRIPT_DIR/fsc-config.sh"
@@ -103,15 +105,27 @@ cmd_local() {
         return 1
     fi
 
-    # Step 2: 기존 프로세스 정리
+    # Step 2: 기존 설치 완전 정리 (launchd bootout + pkill + brew uninstall)
+    # 목적: stale launchd 등록으로 인한 bootstrap EIO(5) 예방 및 새 서명 바이너리 clean install
     echo ""
-    echo "=== Step 2: 기존 프로세스 정리 ==="
+    echo "=== Step 2: 기존 설치 완전 정리 ==="
+    # 2-1: brew services stop (launchd 정상 경로)
+    brew services stop fsnippet-cli 2>/dev/null || true
+    # 2-2: stale LaunchAgent 잔존 시 강제 bootout (idempotent — 미등록 상태여도 무해)
+    launchctl bootout "gui/$(id -u)/homebrew.mxcl.fsnippet-cli" 2>/dev/null || true
+    sleep 0.3
+    # 2-3: 잔여 프로세스 강제 종료
     if pgrep -f "MacOS/fSnippetCli" > /dev/null 2>&1; then
         echo "fSnippetCli 프로세스 감지 — pkill"
         pkill -f "MacOS/fSnippetCli" 2>/dev/null || true
         sleep 0.5
     fi
-    record_result "기존 프로세스 정리" "PASS" "pkill"
+    # 2-4: brew uninstall (재설치 전 완전 제거 — 새 서명 바이너리 clean swap 보장)
+    if brew list fsnippet-cli &>/dev/null; then
+        echo "── brew uninstall fsnippet-cli (선행)"
+        brew uninstall fsnippet-cli 2>&1 | tail -3
+    fi
+    record_result "기존 설치 완전 정리" "PASS" "services stop + bootout + pkill + uninstall"
 
     # Step 3: 로컬 tap 확인·생성
     echo ""
@@ -132,21 +146,35 @@ cmd_local() {
         record_result "로컬 tap" "PASS" "이미 존재: $TAP_DIR"
     fi
 
-    # Step 4: 로컬 tarball 생성
+    # Step 4: 로컬 tarball 생성 (서명된 .app 포함 — A-2 방식)
     echo ""
-    echo "=== Step 4: 로컬 tarball 생성 ==="
-    pushd "$ROOT_DIR" > /dev/null || { record_result "tarball 생성" "FAIL" "cd $ROOT_DIR 실패"; print_report "$TOTAL_PASS" "$TOTAL_FAIL" "${STEP_RESULTS[@]}"; return 1; }
-    tar czf "$TARBALL" cli/
+    echo "=== Step 4: 로컬 tarball 생성 (서명된 .app 포함) ==="
+    # Step 1에서 빌드된 .app 경로 조회
+    local BUILT_APP
+    BUILT_APP=$(cd "$CLI_DIR" && xcodebuild -scheme fSnippetCli -configuration Release -showBuildSettings 2>/dev/null | awk -F ' = ' '/ TARGET_BUILD_DIR =/ {print $2}' | xargs)
+    if [ -z "$BUILT_APP" ] || [ ! -d "$BUILT_APP/fSnippetCli.app" ]; then
+        record_result "tarball 생성" "FAIL" "빌드된 .app 미존재: $BUILT_APP/fSnippetCli.app"
+        print_report "$TOTAL_PASS" "$TOTAL_FAIL" "${STEP_RESULTS[@]}"
+        return 1
+    fi
+    # 서명 유지를 위해 -p (permissions) 옵션 사용
+    # Homebrew가 단일 루트 디렉토리를 buildpath로 인식하므로
+    # .app를 감싸는 디렉토리(fsnippet-cli-pkg)를 추가하여 정상 unpack 유도
+    local TAR_STAGE
+    TAR_STAGE=$(mktemp -d)
+    mkdir -p "$TAR_STAGE/fsnippet-cli-pkg"
+    cp -R "$BUILT_APP/fSnippetCli.app" "$TAR_STAGE/fsnippet-cli-pkg/"
+    tar -C "$TAR_STAGE" -czpf "$TARBALL" fsnippet-cli-pkg
     local TAR_STATUS=$?
-    popd > /dev/null || true
+    rm -rf "$TAR_STAGE"
     if [ "$TAR_STATUS" -eq 0 ]; then
         local SHA
         SHA=$(shasum -a 256 "$TARBALL" | awk '{print $1}')
-        echo "tarball: $TARBALL"
+        echo "tarball: $TARBALL (from $BUILT_APP)"
         echo "sha256 : $SHA"
-        record_result "tarball 생성" "PASS" "$(du -h "$TARBALL" | awk '{print $1}')"
+        record_result "tarball 생성" "PASS" "$(du -h "$TARBALL" | awk '{print $1}') (서명된 .app)"
     else
-        record_result "tarball 생성" "FAIL" "tar czf 실패 (exit=$TAR_STATUS)"
+        record_result "tarball 생성" "FAIL" "tar czpf 실패 (exit=$TAR_STATUS)"
         print_report "$TOTAL_PASS" "$TOTAL_FAIL" "${STEP_RESULTS[@]}"
         return 1
     fi
@@ -165,25 +193,16 @@ class FsnippetCli < Formula
   license "MIT"
 
   depends_on :macos
-  depends_on xcode: ["15.0", :build]
 
   def install
-    # Homebrew가 tarball의 최상위 'cli/' 폴더로 자동 진입한 상태로 install 호출됨
-    system "xcodebuild", "-project", "fSnippetCli.xcodeproj",
-           "-scheme", "fSnippetCli",
-           "-configuration", "Release",
-           "-derivedDataPath", buildpath/"build",
-           "MACOSX_DEPLOYMENT_TARGET=14.0",
-           "SYMROOT=#{buildpath}/build",
-           "CODE_SIGN_IDENTITY=-",
-           "CODE_SIGNING_REQUIRED=NO",
-           "CODE_SIGNING_ALLOWED=NO"
-    prefix.install Dir["build/Release/fSnippetCli.app"]
+    # tarball에 사전 빌드된 fSnippetCli.app 포함됨 (Apple Development 서명 유지).
+    # brew sandbox에서는 키체인 접근이 제한되므로 재빌드하지 않고 그대로 복사.
+    prefix.install "fSnippetCli.app"
   end
 
   service do
     run [opt_prefix/"fSnippetCli.app/Contents/MacOS/fSnippetCli"]
-    keep_alive true
+    keep_alive successful_exit: false
     log_path var/"log/fsnippet-cli.log"
     error_log_path var/"log/fsnippet-cli.err.log"
     process_type :interactive
@@ -211,10 +230,9 @@ FORMULA
     echo "$TAP_FORMULA"
     record_result "Formula 갱신" "PASS" "file:// URL + SHA256 + version=$LOCAL_VERSION"
 
-    # Step 6: brew uninstall + install
+    # Step 6: brew install (uninstall은 Step 2에서 선행 완료)
     echo ""
-    echo "=== Step 6: brew uninstall + install ==="
-    brew uninstall fsnippet-cli 2>/dev/null || true
+    echo "=== Step 6: brew install ==="
     brew install --build-from-source finfra/tap/fsnippet-cli 2>&1 | tail -20
     local INSTALL_STATUS=${PIPESTATUS[0]}
     if [ "$INSTALL_STATUS" -eq 0 ]; then
@@ -223,40 +241,32 @@ FORMULA
         record_result "brew install" "FAIL" "exit=$INSTALL_STATUS"
     fi
 
-    # Step 7: /Applications/_nowage_app 심링크 + 앱 실행
+    # Step 7: /Applications/_nowage_app 심링크 생성 (Spotlight·Finder 편의용)
+    # Issue46: TCC 3회 요청 회피를 위해 직접 open 실행은 제거. 실제 기동은 Step 8 LaunchAgent 단일 경로로 위임
     echo ""
-    echo "=== Step 7: 심링크 생성 + 앱 실행 ==="
-    local STABLE_APP="/Applications/_nowage_app/fSnippetCli.app"
+    echo "=== Step 7: 심링크 생성 (Finder·Spotlight 편의용) ==="
+    local STABLE_APP="$STABLE_LINK"
     if [ "$INSTALL_STATUS" -ne 0 ]; then
-        record_result "앱 실행" "FAIL" "brew install 실패로 skip"
+        record_result "심링크" "FAIL" "brew install 실패로 skip"
     else
         local INSTALLED_APP
         INSTALLED_APP="$(brew --prefix fsnippet-cli 2>/dev/null)/fSnippetCli.app"
         if [ -d "$INSTALLED_APP" ]; then
-            # Issue44: Cellar 경로 stale 문제 방지 — /Applications/_nowage_app 심링크로 안정적 엔트리 포인트 제공
             mkdir -p /Applications/_nowage_app
             ln -sfn "$INSTALLED_APP" "$STABLE_APP"
             echo "[symlink] $STABLE_APP → $INSTALLED_APP"
-            echo "[open] $STABLE_APP"
-            open "$STABLE_APP"
-            local OPEN_STATUS=$?
-            if [ "$OPEN_STATUS" -eq 0 ]; then
-                record_result "심링크 + 앱 실행" "PASS" "$STABLE_APP"
-            else
-                record_result "심링크 + 앱 실행" "FAIL" "open 실패 (exit=$OPEN_STATUS)"
-            fi
+            record_result "심링크" "PASS" "$STABLE_APP"
         else
-            record_result "심링크 + 앱 실행" "FAIL" "설치 경로 미존재: $INSTALLED_APP"
+            record_result "심링크" "FAIL" "설치 경로 미존재: $INSTALLED_APP"
         fi
     fi
 
-    # Step 8: brew services 자동 등록 (FSC_AUTOSTART=1 옵트인 — Issue45)
+    # Step 8: brew services 자동 등록 (기본 ON — FSC_AUTOSTART=0 으로 opt-out)
     # Formula의 service do 블록을 LaunchAgent plist로 변환 + load
+    # Step 2에서 bootout + uninstall 완료 상태이므로 stale 잔존 우려 없음
     echo ""
-    echo "=== Step 8: brew services 자동 시작 등록 (옵트인) ==="
-    if [ "${FSC_AUTOSTART:-0}" = "1" ]; then
-        # 기존 서비스 중지 (idempotent — 미시작 상태에서도 무해)
-        brew services stop fsnippet-cli 2>/dev/null || true
+    echo "=== Step 8: brew services 자동 시작 등록 ==="
+    if [ "${FSC_AUTOSTART:-1}" = "1" ]; then
         brew services start finfra/tap/fsnippet-cli 2>&1 | tail -3
         local SVC_STATUS=${PIPESTATUS[0]}
         if [ "$SVC_STATUS" -eq 0 ]; then
@@ -265,26 +275,31 @@ FORMULA
             record_result "brew services start" "FAIL" "exit=$SVC_STATUS"
         fi
     else
-        echo "ℹ️  FSC_AUTOSTART 미설정 — 로그인 시 자동 기동을 원하면:"
-        echo "    FSC_AUTOSTART=1 /deploy brew local"
-        echo "   또는 개별 등록: brew services start finfra/tap/fsnippet-cli"
-        record_result "brew services" "PASS" "skip (FSC_AUTOSTART 미설정)"
+        echo "ℹ️  FSC_AUTOSTART=0 — 자동 기동 skip (수동 기동: brew services start fsnippet-cli)"
+        record_result "brew services" "PASS" "skip (FSC_AUTOSTART=0)"
     fi
 
-    # Step 9: REST API 헬스 체크
+    # Step 9: REST API 헬스 체크 (자동 기동된 경우에만 실측)
     echo ""
     echo "=== Step 9: REST API 헬스 체크 ==="
-    local HEALTH=""
-    for _i in $(seq 1 10); do
-        HEALTH=$(curl -s --connect-timeout 2 http://localhost:3015/ 2>/dev/null)
-        [ -n "$HEALTH" ] && break
-        sleep 1
-    done
-    if [ -n "$HEALTH" ]; then
-        echo "$HEALTH" | python3 -m json.tool 2>/dev/null || echo "$HEALTH"
-        record_result "REST API" "PASS" "포트 3015 응답 정상"
+    if [ "${FSC_AUTOSTART:-1}" != "1" ]; then
+        echo "ℹ️  FSC_AUTOSTART=0 — 앱 미기동 상태. 검증을 원하면:"
+        echo "    brew services start fsnippet-cli  (LaunchAgent 경유 기동)"
+        echo "  또는 Finder·Spotlight 로 /Applications/_nowage_app/fSnippetCli.app 실행"
+        record_result "REST API" "PASS" "skip (앱 미기동 상태)"
     else
-        record_result "REST API" "FAIL" "10초 내 응답 없음 (접근성 미승인 가능성)"
+        local HEALTH=""
+        for _i in $(seq 1 10); do
+            HEALTH=$(curl -s --connect-timeout 2 http://localhost:3015/ 2>/dev/null)
+            [ -n "$HEALTH" ] && break
+            sleep 1
+        done
+        if [ -n "$HEALTH" ]; then
+            echo "$HEALTH" | python3 -m json.tool 2>/dev/null || echo "$HEALTH"
+            record_result "REST API" "PASS" "포트 3015 응답 정상"
+        else
+            record_result "REST API" "FAIL" "10초 내 응답 없음 (접근성 미승인 가능성)"
+        fi
     fi
 
     print_report "$TOTAL_PASS" "$TOTAL_FAIL" "${STEP_RESULTS[@]}"
@@ -352,7 +367,7 @@ cmd_status() {
 
     # Issue44: /Applications/_nowage_app 심링크 상태
     echo "── 심링크 (/Applications/_nowage_app) ──"
-    local STABLE_APP="/Applications/_nowage_app/fSnippetCli.app"
+    local STABLE_APP="$STABLE_LINK"
     if [ -L "$STABLE_APP" ]; then
         local target
         target="$(readlink "$STABLE_APP")"
@@ -421,7 +436,7 @@ cmd_uninstall() {
     fi
 
     # Issue44 (obsolete): /Applications/_nowage_app 심링크 제거 (§7-4 심링크 전략은 유지, 파일만 정리)
-    local STABLE_APP="/Applications/_nowage_app/fSnippetCli.app"
+    local STABLE_APP="$STABLE_LINK"
     if [ -L "$STABLE_APP" ] || [ -e "$STABLE_APP" ]; then
         echo "── 심링크 제거"
         rm -f "$STABLE_APP"
