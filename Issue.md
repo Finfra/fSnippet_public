@@ -27,6 +27,7 @@ date: 2026-04-07
     - Issue45 완료 시 `brew services` 경로로 복원하면서 `cli/Formula/fsnippet-cli.rb`에 `keep_alive true` 설정 (서비스 안정성 목적)
     - Issue45 검증 항목 [`brew services stop fsnippet-cli` → 정상 중지]은 통과했으나, **메뉴바 GUI "종료" 조작 경로는 검증 항목에 없었음** → 본 이슈에서 후행 발견
     - 사용자 실측: 메뉴바 "종료" 클릭 → 아이콘 사라짐 → 5~10초 내 자동 재등장 (launchd relaunch)
+    - 사용자 실측 추가(2026-04-19): `brew services stop fsnippet-cli` 실행 전까지는 메뉴바 "종료"를 아무리 반복해도 launchd가 계속 재기동함. 즉 **launchd 서비스를 명시적으로 stop 시키기 전에는 앱 종료 자체가 불가능** → launchd `keep_alive true` 가 단일 원인임을 확증
 * 원인 분석:
     - **원인 1 — launchd `keep_alive true` 의미**: `true`는 "종료 사유 무관 무조건 재시작". `NSApp.terminate(nil)` 이 발생시키는 정상 종료(exit code 0)도 재시작 대상이 됨
     - **원인 2 — 메뉴바 종료 로직 단순**: `cli/fSnippetCli/MenuBarView.swift:70`의 `NSApplication.shared.terminate(nil)` 만 호출. launchd 서비스 레벨 제어 없음 → 앱 프로세스 ≠ 서비스 분리 인지 안 됨
