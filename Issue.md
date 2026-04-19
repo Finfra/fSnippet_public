@@ -6,8 +6,8 @@ date: 2026-04-07
 
 # Issue Management
 
-- Issue HWM: 48
-- Save Point: 2026-04-19 (d4749f6) Chore: Save point — 1.0.0 버전 동기화 + brew 배포 경로 정리 (Issue46/48 종결)
+- Issue HWM: 49
+- Save Point: 2026-04-19 (2d4ec67) Feat(Script)(Issue49): /run 계열 brew service 존재 기반 분기 로직
 
 # 🤔 결정사항
 
@@ -30,6 +30,32 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue49: `/run` 계열 전 경로에 brew service 존재 기반 분기 로직 도입 (등록: 2026-04-19, 해결: 2026-04-19, commit: 2d4ec67) ✅
+* 목적: `/deploy brew local` 로 설치된 LaunchAgent 가 실행 중인 상태에서 `/run` 계열(`build-deploy`, `deploy-run`, `tcc`, `run-only`)을 호출할 때 발생하는 launchd respawn 경합 / 포트 단일 인스턴스 충돌을 제거. brew service 실행 여부에 따라 Debug 오버라이드 경로를 명시적으로 분기.
+* 배경:
+    - Issue46 완료 후 Formula `keep_alive { successful_exit: false }` 설정 — 정상 종료는 유지, crash는 launchd가 즉시 복구하는 UX 정착
+    - 사용자 실측: `/run run-only` 호출 시 `pkill` 은 launchd 입장에서 crash 로 분류 → Cellar/Release 바이너리가 즉시 respawn → `open` 으로 요청한 Debug 바이너리와 포트 3015 단일 인스턴스 가드 경합 발생
+    - 동일 원인이 `build-deploy` / `deploy-run` / `tcc` 경로에도 존재함을 후속 검토로 확인 — 단, 이들은 `cp -R` 로 덮어쓰기까지 진행하므로 Release 바이너리가 먼저 포트를 잡으면 Debug 기동 자체가 실패
+* 원인 분석:
+    - **원인 1 — `pkill` 의 launchd 해석**: SIGTERM/SIGKILL 로 프로세스를 죽여도 `successful_exit: false` 규칙상 launchd 는 비정상 종료로 간주. `brew services stop` 로 명시적으로 unload 해야만 재기동하지 않음
+    - **원인 2 — plist 존재 기반 판정의 한계**: `~/Library/LaunchAgents/homebrew.mxcl.fsnippet-cli.plist` 는 `brew services stop` 후에도 남음. plist 존재를 기준으로 "service 있음 → restart" 분기를 하면, Debug 세션 중 `/run run-only` 가 의도치 않게 Release 바이너리를 복원시키는 오작동 발생
+    - **원인 3 — Launch Services `-600`**: `pkill` 직후 같은 경로로 `open` 을 호출하면 macOS Launch Services 내부 정리 전이어서 `-600 (procNotFound)` 반환 — 앱이 기동되지 않음
+* 해결 방법:
+    - `fsc-config.sh` 에 공통 헬퍼 `brew_service_running()` 추가 — `launchctl list` 에 `homebrew.mxcl.fsnippet-cli` 라벨이 로드되어 있는지로 판정 (plist 존재 기반이 아님)
+    - `fsc-run-xcode.sh`:
+        - `brew_service_stop_for_debug()` 신규 — 실행 중이면 `brew services stop` 선행
+        - `build-deploy` / `deploy-run` / `tcc` 분기 상단에서 호출 → `pkill` 이전에 launchd 로부터 서비스 분리
+        - `run_app_only` 재작성 — 실행 중이면 `brew services restart` (launchd 단일 경로), 정지/미등록이면 `kill + sleep 0.5 + open` (Debug 오버라이드 존중). `-600` 회피용 3회 retry 포함
+* 수정 파일:
+    - `cli/_tool/fsc-config.sh` — `BREW_SERVICE_LABEL` 추가, `brew_service_running()` 헬퍼
+    - `cli/_tool/fsc-run-xcode.sh` — `brew_service_stop_for_debug()`, `run_app_only` 분기, 3개 CMD 분기 상단 호출
+* 테스트 결과:
+    - `brew services start` 상태에서 `/run build-deploy` → stop 메시지 출력 후 Debug 빌드/기동 정상
+    - `brew services stop` 상태(정지됨)에서 `/run run-only` → 직접 `open` 분기 진입, REST API (port 3015) 응답 확인
+    - `brew services start` 상태에서 `/run run-only` → `brew services restart` 분기 진입, uptime 리셋 확인
+* 관련 이슈: Issue46 (keep_alive `successful_exit: false` 도입)
+* pairApp 이식: fWarrangeCli(#26) 이슈후보 2번 — 동일 구조 Full Mirror 대기 (포트 3016, Formula `fwarrange-cli`)
 
 ## Issue46: `brew services` 기동 시 메뉴바 "종료"로 앱 제거 불가 — launchd keep_alive 무조건 재시작 (등록: 2026-04-19, 해결: 2026-04-19, commit: d4749f6) ✅
 * 목적: `brew services start fsnippet-cli` 로 기동된 상태에서 메뉴바 "종료"를 눌러도 launchd가 프로세스를 즉시 재기동하여 앱을 종료할 수 없는 문제를 해결. 메뉴바 "종료" = 서비스 완전 중지, 앱 재실행 = 서비스 재개의 UX를 확립
