@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-- Issue HWM: 49
+- Issue HWM: 50
 - Save Point: 2026-04-19 (2d4ec67) Feat(Script)(Issue49): /run 계열 brew service 존재 기반 분기 로직
 
 # 🤔 결정사항
@@ -14,11 +14,6 @@ date: 2026-04-07
 # 🌱 이슈후보
 1. 클립보드 히스토리 기능 중에서 고급 기능은 Paid 앱이 활성화 되어 있어야 실행 가능하게끔 해 줘 활성화 되어 있지 않다면 활성화 창[기존 코드 찾아서] 열게 해야함.
     - Paid 앱의 기능이 모듈로 구성되어 있는지 확인
-2. fsc-test.sh에 cliApp(fWarrangeCli) 패턴 역이식 — `apiTestDo.sh` + `cmdTestDo.sh` 호출 구조를 pairApp의 ZTest 9단계와 병렬 실행 가능하도록 통합
-    - 배경: fWarrangeCli Issue37(Full Mirror 이식) 분석 중 `fwc-test.sh`(245줄) 가 `fsc-test.sh`(228줄)보다 리포팅 패턴이 우수함을 발견
-    - 목표: pairApp 측 fsc-test.sh가 스니펫 TDD(ZTest) + API/CMD 통합 테스트 둘 다 커버하도록 통합
-    - 우선순위: 낮음 (fSnippetCli 기능 완결성에는 영향 없음, 테스트 품질 향상 목적)
-    - 참고: fWarrangeCli(#26) Issue37 plan `cli/_doc_work/plan/deploy-run-sync-from-pairapp_plan.md` 의 Phase 5 "리스크 및 완화" 표 마지막 항목
 
 
 # 🚧 진행중
@@ -28,6 +23,29 @@ date: 2026-04-07
 # 📙 일반
 
 # 📗 선택
+
+## Issue50: fsc-test.sh에 fWarrangeCli(pairApp) 테스트 패턴 역이식 — apiTestDo.sh + cmdTestDo.sh 통합 구조 (등록: 2026-04-19)
+* 목적: pairApp fWarrangeCli의 `fwc-test.sh`(245줄) 가 보유한 `apiTestDo.sh` + `cmdTestDo.sh` 분리 호출 + 구조화된 리포팅 패턴을 fSnippetCli의 `fsc-test.sh`(228줄) 에 역이식. 기존 스니펫 TDD(ZTest 9단계) 커버리지를 유지하면서 API / CMD 통합 테스트를 병렬 가능한 구조로 확장
+* 배경:
+    - fWarrangeCli(#26) Issue37 "Full Mirror 이식" 분석 중 `fwc-test.sh` 의 리포팅 패턴 (단계별 성공/실패 카운트, 실행 시간, 실패 상세 덤프) 이 `fsc-test.sh` 대비 우수함을 발견
+    - `fsc-test.sh` 는 현재 스니펫 TDD (ZTest) 중심이고 REST API 및 CLI 명령 통합 테스트 분리가 불명확
+    - pairApp 쪽은 `fwc-test.sh` → `apiTestDo.sh` + `cmdTestDo.sh` 로 책임 분리 → 실행 시 9단계를 독립 실행/병렬 실행 가능
+* 원인 분석:
+    - `fsc-test.sh` 는 하나의 파일에 여러 테스트 페이즈가 섞여 있어 단계 스킵/재실행이 불편함
+    - 실패 시 어느 단계에서 실패했는지 찾으려면 전체 로그 스캔 필요 (pairApp 쪽은 단계별 헤더 + 실패 요약)
+    - pairApp 의 `apiTestDo.sh` / `cmdTestDo.sh` 분리가 fSnippetCli 의 REST API(port 3015) + CLI 자동화 스크립트 검증에도 유효
+* 해결 방법 (초안):
+    - Phase 1 — `cli/_tool/apiTestDo.sh` 신규 작성: REST API 엔드포인트(v1/v2) 헬스 / Snippet / Clipboard / Settings CRUD 를 독립 호출
+    - Phase 2 — `cli/_tool/cmdTestDo.sh` 신규 작성: `/run` / `/deploy` / `/build` 등 CLI 커맨드 계열 스모크 테스트 분리
+    - Phase 3 — `fsc-test.sh` 리팩터: 기존 스니펫 TDD 9단계는 유지하고, `apiTestDo.sh` + `cmdTestDo.sh` 를 순차/병렬 호출하는 오케스트레이터로 정리
+    - Phase 4 — 리포팅 템플릿 통일: pairApp 과 동일한 `[PASS n/m]` / `[FAIL n/m]` + duration 포맷 채택
+* 수정 파일 (예상):
+    - `cli/_tool/fsc-test.sh` — 오케스트레이터 리팩터
+    - `cli/_tool/apiTestDo.sh` — 신규 (REST API 검증 전담)
+    - `cli/_tool/cmdTestDo.sh` — 신규 (CLI 커맨드 스모크 전담)
+    - `cli/_tool/fsc-config.sh` — 공통 리포팅 함수 추가 가능
+* 우선순위: 낮음 (fSnippetCli 기능 완결성에는 영향 없음, 테스트 품질 향상 목적)
+* 관련 이슈: fWarrangeCli(#26) Issue37 plan `cli/_doc_work/plan/deploy-run-sync-from-pairapp_plan.md` Phase 5 "리스크 및 완화" 표 마지막 항목
 
 # ✅ 완료
 
