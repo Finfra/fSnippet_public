@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-- Issue HWM: 45
+- Issue HWM: 46
 - Save Point: 2026-04-19 (5294c6b) Chore(Issue45): Formula 명명 fsnippetcli → fsnippet-cli 복원 (Issue43/45 완료, Issue44 obsolete)
 
 # 🤔 결정사항
@@ -20,6 +20,68 @@ date: 2026-04-07
 # 🚧 진행중
 
 # 📕 중요
+
+## Issue46: `brew services` 기동 시 메뉴바 "종료"로 앱 제거 불가 — launchd keep_alive 무조건 재시작 (등록: 2026-04-19)
+* 목적: `brew services start fsnippet-cli` 로 기동된 상태에서 메뉴바 "종료"를 눌러도 launchd가 프로세스를 즉시 재기동하여 앱을 종료할 수 없는 문제를 해결. 메뉴바 "종료" = 서비스 완전 중지, 앱 재실행 = 서비스 재개의 UX를 확립
+* 배경:
+    - Issue45 완료 시 `brew services` 경로로 복원하면서 `cli/Formula/fsnippet-cli.rb`에 `keep_alive true` 설정 (서비스 안정성 목적)
+    - Issue45 검증 항목 [`brew services stop fsnippet-cli` → 정상 중지]은 통과했으나, **메뉴바 GUI "종료" 조작 경로는 검증 항목에 없었음** → 본 이슈에서 후행 발견
+    - 사용자 실측: 메뉴바 "종료" 클릭 → 아이콘 사라짐 → 5~10초 내 자동 재등장 (launchd relaunch)
+* 원인 분석:
+    - **원인 1 — launchd `keep_alive true` 의미**: `true`는 "종료 사유 무관 무조건 재시작". `NSApp.terminate(nil)` 이 발생시키는 정상 종료(exit code 0)도 재시작 대상이 됨
+    - **원인 2 — 메뉴바 종료 로직 단순**: `cli/fSnippetCli/MenuBarView.swift:70`의 `NSApplication.shared.terminate(nil)` 만 호출. launchd 서비스 레벨 제어 없음 → 앱 프로세스 ≠ 서비스 분리 인지 안 됨
+    - **구조적 배경**: Homebrew LaunchAgent는 **서비스 수명**을 관리하고, macOS 앱은 **프로세스 수명**을 관리함. 둘이 서로를 인지하지 못하면 메뉴바 종료가 서비스에 전달되지 않음
+* 설계 근거: `~/_doc/3.Resource/_ICT/_OS/MacOS/homebrew_tap_deploy.md` §7-5-A 및 launchd.plist `KeepAlive` 딕셔너리 스펙
+    - Homebrew `service` DSL의 `keep_alive` 는 `true`/`false`/해시 세 형태 지원
+    - `keep_alive successful_exit: false` → exit 0 정상 종료 시 재시작 안 함, 비정상 종료(crash)만 재시작
+    - `keep_alive crashed: true` → 크래시 발생 시에만 재시작 (명시적)
+* 해결 전략:
+    - **전략 A (Formula 설정 변경, 최소 침습)**: `keep_alive true` → `keep_alive successful_exit: false` 로 변경. 메뉴바 정상 종료(exit 0) 시 재시작 안 함, 크래시 시에만 재시작되어 데몬 안정성 유지. 코드 변경 불필요
+    - **전략 B (메뉴바 로직에 brew services stop 호출)**: 메뉴바 "종료" → `brew services stop fsnippet-cli` 외부 호출 → `NSApp.terminate(nil)`. 단점: brew 의존성 + 비 brew 설치 환경 분기 필요 + PATH 이슈
+    - **채택**: 전략 A (단순 + 안정 + 코드 변경 없음). 전략 B는 brew 설치 환경 감지 로직이 추가로 필요하여 복잡도 증가
+    - **앱 실행 시 서비스 시작**: 사용자가 Finder/Spotlight에서 앱을 `open` 으로 실행하면 앱이 직접 기동됨. `brew services start` 명령은 launchd 등록용이지 매번 실행하지 않음. **기존 Formula LaunchAgent가 로그인 시 자동 기동** 흐름이 이미 있으므로 추가 작업 불필요. 단, 종료 후 즉시 재개가 필요하면 사용자가 `brew services start fsnippet-cli` 재호출 (또는 앱 직접 실행)
+* 구현 명세:
+    - `cli/Formula/fsnippet-cli.rb` `service do` 블록 수정:
+        ```ruby
+        service do
+          run [opt_prefix/"fSnippetCli.app/Contents/MacOS/fSnippetCli"]
+          keep_alive successful_exit: false   # 🔧 정상 종료는 재시작 안 함, 크래시만 재시작
+          log_path var/"log/fsnippet-cli.log"
+          error_log_path var/"log/fsnippet-cli.err.log"
+          process_type :interactive
+        end
+        ```
+    - `cli/_tool/fsc-deploy-brew.sh` Step 5 로컬 tap Formula heredoc 내 동일 수정 (Formula SSOT 동기화)
+    - `.claude/commands/deploy.md` 에 종료/재개 UX 안내 추가:
+        - 메뉴바 "종료" → 서비스 완전 중지 (재로그인 전까지 재기동 안 됨)
+        - 재개 방법 1: Spotlight/Finder에서 `fSnippetCli.app` 직접 실행
+        - 재개 방법 2: `brew services start fsnippet-cli`
+        - 재시작 동작은 **크래시 시에만** 발동됨 (데몬 안정성 유지)
+    - 메뉴바 로직(`MenuBarView.swift`) 수정은 불필요 — `NSApp.terminate(nil)` 유지
+* 설계 원칙:
+    - **크래시 복구 vs 사용자 종료 구분**: launchd `keep_alive` 를 조건부로 구성하여 서비스 안정성(크래시 자동 복구)과 사용자 제어권(메뉴바 종료)을 동시 확보
+    - **배타 원칙 유지**: Issue45의 brew services ↔ SMAppService 배타 원칙은 그대로 유지 — 본 이슈는 brew services 경로 내부의 `keep_alive` 조건만 조정
+    - **앱 실행 시 brew services 자동 start 금지**: 앱 내부에서 `brew services start` 를 호출하면 시스템 서비스 설정을 앱이 변경하는 권한 역전 발생. 사용자가 명시 제어해야 함
+* 검증:
+    - [ ] `cli/Formula/fsnippet-cli.rb` 에서 `keep_alive successful_exit: false` 로 수정됨
+    - [ ] `fsc-deploy-brew.sh` Step 5 로컬 Formula heredoc 에 동일 수정 반영
+    - [ ] `/deploy brew local` 재실행 → 정상 설치
+    - [ ] `brew services start fsnippet-cli` → 서비스 시작 + 메뉴바 bolt 아이콘 표시
+    - [ ] 메뉴바 "종료" 클릭 → 5~10초 대기 후에도 아이콘 재등장 안 함 (핵심 검증)
+    - [ ] `brew services list` → `fsnippet-cli` 상태가 `none` 또는 `stopped` 로 표시
+    - [ ] `brew services start fsnippet-cli` 재호출 → 서비스 재개 + 메뉴바 아이콘 재등장
+    - [ ] Spotlight로 `fSnippetCli.app` 직접 실행 → 앱 단독 기동 (launchd 등록과 무관)
+    - [ ] 의도적 crash 유발(kill -9) → launchd가 자동 재시작 (데몬 안정성 유지 확인)
+    - [ ] 로그아웃 → 재로그인 시 LaunchAgent 자동 기동 (기존 동작 유지)
+* 관련 파일:
+    - `cli/Formula/fsnippet-cli.rb` (service 블록 `keep_alive` 조건 변경)
+    - `cli/_tool/fsc-deploy-brew.sh` (Step 5 로컬 Formula heredoc 동기화)
+    - `cli/fSnippetCli/MenuBarView.swift` (참고만 — 수정 없음)
+    - `.claude/commands/deploy.md` (종료/재개 UX 안내 추가)
+* 참조:
+    - Issue45 (`brew services` 경로 재도입) — 본 이슈의 선행 이슈
+    - launchd.plist KeepAlive 딕셔너리 스펙: https://www.launchd.info/
+    - Homebrew Formula service DSL: https://docs.brew.sh/Formula-Cookbook#using-formulaservice
 
 # 📙 일반
 
