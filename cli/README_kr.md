@@ -23,19 +23,19 @@ fSnippet (Sandbox, App Store)         fSnippetCli (Non-Sandbox, Helper)
 
 ```bash
 brew tap finfra/tap
-brew install finfra/tap/fsnippetcli
+brew install finfra/tap/fsnippet-cli
 
 # 로그인 시 자동 시작
-brew services start fsnippetcli
+brew services start fsnippet-cli
 ```
 
 ## Homebrew 서비스 관리
 
 ```bash
-brew services start fsnippetcli     # 시작 (로그인 시 자동 실행)
-brew services stop fsnippetcli      # 중지
-brew services restart fsnippetcli   # 재시작
-brew services info fsnippetcli      # 상태 확인
+brew services start fsnippet-cli     # 시작 (로그인 시 자동 실행)
+brew services stop fsnippet-cli      # 중지
+brew services restart fsnippet-cli   # 재시작
+brew services info fsnippet-cli      # 상태 확인
 ```
 
 ## 소스 빌드
@@ -71,7 +71,7 @@ fSnippetCli는 키보드 입력 모니터링과 텍스트 대체를 위해 **접
 cli/
 ├── fSnippetCli.xcodeproj
 ├── Formula/
-│   └── fsnippetcli.rb        ← Homebrew Formula
+│   └── fsnippet-cli.rb        ← Homebrew Formula
 ├── project.yml               ← XcodeGen 스펙
 └── fSnippetCli/              ← 소스 루트
     ├── fSnippetCliApp.swift   ← 진입점 (MenuBarExtra)

@@ -23,19 +23,19 @@ fSnippet (Sandbox, App Store)         fSnippetCli (Non-Sandbox, Helper)
 
 ```bash
 brew tap finfra/tap
-brew install finfra/tap/fsnippetcli
+brew install finfra/tap/fsnippet-cli
 
 # Auto-start on login
-brew services start fsnippetcli
+brew services start fsnippet-cli
 ```
 
 ## Homebrew Service Management
 
 ```bash
-brew services start fsnippetcli     # Start (auto-start on login)
-brew services stop fsnippetcli      # Stop
-brew services restart fsnippetcli   # Restart
-brew services info fsnippetcli      # Status
+brew services start fsnippet-cli     # Start (auto-start on login)
+brew services stop fsnippet-cli      # Stop
+brew services restart fsnippet-cli   # Restart
+brew services info fsnippet-cli      # Status
 ```
 
 ## Build from Source
@@ -71,7 +71,7 @@ fSnippetCli requires **Accessibility permission** for keyboard input monitoring 
 cli/
 ├── fSnippetCli.xcodeproj
 ├── Formula/
-│   └── fsnippetcli.rb        ← Homebrew Formula
+│   └── fsnippet-cli.rb        ← Homebrew Formula
 ├── project.yml               ← XcodeGen spec
 └── fSnippetCli/              ← Source root
     ├── fSnippetCliApp.swift   ← Entry point (MenuBarExtra)

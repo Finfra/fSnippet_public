@@ -19,8 +19,16 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue45: `brew services` 경로 재도입 — 오픈소스 배포 표준 자동 시작 (등록: 2026-04-19)
-* 목적: 오픈소스 배포 관점에서 사용자가 기대하는 표준 인터페이스 `brew services start/stop/info` 로 fSnippetCli 자동 기동을 관리 가능하도록 Formula `service do` 블록 재도입
+## Issue45: `brew services` 경로 재도입 + Formula 명명 `fsnippet-cli` 로 복원 — 오픈소스 배포 표준 (등록: 2026-04-19)
+* 목적: 오픈소스 배포 관점에서 사용자가 기대하는 표준 인터페이스 `brew services start/stop/info` 로 fSnippetCli 자동 기동을 관리 가능하도록 Formula `service do` 블록 재도입 + Formula 명명을 `fsnippet-cli` (하이픈 포함)로 복원 (Issue4의 "Homebrew 소문자 정규화" 번복)
+* 🔄 Formula 명명 복원 (2026-04-19 사용자 결정):
+    - 과거 Issue4(2026-04-08)에서 `fsnippet-cli.rb` → `fsnippetcli.rb` 로 "소문자 정규화" 명분으로 변경
+    - 실제 Homebrew 공식 관행은 하이픈 포함 허용 (`node-cli`, `aws-cli` 등 다수 사례) → 정규화 명분은 부정확
+    - 오픈소스 배포 시 가독성 + 단어 경계 명확성 우선 → **`fsnippet-cli`** 로 복원
+    - Formula 파일: `cli/Formula/fsnippet-cli.rb` (클래스 `FsnippetCli`)
+    - 패키지명: `finfra/tap/fsnippet-cli`
+    - 로그 경로: `/opt/homebrew/var/log/fsnippet-cli.log` / `.err.log`
+    - memory `project_brew-deployment.md` 에 표준으로 명문화 (사용자 직접 작성)
 * 배경:
     - 과거 Issue4(2026-04-08, commit 92c01c2)에서 `brew services` 경로 구축 → 정상 동작 검증 완료
     - Issue18(2026-04-08, commit 7879ac2)에서 `service do` 블록 제거 + SMAppService 전담 결정
@@ -29,19 +37,19 @@ date: 2026-04-07
     - Issue44의 Login Item 인프라 전면 폐기 후 `brew services` 일원화
 * 설계 근거: `~/_doc/3.Resource/_ICT/_OS/MacOS/homebrew_tap_deploy.md` §7-5-A "`brew services` 경로 (LaunchAgent)"
 * 구현 명세:
-    - `cli/Formula/fsnippetcli.rb` **복원** (원격 배포 publish용, GitHub URL + SHA256 placeholder) + `service do` 블록 포함
+    - `cli/Formula/fsnippet-cli.rb` **복원** (원격 배포 publish용, GitHub URL + SHA256 placeholder) + `service do` 블록 포함
         ```ruby
         service do
           run [opt_prefix/"fSnippetCli.app/Contents/MacOS/fSnippetCli"]
           keep_alive true
-          log_path var/"log/fsnippetcli.log"
-          error_log_path var/"log/fsnippetcli.err.log"
+          log_path var/"log/fsnippet-cli.log"
+          error_log_path var/"log/fsnippet-cli.err.log"
           process_type :interactive   # GUI 세션 접근 허용 (LSUIElement 메뉴바 렌더링)
         end
         ```
     - `fsc-deploy-brew.sh` Step 5 로컬 tap Formula heredoc도 동일 `service do` 블록 포함
     - `fsc-deploy-brew.sh` 재구성:
-        - Step 8: Login Item 등록 → `brew services start finfra/tap/fsnippetcli` (FSC_AUTOSTART=1 옵트인 유지)
+        - Step 8: Login Item 등록 → `brew services start finfra/tap/fsnippet-cli` (FSC_AUTOSTART=1 옵트인 유지)
         - `cmd_uninstall`: `fsc-loginitem.sh unregister` → `brew services stop` 선행 호출
         - `cmd_status`: Login Item 섹션 → `brew services info` 섹션
     - **Login Item 인프라 완전 제거**:
@@ -55,21 +63,21 @@ date: 2026-04-07
     - App Store/서명 배포본: SMAppService
     - Login Item 경로 폐기: 오픈소스 CLI 배포에서 osascript 의존은 배포 친화적이지 않음 + 배타 원칙에 따라 `brew services`와 병행 불가
 * 검증:
-    - [ ] `cli/Formula/fsnippetcli.rb` 복원 + `service do` 블록 존재
+    - [ ] `cli/Formula/fsnippet-cli.rb` 복원 + `service do` 블록 존재
     - [ ] `fsc-deploy-brew.sh` Step 5 로컬 Formula에 `service do` 블록 포함
     - [ ] `/deploy brew local` 실행 시 Step 1~9 전부 PASS
-    - [ ] `brew services list` 에 `fsnippetcli` 표시됨
-    - [ ] `brew services start finfra/tap/fsnippetcli` → 정상 기동
+    - [ ] `brew services list` 에 `fsnippet-cli` 표시됨
+    - [ ] `brew services start finfra/tap/fsnippet-cli` → 정상 기동
     - [ ] 메뉴바에 bolt 아이콘 표시 (LSUIElement + LaunchAgent 호환성 확인)
     - [ ] CGEventTap 정상 동작 (Accessibility TCC 승인 후)
     - [ ] REST 3015 응답
-    - [ ] `brew services info fsnippetcli` → started 상태 조회
-    - [ ] `brew services stop fsnippetcli` → 정상 중지
+    - [ ] `brew services info fsnippet-cli` → started 상태 조회
+    - [ ] `brew services stop fsnippet-cli` → 정상 중지
     - [ ] `/deploy brew uninstall` → `brew services stop` 선행 호출 확인
     - [ ] 로그아웃 → 재로그인 시 자동 기동 (LaunchAgent KeepAlive 효과)
     - [ ] `cli/_tool/fsc-loginitem.sh` 삭제 확인
 * 관련 파일:
-    - `cli/Formula/fsnippetcli.rb` (복원, `service do` 블록 포함)
+    - `cli/Formula/fsnippet-cli.rb` (복원, `service do` 블록 포함)
     - `cli/_tool/fsc-deploy-brew.sh` (Step 5/8 재구성, cmd_uninstall/cmd_status 변경)
     - `cli/_tool/fsc-loginitem.sh` (삭제)
     - `.claude/commands/deploy.md` (brew services 안내로 재작성)
@@ -100,7 +108,7 @@ date: 2026-04-07
     - `local`/`publish` 완료 후 TCC 안내 출력 — "`/run tcc`로 권한 재설정 가능" 명시
 * Phase B (publish 구현): 미착수
     - GitHub 태그 + Release 자동 생성 (`gh release create`)
-    - `cli/Formula/fsnippetcli.rb` 원격용 Formula 복원 (GitHub URL + SHA256)
+    - `cli/Formula/fsnippet-cli.rb` 원격용 Formula 복원 (GitHub URL + SHA256)
     - 원격 `finfra/homebrew-tap` 레포 푸시 스크립트
     - 사전 조건: 원격 `finfra/homebrew-tap` 저장소 생성 필요
 * 구현 명세:

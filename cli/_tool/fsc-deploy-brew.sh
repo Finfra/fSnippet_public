@@ -22,7 +22,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CLI_DIR="$(dirname "$SCRIPT_DIR")"
 ROOT_DIR="$(dirname "$CLI_DIR")"
 TAP_DIR="/opt/homebrew/Library/Taps/finfra/homebrew-tap"
-TAP_FORMULA="$TAP_DIR/Formula/fsnippetcli.rb"
+TAP_FORMULA="$TAP_DIR/Formula/fsnippet-cli.rb"
 TARBALL="/tmp/fSnippetCli-local.tar.gz"
 LOCAL_VERSION="0.0.0-local"
 
@@ -156,7 +156,7 @@ cmd_local() {
     echo "=== Step 5: 로컬 tap Formula 갱신 ==="
     mkdir -p "$(dirname "$TAP_FORMULA")"
     cat > "$TAP_FORMULA" <<FORMULA
-class Fsnippetcli < Formula
+class FsnippetCli < Formula
   desc "Text snippet expansion engine daemon for fSnippet (local build)"
   homepage "https://github.com/Finfra/fSnippet_public"
   url "file://$TARBALL"
@@ -184,8 +184,8 @@ class Fsnippetcli < Formula
   service do
     run [opt_prefix/"fSnippetCli.app/Contents/MacOS/fSnippetCli"]
     keep_alive true
-    log_path var/"log/fsnippetcli.log"
-    error_log_path var/"log/fsnippetcli.err.log"
+    log_path var/"log/fsnippet-cli.log"
+    error_log_path var/"log/fsnippet-cli.err.log"
     process_type :interactive
   end
 
@@ -194,7 +194,7 @@ class Fsnippetcli < Formula
       fSnippetCli는 접근성(Accessibility) 권한이 필요합니다.
 
       설치 후 자동 시작 등록:
-        brew services start finfra/tap/fsnippetcli
+        brew services start finfra/tap/fsnippet-cli
 
       권한 승인:
         시스템 설정 > 개인정보 보호 및 보안 > 접근성 > fSnippetCli 체크
@@ -214,11 +214,11 @@ FORMULA
     # Step 6: brew uninstall + install
     echo ""
     echo "=== Step 6: brew uninstall + install ==="
-    brew uninstall fsnippetcli 2>/dev/null || true
-    brew install --build-from-source finfra/tap/fsnippetcli 2>&1 | tail -20
+    brew uninstall fsnippet-cli 2>/dev/null || true
+    brew install --build-from-source finfra/tap/fsnippet-cli 2>&1 | tail -20
     local INSTALL_STATUS=${PIPESTATUS[0]}
     if [ "$INSTALL_STATUS" -eq 0 ]; then
-        record_result "brew install" "PASS" "finfra/tap/fsnippetcli"
+        record_result "brew install" "PASS" "finfra/tap/fsnippet-cli"
     else
         record_result "brew install" "FAIL" "exit=$INSTALL_STATUS"
     fi
@@ -231,7 +231,7 @@ FORMULA
         record_result "앱 실행" "FAIL" "brew install 실패로 skip"
     else
         local INSTALLED_APP
-        INSTALLED_APP="$(brew --prefix fsnippetcli 2>/dev/null)/fSnippetCli.app"
+        INSTALLED_APP="$(brew --prefix fsnippet-cli 2>/dev/null)/fSnippetCli.app"
         if [ -d "$INSTALLED_APP" ]; then
             # Issue44: Cellar 경로 stale 문제 방지 — /Applications/_nowage_app 심링크로 안정적 엔트리 포인트 제공
             mkdir -p /Applications/_nowage_app
@@ -256,18 +256,18 @@ FORMULA
     echo "=== Step 8: brew services 자동 시작 등록 (옵트인) ==="
     if [ "${FSC_AUTOSTART:-0}" = "1" ]; then
         # 기존 서비스 중지 (idempotent — 미시작 상태에서도 무해)
-        brew services stop fsnippetcli 2>/dev/null || true
-        brew services start finfra/tap/fsnippetcli 2>&1 | tail -3
+        brew services stop fsnippet-cli 2>/dev/null || true
+        brew services start finfra/tap/fsnippet-cli 2>&1 | tail -3
         local SVC_STATUS=${PIPESTATUS[0]}
         if [ "$SVC_STATUS" -eq 0 ]; then
-            record_result "brew services start" "PASS" "finfra/tap/fsnippetcli"
+            record_result "brew services start" "PASS" "finfra/tap/fsnippet-cli"
         else
             record_result "brew services start" "FAIL" "exit=$SVC_STATUS"
         fi
     else
         echo "ℹ️  FSC_AUTOSTART 미설정 — 로그인 시 자동 기동을 원하면:"
         echo "    FSC_AUTOSTART=1 /deploy brew local"
-        echo "   또는 개별 등록: brew services start finfra/tap/fsnippetcli"
+        echo "   또는 개별 등록: brew services start finfra/tap/fsnippet-cli"
         record_result "brew services" "PASS" "skip (FSC_AUTOSTART 미설정)"
     fi
 
@@ -323,12 +323,12 @@ cmd_status() {
     echo ""
 
     echo "── brew 설치 ──"
-    if brew list fsnippetcli &>/dev/null; then
+    if brew list fsnippet-cli &>/dev/null; then
         local VERSION
-        VERSION=$(brew list --versions fsnippetcli | awk '{print $2}')
+        VERSION=$(brew list --versions fsnippet-cli | awk '{print $2}')
         local PREFIX
-        PREFIX=$(brew --prefix fsnippetcli 2>/dev/null)
-        echo "✅ 설치됨: fsnippetcli $VERSION"
+        PREFIX=$(brew --prefix fsnippet-cli 2>/dev/null)
+        echo "✅ 설치됨: fsnippet-cli $VERSION"
         echo "   prefix : $PREFIX"
         [ -d "$PREFIX/fSnippetCli.app" ] && echo "   .app   : $PREFIX/fSnippetCli.app"
     else
@@ -369,13 +369,13 @@ cmd_status() {
     # Issue45: brew services 상태
     echo "── brew services ──"
     local svc_info
-    svc_info=$(brew services info fsnippetcli 2>&1)
+    svc_info=$(brew services info fsnippet-cli 2>&1)
     if echo "$svc_info" | grep -q "Loaded: true"; then
         echo "✅ LaunchAgent 등록됨"
-        echo "$svc_info" | grep -E "^(fsnippetcli|Running|Loaded|Schedulable|File|User):" | sed 's/^/  /'
-    elif brew list fsnippetcli &>/dev/null; then
+        echo "$svc_info" | grep -E "^(fsnippet-cli|Running|Loaded|Schedulable|File|User):" | sed 's/^/  /'
+    elif brew list fsnippet-cli &>/dev/null; then
         echo "ℹ️  설치됐으나 brew services 미등록"
-        echo "   등록: brew services start finfra/tap/fsnippetcli"
+        echo "   등록: brew services start finfra/tap/fsnippet-cli"
     else
         echo "❌ 미설치"
     fi
@@ -410,7 +410,7 @@ cmd_uninstall() {
 
     # Issue45: brew services 선행 중지 (launchd 경로)
     echo "── brew services stop (선행)"
-    brew services stop fsnippetcli 2>/dev/null || true
+    brew services stop fsnippet-cli 2>/dev/null || true
     sleep 0.3
 
     # 프로세스 종료 (services stop 실패 대비)
@@ -428,8 +428,8 @@ cmd_uninstall() {
         echo "✅ 제거: $STABLE_APP"
     fi
 
-    echo "── brew uninstall fsnippetcli"
-    brew uninstall fsnippetcli 2>&1 | tail -5
+    echo "── brew uninstall fsnippet-cli"
+    brew uninstall fsnippet-cli 2>&1 | tail -5
 
     echo "── 로컬 tap Formula 제거"
     if [ -f "$TAP_FORMULA" ]; then

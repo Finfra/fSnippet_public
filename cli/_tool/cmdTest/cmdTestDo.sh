@@ -20,8 +20,8 @@ fi
 # CLI 바이너리 경로 (환경변수 또는 자동 탐지)
 if [ -z "$CLI" ]; then
   # 1) Homebrew 경로
-  if [ -x "/opt/homebrew/opt/fsnippetcli/fSnippetCli.app/Contents/MacOS/fSnippetCli" ]; then
-    export CLI="/opt/homebrew/opt/fsnippetcli/fSnippetCli.app/Contents/MacOS/fSnippetCli"
+  if [ -x "/opt/homebrew/opt/fsnippet-cli/fSnippetCli.app/Contents/MacOS/fSnippetCli" ]; then
+    export CLI="/opt/homebrew/opt/fsnippet-cli/fSnippetCli.app/Contents/MacOS/fSnippetCli"
   # 2) DerivedData Release 빌드
   elif DERIVED=$(find ~/Library/Developer/Xcode/DerivedData -name "fSnippetCli" -path "*/Release/*.app/Contents/MacOS/*" -type f 2>/dev/null | head -1) && [ -n "$DERIVED" ]; then
     export CLI="$DERIVED"

@@ -1,4 +1,4 @@
-class Fsnippetcli < Formula
+class FsnippetCli < Formula
   desc "Text snippet expansion engine daemon for fSnippet"
   homepage "https://github.com/Finfra/fSnippet_public"
   url "https://github.com/Finfra/fSnippet_public/archive/refs/tags/cli-v1.0.0.tar.gz"
@@ -28,8 +28,8 @@ class Fsnippetcli < Formula
   service do
     run [opt_prefix/"fSnippetCli.app/Contents/MacOS/fSnippetCli"]
     keep_alive true
-    log_path var/"log/fsnippetcli.log"
-    error_log_path var/"log/fsnippetcli.err.log"
+    log_path var/"log/fsnippet-cli.log"
+    error_log_path var/"log/fsnippet-cli.err.log"
     process_type :interactive
   end
 
@@ -38,7 +38,7 @@ class Fsnippetcli < Formula
       fSnippetCli는 접근성(Accessibility) 권한이 필요합니다.
 
       설치 후 자동 시작 등록:
-        brew services start finfra/tap/fsnippetcli
+        brew services start finfra/tap/fsnippet-cli
 
       권한 승인:
         시스템 설정 > 개인정보 보호 및 보안 > 접근성 > fSnippetCli 체크

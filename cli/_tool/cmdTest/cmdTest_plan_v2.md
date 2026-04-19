@@ -38,7 +38,7 @@ bash cli/_tool/cmdTest/cmdTestDo.sh all
 
 # 전제 조건
 
-* fSnippetCli 서비스가 실행 중이어야 함 (`brew services start fsnippetcli`)
+* fSnippetCli 서비스가 실행 중이어야 함 (`brew services start fsnippet-cli`)
 * REST API 포트 3015 응답 가능 상태
 * `settings` 서브커맨드 구현 완료 (Issue31)
 
@@ -74,7 +74,7 @@ bash cli/_tool/cmdTest/cmdTestDo.sh all
 ```bash
 CLI="fSnippetCli"
 # 또는 빌드된 바이너리 경로
-CLI="/opt/homebrew/opt/fsnippetcli/fSnippetCli.app/Contents/MacOS/fSnippetCli"
+CLI="/opt/homebrew/opt/fsnippet-cli/fSnippetCli.app/Contents/MacOS/fSnippetCli"
 ```
 
 # 검증 기준
