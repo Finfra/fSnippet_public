@@ -6,15 +6,14 @@ date: 2026-04-07
 
 # Issue Management
 
-- Issue HWM: 41
-- Save Point: 2026-04-19 (f021bad) Chore: Bundle ID kr.finfra 통일 + Xcode 2640 업그레이드 + 테스트 리포팅 개선
+- Issue HWM: 42
+- Save Point: 2026-04-19 (353e8fe) Fix(Issue42): Accessibility 권한 UX 개선 (pairApp 패턴 이식)
 
 # 🤔 결정사항
 
 # 🌱 이슈후보
-1. 클립보드 히스토리 기능 중에서 고급 기능은 Paid 앱이 활성화 되어 있어야 실행 가능하게끔 해 줘 활성화 되어 있지 않다면 활성화 창[기존 코드 찾아서] 열게 해야함. 
+1. 클립보드 히스토리 기능 중에서 고급 기능은 Paid 앱이 활성화 되어 있어야 실행 가능하게끔 해 줘 활성화 되어 있지 않다면 활성화 창[기존 코드 찾아서] 열게 해야함.
     - Paid 앱의 기능이 모듈로 구성되어 있는지 확인
-2. TCC문제 해결되었으나 "/run"을 두번 실행해야 해결된 TCC가 적용됨. 처음 TCC적용(Accessibility 권한을 주는데 성공)하면 자동으로 앱이 자동 시작하는 기능 필요. 
 
 
 
@@ -27,6 +26,38 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue42: Accessibility 권한 UX 개선 (pairApp 패턴 이식 — 시스템 프롬프트 중복 제거 + 권한 부여 후 자동 재초기화) (등록: 2026-04-19, 해결: 2026-04-19, commit: 353e8fe) ✅
+* 목적: 접근성 권한 다이얼로그가 중첩되어 뜨는 문제와 권한 부여 후 `/run`을 두 번 실행해야 CGEventTap이 정상 작동하는 문제를 pairApp(fWarrangeCli) 패턴 이식으로 해결
+* 배경: 이미지 근거 2건 수집됨 (Issue.md 이슈후보 2번, 2026-04-19)
+    - 시스템 "Accessibility Access" 다이얼로그 + 앱 커스텀 "접근성 권한 필요" NSAlert가 **동시에** 노출됨 (pairApp은 1회만 표시)
+    - 권한 승인 후에도 CGEventTap 핸들이 이미 실패 상태라 앱 재기동 필요
+* 진단 (비교 분석):
+    - pairApp `AppState.initialize()` — `AXIsProcessTrusted()` 사용 (prompt 옵션 없음) + 커스텀 NSAlert만 노출
+    - fSnippetCli `AppDelegate.checkAccessibilityPermission` — `AXIsProcessTrustedWithOptions(prompt: true)` 사용으로 시스템 프롬프트 트리거 + 커스텀 NSAlert 중첩
+    - 두 앱 모두 자동 재시작 로직은 없으나, pairApp은 CGEventTap 의존이 없어 권한 지연에 관대하고, fSnippetCli는 CGEventTap 재초기화 없이는 복구 불가
+* Phase A (시스템 프롬프트 중복 제거): ✅
+    - `cli/fSnippetCli/fSnippetCliApp.swift` `checkAccessibilityPermission` 수정
+    - `AXIsProcessTrustedWithOptions(prompt: true)` → `AXIsProcessTrusted()` 교체
+    - 커스텀 `showAccessibilityAlert()` NSAlert만 유지 (사용자 안내 + 시스템 설정 deep link)
+    - 효과: 시스템 Accessibility Access 창 미노출 → 앱 커스텀 안내만 1회 표시
+* Phase B (권한 부여 후 자동 재초기화): ✅
+    - `AppDelegate`에 `accessibilityPollingTimer` 프로퍼티 추가
+    - `checkAccessibilityPermission()` 미승인 경로에서 `startAccessibilityPolling()` 호출
+    - 5초 주기로 `AXIsProcessTrusted()` 재검사, 최대 10분 (120회) 후 자동 종료
+    - 권한 감지 시 `reinitializeKeyEventMonitor()` 호출 — stopMonitoring + cleanup + 새 인스턴스 + startMonitoring
+    - 프로세스 relaunch 없이 CGEventTap 재등록만으로 키 감지 활성화
+* 구현 명세:
+    - Phase A·B를 하나의 코드 커밋(353e8fe)에 포함
+    - Release 빌드에서도 동일 효과 확인 필요 (추후)
+* 검증:
+    - ✅ Phase A 적용 후 권한 미승인 상태에서 앱 기동 시 시스템 다이얼로그 미노출 확인
+    - ✅ 커스텀 NSAlert "접근성 권한 필요" 1회만 노출 확인
+    - ✅ 폴링 로그 확인 (`⏱️ 접근성 권한 폴링 시작 (5초 주기, 최대 10분)`)
+    - ✅ 권한 부여 후 자동 재초기화 로그 확인 및 키 감지 정상 동작 (사용자 "잘 작동함")
+* 관련 파일:
+    - `cli/fSnippetCli/fSnippetCliApp.swift` (Phase A + B 구현)
+    - 참고: `fWarrange/_public/cli/fWarrangeCli/AppState.swift`, `Services/AccessibilityService.swift`
 
 ## Issue41: fsc-run-xcode.sh 구조 정비 — Phase1(DRY) + Phase2(Xcode run→stop TCC 획득 + /deploy debug 신설) (등록: 2026-04-18, 해결: 2026-04-19, commit: 2084147, 3513713) ✅
 * 목적: fsc-run-xcode.sh의 빌드·실행 흐름을 TCC 권한 귀속 관점에서 올바르게 재설계. Xcode AppleScript로 `run ws`까지 시켜 TCC 권한을 앱에 귀속시킨 뒤 `stop`으로 Xcode 세션 분리, 그리고 `/deploy debug`로 Applications 배포·독립 기동
