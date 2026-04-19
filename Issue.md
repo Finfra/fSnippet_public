@@ -14,6 +14,11 @@ date: 2026-04-07
 # 🌱 이슈후보
 1. 클립보드 히스토리 기능 중에서 고급 기능은 Paid 앱이 활성화 되어 있어야 실행 가능하게끔 해 줘 활성화 되어 있지 않다면 활성화 창[기존 코드 찾아서] 열게 해야함.
     - Paid 앱의 기능이 모듈로 구성되어 있는지 확인
+2. fsc-test.sh에 cliApp(fWarrangeCli) 패턴 역이식 — `apiTestDo.sh` + `cmdTestDo.sh` 호출 구조를 pairApp의 ZTest 9단계와 병렬 실행 가능하도록 통합
+    - 배경: fWarrangeCli Issue37(Full Mirror 이식) 분석 중 `fwc-test.sh`(245줄) 가 `fsc-test.sh`(228줄)보다 리포팅 패턴이 우수함을 발견
+    - 목표: pairApp 측 fsc-test.sh가 스니펫 TDD(ZTest) + API/CMD 통합 테스트 둘 다 커버하도록 통합
+    - 우선순위: 낮음 (fSnippetCli 기능 완결성에는 영향 없음, 테스트 품질 향상 목적)
+    - 참고: fWarrangeCli(#26) Issue37 plan `cli/_doc_work/plan/deploy-run-sync-from-pairapp_plan.md` 의 Phase 5 "리스크 및 완화" 표 마지막 항목
 
 
 # 🚧 진행중
