@@ -64,6 +64,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// 키 이벤트 모니터 (Core 엔진)
     var keyEventMonitor: KeyEventMonitor?
 
+    /// Issue42 Phase B: 접근성 권한 폴링 타이머
+    /// 권한 미승인 상태로 기동된 경우, 5초 주기로 `AXIsProcessTrusted()` 재검사하여
+    /// 사용자가 시스템 설정에서 권한을 부여하면 `KeyEventMonitor`를 자동 재초기화함.
+    private var accessibilityPollingTimer: Timer?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // 접근성 권한 확인
         checkAccessibilityPermission()
@@ -150,18 +155,66 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// 접근성 권한 확인 및 요청
     /// CGEventTap, 키 시뮬레이션 등 핵심 기능에 필수
+    ///
+    /// Issue42 Phase A (2026-04-19): pairApp(fWarrangeCli) 패턴 이식.
+    /// 시스템 "Accessibility Access" 프롬프트와 커스텀 NSAlert가 중첩되는 문제를 해결하기 위해
+    /// `AXIsProcessTrustedWithOptions(prompt: true)` → `AXIsProcessTrusted()`로 전환.
+    /// 시스템 프롬프트는 표시하지 않고, 커스텀 NSAlert로만 사용자 안내 + 시스템 설정 deep link 제공.
     private func checkAccessibilityPermission() {
-        // prompt: true — 권한 미승인 시 macOS 시스템 팝업 표시 + Accessibility 목록 자동 추가 (Issue816)
-        // 참고: 개발 빌드 시 바이너리 서명 변경으로 매번 팝업 발생할 수 있으나, Release 배포에서는 정상
-        let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
-        let trusted = AXIsProcessTrustedWithOptions(options)
+        let trusted = AXIsProcessTrusted()
 
         if trusted {
             logI("접근성 권한: 승인됨")
         } else {
             logW("접근성 권한: 미승인")
             showAccessibilityAlert()
+            // Issue42 Phase B: 권한 부여 감지를 위한 폴링 시작
+            startAccessibilityPolling()
         }
+    }
+
+    /// Issue42 Phase B: 접근성 권한 부여 감지 폴링
+    ///
+    /// 권한 미승인 상태로 기동된 경우 5초 주기로 `AXIsProcessTrusted()`를 재검사함.
+    /// 권한이 감지되면 타이머를 중단하고 `KeyEventMonitor`를 재초기화하여
+    /// 사용자가 앱 재시작 없이 키 감지 기능을 사용할 수 있도록 함.
+    /// 최대 10분(120회) 폴링 후 자동 종료하여 불필요한 타이머 유지를 방지함.
+    private func startAccessibilityPolling() {
+        guard accessibilityPollingTimer == nil else { return }
+        let startTime = Date()
+        let maxDuration: TimeInterval = 600  // 10분
+
+        accessibilityPollingTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] timer in
+            guard let self else {
+                timer.invalidate()
+                return
+            }
+
+            if AXIsProcessTrusted() {
+                timer.invalidate()
+                self.accessibilityPollingTimer = nil
+                logI("✅ 접근성 권한 부여 감지 — KeyEventMonitor 재초기화")
+                self.reinitializeKeyEventMonitor()
+            } else if Date().timeIntervalSince(startTime) > maxDuration {
+                timer.invalidate()
+                self.accessibilityPollingTimer = nil
+                logW("⚠️ 접근성 권한 폴링 시간 초과 (10분) — 앱 재시작 필요")
+            }
+        }
+        logI("⏱️ 접근성 권한 폴링 시작 (5초 주기, 최대 10분)")
+    }
+
+    /// Issue42 Phase B: KeyEventMonitor 재초기화
+    ///
+    /// 권한 부여 감지 시 호출됨. 기존 monitor를 cleanup + 새 인스턴스 생성 + startMonitoring.
+    /// CGEventTap 핸들이 권한 미승인으로 실패 상태였다면 새로 생성된 monitor에서
+    /// Tap이 정상 등록되어 키 이벤트 감지가 활성화됨.
+    private func reinitializeKeyEventMonitor() {
+        keyEventMonitor?.stopMonitoring()
+        keyEventMonitor?.cleanup()
+        keyEventMonitor = KeyEventMonitor(onPotentialAbbreviation: { _ in })
+        keyEventMonitor?.startMonitoring()
+        logI("✅ KeyEventMonitor 재초기화 완료 — 키 이벤트 감지 활성화")
     }
 
     /// 접근성 권한 미승인 시 사용자에게 알림 표시
