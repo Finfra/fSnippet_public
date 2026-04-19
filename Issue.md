@@ -7,7 +7,7 @@ date: 2026-04-07
 # Issue Management
 
 - Issue HWM: 45
-- Save Point: 2026-04-19 (1d01e68) Feat(Issue43,44): /deploy brew 서브커맨드 확장 + Login Item 자동 등록 — 단, Issue44는 설계 번복(→ Issue45)으로 obsolete
+- Save Point: 2026-04-19 (5294c6b) Chore(Issue45): Formula 명명 fsnippetcli → fsnippet-cli 복원 (Issue43/45 완료, Issue44 obsolete)
 
 # 🤔 결정사항
 
@@ -19,7 +19,15 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue45: `brew services` 경로 재도입 + Formula 명명 `fsnippet-cli` 로 복원 — 오픈소스 배포 표준 (등록: 2026-04-19)
+# 📕 중요
+
+# 📙 일반
+
+# 📗 선택
+
+# ✅ 완료
+
+## Issue45: `brew services` 경로 재도입 + Formula 명명 `fsnippet-cli` 로 복원 — 오픈소스 배포 표준 (등록: 2026-04-19, 해결: 2026-04-19, commit: 2418363, 5294c6b) ✅
 * 목적: 오픈소스 배포 관점에서 사용자가 기대하는 표준 인터페이스 `brew services start/stop/info` 로 fSnippetCli 자동 기동을 관리 가능하도록 Formula `service do` 블록 재도입 + Formula 명명을 `fsnippet-cli` (하이픈 포함)로 복원 (Issue4의 "Homebrew 소문자 정규화" 번복)
 * 🔄 Formula 명명 복원 (2026-04-19 사용자 결정):
     - 과거 Issue4(2026-04-08)에서 `fsnippet-cli.rb` → `fsnippetcli.rb` 로 "소문자 정규화" 명분으로 변경
@@ -83,7 +91,7 @@ date: 2026-04-07
     - `.claude/commands/deploy.md` (brew services 안내로 재작성)
     - `~/_doc/3.Resource/_ICT/_OS/MacOS/homebrew_tap_deploy.md` §7-5 결정 트리 수정 (fSnippetCli를 §7-5-A 사례로 이동)
 
-## Issue43: /deploy brew 서브커맨드 확장 (local/publish/status/uninstall + TCC 안내) (등록: 2026-04-19)
+## Issue43: /deploy brew 서브커맨드 확장 (local/publish/status/uninstall + TCC 안내) (등록: 2026-04-19, 해결: 2026-04-19, commit: 1d01e68, 2418363) ✅
 * 목적: `/deploy brew` 단독 호출 금지, 4개 서브커맨드로 분기하고 brew 설치 후 TCC 권한 꼬임 가능성을 `/run tcc` 안내로 유도
 * 선수: **Issue45 (`brew services` 경로 재도입)** — `brew local` 완료 후 사용자 로그인 시 자동 기동 흐름이 완성되려면 Issue45 구현이 필요 (과거 Issue44 Login Item 경로는 설계 번복으로 obsolete)
 * 배경:
@@ -125,14 +133,6 @@ date: 2026-04-07
     - `cli/_tool/fsc-deploy-brew.sh` (서브커맨드 분기 재작성)
     - `.claude/commands/deploy.md` (brew 서브커맨드 필수 명시)
     - 참고: `~/_doc/3.Resource/_ICT/_OS/MacOS/homebrew_tap_deploy.md`
-
-# 📕 중요
-
-# 📙 일반
-
-# 📗 선택
-
-# ✅ 완료
 
 ## Issue42: Accessibility 권한 UX 개선 (pairApp 패턴 이식 — 시스템 프롬프트 중복 제거 + 권한 부여 후 자동 재초기화) (등록: 2026-04-19, 해결: 2026-04-19, commit: 353e8fe) ✅
 * 목적: 접근성 권한 다이얼로그가 중첩되어 뜨는 문제와 권한 부여 후 `/run`을 두 번 실행해야 CGEventTap이 정상 작동하는 문제를 pairApp(fWarrangeCli) 패턴 이식으로 해결
