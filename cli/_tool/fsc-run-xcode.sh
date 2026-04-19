@@ -194,15 +194,54 @@ reset_tcc_accessibility() {
     fi
 }
 
+# ---------- Step 3.6: brew service 선행 정지 (Debug 배포 경합 방지) ----------
+# Debug 바이너리를 덮어쓰기/실행하기 전에 brew service가 launchd에 로드되어 있으면
+# 정지시킴. 이유:
+#   - `pkill` 은 launchd가 crash로 오인 → keep_alive 트리거 → Cellar/Release 재기동
+#   - 포트 3015 단일 인스턴스 가드가 Release를 먼저 잡아 Debug 거부 가능
+# Debug 세션 종료 후 복원은 `/deploy brew local` 또는 `brew services start`.
+brew_service_stop_for_debug() {
+    if brew_service_running; then
+        echo "[brew] service 실행 감지 — Debug 덮어쓰기 전 stop (launchd respawn 차단)"
+        brew services stop "$BREW_FORMULA" 2>&1 | tail -1 || true
+        echo "[brew] ℹ️ Release 복원: brew services start $BREW_FORMULA 또는 /deploy brew local"
+    fi
+}
+
 # ---------- Step 4: 기존 배포 앱 실행 (빌드·배포 없음) ----------
+# brew service 실행 여부에 따라 실행 경로 분기:
+#   - 실행 중: brew services restart (단일 경로, launchd 경합 회피)
+#   - 정지/미등록: 기존 kill + open (Debug 오버라이드 존중)
+# plist 존재 여부가 아닌 launchctl 로드 상태로 판정하여, /run build-deploy로
+# 중지된 Debug 세션 중 run-only 호출 시 의도치 않은 Release 복원을 방지.
 run_app_only() {
+    if brew_service_running; then
+        echo "[run-only] brew service 실행 감지 — $BREW_FORMULA 재시작 (launchd 단일 경로)"
+        if brew services restart "$BREW_FORMULA"; then
+            echo "[run-only] ✅ brew services restart 완료"
+            return 0
+        fi
+        echo "[run-only] ⚠️ brew services restart 실패 — fallback: 직접 실행"
+    fi
+
     if [ ! -d "$APP_PATH" ]; then
         echo "[run-only] ❌ 배포된 앱 없음: $APP_PATH"
         echo "            먼저 /run build-deploy 또는 /deploy debug 실행 필요"
         return 1
     fi
+    kill_app
+    # pkill 직후 macOS Launch Services 내부 정리 대기 (-600 회피)
+    sleep 0.5
     echo "[run-only] $APP_PATH 실행"
-    open "$APP_PATH"
+    for attempt in 1 2 3; do
+        if open "$APP_PATH" 2>&1; then
+            return 0
+        fi
+        echo "[run-only] ⚠️ open 실패 (attempt $attempt/3) — retry"
+        sleep 0.5
+    done
+    echo "[run-only] ❌ open 최종 실패"
+    return 1
 }
 
 # ---------- 명령 디스패치 ----------
@@ -218,16 +257,20 @@ case "$CMD" in
         ;;
     build-deploy)
         # Issue41 Phase2: build → Xcode run/stop (TCC 획득) → /deploy debug (독립 기동)
+        # brew service 실행 중이면 선행 정지 (pkill → launchd respawn 경합 차단)
+        brew_service_stop_for_debug
         xcode_build
         xcode_run_stop
         bash "$SCRIPT_DIR/fsc-deploy-debug.sh"
         ;;
     deploy-run)
         # 이미 빌드된 결과물을 배포+실행 (TCC 획득 단계 생략)
+        brew_service_stop_for_debug
         bash "$SCRIPT_DIR/fsc-deploy-debug.sh"
         ;;
     run-only)
-        kill_app
+        # brew service 등록 시 brew services restart (launchd 단일 경로),
+        # 미등록 시 kill + open. kill 은 run_app_only 내부에서 분기 처리.
         run_app_only
         ;;
     kill)
@@ -237,6 +280,7 @@ case "$CMD" in
         # kill → TCC Accessibility reset → build-deploy
         # 외부 빌드/brew 재설치로 꼬인 권한을 재설정하고, Xcode run 시점에
         # 사용자가 접근성 권한을 다시 부여하도록 유도.
+        brew_service_stop_for_debug
         kill_app
         reset_tcc_accessibility
         xcode_build
