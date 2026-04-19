@@ -1,22 +1,27 @@
 #!/bin/bash
 # Issue40: ZTest 통합 테스트 (Issue36에서 run.sh full 모드로 구현된 흐름 이주)
+# Issue50: pairApp fwc-test.sh 오케스트레이션 패턴 역이식 (API/CMD/로그 3단계 삽입)
 # Usage: ./fsc-test.sh
 #
-# 9단계 체인:
-#   Step 0: 기존 프로세스 종료
-#   Step 1: testForCli 폴더 확인
-#   Step 2: launchctl setenv + Debug 빌드·배포·실행 (fsc-run-xcode.sh build-deploy)
-#   Step 3: ZTest 스니펫 파일 생성
-#   Step 4: testBoard.txt 초기화
-#   Step 5: REST API 응답 확인
-#   Step 6: TextEdit 자동화 (ztdo + right_command)
-#   Step 7: testBoard 내용 확인
-#   Step 8: flog.log 트리거 확장 확인
-#   Step 9: 결과 알림 + launchctl unsetenv 원복
+# 12단계 체인:
+#   Step 0:  기존 프로세스 종료
+#   Step 1:  testForCli 폴더 확인
+#   Step 2:  launchctl setenv + Debug 빌드·배포·실행 (fsc-run-xcode.sh build-deploy)
+#   Step 3:  ZTest 스니펫 파일 생성
+#   Step 4:  testBoard.txt 초기화
+#   Step 5:  REST API 응답 확인
+#   Step 6:  TextEdit 자동화 (ztdo + right_command)
+#   Step 7:  testBoard 내용 확인
+#   Step 8:  flog.log 트리거 확장 확인
+#   Step 9:  apiTestDo.sh all 호출 (Issue50)
+#   Step 10: cmdTestDo.sh all 호출 (Issue50)
+#   Step 11: ERROR/CRITICAL 로그 자동 검사 (Issue50)
+#   Step 12: 결과 알림 + launchctl unsetenv 원복
 #
 # 빌드 구성: Debug (fsc-run-xcode.sh 통해 — TCC 회피 일관성)
 # 설계 근거: Issue.md Issue40 (office-hours 2026-04-18 결정)
 #           pairApp fwc-test.sh 리포팅 패턴 이식 (record_result 기반 집계)
+#           Issue50 — fwc-test.sh Step 5/6/7 (API/CMD/로그) 오케스트레이션 역이식
 
 set +e
 
@@ -197,9 +202,62 @@ else
     record_result "flog.log 트리거" "FAIL" "'🚦 트리거 확장' 미확인"
 fi
 
-# --- Step 9: 환경변수 원복 ---
+# --- Step 9: apiTestDo.sh all 호출 (Issue50) ---
 echo ""
-echo "=== Step 9: 환경변수 원복 (launchctl unsetenv) ==="
+echo "=== Step 9: apiTestDo.sh all (API 통합 테스트) ==="
+if [ -f "$SCRIPT_DIR/apiTestDo.sh" ]; then
+    # v1/17.cli-quit 자동 skip 을 위해 stdin 에 N 주입
+    API_RESULT=$(echo "N" | bash "$SCRIPT_DIR/apiTestDo.sh" all 2>&1)
+    echo "$API_RESULT" | tail -60
+    API_TOTAL=$(echo "$API_RESULT" | grep -c '^===' || true)
+    API_FAIL=$(echo "$API_RESULT" | grep -cE '"status": *"error"|❌' || true)
+    if [ "$API_TOTAL" -gt 0 ]; then
+        record_result "API 통합 테스트" "PASS" "${API_TOTAL}개 실행 (error/❌=${API_FAIL})"
+    else
+        record_result "API 통합 테스트" "FAIL" "테스트 실행 안 됨"
+    fi
+else
+    record_result "API 통합 테스트" "FAIL" "apiTestDo.sh 없음"
+fi
+
+# --- Step 10: cmdTestDo.sh all 호출 (Issue50) ---
+echo ""
+echo "=== Step 10: cmdTestDo.sh all (CMD 통합 테스트) ==="
+if [ -f "$SCRIPT_DIR/cmdTestDo.sh" ]; then
+    CMD_RESULT=$(bash "$SCRIPT_DIR/cmdTestDo.sh" all 2>&1)
+    echo "$CMD_RESULT" | tail -60
+    CMD_TOTAL=$(echo "$CMD_RESULT" | grep -c '^===' || true)
+    CMD_FAIL=$(echo "$CMD_RESULT" | grep -cE '실패=[1-9]' || true)
+    if [ "$CMD_TOTAL" -gt 0 ]; then
+        record_result "CMD 통합 테스트" "PASS" "${CMD_TOTAL}개 실행 (실패 라인=${CMD_FAIL})"
+    else
+        record_result "CMD 통합 테스트" "FAIL" "테스트 실행 안 됨"
+    fi
+else
+    record_result "CMD 통합 테스트" "FAIL" "cmdTestDo.sh 없음"
+fi
+
+# --- Step 11: ERROR/CRITICAL 로그 자동 검사 (Issue50) ---
+echo ""
+echo "=== Step 11: flog.log ERROR/CRITICAL 자동 검사 ==="
+if [ -f "$LOG_FILE" ]; then
+    LOG_ERRORS=$(grep -cE "ERROR|CRITICAL" "$LOG_FILE" 2>/dev/null || echo 0)
+    LOG_LINES=$(wc -l < "$LOG_FILE" | tr -d ' ')
+    echo "로그 파일: ${LOG_LINES}줄, ERROR/CRITICAL: ${LOG_ERRORS}건"
+    if [ "$LOG_ERRORS" -eq 0 ]; then
+        record_result "로그 검사" "PASS" "ERROR/CRITICAL 0건"
+    else
+        record_result "로그 검사" "FAIL" "ERROR/CRITICAL ${LOG_ERRORS}건"
+        echo "--- 최근 에러 로그 5건 ---"
+        grep -E "ERROR|CRITICAL" "$LOG_FILE" | tail -5
+    fi
+else
+    record_result "로그 검사" "FAIL" "$LOG_FILE 없음"
+fi
+
+# --- Step 12: 환경변수 원복 ---
+echo ""
+echo "=== Step 12: 환경변수 원복 (launchctl unsetenv) ==="
 launchctl unsetenv fSnippetCli_config
 echo "fSnippetCli_config 해제"
 
