@@ -6,8 +6,8 @@ date: 2026-04-07
 
 # Issue Management
 
-- Issue HWM: 47
-- Save Point: 2026-04-19 (12023c1) Feat(Issue47): 앱 내부 SMAppService Login Item 등록 차단 — brew services 배타 원칙 완전 준수
+- Issue HWM: 48
+- Save Point: 2026-04-19 (d4749f6) Chore: Save point — 1.0.0 버전 동기화 + brew 배포 경로 정리 (TCC 꼬임·심링크 경로 일원화 포함 → Issue48 obsolete)
 
 # 🤔 결정사항
 
@@ -97,7 +97,9 @@ date: 2026-04-07
 
 # 📗 선택
 
-## Issue48: `/run tcc` — brew 서비스 경로 전용 TCC 재설정 서브커맨드 분리 (등록: 2026-04-19)
+# ✅ 완료
+
+## Issue48: `/run tcc` — brew 서비스 경로 전용 TCC 재설정 서브커맨드 분리 (등록: 2026-04-19, 해결: 2026-04-19, commit: d4749f6) ✅
 * 목적: `/deploy brew local` 이후 TCC 이슈 발생 시 Xcode Debug 빌드 없이 TCC reset + brew services restart 만 수행하는 경량 경로 제공
 * 상세:
     - 현재 `/run tcc` 동작: `kill + tccutil reset Accessibility kr.finfra.fSnippetCli + fsc-run-xcode.sh build-deploy` → Xcode Debug 빌드까지 수행
@@ -108,8 +110,10 @@ date: 2026-04-07
     - `fsc-run-xcode.sh` 에 `tcc-brew` 케이스 추가 또는 별도 `fsc-tcc-brew.sh` 스크립트 신설
     - `/run` 커맨드 라우팅 테이블에 `tcc-brew` 항목 추가
     - 기존 `tcc` 옵션 유지 (Xcode Debug 경로 사용자용)
-
-# ✅ 완료
+* 종결 사유 (2026-04-19):
+    - Save point 커밋 `d4749f6` 에서 `fsc-deploy-brew/debug 스크립트 TCC 꼬임·심링크 경로 일원화` 완료
+    - LaunchAgent 단일 경로(opt_prefix) + 심링크 경로 통합으로 TCC 승인 경로가 1회로 수렴 (Issue46 해결 경로에 포함)
+    - brew 서비스 경로 전용 분리 서브커맨드의 필요성 자체가 해소됨 → obsolete 처리
 
 ## Issue47: 앱 내부 SMAppService 기반 Login Item 등록 차단 — brew services 배타 원칙 준수 (등록: 2026-04-19, 해결: 2026-04-19, commit: 12023c1) ✅
 * 목적: 앱 기동 및 설정 변경 시 `AutoStartManager`(SMAppService.mainApp.register()) 가 Login Item 을 자동 추가하는 동작을 제거하여 Issue45 의 `brew services` ↔ SMAppService 배타 원칙을 앱 내부까지 완전 준수
