@@ -38,7 +38,7 @@ Usage: /deploy brew <sub>       ⚠️ 서브커맨드 필수 — 단독 호출 
 
   sub         설명                                                         상태
   ---------   -----------------------------------------------------------  -----
-  local       Release 빌드 → 로컬 tap 재설치 + 심링크 + (옵트인 Login Item) + 앱 실행 (9단계)  ✅
+  local       Release 빌드 → 로컬 tap 재설치 + 심링크 + (옵트인 brew services) + 앱 실행 (9단계)  ✅
   publish     원격 finfra/homebrew-tap 저장소에 Formula 반영 + push        🚧 TODO
   status      brew 설치·tap·프로세스·REST API 상태 조회                    ✅
   uninstall   brew uninstall + 로컬 tap Formula 파일 정리                  ✅
@@ -181,13 +181,23 @@ class Fsnippetcli < Formula
     prefix.install Dir["build/Release/fSnippetCli.app"]
   end
 
+  service do
+    run [opt_prefix/"fSnippetCli.app/Contents/MacOS/fSnippetCli"]
+    keep_alive true
+    log_path var/"log/fsnippetcli.log"
+    error_log_path var/"log/fsnippetcli.err.log"
+    process_type :interactive
+  end
+
   def caveats
     <<~EOS
       fSnippetCli는 접근성(Accessibility) 권한이 필요합니다.
 
-      설치 후 다음 단계를 수행하세요:
-        1. 시스템 설정 > 개인정보 보호 및 보안 > 접근성
-        2. fSnippetCli.app 항목에 체크
+      설치 후 자동 시작 등록:
+        brew services start finfra/tap/fsnippetcli
+
+      권한 승인:
+        시스템 설정 > 개인정보 보호 및 보안 > 접근성 > fSnippetCli 체크
 
       TCC 권한이 꼬이면 Xcode Debug 경로로 재설정: /run tcc
     EOS
@@ -240,28 +250,25 @@ FORMULA
         fi
     fi
 
-    # Step 8: Login Item 자동 재등록 (FSC_AUTOSTART=1 옵트인 — Issue44)
-    # register는 항상 강제 재등록(unregister → register)하므로 Homebrew 버전 갱신 시 stale 방지
+    # Step 8: brew services 자동 등록 (FSC_AUTOSTART=1 옵트인 — Issue45)
+    # Formula의 service do 블록을 LaunchAgent plist로 변환 + load
     echo ""
-    echo "=== Step 8: Login Item 자동 재등록 (옵트인) ==="
+    echo "=== Step 8: brew services 자동 시작 등록 (옵트인) ==="
     if [ "${FSC_AUTOSTART:-0}" = "1" ]; then
-        if [ -d "$STABLE_APP" ] || [ -L "$STABLE_APP" ]; then
-            bash "$SCRIPT_DIR/fsc-loginitem.sh" register
-            local LI_STATUS=$?
-            if [ "$LI_STATUS" -eq 0 ]; then
-                record_result "Login Item" "PASS" "재등록 완료 (현재 Cellar 버전으로 갱신)"
-            else
-                record_result "Login Item" "FAIL" "재등록 실패 (exit=$LI_STATUS)"
-            fi
+        # 기존 서비스 중지 (idempotent — 미시작 상태에서도 무해)
+        brew services stop fsnippetcli 2>/dev/null || true
+        brew services start finfra/tap/fsnippetcli 2>&1 | tail -3
+        local SVC_STATUS=${PIPESTATUS[0]}
+        if [ "$SVC_STATUS" -eq 0 ]; then
+            record_result "brew services start" "PASS" "finfra/tap/fsnippetcli"
         else
-            record_result "Login Item" "FAIL" "심링크 미생성으로 skip"
+            record_result "brew services start" "FAIL" "exit=$SVC_STATUS"
         fi
     else
         echo "ℹ️  FSC_AUTOSTART 미설정 — 로그인 시 자동 기동을 원하면:"
         echo "    FSC_AUTOSTART=1 /deploy brew local"
-        echo "   또는 개별 등록: bash cli/_tool/fsc-loginitem.sh register"
-        echo "   (register는 강제 재등록이므로 Homebrew 업그레이드 후에도 안전)"
-        record_result "Login Item" "PASS" "skip (FSC_AUTOSTART 미설정)"
+        echo "   또는 개별 등록: brew services start finfra/tap/fsnippetcli"
+        record_result "brew services" "PASS" "skip (FSC_AUTOSTART 미설정)"
     fi
 
     # Step 9: REST API 헬스 체크
@@ -359,9 +366,19 @@ cmd_status() {
     fi
     echo ""
 
-    # Issue44: Login Item 상태
-    echo "── Login Item ──"
-    bash "$SCRIPT_DIR/fsc-loginitem.sh" status | sed 's/^/  /' | tail -n +5
+    # Issue45: brew services 상태
+    echo "── brew services ──"
+    local svc_info
+    svc_info=$(brew services info fsnippetcli 2>&1)
+    if echo "$svc_info" | grep -q "Loaded: true"; then
+        echo "✅ LaunchAgent 등록됨"
+        echo "$svc_info" | grep -E "^(fsnippetcli|Running|Loaded|Schedulable|File|User):" | sed 's/^/  /'
+    elif brew list fsnippetcli &>/dev/null; then
+        echo "ℹ️  설치됐으나 brew services 미등록"
+        echo "   등록: brew services start finfra/tap/fsnippetcli"
+    else
+        echo "❌ 미설치"
+    fi
     echo ""
 
     echo "── 프로세스 ──"
@@ -391,18 +408,19 @@ cmd_uninstall() {
     echo "║  fSnippetCli Brew Uninstall              ║"
     echo "╚══════════════════════════════════════════╝"
 
-    # 프로세스 종료
+    # Issue45: brew services 선행 중지 (launchd 경로)
+    echo "── brew services stop (선행)"
+    brew services stop fsnippetcli 2>/dev/null || true
+    sleep 0.3
+
+    # 프로세스 종료 (services stop 실패 대비)
     if pgrep -f "MacOS/fSnippetCli" > /dev/null 2>&1; then
         echo "── 프로세스 종료"
         pkill -f "MacOS/fSnippetCli" 2>/dev/null || true
         sleep 0.3
     fi
 
-    # Issue44: Login Item 자동 해제 (등록된 경우만)
-    echo "── Login Item 자동 해제"
-    bash "$SCRIPT_DIR/fsc-loginitem.sh" unregister || true
-
-    # Issue44: /Applications/_nowage_app 심링크 제거
+    # Issue44 (obsolete): /Applications/_nowage_app 심링크 제거 (§7-4 심링크 전략은 유지, 파일만 정리)
     local STABLE_APP="/Applications/_nowage_app/fSnippetCli.app"
     if [ -L "$STABLE_APP" ] || [ -e "$STABLE_APP" ]; then
         echo "── 심링크 제거"

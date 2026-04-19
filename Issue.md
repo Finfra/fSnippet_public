@@ -6,8 +6,8 @@ date: 2026-04-07
 
 # Issue Management
 
-- Issue HWM: 44
-- Save Point: 2026-04-19 (353e8fe) Fix(Issue42): Accessibility 권한 UX 개선 (pairApp 패턴 이식)
+- Issue HWM: 45
+- Save Point: 2026-04-19 (1d01e68) Feat(Issue43,44): /deploy brew 서브커맨드 확장 + Login Item 자동 등록 — 단, Issue44는 설계 번복(→ Issue45)으로 obsolete
 
 # 🤔 결정사항
 
@@ -19,60 +19,65 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue44: Login Item 자동 등록 — brew 설치 앱 로그인 시 자동 기동 (등록: 2026-04-19)
-* 목적: `/deploy brew local`로 설치된 `fSnippetCli.app`을 사용자 로그인 시 자동으로 기동하도록 Login Item(`System Events` → `make login item`)에 등록하는 표준 경로 제공
+## Issue45: `brew services` 경로 재도입 — 오픈소스 배포 표준 자동 시작 (등록: 2026-04-19)
+* 목적: 오픈소스 배포 관점에서 사용자가 기대하는 표준 인터페이스 `brew services start/stop/info` 로 fSnippetCli 자동 기동을 관리 가능하도록 Formula `service do` 블록 재도입
 * 배경:
-    - `fSnippetCli`는 메뉴바 GUI 앱(LSUIElement) — `brew services`(launchd daemon) 경로는 GUI 세션 컨텍스트 부족·TCC 주체 꼬임으로 부적합
-    - Issue18에서 Formula `service do` 블록 제거 + AutoStartManager(SMAppService) 전담 결정 (commit: 7879ac2)
-    - 하지만 SMAppService는 **앱 내부 호출 경로** — Homebrew 설치 직후 배포 CLI에서 외부적으로 자동 시작을 보장하려면 외부 등록 수단 필요
-    - `brew services start fsnippet` 사용자 기대 경로가 현재 실패함(Formula명 불일치 + `service do` 블록 없음) → 대안으로 Login Item 안내 필요
-* 설계 근거: `~/_doc/3.Resource/_ICT/_OS/MacOS/homebrew_tap_deploy.md` §7-4 "심링크 전략" + §7-5-B "Login Item 경로" (본 이슈에서 신설·확장)
-* 🚨 구현 중 발견 (설계 변경 핵심): **AppleScript 심링크 자동 resolve 이슈**
-    - `System Events`의 `make login item with properties {path:"..."}` 는 내부적으로 **alias(FSRef/bookmark)** 로 저장
-    - path에 심링크(`/Applications/_nowage_app/fSnippetCli.app`)를 넘겨도 **자동 resolve 후 실제 번들 inode 기반으로 저장** — 저장값은 항상 `/opt/homebrew/Cellar/<formula>/<version>/<App>.app`
-    - 즉 §7-4의 `/Applications/_nowage_app` 심링크 전략은 **Login Item에는 통하지 않음** — Homebrew 버전 폴더(`<version>`) 변경 시 stale 발생
-    - **해결 전략 변경**: stale을 원천 차단하는 대신 **재등록을 일상화** — `register`를 항상 강제 재등록(unregister → register) 패턴으로 구현하여 `/deploy brew local` 재실행만으로 최신 Cellar 경로로 자동 갱신
+    - 과거 Issue4(2026-04-08, commit 92c01c2)에서 `brew services` 경로 구축 → 정상 동작 검증 완료
+    - Issue18(2026-04-08, commit 7879ac2)에서 `service do` 블록 제거 + SMAppService 전담 결정
+    - Issue44(2026-04-19, commit 1d01e68)에서 Login Item(osascript) 경로 구축 — obsolete
+    - 🔄 설계 번복: 오픈소스 배포 시 사용자 기대치는 `brew services` 가 표준. Login Item은 osascript 접근 권한 의존 + 외부 에이전트 도구로 비가시적 → 배포 친화적이지 않음
+    - Issue44의 Login Item 인프라 전면 폐기 후 `brew services` 일원화
+* 설계 근거: `~/_doc/3.Resource/_ICT/_OS/MacOS/homebrew_tap_deploy.md` §7-5-A "`brew services` 경로 (LaunchAgent)"
 * 구현 명세:
-    - 신규 스크립트 `cli/_tool/fsc-loginitem.sh` (283줄): `register` / `unregister` / `status` 3-서브커맨드
-        - `register`: **강제 재등록** — 기존 등록 있으면 `whose name is` 일괄 제거 후 신규 등록 (Homebrew 버전 갱신 자동 반영)
-        - `unregister`: `every login item whose name is ...` whose절 일괄 제거 (중복 등록 잔재 정리 포함)
-        - `status`: 현재 등록 조회 + **stale 탐지** (missing value · Cellar 경로와 `brew --prefix` 버전 불일치)
-    - `fsc-deploy-brew.sh` 통합:
-        - `cmd_local` Step 7: `/Applications/_nowage_app/fSnippetCli.app` 심링크 생성 (사용자 접근 편의용, Login Item에는 resolve되어 저장됨)
-        - `cmd_local` Step 8 (신규): `FSC_AUTOSTART=1` 환경변수 설정 시 `fsc-loginitem.sh register` 호출 (강제 재등록). 기본값은 안내만 출력
-        - `cmd_local` Step 9: REST API 헬스 체크 (기존 Step 8에서 이동)
-        - `cmd_uninstall`: `fsc-loginitem.sh unregister` 자동 호출 + `/Applications/_nowage_app/fSnippetCli.app` 심링크 제거
-        - `cmd_status`: 심링크 섹션 + Login Item 섹션 신설 (stale 경고 포함)
-    - `.claude/commands/deploy.md`: 🚀 자동 시작 안내 블록 추가, `local` 행 "9단계" 표기
+    - `cli/Formula/fsnippetcli.rb` **복원** (원격 배포 publish용, GitHub URL + SHA256 placeholder) + `service do` 블록 포함
+        ```ruby
+        service do
+          run [opt_prefix/"fSnippetCli.app/Contents/MacOS/fSnippetCli"]
+          keep_alive true
+          log_path var/"log/fsnippetcli.log"
+          error_log_path var/"log/fsnippetcli.err.log"
+          process_type :interactive   # GUI 세션 접근 허용 (LSUIElement 메뉴바 렌더링)
+        end
+        ```
+    - `fsc-deploy-brew.sh` Step 5 로컬 tap Formula heredoc도 동일 `service do` 블록 포함
+    - `fsc-deploy-brew.sh` 재구성:
+        - Step 8: Login Item 등록 → `brew services start finfra/tap/fsnippetcli` (FSC_AUTOSTART=1 옵트인 유지)
+        - `cmd_uninstall`: `fsc-loginitem.sh unregister` → `brew services stop` 선행 호출
+        - `cmd_status`: Login Item 섹션 → `brew services info` 섹션
+    - **Login Item 인프라 완전 제거**:
+        - `cli/_tool/fsc-loginitem.sh` 삭제 (배타 원칙 — 두 경로 병행 금지)
+        - `fsc-deploy-brew.sh` 내 Login Item 관련 코드 제거
+        - `/Applications/_nowage_app` 심링크는 유지 — `brew services`와 무관한 개발자 편의
+    - `.claude/commands/deploy.md` 갱신: Login Item 안내 → `brew services start` 안내
 * 설계 원칙:
-    - **AutoStartManager(SMAppService)** 와 **Login Item(osascript)** 는 **배타적** 선택 — 동시 등록 금지(중복 기동)
-    - Homebrew 배포본은 Login Item, App Store/서명 배포본은 SMAppService 권장
-    - ❌ 안티패턴: `if not (exists login item) then make ...` — "이미 있으면 스킵"은 Cellar 버전 갱신 반영 불가
-    - ❌ 안티패턴: `delete login item "name"` 단건 지정 — 중복 등록 시 1건씩만 삭제됨
-    - ✅ 올바른 패턴: `whose name is "..."` whose절 + 역순 repeat 일괄 삭제
-    - 암묵적 시스템 변경 금지 (옵트인만) — `FSC_AUTOSTART=1` 미설정 시 안내만
+    - **`brew services`와 SMAppService는 배타적** — 동시 등록 금지 (LaunchAgent + 앱 내부 자동 시작 중복)
+    - Homebrew 배포본 표준: `brew services`
+    - App Store/서명 배포본: SMAppService
+    - Login Item 경로 폐기: 오픈소스 CLI 배포에서 osascript 의존은 배포 친화적이지 않음 + 배타 원칙에 따라 `brew services`와 병행 불가
 * 검증:
-    - [x] `fsc-loginitem.sh register` 실행 후 시스템 설정 → 일반 → 로그인 항목에 `fSnippetCli` 표시 (스크린샷 확인)
-    - [x] `fsc-loginitem.sh status` → 등록 여부 + 실제 경로 + stale 탐지 출력
-    - [x] `fsc-loginitem.sh unregister` → 항목 제거 (중복 3건 일괄 정리 확인)
-    - [x] `register` 강제 재등록 — 기존 있으면 제거 후 재등록 (Cellar 버전 갱신)
-    - [ ] `FSC_AUTOSTART=1 /deploy brew local` → Step 8에서 자동 등록 로그 출력 (옵트인 플래그 직접 사용 미검증)
-    - [x] `/deploy brew local` (env 없음) → Step 8 등록 안내만 출력 (9 PASS / 0 FAIL)
-    - [ ] `/deploy brew uninstall` → Login Item 자동 해제 + 심링크 제거 (파괴적이라 미실행)
-    - [x] `/deploy brew status` → 심링크 + Login Item 섹션 노출
-    - [ ] 로그아웃 → 재로그인 시 fSnippetCli 자동 기동 + 메뉴바 아이콘 표시 (사용자 로그아웃 필요)
-    - [x] `brew services list` 에 `fsnippetcli` **미표시** — 의도된 정상 동작 (Formula `service do` 블록 없음)
-    - [x] Accessibility 권한 부여 상태에서 REST 3015 즉시 응답 (uptime_seconds=0, snippet_count=1954)
+    - [ ] `cli/Formula/fsnippetcli.rb` 복원 + `service do` 블록 존재
+    - [ ] `fsc-deploy-brew.sh` Step 5 로컬 Formula에 `service do` 블록 포함
+    - [ ] `/deploy brew local` 실행 시 Step 1~9 전부 PASS
+    - [ ] `brew services list` 에 `fsnippetcli` 표시됨
+    - [ ] `brew services start finfra/tap/fsnippetcli` → 정상 기동
+    - [ ] 메뉴바에 bolt 아이콘 표시 (LSUIElement + LaunchAgent 호환성 확인)
+    - [ ] CGEventTap 정상 동작 (Accessibility TCC 승인 후)
+    - [ ] REST 3015 응답
+    - [ ] `brew services info fsnippetcli` → started 상태 조회
+    - [ ] `brew services stop fsnippetcli` → 정상 중지
+    - [ ] `/deploy brew uninstall` → `brew services stop` 선행 호출 확인
+    - [ ] 로그아웃 → 재로그인 시 자동 기동 (LaunchAgent KeepAlive 효과)
+    - [ ] `cli/_tool/fsc-loginitem.sh` 삭제 확인
 * 관련 파일:
-    - `cli/_tool/fsc-loginitem.sh` (신규, 283줄)
-    - `cli/_tool/fsc-deploy-brew.sh` (Step 7/8/9 재구성, cmd_uninstall/cmd_status 통합)
-    - `.claude/commands/deploy.md` (9단계 표기 + 자동 시작 안내)
-    - `~/_doc/3.Resource/_ICT/_OS/MacOS/homebrew_tap_deploy.md` §7-4 심링크 전략 + §7-5-B Login Item 경로
-    - `cli/fSnippetCli/Managers/AutoStartManager.swift` (SMAppService, 참조·배타 관계만)
+    - `cli/Formula/fsnippetcli.rb` (복원, `service do` 블록 포함)
+    - `cli/_tool/fsc-deploy-brew.sh` (Step 5/8 재구성, cmd_uninstall/cmd_status 변경)
+    - `cli/_tool/fsc-loginitem.sh` (삭제)
+    - `.claude/commands/deploy.md` (brew services 안내로 재작성)
+    - `~/_doc/3.Resource/_ICT/_OS/MacOS/homebrew_tap_deploy.md` §7-5 결정 트리 수정 (fSnippetCli를 §7-5-A 사례로 이동)
 
 ## Issue43: /deploy brew 서브커맨드 확장 (local/publish/status/uninstall + TCC 안내) (등록: 2026-04-19)
 * 목적: `/deploy brew` 단독 호출 금지, 4개 서브커맨드로 분기하고 brew 설치 후 TCC 권한 꼬임 가능성을 `/run tcc` 안내로 유도
-* 선수: **Issue44 (Login Item 자동 등록)** — `brew local` 완료 후 사용자 로그인 시 자동 기동 흐름이 완성되려면 Issue44 구현이 필요
+* 선수: **Issue45 (`brew services` 경로 재도입)** — `brew local` 완료 후 사용자 로그인 시 자동 기동 흐름이 완성되려면 Issue45 구현이 필요 (과거 Issue44 Login Item 경로는 설계 번복으로 obsolete)
 * 배경:
     - 현재 `/deploy brew`는 로컬 tap 재설치만 수행 — 원격 tap 반영/상태 조회/정리 기능이 섞여 있지 않아 확장성 부족
     - brew 재설치 후 새 서명 바이너리로 TCC Accessibility 권한이 꼬여 키 감지 실패 가능 (이번 세션 실측)
@@ -650,5 +655,25 @@ date: 2026-04-07
 # ⏸️ 보류
 
 # 🚫 취소
+
+## Issue44: Login Item 자동 등록 (obsolete — Issue45 `brew services` 경로로 대체) (등록: 2026-04-19, 취소: 2026-04-19, commit: 1d01e68 → 후속 커밋에서 산출물 삭제)
+* 취소 사유: 오픈소스 배포 관점에서 사용자 표준 인터페이스는 `brew services start/stop/info`. Login Item(osascript) 경로는:
+    - 외부 에이전트 도구로 비가시적 (배포 Formula만 읽어서는 자동 시작 흐름 이해 불가)
+    - osascript → `System Events` 자동화 권한 요구 (TCC Automation 별도 승인)
+    - `brew services`와 **배타적** (§7-5-C) — 오픈소스 배포 표준을 우선하므로 Login Item 폐기
+* 완성되었던 산출물 (커밋 1d01e68에 포함, Issue45 구현 커밋에서 삭제):
+    - `cli/_tool/fsc-loginitem.sh` (283줄, register/unregister/status + 강제 재등록 + stale 탐지) — **삭제 예정**
+    - `fsc-deploy-brew.sh` Step 8: `FSC_AUTOSTART=1` 옵트인 Login Item 등록 → Issue45에서 `brew services start` 로 대체
+    - `fsc-deploy-brew.sh` cmd_uninstall의 Login Item 자동 해제 훅 → Issue45에서 `brew services stop` 으로 대체
+    - `fsc-deploy-brew.sh` cmd_status의 Login Item 섹션 → Issue45에서 `brew services info` 로 대체
+* 유지된 부분 (Login Item과 무관한 개발 편의 인프라):
+    - `/Applications/_nowage_app/fSnippetCli.app` 심링크 전략 (§7-4) — `brew services` 경로와 병행 호환
+    - Step 7의 심링크 생성 로직
+* 기술적 발견 (재활용 가능 지식):
+    - AppleScript `System Events` + `make login item` 은 심링크를 자동 resolve하여 bundle alias(FSRef)로 저장
+    - Homebrew Cellar 버전 폴더 경로가 Login Item에 inode-bound → 업그레이드 시 stale alias 발생
+    - 해결 전략: register를 항상 강제 재등록(unregister → register) 패턴으로 구현 — 일반 Login Item 자동화 시 참고 가능
+    - whose절 + 역순 repeat 일괄 삭제 패턴 (중복 등록 잔재 정리)
+* 원본 이슈 기록 참조: Issue.md 1d01e68 커밋 버전 (git history)
 
 # 📜 참고
