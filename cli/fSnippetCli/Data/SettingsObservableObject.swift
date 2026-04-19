@@ -30,14 +30,9 @@ class SettingsObservableObject: ObservableObject {
     // 저장 중인지 여부 (Issue: Infinite Loop 방지)
     private var isSaving = false
     // 추가 UI 전용 설정들
-    @Published var autoStart: Bool = false {
-        didSet {
-            // 로직 적용 (초기화 중이 아닐 때만 실행)
-            if !isInitializing {
-                AutoStartManager.shared.setAutoStart(autoStart)
-            }
-        }
-    }
+    // Issue47 (2026-04-19): SMAppService 경로 obsolete — brew services 배타 원칙 준수.
+    // prefs/API backward compat 용으로 값 자체는 저장/반환되나, 실제 Login Item 등록은 하지 않음.
+    @Published var autoStart: Bool = false
     @Published var hideFromMenuBar: Bool = false {
         didSet {
             // 로직 적용 (초기화 중이 아닐 때만 실행)
@@ -312,8 +307,8 @@ class SettingsObservableObject: ObservableObject {
         // 0. Appearance Mode 적용 (Issue 386)
         AppAppearance.shared.apply(appearanceMode)
 
-        // 1. AutoStart 설정 적용
-        AutoStartManager.shared.setAutoStart(autoStart)
+        // 1. AutoStart: Issue47 (2026-04-19) — SMAppService 경로 obsolete.
+        //    자동 기동은 `brew services start fsnippet-cli` 사용.
 
         // 2. Logger 설정 적용
         PerformanceLogger.shared.setEnabled(performanceMonitoring)
@@ -869,8 +864,8 @@ class SettingsObservableObject: ObservableObject {
                 modifierFlags: 0, keyCode: 0, displayString: "Click to Add...")
         }
 
-        // 초기 상태 적용
-        AutoStartManager.shared.setAutoStart(autoStart)
+        // 초기 상태 적용 — AutoStart: Issue47 (2026-04-19) SMAppService 경로 obsolete,
+        // `brew services` 로 일원화. 별도 등록 호출 없음.
     }
 
     private func loadLogLevel() {

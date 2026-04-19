@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-- Issue HWM: 46
+- Issue HWM: 47
 - Save Point: 2026-04-19 (5294c6b) Chore(Issue45): Formula 명명 fsnippetcli → fsnippet-cli 복원 (Issue43/45 완료, Issue44 obsolete)
 
 # 🤔 결정사항
@@ -16,10 +16,62 @@ date: 2026-04-07
     - Paid 앱의 기능이 모듈로 구성되어 있는지 확인
 
 
-
 # 🚧 진행중
 
 # 📕 중요
+
+## Issue47: 앱 내부 SMAppService 기반 Login Item 등록 차단 — brew services 배타 원칙 준수 (등록: 2026-04-19)
+* 목적: 앱 기동 및 설정 변경 시 `AutoStartManager`(SMAppService.mainApp.register()) 가 Login Item 을 자동 추가하는 동작을 제거하여 Issue45 의 `brew services` ↔ SMAppService 배타 원칙을 앱 내부까지 완전 준수
+* 배경:
+    - Issue44(commit 1d01e68) — `fsc-deploy-brew.sh` 의 osascript 기반 Login Item 등록 인프라 구축
+    - Issue45(commit 2418363) — 오픈소스 배포 표준 `brew services` 경로 재도입 + Login Item osascript 인프라 전면 제거
+    - Issue45 구현 명세에 **"`brew services` 와 SMAppService 는 배타적 — 동시 등록 금지"** 명문화
+    - 그러나 Issue45 커밋 범위는 **배포 스크립트 레벨**에만 적용됨 → 앱 내부 `AutoStartManager` (SMAppService 기반) 는 잔존
+    - 사용자 실측(2026-04-19): brew services 기반으로 설치 후에도 시스템 설정 > 로그인 항목에 fSnippetCli 가 자동 추가되는 현상 관찰 → 이슈후보 2번으로 등록됨
+* 원인 분석:
+    - **원인 1 — `AutoStartManager.setAutoStart(true)` 호출**: `cli/fSnippetCli/Managers/AutoStartManager.swift` 가 `SMAppService.mainApp.register()` 호출 → macOS 가 "Login Item Added" 시스템 알림 표시 + 로그인 항목 목록에 추가
+    - **원인 2 — SettingsObservableObject 진입점 3곳**: `applyInitialSettings()`, 프로퍼티 `didSet`, `init()` 말미 모두 `AutoStartManager.shared.setAutoStart(autoStart)` 호출 → autoStart 가 `true` 이면 기동 시마다 재등록
+    - **원인 3 — legacy 기본값 누적**: `start_at_login` prefs 에 `true` 가 한 번이라도 기록된 사용자는 Issue45 배포 후에도 앱 내부에서 자동 재등록됨
+    - **구조적 배경**: Issue44 이전에는 앱 내부 `AutoStartManager` 와 배포 스크립트 Login Item 이 동일 목적(로그인 시 자동 기동)을 이중 관리함. Issue45 에서 배포 스크립트 경로만 제거 → 앱 내부 경로는 배타 원칙 위배 상태로 방치
+* 설계 근거: `~/_doc/3.Resource/_ICT/_OS/MacOS/homebrew_tap_deploy.md` §7-5-C "배타 원칙"
+    - LaunchAgent(brew services) 와 SMAppService 는 **동일 바이너리 이중 등록** 형태가 되어 launchd 가 예측 불가능한 타이밍으로 프로세스 2회 기동 시도
+    - 오픈소스 배포 표준은 `brew services` 이므로 SMAppService 경로는 제거가 원칙
+* 해결 전략:
+    - **전략 A (no-op + 유지)**: `AutoStartManager.setAutoStart()` 내부를 no-op 로 변경 + `SettingsObservableObject` 호출부 제거. API v2 `launchAtLogin` / `start_at_login` prefs 는 backward compat 유지 (읽기/쓰기는 prefs 값만 단순 저장, 실 등록은 안 함)
+    - **전략 B (전면 제거)**: `AutoStartManager.swift` 파일 삭제 + pbxproj 정리 + 호출부 제거
+    - **채택**: 전략 A (최소 침습 + backward compat + 이력 보존). 전략 B 는 pbxproj 편집 리스크 있음
+* 구현 명세:
+    - `cli/fSnippetCli/Managers/AutoStartManager.swift`:
+        - `setAutoStart(_:)` 내부 SMAppService 호출 전부 제거 → no-op + 경고 로그 "Issue47: brew services 배타 원칙, SMAppService 경로 obsolete"
+        - `isAutoStartEnabled()` 는 `false` 고정 반환 (prefs 와 분리)
+        - 파일 상단에 obsolete 주석 추가
+    - `cli/fSnippetCli/Data/SettingsObservableObject.swift`:
+        - L37 `didSet` 내 `AutoStartManager.shared.setAutoStart(autoStart)` 호출 제거
+        - L316 `applyInitialSettings()` 내 호출 제거
+        - L873 `init()` 말미 호출 제거
+        - `autoStart` 프로퍼티 자체는 유지 (API v2 backward compat + legacy prefs 마이그레이션)
+    - `start_at_login` prefs 키 및 API v2 `launchAtLogin` 필드는 유지 (backward compat) 하되 설정값 변경해도 실제 Login Item 등록/해제 안 됨
+* 설계 원칙:
+    - **배타 원칙 완전 이행**: 앱 내부까지 `brew services` 일원화
+    - **최소 침습**: API/SettingsModel 시그니처 변경 없음 → v2 클라이언트 호환
+    - **이력 보존**: AutoStartManager 파일 유지 + obsolete 사유 주석
+* 검증:
+    - [ ] Release 빌드 성공
+    - [ ] `/deploy brew local` 재설치 후 `brew services start fsnippet-cli` 기동
+    - [ ] 시스템 설정 > 일반 > 로그인 항목에 **fSnippetCli 가 추가되지 않음** 확인 (기존 항목은 사용자가 수동 제거)
+    - [ ] macOS "Login Item Added" 시스템 알림 미노출 확인
+    - [ ] API `GET /api/v2/settings` 응답에 `launchAtLogin` 필드 존재 (backward compat)
+    - [ ] API `PUT /api/v2/settings` 로 `launchAtLogin=true` 설정 후에도 실제 등록 안 됨 (silent no-op)
+* 관련 파일:
+    - `cli/fSnippetCli/Managers/AutoStartManager.swift` (no-op + 이력 주석)
+    - `cli/fSnippetCli/Data/SettingsObservableObject.swift` (호출부 3곳 제거)
+    - `cli/fSnippetCli/Managers/APIRouter.swift` (수정 없음, 참고)
+    - `cli/fSnippetCli/Data/APIModels.swift` (수정 없음, 참고)
+* 참조:
+    - Issue44 (Login Item osascript 경로 — obsolete)
+    - Issue45 (brew services 재도입 + 배타 원칙 선언)
+    - Issue46 (brew services launchd keep_alive 조정)
+    - homebrew_tap_deploy.md §7-5-C 배타 원칙
 
 ## Issue46: `brew services` 기동 시 메뉴바 "종료"로 앱 제거 불가 — launchd keep_alive 무조건 재시작 (등록: 2026-04-19)
 * 목적: `brew services start fsnippet-cli` 로 기동된 상태에서 메뉴바 "종료"를 눌러도 launchd가 프로세스를 즉시 재기동하여 앱을 종료할 수 없는 문제를 해결. 메뉴바 "종료" = 서비스 완전 중지, 앱 재실행 = 서비스 재개의 UX를 확립
