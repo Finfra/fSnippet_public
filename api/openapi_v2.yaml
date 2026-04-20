@@ -914,7 +914,8 @@ paths:
       summary: paidApp 시작 등록
       description: |
         paidApp(fSnippet GUI) 기동 시 메타데이터를 cliApp에 등록하는 2차 채널.
-        NSWorkspace(1차 채널)와 독립적이며 pid/bundlePath/sessionId/version/startTime을 전달.
+        NSWorkspace(1차 채널)와 독립적이며 pid/bundlePath/sessionId/version을 전달.
+        `startTime`은 선택 필드 — 누락 시 0으로 처리 (Issue54: 위조 PID 검증 경로 보장).
 
         **3단계 발신자 검증**:
         1. `pid` 존재 여부 (kill -0)
@@ -972,6 +973,7 @@ paths:
                 type: object
                 properties:
                   ok: { type: boolean, example: true }
+        '400': { $ref: '#/components/responses/BadRequest' }
         '404':
           description: 해당 sessionId 미등록
           content:

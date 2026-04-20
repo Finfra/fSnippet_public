@@ -1,7 +1,7 @@
 ---
 name: paidApp_version
 description: cliApp에서 paidApp 인식·실행·차단 설계 및 구현 현황 (cliApp 측 SSOT)
-date: 2026-04-08
+date: 2026-04-20
 ---
 
 # 개요
@@ -15,7 +15,7 @@ paidApp이 설치되어 있으면 자동 실행하고 메뉴바를 숨기며, pa
 
 > **상위 설계 문서**: 본 문서는 cliApp 측 구현 세부 SSOT. 2-앱 협업 아키텍처 전반(6대 시나리오, 역할 분담, Status 표)은 메인 레포의 [`../../../_doc_design/fSnippetCli_design.md`](../../../_doc_design/fSnippetCli_design.md) 참조. 특히 §3.1(설치 감지 공통 API)은 본 문서 1.1~1.4절을 상위 관점에서 요약하고 있으므로 상호 참조.
 >
-> **정합성 공지 (2026-04-18)**: 본 문서 6/7/8.1절은 현재 Issue821(`showMenuBar` 토글·양쪽 메뉴바 모델) 기준으로 작성되어 있음. 상위 문서 Status 표의 "목표" 열이 적용될 경우(Issue825) 본 문서 해당 절은 Issue824에서 전면 개정 예정.
+> **갱신 이력 (2026-04-20)**: Issue826 Phase A (paidApp 라이프사이클 REST) + Issue828 Phase C (showMenuBar 제거 → 메뉴바 상시 표시 + 동적 아이콘) 반영 완료. 이전 `showMenuBar` 토글 설계는 삭제됨.
 
 # 기능 명세 (cliApp vs paidApp)
 
@@ -119,38 +119,65 @@ NSWorkspace.shared.runningApplications.contains { $0.bundleIdentifier == "kr.fin
 ```
 cliApp 시작
 │
-├─ PaidAppManager.isRunning() == true
-│  └─ 메뉴바 아이콘 숨김 (즉시)
-│
 ├─ PaidAppManager.isInstalled() == true && isRunning() == false
-│  └─ launchPaidApp() 호출 → 성공 시 메뉴바 숨김
+│  └─ launchPaidApp() 호출
+│     └─ NSWorkspace didLaunch 감지 → paidAppStateChanged(isRunning: true)
 │
-└─ 둘 다 false
-   └─ 메뉴바 아이콘 표시 (독립 모드)
+└─ PaidAppManager.isInstalled() == false
+   └─ 메뉴바 아이콘 diagonal cut bolt 유지 (독립 모드)
 ```
 
-## 핵심 원칙
+## 핵심 원칙 (Issue828 Phase C 이후)
 
+* **메뉴바 상시 표시**: `MenuBarExtra(isInserted:)` 바인딩 제거 — 메뉴바는 항상 표시됨
+* **아이콘으로 상태 표현**: paidApp 실행 여부를 메뉴바 아이콘 형태로 구분 (§6 참조)
 * **REST 서버는 항상 유지**: paidApp 실행 여부와 무관하게 `localhost:3015` REST API 활성화
-* **메뉴바만 숨김**: `AppState.shared.showMenuBar` 플래그로 `MenuBarExtra(isInserted:)` 제어
 * **앱 프로세스는 유지**: `NSApplication.terminate()` 호출하지 않음 — 키 모니터링/텍스트 대체 엔진은 계속 동작
 
 # 3. paidApp 실행/종료 실시간 감시
 
-`setupPaidAppMonitoring()` (fSnippetCliApp.swift):
+2채널(NSWorkspace + REST)로 paidApp 상태를 감시하여 메뉴바 아이콘을 동적 전환함.
+
+## 3.1 1채널 — NSWorkspace 감지 (`setupPaidAppMonitoring()`)
 
 ```
 NSWorkspace.didLaunchApplicationNotification
 └─ bundleIdentifier == "kr.finfra.fSnippet"
-   └─ AppState.shared.showMenuBar = false (메뉴바 숨김)
+   └─ paidAppStateChanged(isRunning: true) 발행 (즉시 아이콘 전환)
 
 NSWorkspace.didTerminateApplicationNotification
 └─ bundleIdentifier == "kr.finfra.fSnippet"
-   └─ AppState.shared.showMenuBar = true (메뉴바 복원)
+   └─ PaidAppStateStore.markStaleFromWorkspace(pid:)
+      └─ paidAppStateChanged(isRunning: false) 발행
 ```
 
-* paidApp 실행 → cliApp 메뉴바 숨김 (paidApp이 UI를 전담)
-* paidApp 종료 → cliApp 메뉴바 복원 (독립 모드로 전환)
+* 실행 감지 시 **즉시** Notification 발행 — REST register API 도착 전 선행 아이콘 전환
+* 종료 감지 시 `PaidAppStateStore` stale 처리 → Store가 Notification 발행
+
+## 3.2 2채널 — REST 라이프사이클 (`PaidAppStateStore`)
+
+```
+POST /paidapp/register
+└─ PaidAppStateStore.register() 성공
+   └─ paidAppStateChanged(isRunning: true)
+
+POST /paidapp/unregister
+└─ PaidAppStateStore.unregister() 성공
+   └─ paidAppStateChanged(isRunning: false)
+```
+
+* 3단계 발신자 검증(pid 존재 + bundleID 일치 + Team ID 일치) 통과 후 등록
+* 1채널(NSWorkspace)과 직교 운영 — 어느 채널이든 먼저 도달하면 아이콘 전환됨
+
+## 3.3 Notification 브리지 패턴
+
+```
+PaidAppStateStore (serial queue)
+└─ DispatchQueue.main.async → NotificationCenter.paidAppStateChanged
+   └─ PaidAppIconState (@ObservableObject)
+      └─ @Published isPaidAppRunning 갱신
+         └─ SwiftUI MenuBarExtra label 재렌더링
+```
 
 # 4. paidApp 실행 (`launchPaidApp()`)
 
@@ -211,37 +238,44 @@ handlePaidFeature() 호출
 
 NSAlert는 시스템 모달 다이얼로그이므로 커스텀 위치 조정이 불가능함. 화면 중앙에 자동으로 표시됨.
 
-# 6. 메뉴바 연동
+# 6. 메뉴바 연동 (Issue828 Phase C + Issue826 Phase A)
 
-## 6.1 메뉴바 아이콘 구분
+## 6.1 메뉴바 아이콘 상태 전환
 
-cliApp과 paidApp을 시각적으로 구분하기 위해 아이콘에 대각선 클리핑 적용:
+cliApp 메뉴바는 **항상 표시**되며, paidApp 연결 상태에 따라 아이콘만 변경됨:
+
+| paidApp 상태  | cliApp 아이콘          | 트리거                                  |
+| :------------ | :--------------------- | :-------------------------------------- |
+| 실행 중       | `bolt.fill` (전체)     | NSWorkspace didLaunch 또는 REST register |
+| 미실행        | 아래 30% 수평 클리핑   | NSWorkspace terminate 또는 REST unregister |
 
 * SF Symbol: `bolt.fill`
-* 클리핑: `NSBezierPath`로 아래 30%를 수평 클리핑 (위 70%만 표시)
-* paidApp은 온전한 아이콘, cliApp은 잘린 아이콘으로 구분
+* 미실행 클리핑: `NSBezierPath`로 아래 30%를 수평 클리핑 (위 70%만 표시)
+* `isTemplate = true` → macOS 다크/라이트 모드 자동 대응
 
-## 6.2 MenuBarExtra 바인딩
-
-`AppState.shared.showMenuBar`를 커스텀 Binding으로 연결 (Issue22):
+## 6.2 SwiftUI 구현 (`fSnippetCliApp.swift`)
 
 ```swift
-MenuBarExtra(isInserted: Binding(
-    get: { AppState.shared.showMenuBar },
-    set: { AppState.shared.showMenuBar = $0 }
-))
+// PaidAppIconState: paidAppStateChanged 수신 → @Published 갱신
+private final class PaidAppIconState: ObservableObject {
+    @Published var isPaidAppRunning: Bool
+    // init(): PaidAppStateStore.status() != nil 로 초기값 설정
+    // onStateChanged(): userInfo["isRunning"] → isPaidAppRunning
+}
+
+// fSnippetCliApp: @StateObject로 iconState 보유
+MenuBarExtra { MenuBarView() } label: {
+    Image(nsImage: iconState.isPaidAppRunning
+        ? Self.fullBoltImage()
+        : Self.diagonalCutBoltImage())
+}
 ```
 
-* `@ObservedObject` + `@Published` 직접 바인딩은 MenuBarExtraController KVO와 피드백 루프를 일으킴 → 커스텀 Binding으로 해결
+## 6.3 설계 결정: isInserted 바인딩 제거 (Issue828 Phase C)
 
-## 6.3 상태 전환
-
-| paidApp 상태  | cliApp 메뉴바      | 동작 주체              |
-| :------------ | :----------------- | :--------------------- |
-| 실행 중       | 숨김               | setupPaidAppMonitoring |
-| 설치됨+미실행 | 숨김 (자동 실행 후) | applicationDidFinish   |
-| 미설치        | 표시               | 기본값 (독립 모드)     |
-| 종료 감지     | 복원               | setupPaidAppMonitoring |
+이전 구현(`MenuBarExtra(isInserted: Binding(...))`)은 paidApp 실행 시 메뉴바를 숨겼으나,
+이중 종료 UX(cliApp + paidApp 별도 종료) 문제를 유발함. Issue52에서 paidApp 메뉴바 완전 제거 후
+Issue828에서 cliApp 메뉴바 상시 표시로 확정. 상태는 아이콘으로만 구분.
 
 # 7. paidApp 미감지 시 알림 UX
 
@@ -287,8 +321,10 @@ open -a "/Applications/fSnippet.app" --args --action edit --snippet keyword
 | 파일                                    | 역할                                                              |
 | :-------------------------------------- | :---------------------------------------------------------------- |
 | `Managers/PaidAppManager.swift`         | `isInstalled`, `isRunning`, `launchPaidApp`, `handlePaidFeature`, `showPaidOnlyAlert`  |
-| `fSnippetCliApp.swift`                  | `MenuBarExtra(isInserted:)` 바인딩, `setupPaidAppMonitoring`, 아이콘 클리핑 |
+| `Managers/PaidAppStateStore.swift`      | REST 2채널 등록 상태 저장소 + `paidAppStateChanged` Notification 발행 |
+| `fSnippetCliApp.swift`                  | `PaidAppIconState` ObservableObject, `setupPaidAppMonitoring`, 동적 아이콘 |
 | `MenuBarView.swift`                     | Settings/About 버튼, paidApp 분기 호출                            |
+| `Managers/APIRouter.swift`              | `POST /paidapp/register`, `POST /paidapp/unregister` 엔드포인트   |
 | `Managers/SettingsWindowManager.swift`  | `showSettings()` → `PaidAppManager.handlePaidFeature()` 위임      |
 | `Core/KeyEventHandler.swift`            | 설정 핫키 차단                                                     |
 | `UI/SnippetPopupView.swift`             | Tab 편집/생성/행 편집 차단                                         |
@@ -304,15 +340,18 @@ open -a "/Applications/fSnippet.app" --args --action edit --snippet keyword
 
 # 11. 관련 이슈
 
-| 이슈    | 내용                                      | 커밋    |
-| :------ | :---------------------------------------- | :------ |
-| Issue7  | ⌘S Save To Snippet paidApp 전용 안내     | 3d82f42 |
-| Issue8  | 설정 단축키(^⇧⌘;) paidApp 전용 안내       | 260083e |
-| Issue9  | 스니펫 편집 (Tab 키) paidApp 전용 안내    | 1d536c5 |
-| Issue10 | paidApp 기능 목록 문서화                  | 97da9b7 |
-| Issue20 | 메뉴바에 설정/About 버튼 + paidApp 분기  | -       |
-| Issue21 | DerivedData 빌드 제외 필터링              | b25067a |
-| Issue22 | MenuBarExtra 바인딩 피드백 루프 수정      | 3ed36ff |
+| 이슈    | 내용                                                          | 커밋    |
+| :------ | :------------------------------------------------------------ | :------ |
+| Issue7  | ⌘S Save To Snippet paidApp 전용 안내                         | 3d82f42 |
+| Issue8  | 설정 단축키(^⇧⌘;) paidApp 전용 안내                           | 260083e |
+| Issue9  | 스니펫 편집 (Tab 키) paidApp 전용 안내                        | 1d536c5 |
+| Issue10 | paidApp 기능 목록 문서화                                      | 97da9b7 |
+| Issue20 | 메뉴바에 설정/About 버튼 + paidApp 분기                      | -       |
+| Issue21 | DerivedData 빌드 제외 필터링                                  | b25067a |
+| Issue22 | MenuBarExtra 바인딩 피드백 루프 수정                          | 3ed36ff |
+| Issue52 | paidApp 메뉴바 완전 제거 → cliApp 단일 메뉴바 소유화          | b70a8d8 |
+| Issue826 | paidApp 라이프사이클 REST — Phase A cliApp 구현 (PaidAppStateStore + 동적 아이콘) | 79e0873 |
+| Issue828 | showMenuBar 토글 제거 → 메뉴바 상시 표시 + 아이콘 동적 전환  | 504bbc9 |
 
 # 12. 향후 고려사항
 
