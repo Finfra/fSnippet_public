@@ -27,4 +27,13 @@ APPLESCRIPT
     sleep 2
 fi
 
+# Issue52 Phase0: delegate(applicationWillTerminate)가 정상 수행되면 brew=stopped 가 되지만,
+# SIGKILL(-9) / crash 경로는 delegate 를 건너뜀 → launchctl 잔존 시 명시적 fallback.
+if launchctl list 2>/dev/null | grep -q "homebrew.mxcl.fsnippet-cli"; then
+    echo "⚠️ brew service 잔존 — fallback: brew services stop fsnippet-cli"
+    brew services stop fsnippet-cli 2>&1 | tail -1 || true
+else
+    echo "✅ brew service 정상 정지 (delegate 경유)"
+fi
+
 echo "✅ 프로세스 종료 완료"

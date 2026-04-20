@@ -112,6 +112,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        // Issue52 Phase0: 모든 종료 경로(메뉴바·API·SettingsVM·Relauncher 등)의 공통 수렴점.
+        // brew 가 started 상태면 여기서 stop 하여 브루 상태 일관성 보장.
+        // timeout 3.0s: macOS 종료 허용 시간(5~20s) 내 충분한 여유.
+        BrewServiceSync.onAppStop(timeout: 3.0)
+
         // 리소스 정리
         SnippetFileManager.shared.stopFolderWatching()
         APIServer.shared.stop()

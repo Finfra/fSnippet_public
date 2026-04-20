@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-- Issue HWM: 51
+- Issue HWM: 53
 - Save Point: 2026-04-19 (8b88964) Feat(Test)(Issue50): fsc-test.sh에 fwc 오케스트레이션 3단계 역이식
 
 # 🤔 결정사항
@@ -14,13 +14,53 @@ date: 2026-04-07
 # 🌱 이슈후보
 1. 클립보드 히스토리 기능 중에서 고급 기능은 Paid 앱이 활성화 되어 있어야 실행 가능하게끔 해 줘 활성화 되어 있지 않다면 활성화 창[기존 코드 찾아서] 열게 해야함.
     - Paid 앱의 기능이 모듈로 구성되어 있는지 확인
-
+2. 
 
 # 🚧 진행중
 
 # 📕 중요
 
+## Issue52: 메뉴바 아이콘 cliApp 단일 소유화 — paidApp 종료 시 REST kill 연동 (등록: 2026-04-20)
+* 목적: cliApp(fSnippetCli, #25)과 paidApp(fSnippet, #15)이 메뉴바 아이콘을 각각 관리하여 종료 시 2회 클릭이 필요한 UX 문제 해소. 메뉴바 소유권을 cliApp 단일로 이전하고 paidApp 종료 시 `POST /api/v2/shutdown` REST 호출로 cliApp 동시 종료. paidApp 메뉴 기능은 cliApp 메뉴에 통합하고 paidApp 감지 로직(`PaidAppDetector`) 추가. 완료 후 pairApp(fWarrangeCli, #26)에도 동일 패턴 후속 이슈 등록.
+* plan: `cli/_doc_work/plan/menubar-cli-ownership_plan.md`
+* 상세:
+    - **cliApp 구현 (본 이슈 책임)**
+        - **Phase 0 (선행)**: 종료 경로 단일화 — `BrewServiceSync.onAppStop` 을 `applicationWillTerminate` 로 이동 (timeout 2→3s), `MenuBarView` 선행 호출 제거, `kill.sh`·`fsc-run-xcode.sh` 에 launchctl 잔존 fallback 추가. API·SettingsVM·기타 `NSApp.terminate` 경로가 brew stop 을 bypass 하던 버그 해결.
+        - `POST /api/v2/shutdown` REST 엔드포인트 추가 (APIRouter, APIModels, openapi_v2.yaml)
+        - `PaidAppDetector` 유틸 신규 — 설치 경로 탐지 + 실행 상태 감지 + 실행 트리거
+        - MenuBarView에 fSnippet 섹션 통합 (열기·설정·상태 표시)
+    - **paidApp 별도 이슈 (현 이슈 미포함, 후속 등록 필요)**
+        - 메뉴바 아이콘 제거, 종료 훅에 cliApp shutdown REST 호출, cliApp 감지 로직 추가
+        - ⚠️ paidApp 메뉴바 제거 전 **사용자 UX 검증 필수** (진입점 상실 리스크)
+    - **pairApp 후속 이슈 (완료 후)**: fWarrangeCli에 동일 패턴 미러 이식
+* 구현 명세:
+    - shutdown API: `reason`(로그용) + `delayMs`(종료 지연) body 수락, 응답 후 `NSApplication.shared.terminate` 비동기 실행
+    - paidApp 감지: Bundle ID prefix `kr.finfra.fSnippet` + suffix `Cli` 제외 매칭 (Debug 접미사 허용)
+    - REST 호출 실패 시 paidApp은 정상 종료 유지 (cliApp 부재는 오류 아님)
+    - timeout 0.5s 상한으로 paidApp 종료 지연 최소화
+
 # 📙 일반
+
+## Issue53: 메뉴바 종료 후 /Applications 심링크 실행 시 SingleInstanceGuard 연쇄 terminate — 앱 기동 실패 (등록: 2026-04-20)
+* 목적: 메뉴바 "종료" 후 `/Applications/_nowage_app/fSnippetCli.app` 심링크 클릭 시 brew service 와 앱이 모두 stopped 상태로 귀결되는 현상 제거. 재기동이 `brew services start` 경유로만 가능한 UX 결함 해소.
+* 발견 맥락: Issue52 Phase0 회귀 테스트 중 관찰 (Phase0 무관 — 기존 SingleInstanceGuard 설계 범위 이슈)
+* 재현 로그 (14:04:59 ~ 14:05:01):
+    - `[single-instance] launchd-spawned (PID -1) — 기존 인스턴스 terminate (PIDs: [21862])`
+    - `[brew-sync] brew services stop — app stop × brew=started` (PID 21862 willTerminate)
+    - `[brew-sync] ✅ brew services start 성공` (새 앱 onAppStart)
+    - `[brew-sync] ✅ brew services stop 성공` (1초 후 또 stop)
+    - `fSnippetCli 종료` (새 앱도 종료)
+* 원인 가설:
+    - brew Formula `service do` 블록이 LaunchServices 에 Bundle ID 기반 서비스로 등록됨
+    - `open /Applications/.../fSnippetCli.app` → macOS 가 launchd 경유로 wrap → `XPC_SERVICE_NAME=homebrew.mxcl.fsnippet-cli` 환경변수 주입
+    - `SingleInstanceGuard.isLaunchedByLaunchd()` (XPC_SERVICE_NAME 매칭)가 `true` 오판
+    - 자기를 "launchd-spawned 승자"로 믿고 기존 인스턴스 terminate → 연쇄 반응 (brew stop → onAppStart brew start → 새 launchd-bootstrap 프로세스 경합 → 자신 terminate)
+* 임시 회피: 재기동은 `brew services start fsnippet-cli` 또는 `brew services restart fsnippet-cli` 사용, 심링크 직접 클릭 회피
+* 구현 명세:
+    - `SingleInstanceGuard` 의 launchd-spawned 판정을 XPC_SERVICE_NAME 단독이 아닌 **부모 프로세스 + 환경변수 교차 검증**으로 보강 (ex: PPID==1 AND XPC 있음 → 진짜 launchd-spawned; 그 외는 심링크 open)
+    - 또는 Formula `service do` 에서 LaunchServices 등록을 회피하는 대안 (process_type 변경·plist 속성 조정) 검토
+    - 수정 후 4개 시나리오 회귀: 메뉴바 종료 → 심링크 실행 / brew restart / 직접 binary exec / launchd 부팅 자동 기동
+* 관련: Issue51 (SingleInstanceGuard 4-quadrant 설계), Issue52 Phase0 (발견 경로)
 
 # 📗 선택
 

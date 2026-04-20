@@ -67,9 +67,7 @@ struct MenuBarView: View {
 
         // 종료
         Button {
-            // Issue51 Phase2: 메뉴바 종료 시 brew services stop 선행 (매트릭스: app stop × brew=started)
-            // 타임아웃 내 미완료 시 fallback terminate 로 진행하여 종료 흐름 지연 방지.
-            BrewServiceSync.onAppStop(timeout: 2.0)
+            // Issue52 Phase0: applicationWillTerminate 가 단일 수렴점 — brew stop 은 delegate 전담.
             NSApplication.shared.terminate(nil)
         } label: {
             Label("종료", systemImage: "power")

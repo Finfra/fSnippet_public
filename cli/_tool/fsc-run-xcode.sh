@@ -176,9 +176,16 @@ APPLESCRIPT
 }
 
 # ---------- Step 3: 프로세스 종료 ----------
+# Issue52 Phase0: applicationWillTerminate 가 정상 경로에서 brew stop 을 수행하지만,
+# SIGKILL/pkill 경로는 delegate 건너뜀 → launchctl 잔존 시 fallback brew stop.
 kill_app() {
     echo "[kill] $PROJECT_NAME 프로세스 종료"
     pkill -f "MacOS/$PROJECT_NAME" 2>/dev/null || true
+    sleep 1
+    if brew_service_running; then
+        echo "[kill] ⚠️ brew service 잔존 — fallback: brew services stop $BREW_FORMULA"
+        brew services stop "$BREW_FORMULA" 2>&1 | tail -1 || true
+    fi
 }
 
 # ---------- Step 3.5: TCC Accessibility 권한 초기화 ----------
