@@ -3,16 +3,44 @@ import Cocoa
 
 // MARK: - App 진입점
 
-// Issue828 Phase C: AppState.showMenuBar 제거 — 메뉴바 상시 표시로 전환
+// paidApp 실행 상태를 구독하여 cliApp 메뉴바 숨김/표시를 제어하는 ObservableObject
+private final class PaidAppIconState: ObservableObject {
+    @Published var isPaidAppRunning: Bool
+
+    init() {
+        // REST 채널(등록 여부) + NSWorkspace(시작 시 이미 실행 중인 경우) 양쪽 체크
+        let hasRESTReg = PaidAppStateStore.shared.status() != nil
+        let isWorkspaceRunning = !NSRunningApplication.runningApplications(
+            withBundleIdentifier: "kr.finfra.fSnippet").isEmpty
+        isPaidAppRunning = hasRESTReg || isWorkspaceRunning
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(onStateChanged(_:)),
+            name: .paidAppStateChanged,
+            object: nil
+        )
+    }
+
+    @objc private func onStateChanged(_ notification: Notification) {
+        isPaidAppRunning = notification.userInfo?["isRunning"] as? Bool ?? false
+    }
+}
+
+// Issue55: paidApp 실행 시 cliApp MenuBarExtra 숨김 — isInserted 바인딩 복원
+// paidApp 실행 중에는 paidApp이 자체 MenuBarExtra를 표시하므로 cliApp 아이콘 숨김
 struct fSnippetCliApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @StateObject private var iconState = PaidAppIconState()
 
     var body: some Scene {
-        // Issue828 Phase C: MenuBarExtra 상시 표시 (isInserted 바인딩 제거)
-        MenuBarExtra {
+        // paidApp 미실행 시만 cliApp 메뉴바 표시 (isInserted 바인딩)
+        MenuBarExtra(isInserted: Binding(
+            get: { !iconState.isPaidAppRunning },
+            set: { _ in }
+        )) {
             MenuBarView()
         } label: {
-            // 대각선으로 아래 부분을 잘라낸 번개 아이콘
+            // cliApp 단독 실행 상태: 아래 30% 잘린 bolt (paidApp 미연결 표시)
             Image(nsImage: Self.diagonalCutBoltImage())
         }
     }
@@ -74,7 +102,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // 4. API 서버 시작 (forceEnabled: api_enabled 설정 무시하고 항상 시작)
         APIServer.shared.start(forceEnabled: true)
 
-        // 5. paid 앱 감지 시 자동 실행 (Issue828 Phase C: 메뉴바 숨김 로직 제거)
+        // 5. paid 앱 설치됐지만 미실행 시 자동 실행 (실행되면 NSWorkspace가 메뉴바 숨김 트리거)
         if PaidAppManager.shared.isInstalled(), !PaidAppManager.shared.isRunning() {
             PaidAppManager.shared.launchPaidApp()
         }
@@ -103,8 +131,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - 유료 앱 실행/종료 감시
 
-    /// fSnippet(유료) 앱 실행/종료를 감시하여 PaidAppStateStore를 갱신 (Phase A Store 유지)
-    /// Issue828 Phase C: showMenuBar 토글 제거 — 메뉴바 상시 표시
+    /// fSnippet(유료) 앱 실행/종료를 감시하여 PaidAppStateStore + 메뉴바 표시 상태 갱신
+    /// 실행 감지 → paidAppStateChanged(isRunning:true) → isInserted=false(cliApp 메뉴바 숨김)
+    /// 종료 감지 → markStaleFromWorkspace → paidAppStateChanged(isRunning:false) → isInserted=true(복원)
     private func setupPaidAppMonitoring() {
         let workspace = NSWorkspace.shared
         let paidBundleID = "kr.finfra.fSnippet"
@@ -116,6 +145,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
                   app.bundleIdentifier == paidBundleID else { return }
             logI("fSnippet(유료) 실행 감지")
+            // register API 수신 전 즉시 아이콘 전환
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .paidAppStateChanged, object: nil, userInfo: ["isRunning": true])
+            }
         }
 
         // fSnippet 종료 감지 → Store stale 처리 (A-11, 직교 2채널)

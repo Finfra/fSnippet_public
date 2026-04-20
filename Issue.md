@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-- Issue HWM: 54
+* Issue HWM: 55
 - Save Point: 2026-04-19 (8b88964) Feat(Test)(Issue50): fsc-test.sh에 fwc 오케스트레이션 3단계 역이식
 
 # 🤔 결정사항
@@ -18,6 +18,15 @@ date: 2026-04-07
 3. [QA발견 2026-04-20] Issue53(SingleInstanceGuard handoff) 심볼명 명세 불일치 — 기대: performHandoffStart, handoffInProgress, isLaunchedViaLaunchServices, 실제: isLaunchedByLaunchd, shouldTerminateAsDuplicate, waitForOthersToExit (기능은 구현되었으나 심볼명이 명세와 다름) 
 
 # 🚧 진행중
+
+## Issue55: cliApp 메뉴바 숨김 복원 — paidApp 실행 시 isInserted=false (등록: 2026-04-20)
+* 목적: Issue828 Phase C에서 제거된 cliApp 메뉴바 숨김 로직 복원. paidApp 실행 중에는 paidApp이 자체 메뉴바 이벤트(설정·About 등)를 처리하므로 cliApp 메뉴바가 표시되면 안 됨.
+* 연관 이슈: paidApp Issue834 (MenuBarManager 복원)
+* 상세:
+    - `fSnippetCliApp.swift`: `PaidAppIconState.init()` — REST 채널 + NSWorkspace 양쪽 체크
+    - `fSnippetCliApp.swift`: `MenuBarExtra(isInserted:)` 바인딩 복원 — paidApp 실행 시 `isInserted=false`
+    - `fSnippetCliApp.swift`: `fullBoltImage()` 제거 — 아이콘은 항상 cut bolt (paidApp 실행 시 메뉴바 자체가 숨겨짐)
+    - 종료 복원: NSWorkspace `didTerminate` → `markStaleFromWorkspace` → `paidAppStateChanged(isRunning:false)` → `isInserted=true` (REST 호출 불필요)
 
 # 📕 중요
 
