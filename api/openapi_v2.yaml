@@ -1672,6 +1672,43 @@ paths:
               schema:
                 $ref: '#/components/schemas/CliVersionResponse'
 
+  /shutdown:
+    post:
+      summary: Shutdown cliApp
+      description: |
+        Terminate the fSnippetCli helper app. Used by paidApp to shut down cliApp simultaneously when paidApp exits.
+        Response is sent before actual termination (delayMs + 100ms).
+      operationId: shutdownCli
+      tags:
+        - CLI
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: 종료 사유 (로그 기록용)
+                  example: "paidApp shutdown"
+                delayMs:
+                  type: integer
+                  description: 종료 지연 (밀리초). 기본 0
+                  default: 0
+      responses:
+        '200':
+          description: 종료 수락 (실제 종료는 응답 전송 직후)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accepted:
+                    type: boolean
+                  message:
+                    type: string
+
   /cli/quit:
     post:
       summary: Quit CLI helper

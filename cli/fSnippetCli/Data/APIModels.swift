@@ -690,3 +690,15 @@ struct CliVersionResponseV2: Codable {
     }
   }
 }
+
+// MARK: - Shutdown (Issue52 Phase1)
+
+struct ShutdownRequest: Codable {
+  let reason: String?
+  let delayMs: Int?
+}
+
+struct ShutdownResponse: Codable {
+  let accepted: Bool
+  let message: String
+}

@@ -305,6 +305,10 @@ class APIRouter {
     case ("POST", "/api/v2/cli/quit"):
       return handleCliQuit(request: request)
 
+    // Shutdown (Issue52 Phase1)
+    case ("POST", "/api/v2/shutdown"):
+      return handleShutdown(request: request)
+
     // PaidApp Lifecycle (Phase A)
     case ("POST", "/api/v2/paidapp/register"):
       return handlePaidAppRegister(request: request)
@@ -1764,6 +1768,30 @@ class APIRouter {
       return APIServer.HTTPResponse(statusCode: 200, body: json, headers: ["Content-Type": "application/json"])
     }
     return errorResponse(code: "INTERNAL_ERROR", message: "직렬화 실패", statusCode: 500)
+  }
+
+  // MARK: - Shutdown Handler (Issue52 Phase1)
+
+  /// POST /api/v2/shutdown — cliApp 프로세스 종료 (paidApp 종료 연동용)
+  private func handleShutdown(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    let body = request.body.flatMap { try? JSONDecoder().decode(ShutdownRequest.self, from: $0) }
+    let reason = body?.reason ?? "unspecified"
+    let delayMs = max(0, body?.delayMs ?? 0)
+
+    logI("🛑 [APIRouter] shutdown 요청: reason=\(reason), delayMs=\(delayMs)")
+
+    let resp = ShutdownResponse(accepted: true, message: "cliApp 종료 예약됨 (delay=\(delayMs)ms)")
+    guard let payload = try? JSONEncoder().encode(resp),
+          let json = String(data: payload, encoding: .utf8) else {
+      return errorResponse(code: "INTERNAL_ERROR", message: "직렬화 실패", statusCode: 500)
+    }
+
+    DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(delayMs + 100)) {
+      logI("🛑 [APIRouter] cliApp 종료 실행 (reason=\(reason))")
+      NSApplication.shared.terminate(nil)
+    }
+
+    return APIServer.HTTPResponse(statusCode: 200, body: json, headers: ["Content-Type": "application/json"])
   }
 
   // MARK: - PaidApp Lifecycle Handlers (Phase A)
