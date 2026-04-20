@@ -63,6 +63,23 @@ struct MenuBarView: View {
             Label("로그 폴더 열기", systemImage: "folder")
         }
 
+        // fSnippet (paidApp) 섹션 (Issue52 Phase3)
+        if PaidAppDetector.installedURL() != nil {
+            Divider()
+            Text("fSnippet").font(.caption).foregroundStyle(.secondary)
+            Button("fSnippet 열기") {
+                PaidAppDetector.launch()
+            }
+            Button("fSnippet 설정 열기") {
+                PaidAppDetector.openSettings()
+            }
+            if PaidAppDetector.isRunning() {
+                Text("● 실행 중").font(.caption2).foregroundStyle(.green)
+            } else {
+                Text("○ 중지됨").font(.caption2).foregroundStyle(.secondary)
+            }
+        }
+
         Divider()
 
         // 종료
