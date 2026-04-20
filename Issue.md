@@ -45,7 +45,7 @@ date: 2026-04-07
 
 # ✅ 완료
 
-## Issue53: 메뉴바 종료 후 /Applications 심링크 실행 시 SingleInstanceGuard 연쇄 terminate — 앱 기동 실패 (등록: 2026-04-20, 해결: 2026-04-20, commit: 17623e5, 1b59c6c) ✅
+## Issue53: 메뉴바 종료 후 /Applications 심링크 실행 시 SingleInstanceGuard 연쇄 terminate — 앱 기동 실패 (등록: 2026-04-20, 해결: 2026-04-20, commit: 17623e5, 1b59c6c, b3f598d) ✅
 * 원인: `open /Applications/_nowage_app/fSnippetCli.app` 기동 시 LaunchServices 가 `XPC_SERVICE_NAME=application.*` 로 wrap → `BrewServiceSync.isLaunchedByLaunchd=false` → `onAppStart` 가 brew start 호출 → launchd 가 별도 프로세스(`XPC=homebrew.mxcl.*`) spawn → SingleInstanceGuard 승자 경로 → 원본(open) 인스턴스 terminate → 연쇄적으로 앱·brew 모두 stopped.
 * 실측 env diff:
     - launchd-bootstrap: `XPC_SERVICE_NAME=homebrew.mxcl.fsnippet-cli`
