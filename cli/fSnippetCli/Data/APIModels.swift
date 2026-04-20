@@ -623,7 +623,7 @@ struct PaidAppRegistrationRequest: Codable {
   let bundlePath: String
   let sessionId: String
   let version: String
-  let startTime: Int64
+  let startTime: Int64?
 
   enum CodingKeys: String, CodingKey {
     case pid, bundlePath, sessionId, version, startTime

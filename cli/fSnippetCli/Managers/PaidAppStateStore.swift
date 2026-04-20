@@ -1,6 +1,10 @@
 import Cocoa
 import Foundation
 
+extension Notification.Name {
+    static let paidAppStateChanged = Notification.Name("kr.finfra.fSnippetCli.paidAppStateChanged")
+}
+
 /// Phase A — REST 2차 채널 paidApp 등록 상태 저장소
 ///
 /// NSWorkspace(1차 채널)와 독립. paidApp이 POST /paidapp/register 시
@@ -74,7 +78,7 @@ final class PaidAppStateStore {
                 bundlePath: request.bundlePath,
                 sessionId: request.sessionId,
                 version: request.version,
-                startTime: request.startTime,
+                startTime: request.startTime ?? 0,
                 registeredAt: Date()
             )
             current = reg
@@ -85,6 +89,9 @@ final class PaidAppStateStore {
                 eventType: "register",
                 extra: ["pid": "\(request.pid)", "version": request.version, "session": String(request.sessionId.prefix(8))]
             )
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .paidAppStateChanged, object: nil, userInfo: ["isRunning": true])
+            }
             return reg
         }
     }
@@ -110,6 +117,9 @@ final class PaidAppStateStore {
                 eventType: "unregister",
                 extra: ["pid": pid.map { "\($0)" } ?? "?", "session": String(sessionId.prefix(8))]
             )
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .paidAppStateChanged, object: nil, userInfo: ["isRunning": false])
+            }
         }
     }
 
@@ -125,6 +135,9 @@ final class PaidAppStateStore {
                 eventType: "workspace-terminate",
                 extra: ["pid": "\(pid)", "session": String(reg.sessionId.prefix(8))]
             )
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .paidAppStateChanged, object: nil, userInfo: ["isRunning": false])
+            }
         }
     }
 

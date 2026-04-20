@@ -2070,7 +2070,7 @@ components:
     # --- PaidApp Lifecycle (Phase A) --------------------------------------
     PaidAppRegistrationRequest:
       type: object
-      required: [pid, bundlePath, sessionId, version, startTime]
+      required: [pid, bundlePath, sessionId, version]
       properties:
         pid:
           type: integer
