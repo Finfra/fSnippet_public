@@ -18,7 +18,15 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue51: brew services ↔ 메뉴바 앱 상태 동기화 재설계 — 4-quadrant 상태 매트릭스 기반 (pairApp fWarrangeCli#26 Issue39 Full Mirror) (등록: 2026-04-20)
+# 📕 중요
+
+# 📙 일반
+
+# 📗 선택
+
+# ✅ 완료
+
+## Issue51: brew services ↔ 메뉴바 앱 상태 동기화 재설계 — 4-quadrant 상태 매트릭스 기반 (pairApp fWarrangeCli#26 Issue39 Full Mirror) (등록: 2026-04-20, 해결: 2026-04-20, commit: e810353) ✅
 * 목적: pairApp fWarrangeCli(#26) Issue39 에서 설계·검증 완료된 **4-quadrant 상태 매트릭스** 를 fSnippetCli 에 Full Mirror 이식. `brew services` (launchd) 와 메뉴바 GUI 앱의 4개 트리거(brew start / brew stop / app start / app stop) 에서 상대 상태를 양방향 동기화. `/opt/homebrew/var/fSnippetCli/` 경로 원천 차단 + Bundle ID 기반 단일 인스턴스 가드(launchd-bootstrap 우선권) 로 no-double-start / no-ghost-state 로 수렴.
 * 참조 원본: pairApp fWarrangeCli#26 `3867459` — Feat(Issue39): brew services ↔ menubar 4-quadrant 상태 매트릭스 동기화
 * 참조 리포트: fWarrangeCli `_public/cli/_doc_work/report/brew-service-menubar-sync_issue39_report.md`
@@ -39,40 +47,29 @@ date: 2026-04-07
     | **app stop**   | brew `started` | `brew services stop` 호출 + `NSApplication.terminate`  |
     | **app stop**   | brew `stopped` | `terminate` 만 (brew 호출 skip)                        |
 
-* 구현 명세 (pairApp `3867459` Full Mirror — 앱 구조 차이 반영 어댑테이션):
-    - **앱 구조 차이 (pairApp → fSnippetCli 매핑)**:
+* 해결 방법 (실적용):
+    - **앱 구조 차이 어댑테이션** (pairApp → fSnippetCli 매핑):
         - pairApp: `fWarrangeCliApp.swift` 단일 파일 `AppEntry.main` + `@State AppState` + `state.initialize()`
         - fSnippetCli: `main.swift` (CLI/GUI 분기) + `fSnippetCliApp.swift` + `AppDelegate.applicationDidFinishLaunching`
-        - 귀결: Guard 호출은 `main.swift` GUI 분기, `onAppStart` 호출은 `AppDelegate.applicationDidFinishLaunching` 말미 (기존 `setupPaidAppMonitoring` 이후)
+        - Guard 호출 위치: `main.swift` GUI 분기 / `onAppStart` 호출 위치: `AppDelegate.applicationDidFinishLaunching` 말미
     - **Phase 1** (`cli/_tool/fsc-config.sh`, `fsc-deploy-debug.sh`, `fsc-run-xcode.sh`): DerivedData 직접 실행, `/opt/homebrew/var/fSnippetCli/` 미생성. `DEPLOY_DIR/APP_PATH` → `LEGACY_VAR_DIR` + `resolve_app_path()` 치환. `_nowage_app` 심링크 DerivedData 지향
-    - **Phase 2** (`cli/fSnippetCli/MenuBarView.swift` 종료 버튼): `NSApplication.shared.terminate(nil)` 앞에 `BrewServiceSync.onAppStop(timeout: 2.0)` 선행
-    - **Phase 3** (`cli/fSnippetCli/fSnippetCliApp.swift` AppDelegate `applicationDidFinishLaunching` 말미): `BrewServiceSync.onAppStart()` 호출. skip 4종 동일 (UserDefaults `fsc.autoStartBrewService=false` / `XPC_SERVICE_NAME` 매칭 / launchctl 이미 로드됨 / brew 미존재)
-    - **Phase 4** (신규 `cli/fSnippetCli/Services/SingleInstanceGuard.swift` + `main.swift` GUI 분기): `fSnippetCliApp.main()` 호출 직전 `SingleInstanceGuard.shouldTerminateAsDuplicate()` 체크. launchd-bootstrap 우선권 규칙 pairApp 동일
-    - **신규 파일**: `cli/fSnippetCli/Services/BrewServiceSync.swift`, `cli/fSnippetCli/Services/SingleInstanceGuard.swift` (pairApp 소스 치환 이식)
-    - **xcodeproj 갱신**: 신규 2개 파일을 PBXFileReference + PBXBuildFile + PBXGroup `Services` 에 수동 등록 (XcodeGen 사용 시 기존 DEVELOPMENT_TEAM/DEAD_CODE_STRIPPING 손실 우려 → 수동 편집 선택)
-* 치환 규칙 (pairApp → fSnippetCli):
-    - 포트: `3016` → `3015`
-    - Formula: `fwarrange-cli` → `fsnippet-cli`
-    - 서비스 label: `homebrew.mxcl.fwarrange-cli` → `homebrew.mxcl.fsnippet-cli`
-    - Bundle ID: `kr.finfra.fWarrangeCli` → `kr.finfra.fSnippetCli`
-    - 스크립트 prefix: `fwc-` → `fsc-`
-    - 디렉토리: `fWarrangeCli` → `fSnippetCli`
-    - UserDefaults key: `fwc.autoStartBrewService` → `fsc.autoStartBrewService`
-* 실측 버그 (pairApp Issue39 에서 선행 해결, 본 이슈에서는 동일 패턴 방지):
-    1. `getParentPID() == 1` 으로 launchd 기동 판정 시 macOS 모든 GUI 앱 PPID=1 특성상 상시 true → `onAppStart` 무한 skip. `XPC_SERVICE_NAME` 매칭만으로 판정
-    2. 초기 `SingleInstanceGuard` 가 신규 프로세스 무조건 exit → open-기동분이 survive, launchd 프로세스 즉시 사라짐 → `brew services list` 가 `stopped` 로 표시. 승자 규칙 반전(launchd-bootstrap 우선권) 으로 해결
-* 검증 계획:
-    - 8개 매트릭스 셀 수동 재현 (`brew services start/stop` × 앱 실행/정지 × `open`/메뉴바 종료)
-    - 각 셀마다 `brew services list | grep fsnippet-cli` + `pgrep -fl MacOS/fSnippetCli` + `curl :3015` 3종 확인
-    - 리포트: `cli/_doc_work/report/brew-service-menubar-sync_issue51_report.md`
-
-# 📕 중요
-
-# 📙 일반
-
-# 📗 선택
-
-# ✅ 완료
+    - **Phase 2** (`MenuBarView.swift` 종료 버튼): `NSApplication.shared.terminate(nil)` 앞에 `BrewServiceSync.onAppStop(timeout: 2.0)` 선행
+    - **Phase 3** (`fSnippetCliApp.swift` AppDelegate `applicationDidFinishLaunching` 말미): `BrewServiceSync.onAppStart()` 호출. skip 4종 (UserDefaults `fsc.autoStartBrewService=false` / `XPC_SERVICE_NAME` 매칭 / launchctl 이미 로드됨 / brew 미존재)
+    - **Phase 4** (신규 `Services/SingleInstanceGuard.swift` + `main.swift` GUI 분기): `fSnippetCliApp.main()` 호출 직전 `SingleInstanceGuard.shouldTerminateAsDuplicate()` 체크. launchd-bootstrap 우선권 규칙 pairApp 동일. REST 포트 3015 bind 경합 방지 3초 폴링
+    - **xcodeproj 갱신**: 신규 2개 파일을 PBXFileReference + PBXBuildFile + PBXGroup `Services` 에 수동 등록 (DEVELOPMENT_TEAM/DEAD_CODE_STRIPPING 보존)
+* 수정 파일:
+    - 신규: `cli/fSnippetCli/Services/BrewServiceSync.swift` (159줄), `cli/fSnippetCli/Services/SingleInstanceGuard.swift` (78줄)
+    - 수정: `cli/_tool/fsc-config.sh`, `fsc-deploy-debug.sh`, `fsc-run-xcode.sh`, `cli/fSnippetCli/main.swift`, `fSnippetCliApp.swift`, `MenuBarView.swift`, `fSnippetCli.xcodeproj/project.pbxproj`
+* 치환 규칙 (pairApp → fSnippetCli): 포트 `3016→3015` / Formula `fwarrange-cli→fsnippet-cli` / 서비스 label / Bundle ID / 스크립트 prefix `fwc-→fsc-` / UserDefaults key `fwc.autoStartBrewService→fsc.autoStartBrewService`
+* 실측 버그 회피 (pairApp Issue39 선행 해결 패턴 그대로 반영):
+    1. `getParentPID() == 1` 으로 launchd 기동 판정 시 macOS 모든 GUI 앱 PPID=1 특성상 상시 true → `XPC_SERVICE_NAME` 매칭만으로 판정
+    2. `SingleInstanceGuard` 가 신규 프로세스 무조건 exit → launchd-bootstrap 우선권(내가 launchd면 terminate others + survive, 아니면 exit)
+* 검증 결과:
+    - **G3** (`open` × brew=stopped): 앱 시작 + `brew services start` 자동 호출 → brew `started` + launchd load ✅
+    - **G2** (메뉴바 종료 × brew=started): `BrewServiceSync.onAppStop()` 선행 → brew `none` + 전 프로세스 정리 ✅
+* 후속 과제 (본 이슈 스코프 외):
+    - Homebrew Formula 재배포 필요 — `/opt/homebrew/opt/fsnippet-cli/` 경로의 brew-installed 바이너리는 Issue51 이전 버전이라 Guard 미탑재. `/deploy brew local` 또는 `/deploy brew publish` 로 새 바이너리 반영 시 launchd-spawned 인스턴스도 Guard 적용
+    - 레거시 var 경로 수동 삭제 권장: `rm -rf /opt/homebrew/var/fSnippetCli` (Phase1 이전 배포 흔적)
 
 ## Issue50: fsc-test.sh에 fWarrangeCli(pairApp) 테스트 패턴 역이식 — apiTestDo.sh + cmdTestDo.sh 통합 구조 (등록: 2026-04-19, 해결: 2026-04-19, commit: 8b88964) ✅
 * 목적: pairApp fWarrangeCli의 `fwc-test.sh`(245줄) 가 보유한 `apiTestDo.sh` + `cmdTestDo.sh` 분리 호출 + 구조화된 리포팅 패턴을 fSnippetCli의 `fsc-test.sh`(228줄) 에 역이식. 기존 ZTest 9단계 커버리지를 유지하면서 API / CMD 통합 테스트를 슈퍼셋 구조로 확장
