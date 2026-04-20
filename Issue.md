@@ -14,7 +14,8 @@ date: 2026-04-07
 # 🌱 이슈후보
 1. 클립보드 히스토리 기능 중에서 고급 기능은 Paid 앱이 활성화 되어 있어야 실행 가능하게끔 해 줘 활성화 되어 있지 않다면 활성화 창[기존 코드 찾아서] 열게 해야함.
     - Paid 앱의 기능이 모듈로 구성되어 있는지 확인
-2. 
+2. [QA발견 2026-04-20] `/paidapp/register` 보안 검증: 위조 PID(99999) 등 권한 검증 실패 시 HTTP 403 Forbidden 반환 필요 — 재현: `curl -X POST http://localhost:3015/api/v2/paidapp/register -d '{"pid":99999,"bundlePath":"/fake/path","sessionId":"qa-test-fake","version":"0.98.1"}'`, 기대: 403, 실제: 400
+3. [QA발견 2026-04-20] Issue53(SingleInstanceGuard handoff) 심볼명 명세 불일치 — 기대: performHandoffStart, handoffInProgress, isLaunchedViaLaunchServices, 실제: isLaunchedByLaunchd, shouldTerminateAsDuplicate, waitForOthersToExit (기능은 구현되었으나 심볼명이 명세와 다름) 
 
 # 🚧 진행중
 
