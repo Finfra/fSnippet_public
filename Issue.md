@@ -19,7 +19,14 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue55: cliApp 메뉴바 숨김 복원 — paidApp 실행 시 isInserted=false (등록: 2026-04-20)
+# 📕 중요
+
+# 📙 일반
+
+# 📗 선택
+
+# ✅ 완료
+## Issue55: cliApp 메뉴바 숨김 복원 — paidApp 실행 시 isInserted=false (등록: 2026-04-20) (✅ 완료, b7551cb) ✅
 * 목적: Issue828 Phase C에서 제거된 cliApp 메뉴바 숨김 로직 복원. paidApp 실행 중에는 paidApp이 자체 메뉴바 이벤트(설정·About 등)를 처리하므로 cliApp 메뉴바가 표시되면 안 됨.
 * 연관 이슈: paidApp Issue834 (MenuBarManager 복원)
 * 상세:
@@ -28,13 +35,6 @@ date: 2026-04-07
     - `fSnippetCliApp.swift`: `fullBoltImage()` 제거 — 아이콘은 항상 cut bolt (paidApp 실행 시 메뉴바 자체가 숨겨짐)
     - 종료 복원: NSWorkspace `didTerminate` → `markStaleFromWorkspace` → `paidAppStateChanged(isRunning:false)` → `isInserted=true` (REST 호출 불필요)
 
-# 📕 중요
-
-# 📙 일반
-
-# 📗 선택
-
-# ✅ 완료
 
 ## Issue54: `/paidapp/register` 위조 PID 검증 — 400 대신 403 반환 (등록: 2026-04-20, 해결: 2026-04-20, commit: 02a7832) ✅
 * 목적: `startTime` 누락 요청 시 JSON 디코딩 실패(400)로 보안 검증 우회 가능 — `startTime` 선택 필드화로 PID 검증 경로까지 도달하게 하여 403 반환
