@@ -41,30 +41,23 @@ date: 2026-04-07
 
 # 📙 일반
 
-## Issue53: 메뉴바 종료 후 /Applications 심링크 실행 시 SingleInstanceGuard 연쇄 terminate — 앱 기동 실패 (등록: 2026-04-20)
-* 목적: 메뉴바 "종료" 후 `/Applications/_nowage_app/fSnippetCli.app` 심링크 클릭 시 brew service 와 앱이 모두 stopped 상태로 귀결되는 현상 제거. 재기동이 `brew services start` 경유로만 가능한 UX 결함 해소.
-* 발견 맥락: Issue52 Phase0 회귀 테스트 중 관찰 (Phase0 무관 — 기존 SingleInstanceGuard 설계 범위 이슈)
-* 재현 로그 (14:04:59 ~ 14:05:01):
-    - `[single-instance] launchd-spawned (PID -1) — 기존 인스턴스 terminate (PIDs: [21862])`
-    - `[brew-sync] brew services stop — app stop × brew=started` (PID 21862 willTerminate)
-    - `[brew-sync] ✅ brew services start 성공` (새 앱 onAppStart)
-    - `[brew-sync] ✅ brew services stop 성공` (1초 후 또 stop)
-    - `fSnippetCli 종료` (새 앱도 종료)
-* 원인 가설:
-    - brew Formula `service do` 블록이 LaunchServices 에 Bundle ID 기반 서비스로 등록됨
-    - `open /Applications/.../fSnippetCli.app` → macOS 가 launchd 경유로 wrap → `XPC_SERVICE_NAME=homebrew.mxcl.fsnippet-cli` 환경변수 주입
-    - `SingleInstanceGuard.isLaunchedByLaunchd()` (XPC_SERVICE_NAME 매칭)가 `true` 오판
-    - 자기를 "launchd-spawned 승자"로 믿고 기존 인스턴스 terminate → 연쇄 반응 (brew stop → onAppStart brew start → 새 launchd-bootstrap 프로세스 경합 → 자신 terminate)
-* 임시 회피: 재기동은 `brew services start fsnippet-cli` 또는 `brew services restart fsnippet-cli` 사용, 심링크 직접 클릭 회피
-* 구현 명세:
-    - `SingleInstanceGuard` 의 launchd-spawned 판정을 XPC_SERVICE_NAME 단독이 아닌 **부모 프로세스 + 환경변수 교차 검증**으로 보강 (ex: PPID==1 AND XPC 있음 → 진짜 launchd-spawned; 그 외는 심링크 open)
-    - 또는 Formula `service do` 에서 LaunchServices 등록을 회피하는 대안 (process_type 변경·plist 속성 조정) 검토
-    - 수정 후 4개 시나리오 회귀: 메뉴바 종료 → 심링크 실행 / brew restart / 직접 binary exec / launchd 부팅 자동 기동
-* 관련: Issue51 (SingleInstanceGuard 4-quadrant 설계), Issue52 Phase0 (발견 경로)
-
 # 📗 선택
 
 # ✅ 완료
+
+## Issue53: 메뉴바 종료 후 /Applications 심링크 실행 시 SingleInstanceGuard 연쇄 terminate — 앱 기동 실패 (등록: 2026-04-20, 해결: 2026-04-20, commit: 17623e5) ✅
+* 원인: `open /Applications/_nowage_app/fSnippetCli.app` 기동 시 LaunchServices 가 `XPC_SERVICE_NAME=application.*` 로 wrap → `BrewServiceSync.isLaunchedByLaunchd=false` → `onAppStart` 가 brew start 호출 → launchd 가 별도 프로세스(`XPC=homebrew.mxcl.*`) spawn → SingleInstanceGuard 승자 경로 → 원본(open) 인스턴스 terminate → 연쇄적으로 앱·brew 모두 stopped.
+* 실측 env diff:
+    - launchd-bootstrap: `XPC_SERVICE_NAME=homebrew.mxcl.fsnippet-cli`
+    - open 심링크:       `XPC_SERVICE_NAME=application.kr.finfra.fSnippetCli.<sid>.<pid>`
+* 해결:
+    - `BrewServiceSync.onAppStart` 에 `isLaunchedViaLaunchServices()` skip 조건 추가 (XPC_SERVICE_NAME 이 "application." 접두사일 때 brew start 호출 금지 → 연쇄 차단)
+    - 진단용 `xpcServiceName()` 헬퍼 + 로그에 XPC 원본 값 기록
+    - `SingleInstanceGuard.myPID` 를 `NSRunningApplication.current` (AppKit 미초기화 시 -1 반환) → `getpid()` 로 교체
+    - guard 로그에도 XPC_SERVICE_NAME 포함 (진단 용이성)
+* 수정 파일: `cli/fSnippetCli/Services/BrewServiceSync.swift`, `cli/fSnippetCli/Services/SingleInstanceGuard.swift`
+* 검증: 심링크 open 후 프로세스 생존 + REST /api 정상 (이전: 1초 후 자멸). Phase 0 B/C/D regression 전부 통과.
+* Trade-off: 심링크 경로는 brew 서비스를 자동 start 하지 않음 (연쇄 재발 방지). 재시작 필요 시 `brew services start fsnippet-cli` 사용. **사용자 수동 Finder 클릭 테스트 완료 — "메뉴바 아이콘 정상 작동, 기능 정상 작동" 확인.**
 
 ## Issue51: brew services ↔ 메뉴바 앱 상태 동기화 재설계 — 4-quadrant 상태 매트릭스 기반 (pairApp fWarrangeCli#26 Issue39 Full Mirror) (등록: 2026-04-20, 해결: 2026-04-20, commit: e810353) ✅
 * 목적: pairApp fWarrangeCli(#26) Issue39 에서 설계·검증 완료된 **4-quadrant 상태 매트릭스** 를 fSnippetCli 에 Full Mirror 이식. `brew services` (launchd) 와 메뉴바 GUI 앱의 4개 트리거(brew start / brew stop / app start / app stop) 에서 상대 상태를 양방향 동기화. `/opt/homebrew/var/fSnippetCli/` 경로 원천 차단 + Bundle ID 기반 단일 인스턴스 가드(launchd-bootstrap 우선권) 로 no-double-start / no-ghost-state 로 수렴.
