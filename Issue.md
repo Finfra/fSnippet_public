@@ -45,19 +45,19 @@ date: 2026-04-07
 
 # ✅ 완료
 
-## Issue53: 메뉴바 종료 후 /Applications 심링크 실행 시 SingleInstanceGuard 연쇄 terminate — 앱 기동 실패 (등록: 2026-04-20, 해결: 2026-04-20, commit: 17623e5) ✅
+## Issue53: 메뉴바 종료 후 /Applications 심링크 실행 시 SingleInstanceGuard 연쇄 terminate — 앱 기동 실패 (등록: 2026-04-20, 해결: 2026-04-20, commit: 17623e5, 1b59c6c) ✅
 * 원인: `open /Applications/_nowage_app/fSnippetCli.app` 기동 시 LaunchServices 가 `XPC_SERVICE_NAME=application.*` 로 wrap → `BrewServiceSync.isLaunchedByLaunchd=false` → `onAppStart` 가 brew start 호출 → launchd 가 별도 프로세스(`XPC=homebrew.mxcl.*`) spawn → SingleInstanceGuard 승자 경로 → 원본(open) 인스턴스 terminate → 연쇄적으로 앱·brew 모두 stopped.
 * 실측 env diff:
     - launchd-bootstrap: `XPC_SERVICE_NAME=homebrew.mxcl.fsnippet-cli`
     - open 심링크:       `XPC_SERVICE_NAME=application.kr.finfra.fSnippetCli.<sid>.<pid>`
-* 해결:
-    - `BrewServiceSync.onAppStart` 에 `isLaunchedViaLaunchServices()` skip 조건 추가 (XPC_SERVICE_NAME 이 "application." 접두사일 때 brew start 호출 금지 → 연쇄 차단)
-    - 진단용 `xpcServiceName()` 헬퍼 + 로그에 XPC 원본 값 기록
-    - `SingleInstanceGuard.myPID` 를 `NSRunningApplication.current` (AppKit 미초기화 시 -1 반환) → `getpid()` 로 교체
-    - guard 로그에도 XPC_SERVICE_NAME 포함 (진단 용이성)
+* 해결 (2-phase):
+    - **v1 (commit 17623e5)**: `SingleInstanceGuard.myPID` 를 `NSRunningApplication.current` (AppKit 미초기화 시 -1 반환) → `getpid()` 로 교체. 진단용 `xpcServiceName()` 헬퍼 + 로그에 XPC 값. `isLaunchedViaLaunchServices()` 판정 추가. (초기 수정은 trade-off: open 경로 skip 으로 brew service 자동 start 포기)
+    - **v2 (commit 1b59c6c)**: open 경로에서 `performHandoffStart()` 로 전환 — brew services start 동기 호출 + `Foundation.exit(0)` 로 self-terminate → launchd-bootstrap(B) 가 primary 승계. `handoffInProgress` 플래그로 race (applicationWillTerminate 진입 시 brew stop 호출) 차단. Trade-off 완전 제거.
 * 수정 파일: `cli/fSnippetCli/Services/BrewServiceSync.swift`, `cli/fSnippetCli/Services/SingleInstanceGuard.swift`
-* 검증: 심링크 open 후 프로세스 생존 + REST /api 정상 (이전: 1초 후 자멸). Phase 0 B/C/D regression 전부 통과.
-* Trade-off: 심링크 경로는 brew 서비스를 자동 start 하지 않음 (연쇄 재발 방지). 재시작 필요 시 `brew services start fsnippet-cli` 사용. **사용자 수동 Finder 클릭 테스트 완료 — "메뉴바 아이콘 정상 작동, 기능 정상 작동" 확인.**
+* 검증:
+    - 심링크 open → <2s 전환 후 launchd-bootstrap(B) 프로세스 primary + brew=started + REST /api ok
+    - 로그에 `[brew-sync] onAppStop skip — handoff in progress (brew stop 억제)` 확인 — race 제거 명시
+    - Phase 0 B/C/D regression 전부 통과 유지 (handoff 플래그는 open 경로에서만 set)
 
 ## Issue51: brew services ↔ 메뉴바 앱 상태 동기화 재설계 — 4-quadrant 상태 매트릭스 기반 (pairApp fWarrangeCli#26 Issue39 Full Mirror) (등록: 2026-04-20, 해결: 2026-04-20, commit: e810353) ✅
 * 목적: pairApp fWarrangeCli(#26) Issue39 에서 설계·검증 완료된 **4-quadrant 상태 매트릭스** 를 fSnippetCli 에 Full Mirror 이식. `brew services` (launchd) 와 메뉴바 GUI 앱의 4개 트리거(brew start / brew stop / app start / app stop) 에서 상대 상태를 양방향 동기화. `/opt/homebrew/var/fSnippetCli/` 경로 원천 차단 + Bundle ID 기반 단일 인스턴스 가드(launchd-bootstrap 우선권) 로 no-double-start / no-ghost-state 로 수렴.
