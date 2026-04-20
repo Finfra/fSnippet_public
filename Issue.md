@@ -39,12 +39,17 @@ date: 2026-04-07
     | **app stop**   | brew `started` | `brew services stop` 호출 + `NSApplication.terminate`  |
     | **app stop**   | brew `stopped` | `terminate` 만 (brew 호출 skip)                        |
 
-* 구현 명세 (pairApp `3867459` Full Mirror):
-    - **Phase 1** (`cli/_tool/fsc-config.sh`, `fsc-deploy-debug.sh`, `fsc-run-xcode.sh`): DerivedData 직접 실행, `/opt/homebrew/var/fSnippetCli/` 미생성, `_nowage_app` 심링크 갱신. pairApp `fwc-*.sh` 변경분을 `fsc-*.sh` prefix 치환 이식
-    - **Phase 2** (`cli/fSnippetCli/MenuBarView.swift` 종료 액션): `BrewServiceSync.onAppStop(timeout: 2.0)` → `NSApplication.terminate`. 내부에서 launchctl 로드 상태 확인 후 조건부 `brew services stop`
-    - **Phase 3** (`cli/fSnippetCli/AppState.initialize()`): `BrewServiceSync.onAppStart()` 호출. skip 조건: (a) `UserDefaults` `fsc.autoStartBrewService == false`, (b) `XPC_SERVICE_NAME == "homebrew.mxcl.fsnippet-cli"` 매칭, (c) 이미 로드됨, (d) brew 바이너리 미존재. 그 외 `brew services start fsnippet-cli` 비동기 호출
-    - **Phase 4** (`cli/fSnippetCli/Services/SingleInstanceGuard.swift` + `fSnippetCliApp.swift` `AppEntry.main`): **launchd-bootstrap 프로세스 우선권**. `XPC_SERVICE_NAME == "homebrew.mxcl.fsnippet-cli"` 매칭 시 기존 인스턴스 `terminate()` 후 자신이 survive. 비-launchd 기동 시 기존 유지 + 자신 `exit(0)`. REST 포트 3015 bind 경합 방지 3초 폴링 포함
-    - **신규 파일**: `cli/fSnippetCli/Services/BrewServiceSync.swift`, `cli/fSnippetCli/Services/SingleInstanceGuard.swift` (pairApp 동일 구조)
+* 구현 명세 (pairApp `3867459` Full Mirror — 앱 구조 차이 반영 어댑테이션):
+    - **앱 구조 차이 (pairApp → fSnippetCli 매핑)**:
+        - pairApp: `fWarrangeCliApp.swift` 단일 파일 `AppEntry.main` + `@State AppState` + `state.initialize()`
+        - fSnippetCli: `main.swift` (CLI/GUI 분기) + `fSnippetCliApp.swift` + `AppDelegate.applicationDidFinishLaunching`
+        - 귀결: Guard 호출은 `main.swift` GUI 분기, `onAppStart` 호출은 `AppDelegate.applicationDidFinishLaunching` 말미 (기존 `setupPaidAppMonitoring` 이후)
+    - **Phase 1** (`cli/_tool/fsc-config.sh`, `fsc-deploy-debug.sh`, `fsc-run-xcode.sh`): DerivedData 직접 실행, `/opt/homebrew/var/fSnippetCli/` 미생성. `DEPLOY_DIR/APP_PATH` → `LEGACY_VAR_DIR` + `resolve_app_path()` 치환. `_nowage_app` 심링크 DerivedData 지향
+    - **Phase 2** (`cli/fSnippetCli/MenuBarView.swift` 종료 버튼): `NSApplication.shared.terminate(nil)` 앞에 `BrewServiceSync.onAppStop(timeout: 2.0)` 선행
+    - **Phase 3** (`cli/fSnippetCli/fSnippetCliApp.swift` AppDelegate `applicationDidFinishLaunching` 말미): `BrewServiceSync.onAppStart()` 호출. skip 4종 동일 (UserDefaults `fsc.autoStartBrewService=false` / `XPC_SERVICE_NAME` 매칭 / launchctl 이미 로드됨 / brew 미존재)
+    - **Phase 4** (신규 `cli/fSnippetCli/Services/SingleInstanceGuard.swift` + `main.swift` GUI 분기): `fSnippetCliApp.main()` 호출 직전 `SingleInstanceGuard.shouldTerminateAsDuplicate()` 체크. launchd-bootstrap 우선권 규칙 pairApp 동일
+    - **신규 파일**: `cli/fSnippetCli/Services/BrewServiceSync.swift`, `cli/fSnippetCli/Services/SingleInstanceGuard.swift` (pairApp 소스 치환 이식)
+    - **xcodeproj 갱신**: 신규 2개 파일을 PBXFileReference + PBXBuildFile + PBXGroup `Services` 에 수동 등록 (XcodeGen 사용 시 기존 DEVELOPMENT_TEAM/DEAD_CODE_STRIPPING 손실 우려 → 수동 편집 선택)
 * 치환 규칙 (pairApp → fSnippetCli):
     - 포트: `3016` → `3015`
     - Formula: `fwarrange-cli` → `fsnippet-cli`

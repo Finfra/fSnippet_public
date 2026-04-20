@@ -138,6 +138,8 @@
 		F906327C9348F6FA44E1DDCB /* HistoryPreviewManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 191F41B83FE93946E1786015 /* HistoryPreviewManager.swift */; };
 		FA57CF2BBCAB6FFA829563CE /* APIRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7804F97D92EF402565B92E1D /* APIRouter.swift */; };
 		FAF8E7FBEDD46BDA3C214F9C /* PaidAppStateLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DD21578E571498DB78C391E /* PaidAppStateLogger.swift */; };
+		2AD77550B0D1582B36F83B39 /* BrewServiceSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A6075368E3780EA33447024 /* BrewServiceSync.swift */; };
+		E083AA434C3223BF00DE0FA6 /* SingleInstanceGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6CD46902C5BEF2742D93CDE /* SingleInstanceGuard.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -286,6 +288,8 @@
 		FF5931F850FDDE979F7AAD37 /* StatusCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusCommand.swift; sourceTree = "<group>"; };
 		FFD4EBE4E5EF18AFFBC53914 /* SnippetNonActivatingWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetNonActivatingWindow.swift; sourceTree = "<group>"; };
 		FFEB5912076E84E12F962005 /* SQLiteDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLiteDatabase.swift; sourceTree = "<group>"; };
+		0A6075368E3780EA33447024 /* BrewServiceSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrewServiceSync.swift; sourceTree = "<group>"; };
+		D6CD46902C5BEF2742D93CDE /* SingleInstanceGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingleInstanceGuard.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -523,6 +527,7 @@
 				87F30CEF93F04291F0E928B1 /* Managers */,
 				33A6F350F000EE4CA1AA1DC4 /* Models */,
 				732F12DB159DC6054B1FF284 /* Protocols */,
+				28FB009D12D8BB78976BBA95 /* Services */,
 				1DD765592837A3EBF7280F34 /* UI */,
 				BB40FAF1003A8C904C70514F /* Utils */,
 				3006D4402D90A2AE329760BE /* Views */,
@@ -556,6 +561,15 @@
 				FFEB5912076E84E12F962005 /* SQLiteDatabase.swift */,
 			);
 			path = Data;
+			sourceTree = "<group>";
+		};
+		28FB009D12D8BB78976BBA95 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				0A6075368E3780EA33447024 /* BrewServiceSync.swift */,
+				D6CD46902C5BEF2742D93CDE /* SingleInstanceGuard.swift */,
+			);
+			path = Services;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -604,7 +618,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 1600;
+				LastUpgradeCheck = 2640;
 				TargetAttributes = {
 					7DAC764A90BE3685455B6384 = {
 						ProvisioningStyle = Automatic;
@@ -678,6 +692,7 @@
 				81AC84A2BB787C9DAC8A6733 /* AutoStartManager.swift in Sources */,
 				13F7598718829BC666B06ADC /* BufferController.swift in Sources */,
 				CE9121525135CDFED020D1A7 /* BufferManager.swift in Sources */,
+				2AD77550B0D1582B36F83B39 /* BrewServiceSync.swift in Sources */,
 				5B304FF5D12C60D64A8B74FD /* CGEventTapManager.swift in Sources */,
 				1F063FD1B1238DEAB12E08EB /* CIDRFilter.swift in Sources */,
 				EC754A06858945DC1BF8E292 /* CLIAPIClient.swift in Sources */,
@@ -745,6 +760,7 @@
 				915B933502E15F6C43DCA21C /* SettingsManager.swift in Sources */,
 				B71D3B08CBE15AFF366BE706 /* SettingsObservableObject.swift in Sources */,
 				1307B400F5F22512FACE9338 /* SettingsWindowManager.swift in Sources */,
+				E083AA434C3223BF00DE0FA6 /* SingleInstanceGuard.swift in Sources */,
 				EB7108B17B0D4F8478F3B10A /* SharedKeyMap.swift in Sources */,
 				AD855BF9446D935C78F2E0C9 /* ShortcutMgr.swift in Sources */,
 				18567037DF7E70F497541EB2 /* SingleShortcutMapper.swift in Sources */,
@@ -806,7 +822,9 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_IDENTITY = "";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -826,6 +844,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = fSnippetCli/fSnippetCli.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = fSnippetCli/Info.plist;
@@ -873,9 +892,12 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = BZDZFZWF6K;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -890,6 +912,7 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = fSnippetCli;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
@@ -902,6 +925,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = fSnippetCli/fSnippetCli.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = fSnippetCli/Info.plist;
@@ -949,9 +973,12 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = BZDZFZWF6K;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -973,6 +1000,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = fSnippetCli;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -984,7 +1012,9 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_IDENTITY = "";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

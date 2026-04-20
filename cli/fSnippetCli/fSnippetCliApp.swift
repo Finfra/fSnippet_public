@@ -104,6 +104,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // fSnippet 앱 실행/종료 감시
         setupPaidAppMonitoring()
 
+        // Issue51 Phase3: brew services 자동 동기화 (app start × brew=stopped → start)
+        // skip 조건: UserDefaults fsc.autoStartBrewService=false / launchd 기동 / 이미 로드됨 / brew 미존재
+        BrewServiceSync.onAppStart()
+
         logI("fSnippetCli 시작 완료")
     }
 

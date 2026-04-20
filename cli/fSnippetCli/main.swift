@@ -21,6 +21,13 @@ let args = rawArgs.filter { arg in
 
 if args.isEmpty {
     // GUI 모드: 기존 MenuBarExtra 앱 실행
+    // Issue51 Phase4: 동일 Bundle ID 중복 인스턴스 차단.
+    // LaunchServices 가 심링크/경로 차이로 별개 인스턴스를 허용하는 경우
+    // (`open _nowage_app/...` + `brew services start` 조합) 를 런타임에서 방어.
+    // launchd-bootstrap 프로세스가 우선권을 갖도록 기존 인스턴스를 terminate 함.
+    if SingleInstanceGuard.shouldTerminateAsDuplicate() {
+        exit(0)
+    }
     fSnippetCliApp.main()
 } else {
     // CLI 모드: GUI 초기화 없이 커맨드 실행 후 종료
