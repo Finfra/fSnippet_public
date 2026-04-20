@@ -31,8 +31,9 @@ enum BrewServiceSync {
     /// skip 조건:
     /// 1. `UserDefaults` optOutKey == false
     /// 2. launchd 가 이 프로세스를 기동 (`XPC_SERVICE_NAME` 매칭) — 무한 루프 방지
-    /// 3. `launchctl list` 에 이미 로드됨 — brew state 이미 `started`
-    /// 4. brew 바이너리 미존재
+    /// 3. **Issue53**: open 심링크 경로(LaunchServices wrap, `XPC_SERVICE_NAME=application.*`) — 연쇄 종료 방지
+    /// 4. `launchctl list` 에 이미 로드됨 — brew state 이미 `started`
+    /// 5. brew 바이너리 미존재
     static func onAppStart() {
         if let optOut = UserDefaults.standard.object(forKey: optOutKey) as? Bool, optOut == false {
             logI("[brew-sync] onAppStart skip — \(optOutKey)=false")
@@ -40,7 +41,17 @@ enum BrewServiceSync {
         }
 
         if isLaunchedByLaunchd() {
-            logD("[brew-sync] onAppStart skip — launchd 기동 프로세스 (XPC_SERVICE_NAME 매칭)")
+            logD("[brew-sync] onAppStart skip — launchd 기동 프로세스 (XPC_SERVICE_NAME=\(xpcServiceName() ?? "nil"))")
+            return
+        }
+
+        // Issue53: open 심링크(/Applications/_nowage_app/fSnippetCli.app) 경로에서는 brew start 호출 금지.
+        // LaunchServices 가 XPC_SERVICE_NAME=application.* 로 wrap 하여 기동 → 이 상태에서
+        // brew services start 호출 시 launchd 가 별도 프로세스 spawn → SingleInstanceGuard 가
+        // 자기(open 기동)를 terminate 하는 연쇄 반응 발생 (결국 앱·brew 모두 stopped).
+        // 사용자가 brew 서비스도 함께 원하면 명시적 `brew services start` 사용.
+        if isLaunchedViaLaunchServices() {
+            logI("[brew-sync] onAppStart skip — open/LaunchServices 경로 (XPC_SERVICE_NAME=\(xpcServiceName() ?? "nil")). brew 시작은 수동.")
             return
         }
 
@@ -115,7 +126,21 @@ enum BrewServiceSync {
     /// PPID 기반 판정은 상시 true 가 되어 무한 루프 방지 조건으로만 사용 불가.
     /// `XPC_SERVICE_NAME` 이 서비스 label 과 일치하는 경우만 launchd 기동으로 간주.
     static func isLaunchedByLaunchd() -> Bool {
-        return ProcessInfo.processInfo.environment["XPC_SERVICE_NAME"] == serviceLabel
+        return xpcServiceName() == serviceLabel
+    }
+
+    /// Issue53: open / Finder / LaunchServices 경로로 기동됐는지 판정.
+    /// 이 경로는 `XPC_SERVICE_NAME` 이 `application.<BundleID>.<session>.<pid>` 포맷으로 주입됨.
+    /// (ex: `application.kr.finfra.fSnippetCli.212453215.212453236`)
+    /// launchd-bootstrap 경로(`homebrew.mxcl.*`) 와 명확히 구분됨.
+    static func isLaunchedViaLaunchServices() -> Bool {
+        guard let xpc = xpcServiceName() else { return false }
+        return xpc.hasPrefix("application.")
+    }
+
+    /// 진단용: 현재 프로세스의 XPC_SERVICE_NAME 원본 값 반환. 없으면 nil.
+    static func xpcServiceName() -> String? {
+        return ProcessInfo.processInfo.environment["XPC_SERVICE_NAME"]
     }
 
     /// brew state == `started` 와 등가. `launchctl list` 출력에 label 이 포함됐는지.

@@ -26,7 +26,9 @@ enum SingleInstanceGuard {
         }
 
         let all = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
-        let myPID = NSRunningApplication.current.processIdentifier
+        // Issue53: NSRunningApplication.current.processIdentifier 는 AppKit 미초기화 상태에서
+        // -1 반환 → getpid() 로 교체하여 실제 PID 확보.
+        let myPID = pid_t(getpid())
         let others = all.filter { $0.processIdentifier != myPID }
 
         guard !others.isEmpty else {
@@ -35,10 +37,11 @@ enum SingleInstanceGuard {
 
         let pids = others.map(\.processIdentifier)
         let iAmLaunchd = isLaunchedByLaunchd()
+        let xpcLabel = ProcessInfo.processInfo.environment["XPC_SERVICE_NAME"] ?? "nil"
 
         if iAmLaunchd {
             // 승자 경로: 기존 open-기동 프로세스들을 terminate 하고 자신이 survive.
-            logW("[single-instance] launchd-spawned (PID \(myPID)) — 기존 인스턴스 terminate (PIDs: \(pids))")
+            logW("[single-instance] launchd-spawned (PID \(myPID), XPC=\(xpcLabel)) — 기존 인스턴스 terminate (PIDs: \(pids))")
             for other in others {
                 if !other.terminate() {
                     logW("[single-instance] ⚠️ terminate 요청 실패 PID \(other.processIdentifier) — forceTerminate 시도")
@@ -50,7 +53,7 @@ enum SingleInstanceGuard {
             return false
         } else {
             // 패자 경로: 기존 인스턴스 유지, 자신 exit.
-            logW("[single-instance] non-launchd (PID \(myPID)) — 기존 인스턴스 유지 (PIDs: \(pids)), 자신 exit")
+            logW("[single-instance] non-launchd (PID \(myPID), XPC=\(xpcLabel)) — 기존 인스턴스 유지 (PIDs: \(pids)), 자신 exit")
             others.first?.activate()
             return true
         }
