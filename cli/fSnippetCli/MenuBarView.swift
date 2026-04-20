@@ -24,9 +24,9 @@ struct MenuBarView: View {
         Divider()
 
         // Issue20: 설정 (유료 버전 분기)
-        // _setting.yml의 settings_hotkey 값으로 단축키 표시
+        // Issue827 Phase B: URL Scheme 우선, rollback 플래그(fsc.disableUrlScheme) 시 REST fallback
         Button {
-            SettingsWindowManager.shared.showSettings()
+            PaidAppDetector.openSettings()
         } label: {
             Label("Settings...", systemImage: "gearshape")
         }

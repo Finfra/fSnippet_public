@@ -34,8 +34,26 @@ enum PaidAppDetector {
     return true
   }
 
-  /// paidApp 설정창 열기 (MVP: 앱 실행만 보장)
+  /// paidApp 설정창 열기 — Issue827 Phase B
+  /// URL Scheme 우선 (fsnippet://command?action=settings&source=cliApp),
+  /// 롤백 플래그(fsc.disableUrlScheme) 활성 시 SettingsWindowManager fallback
   static func openSettings() {
-    launch()
+    let disableUrlScheme = UserDefaults.standard.bool(forKey: "fsc.disableUrlScheme")
+    guard !disableUrlScheme, let schemeURL = URL(string: "fsnippet://command?action=settings&source=cliApp") else {
+      // rollback: 기존 REST 기반 경로
+      SettingsWindowManager.shared.showSettings()
+      return
+    }
+
+    if isRunning() {
+      // 실행 중 → URL Scheme 직접 전달
+      NSWorkspace.shared.open(schemeURL)
+    } else {
+      // 미실행 → 앱 먼저 기동 후 URL Scheme 전달 (~1초 대기)
+      guard launch() else { return }
+      DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+        NSWorkspace.shared.open(schemeURL)
+      }
+    }
   }
 }
