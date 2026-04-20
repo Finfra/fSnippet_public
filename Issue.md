@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-- Issue HWM: 53
+- Issue HWM: 54
 - Save Point: 2026-04-19 (8b88964) Feat(Test)(Issue50): fsc-test.sh에 fwc 오케스트레이션 3단계 역이식
 
 # 🤔 결정사항
@@ -14,7 +14,7 @@ date: 2026-04-07
 # 🌱 이슈후보
 1. 클립보드 히스토리 기능 중에서 고급 기능은 Paid 앱이 활성화 되어 있어야 실행 가능하게끔 해 줘 활성화 되어 있지 않다면 활성화 창[기존 코드 찾아서] 열게 해야함.
     - Paid 앱의 기능이 모듈로 구성되어 있는지 확인
-2. [QA발견 2026-04-20] `/paidapp/register` 보안 검증: 위조 PID(99999) 등 권한 검증 실패 시 HTTP 403 Forbidden 반환 필요 — 재현: `curl -X POST http://localhost:3015/api/v2/paidapp/register -d '{"pid":99999,"bundlePath":"/fake/path","sessionId":"qa-test-fake","version":"0.98.1"}'`, 기대: 403, 실제: 400
+
 3. [QA발견 2026-04-20] Issue53(SingleInstanceGuard handoff) 심볼명 명세 불일치 — 기대: performHandoffStart, handoffInProgress, isLaunchedViaLaunchServices, 실제: isLaunchedByLaunchd, shouldTerminateAsDuplicate, waitForOthersToExit (기능은 구현되었으나 심볼명이 명세와 다름) 
 
 # 🚧 진행중
@@ -22,6 +22,17 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
+
+## Issue54: `/paidapp/register` 위조 PID 검증 — 400 대신 403 반환 필요 (등록: 2026-04-20)
+* 목적: `startTime` 누락 요청 시 JSON 디코딩 실패(400)로 보안 검증 우회 가능 — `startTime` 선택 필드화로 PID 검증 경로까지 도달하게 하여 403 반환
+* 상세:
+    - 재현: `curl -X POST http://localhost:3015/api/v2/paidapp/register -d '{"pid":99999,"bundlePath":"/fake/path","sessionId":"qa-test-fake","version":"0.98.1"}'`
+    - 기대: HTTP 403 Forbidden
+    - 실제: HTTP 400 (`INVALID_REQUEST` — `startTime` 누락으로 JSONDecoder 실패)
+* 구현 명세:
+    - `cli/fSnippetCli/Data/APIModels.swift:626` — `startTime: Int64` → `startTime: Int64?` (선택 필드, 기본 nil)
+    - `cli/fSnippetCli/Managers/APIRouter.swift:1803` — `handlePaidAppRegister` 디코딩 실패 구간이 보안 검증 전에 400을 반환하지 않도록 모델 변경으로 해결
+    - `openapi_v2.yaml` — `/paidapp/register` request body `startTime` 필드를 `required` 목록에서 제거하거나 `nullable: true`로 변경
 
 # 📗 선택
 
