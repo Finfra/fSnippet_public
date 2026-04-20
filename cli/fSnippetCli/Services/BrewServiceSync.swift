@@ -19,6 +19,11 @@ enum BrewServiceSync {
     /// 명시적 `false` 일 때만 Phase 3 를 skip. 미설정·`true` 는 활성.
     static let optOutKey = "fsc.autoStartBrewService"
 
+    /// Issue53 v2: handoff 진행 중 flag. SingleInstanceGuard 에 의한 terminate 시
+    /// applicationWillTerminate → onAppStop → brew stop 이 방금 start 한 서비스를
+    /// 다시 stop 시키는 race 를 차단.
+    private static var handoffInProgress = false
+
     static let brewCandidates = [
         "/opt/homebrew/bin/brew",
         "/usr/local/bin/brew"
@@ -45,16 +50,6 @@ enum BrewServiceSync {
             return
         }
 
-        // Issue53: open 심링크(/Applications/_nowage_app/fSnippetCli.app) 경로에서는 brew start 호출 금지.
-        // LaunchServices 가 XPC_SERVICE_NAME=application.* 로 wrap 하여 기동 → 이 상태에서
-        // brew services start 호출 시 launchd 가 별도 프로세스 spawn → SingleInstanceGuard 가
-        // 자기(open 기동)를 terminate 하는 연쇄 반응 발생 (결국 앱·brew 모두 stopped).
-        // 사용자가 brew 서비스도 함께 원하면 명시적 `brew services start` 사용.
-        if isLaunchedViaLaunchServices() {
-            logI("[brew-sync] onAppStart skip — open/LaunchServices 경로 (XPC_SERVICE_NAME=\(xpcServiceName() ?? "nil")). brew 시작은 수동.")
-            return
-        }
-
         if isServiceLoaded() {
             logD("[brew-sync] onAppStart skip — brew state 이미 started (\(serviceLabel) 로드됨)")
             return
@@ -65,10 +60,42 @@ enum BrewServiceSync {
             return
         }
 
-        // brew state: stopped → started. 백그라운드 비동기.
+        // Issue53 v2: open/LaunchServices 경로(XPC=application.*)에서는 `brew services start` 후
+        // 즉시 self-exit(0) 하여 launchd-bootstrap 프로세스에게 승계.
+        // 이유: 이 경로에서 일반 비동기 start 를 수행하면 SingleInstanceGuard 가 open 기동
+        // 프로세스를 terminate → applicationWillTerminate Phase0 가 방금 start 한 서비스를 stop
+        // → 연쇄적으로 모두 stopped 로 귀결됨.
+        // exit(0) 는 applicationWillTerminate 를 우회하므로 Phase0 brew stop 도 실행되지 않음.
+        if isLaunchedViaLaunchServices() {
+            logI("[brew-sync] onAppStart — open 경로 감지 (XPC=\(xpcServiceName() ?? "nil")). brew start + self-exit handoff.")
+            DispatchQueue.global(qos: .utility).async {
+                performHandoffStart(brewPath: brewPath)
+            }
+            return
+        }
+
+        // 일반 경로 (Xcode Debug, bundle 직접 실행 등): 기존 비동기 start.
         DispatchQueue.global(qos: .utility).async {
             runBrewServicesStart(brewPath: brewPath)
         }
+    }
+
+    /// Issue53 v2: open/LaunchServices 경로 전용 — brew start 동기 호출 후 exit(0).
+    /// applicationWillTerminate 를 우회하여 Phase0 brew stop 이 실행되지 않도록 함.
+    /// launchd-bootstrap 프로세스(XPC=homebrew.mxcl.*) 가 survive 하여 메뉴바 아이콘 재등장.
+    private static func performHandoffStart(brewPath: String) {
+        // race 방어: brew start 호출 전에 flag set → onAppStop 이 trigger 되어도 brew stop 스킵
+        handoffInProgress = true
+        logI("[brew-sync] brew services start \(formulaName) — handoff (open → launchd-bootstrap)")
+        let (rc, output) = runCommandWithStatus(brewPath, args: ["services", "start", formulaName])
+        let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        if rc != 0 {
+            logW("[brew-sync] ⚠️ handoff start 실패 (rc=\(rc)): \(trimmed) — self-exit 취소, 기존 앱 유지")
+            return
+        }
+        logI("[brew-sync] ✅ handoff start 성공: \(trimmed). self-exit(0) — launchd-bootstrap 승계")
+        // applicationWillTerminate 우회: Foundation.exit 은 delegate 를 호출하지 않음.
+        Foundation.exit(0)
     }
 
     private static func runBrewServicesStart(brewPath: String) {
@@ -89,6 +116,13 @@ enum BrewServiceSync {
     /// 반환 후 호출부가 `NSApplication.terminate` 를 수행함.
     /// 타임아웃 초과 시 종료 흐름 지연 방지 위해 포기하고 반환.
     static func onAppStop(timeout: TimeInterval = 2.0) {
+        // Issue53 v2: handoff 중 SingleInstanceGuard terminate 경로 진입 시
+        // 방금 start 한 brew service 를 다시 stop 시키는 race 차단.
+        if handoffInProgress {
+            logI("[brew-sync] onAppStop skip — handoff in progress (brew stop 억제)")
+            return
+        }
+
         guard let brewPath = findBrewPath() else {
             logI("[brew-sync] onAppStop skip — brew 미설치")
             return
