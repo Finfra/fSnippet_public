@@ -73,6 +73,8 @@ tags:
     description: 전체 설정 스냅샷 (일괄 조회/복원)
   - name: Settings Actions
     description: 파괴적 동작 (Reset, Clear, Factory Reset)
+  - name: PaidApp
+    description: paidApp(fSnippet) 라이프사이클 등록/해제 — Phase A 메타데이터 2차 채널 (NSWorkspace 1차 채널과 직교)
 
 paths:
   # ========================================================================
@@ -902,6 +904,94 @@ paths:
       responses:
         '200': { description: Restored }
         '400': { $ref: '#/components/responses/BadRequest' }
+
+  # ========================================================================
+  # PaidApp Lifecycle (Phase A)
+  # ========================================================================
+  /paidapp/register:
+    post:
+      tags: [PaidApp]
+      summary: paidApp 시작 등록
+      description: |
+        paidApp(fSnippet GUI) 기동 시 메타데이터를 cliApp에 등록하는 2차 채널.
+        NSWorkspace(1차 채널)와 독립적이며 pid/bundlePath/sessionId/version/startTime을 전달.
+
+        **3단계 발신자 검증**:
+        1. `pid` 존재 여부 (kill -0)
+        2. `pid`의 bundleURL → `bundlePath` 일치
+        3. Code Signing Team ID가 cliApp과 동일한지 확인
+
+        동일 sessionId로 중복 등록 시 409 반환.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PaidAppRegistrationRequest' }
+            example:
+              pid: 2345
+              bundlePath: "/Applications/fSnippet.app"
+              sessionId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+              version: "1.2.3"
+              startTime: 1713571200000
+      responses:
+        '200':
+          description: 등록 성공
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaidAppRegistrationResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403':
+          description: 발신자 검증 실패 (pid/bundleURL/Team ID 불일치)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: 이미 등록된 sessionId
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /paidapp/unregister:
+    post:
+      tags: [PaidApp]
+      summary: paidApp 종료 해제
+      description: |
+        paidApp `applicationWillTerminate`에서 호출. 500ms semaphore timeout 내 응답 필수.
+        sessionId 일치 여부만 검증 (종료 경로이므로 pid는 이미 소멸 가능).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PaidAppUnregistrationRequest' }
+      responses:
+        '200':
+          description: 해제 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+        '404':
+          description: 해당 sessionId 미등록
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /paidapp/status:
+    get:
+      tags: [PaidApp]
+      summary: paidApp 등록 상태 조회
+      description: |
+        현재 REST 채널에 등록된 paidApp 메타데이터 조회.
+        NSWorkspace 감지와 무관하게 REST 2차 채널 등록 여부만 반환.
+        `registered=false`이면 `data`는 null.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaidAppStatusResponse' }
 
   # ========================================================================
   # Data Endpoints (from v1)
@@ -1939,3 +2029,103 @@ components:
           type: string
           description: "파괴적 동작 확인 문자열. 반드시 'YES-I-KNOW' 이어야 함."
           example: "YES-I-KNOW"
+
+    # --- PaidApp Lifecycle (Phase A) --------------------------------------
+    PaidAppRegistrationRequest:
+      type: object
+      required: [pid, bundlePath, sessionId, version, startTime]
+      properties:
+        pid:
+          type: integer
+          description: "paidApp PID (kill -0 검증용)"
+          example: 2345
+        bundlePath:
+          type: string
+          description: "paidApp .app 번들 경로"
+          example: "/Applications/fSnippet.app"
+        sessionId:
+          type: string
+          format: uuid
+          description: "기동마다 발급되는 UUID (중복 방지)"
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        version:
+          type: string
+          description: "paidApp CFBundleShortVersionString"
+          example: "1.2.3"
+        startTime:
+          type: integer
+          format: int64
+          description: "기동 시각 (Unix ms)"
+          example: 1713571200000
+
+    PaidAppRegistrationResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        sessionId:
+          type: string
+          format: uuid
+          description: "등록된 sessionId (echo)"
+        cliVersion:
+          type: string
+          description: "cliApp 현재 버전"
+          example: "1.0.0"
+        minPaidAppVersion:
+          type: string
+          description: "cliApp이 요구하는 paidApp 최소 버전"
+          example: "1.2.0"
+          nullable: true
+        compatible:
+          type: boolean
+          description: "paidApp 버전 호환 여부 (version >= minPaidAppVersion)"
+          example: true
+
+    PaidAppUnregistrationRequest:
+      type: object
+      required: [sessionId]
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+          description: "등록 시 사용한 sessionId"
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+    PaidAppStatusResponse:
+      type: object
+      properties:
+        registered:
+          type: boolean
+          description: "REST 2차 채널 등록 여부"
+        data:
+          nullable: true
+          type: object
+          description: "registered=false 이면 null"
+          properties:
+            pid:          { type: integer }
+            bundlePath:   { type: string }
+            sessionId:    { type: string, format: uuid }
+            version:      { type: string }
+            startTime:    { type: integer, format: int64 }
+            registeredAt: { type: string, format: date-time }
+
+    # --- CLI Version (v2 extended: minPaidAppVersion 추가) -----------------
+    CliVersionResponse:
+      type: object
+      description: "GET /cli/version 응답 (v1 호환 + minPaidAppVersion 확장)"
+      properties:
+        success:     { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            app:          { type: string, example: "fSnippetCli" }
+            version:      { type: string, example: "1.0.0" }
+            build:        { type: string, example: "1" }
+            swift_version:     { type: string, example: "5.0" }
+            macos_target:      { type: string, example: "14.0" }
+            minPaidAppVersion:
+              type: string
+              description: "paidApp이 등록 시 호환 판정에 쓰이는 최소 버전 (null=무제한)"
+              example: "1.2.0"
+              nullable: true

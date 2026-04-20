@@ -1286,6 +1286,11 @@ components:
             macos_target:
               type: string
               example: "14.0"
+            minPaidAppVersion:
+              type: string
+              description: "paidApp 최소 요구 버전 (null=무제한, Phase A register 호환 판정용)"
+              example: "1.2.0"
+              nullable: true
 
     CliQuitResponse:
       type: object
