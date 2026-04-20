@@ -524,7 +524,6 @@ struct APIV2GeneralSettingsPatch: Decodable {
   let snippetFolder: String?
   let triggerBias: Int?
   let quickSelectModifier: String?
-  let showMenuBar: Bool?  // Issue821: GUI 종료 시 메뉴바 복원용
 }
 
 struct APIV2HistorySettingsPatch: Decodable {

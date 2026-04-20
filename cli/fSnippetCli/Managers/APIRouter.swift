@@ -2256,14 +2256,6 @@ class APIRouter {
       if let v = patch.quickSelectModifier { config["quick_select_modifier"] = v }
     }
 
-    // Issue821: 메뉴바 표시 상태 제어 (런타임 상태, 설정 파일 미저장)
-    if let showMenuBar = patch.showMenuBar {
-      DispatchQueue.main.async {
-        AppState.shared.showMenuBar = showMenuBar
-        logI("🔧 [Issue821] 메뉴바 표시 상태 변경: \(showMenuBar)")
-      }
-    }
-
     return jsonResponse(buildV2General())
   }
 

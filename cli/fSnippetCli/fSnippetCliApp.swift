@@ -1,31 +1,15 @@
 import SwiftUI
 import Cocoa
 
-// MARK: - 앱 상태 (메뉴바 표시 여부)
-
-class AppState: ObservableObject {
-    static let shared = AppState()
-    /// fSnippet(유료) 설치 시 false → 메뉴바 아이콘 숨김
-    @Published var showMenuBar: Bool = true
-}
-
 // MARK: - App 진입점
 
+// Issue828 Phase C: AppState.showMenuBar 제거 — 메뉴바 상시 표시로 전환
 struct fSnippetCliApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @ObservedObject private var appState = AppState.shared
 
     var body: some Scene {
-        // MenuBarExtra: macOS 13+ 메뉴바 아이콘
-        // isInserted: fSnippet(유료) 실행 시 메뉴바에서 제거
-        // @ObservedObject로 AppState 변경 감지 + 동일 값 가드로 KVO 피드백 루프 차단
-        MenuBarExtra(isInserted: Binding(
-            get: { self.appState.showMenuBar },
-            set: { newValue in
-                guard newValue != self.appState.showMenuBar else { return }
-                self.appState.showMenuBar = newValue
-            }
-        )) {
+        // Issue828 Phase C: MenuBarExtra 상시 표시 (isInserted 바인딩 제거)
+        MenuBarExtra {
             MenuBarView()
         } label: {
             // 대각선으로 아래 부분을 잘라낸 번개 아이콘
@@ -90,15 +74,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // 4. API 서버 시작 (forceEnabled: api_enabled 설정 무시하고 항상 시작)
         APIServer.shared.start(forceEnabled: true)
 
-        // 5. paid 앱 감지 시 자동 실행 + 메뉴바 숨김
-        if PaidAppManager.shared.isRunning() {
-            AppState.shared.showMenuBar = false
-            logI("fSnippet(유료) 실행 중 — 메뉴바 아이콘 숨김")
-        } else if PaidAppManager.shared.isInstalled() {
-            if PaidAppManager.shared.launchPaidApp() {
-                AppState.shared.showMenuBar = false
-                logI("fSnippet(유료) 감지 → 자동 실행 — 메뉴바 아이콘 숨김")
-            }
+        // 5. paid 앱 감지 시 자동 실행 (Issue828 Phase C: 메뉴바 숨김 로직 제거)
+        if PaidAppManager.shared.isInstalled(), !PaidAppManager.shared.isRunning() {
+            PaidAppManager.shared.launchPaidApp()
         }
 
         // fSnippet 앱 실행/종료 감시
@@ -125,41 +103,30 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - 유료 앱 실행/종료 감시
 
-    /// fSnippet(유료) 앱의 실행/종료를 감시하여 메뉴바 표시 상태를 동적으로 전환
+    /// fSnippet(유료) 앱 실행/종료를 감시하여 PaidAppStateStore를 갱신 (Phase A Store 유지)
+    /// Issue828 Phase C: showMenuBar 토글 제거 — 메뉴바 상시 표시
     private func setupPaidAppMonitoring() {
         let workspace = NSWorkspace.shared
         let paidBundleID = "kr.finfra.fSnippet"
 
-        // fSnippet 실행 감지 → 메뉴바 숨김
         workspace.notificationCenter.addObserver(
             forName: NSWorkspace.didLaunchApplicationNotification,
             object: nil, queue: .main
         ) { notification in
             guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
                   app.bundleIdentifier == paidBundleID else { return }
-            AppState.shared.showMenuBar = false
-            logI("fSnippet(유료) 실행 감지 — 메뉴바 아이콘 숨김")
+            logI("fSnippet(유료) 실행 감지")
         }
 
-        // fSnippet 종료 감지 → 메뉴바 복원 + Store stale 처리 (A-11)
+        // fSnippet 종료 감지 → Store stale 처리 (A-11, 직교 2채널)
         workspace.notificationCenter.addObserver(
             forName: NSWorkspace.didTerminateApplicationNotification,
             object: nil, queue: .main
         ) { notification in
             guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
                   app.bundleIdentifier == paidBundleID else { return }
-            AppState.shared.showMenuBar = true
-            logI("fSnippet(유료) 종료 감지 — 메뉴바 아이콘 복원")
-            // REST unregister 미수신 시 Store 정합성 보장 (직교 2채널 보강)
+            logI("fSnippet(유료) 종료 감지")
             PaidAppStateStore.shared.markStaleFromWorkspace(pid: app.processIdentifier)
-        }
-        // didLaunch 시 Store 갱신 안 함 — paidApp이 직접 REST register 수행 대기 (A-11)
-
-        // 현재 fSnippet이 실행 중인지 확인
-        let isRunning = workspace.runningApplications.contains { $0.bundleIdentifier == paidBundleID }
-        if isRunning {
-            AppState.shared.showMenuBar = false
-            logI("fSnippet(유료) 실행 중 — 메뉴바 아이콘 숨김")
         }
     }
 

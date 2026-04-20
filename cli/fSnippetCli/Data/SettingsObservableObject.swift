@@ -33,14 +33,7 @@ class SettingsObservableObject: ObservableObject {
     // Issue47 (2026-04-19): SMAppService 경로 obsolete — brew services 배타 원칙 준수.
     // prefs/API backward compat 용으로 값 자체는 저장/반환되나, 실제 Login Item 등록은 하지 않음.
     @Published var autoStart: Bool = false
-    @Published var hideFromMenuBar: Bool = false {
-        didSet {
-            // 로직 적용 (초기화 중이 아닐 때만 실행)
-            if !isInitializing {
-                MenuBarManager.shared.updateMenuBarVisibility(hide: hideFromMenuBar)
-            }
-        }
-    }
+    @Published var hideFromMenuBar: Bool = false
     @Published var showInAppSwitcher: Bool = false {
         didSet {
             if !isInitializing {
