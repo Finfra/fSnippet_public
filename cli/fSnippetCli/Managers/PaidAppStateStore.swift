@@ -25,6 +25,18 @@ final class PaidAppStateStore {
 
     private init() {}
 
+    // MARK: - 테스트 전용
+
+    /// 단위 테스트에서 발신자 검증 없이 직접 등록하는 내부 메서드.
+    /// production 경로에서 절대 호출하지 않을 것.
+    internal func _registerForTesting(pid: Int32, bundlePath: String, sessionId: String, version: String, startTime: Int64) -> Registration {
+        queue.sync {
+            let reg = Registration(pid: pid, bundlePath: bundlePath, sessionId: sessionId, version: version, startTime: startTime, registeredAt: Date())
+            current = reg
+            return reg
+        }
+    }
+
     // MARK: - 등록
 
     enum RegisterError: Error {
@@ -39,6 +51,17 @@ final class PaidAppStateStore {
     @discardableResult
     func register(_ request: PaidAppRegistrationRequest) throws -> Registration {
         try queue.sync {
+            let prevState = current == nil ? "not_running" : "running"
+            // 이미 running이면 stale 로그 후 새 등록
+            if let existing = current {
+                logW("🏷️ [PaidAppStateStore] 기존 등록 stale — session:\(existing.sessionId.prefix(8))… 새 등록 진행")
+                try? PaidAppStateLogger.record(
+                    previous: "running",
+                    next: "stale",
+                    eventType: "hijack_suspected",
+                    extra: ["pid": "\(existing.pid)", "session": String(existing.sessionId.prefix(8))]
+                )
+            }
             // 중복 sessionId 검사
             if let existing = current, existing.sessionId == request.sessionId {
                 throw RegisterError.duplicateSession(request.sessionId)
@@ -56,6 +79,12 @@ final class PaidAppStateStore {
             )
             current = reg
             logI("🏷️ [PaidAppStateStore] 등록 완료 — pid:\(request.pid) session:\(request.sessionId.prefix(8))…")
+            try? PaidAppStateLogger.record(
+                previous: prevState,
+                next: "running",
+                eventType: "register",
+                extra: ["pid": "\(request.pid)", "version": request.version, "session": String(request.sessionId.prefix(8))]
+            )
             return reg
         }
     }
@@ -72,8 +101,30 @@ final class PaidAppStateStore {
             guard current?.sessionId == sessionId else {
                 throw UnregisterError.notFound(sessionId)
             }
+            let pid = current?.pid
             current = nil
             logI("🏷️ [PaidAppStateStore] 해제 완료 — session:\(sessionId.prefix(8))…")
+            try? PaidAppStateLogger.record(
+                previous: "running",
+                next: "not_running",
+                eventType: "unregister",
+                extra: ["pid": pid.map { "\($0)" } ?? "?", "session": String(sessionId.prefix(8))]
+            )
+        }
+    }
+
+    /// NSWorkspace `didTerminate` 수신 시 호출 — REST unregister 미수신 시 Store 정합성 보장.
+    func markStaleFromWorkspace(pid: Int32) {
+        queue.async {
+            guard let reg = self.current, reg.pid == pid else { return }
+            self.current = nil
+            logI("🏷️ [PaidAppStateStore] NSWorkspace terminate 감지 — stale 처리 pid:\(pid)")
+            try? PaidAppStateLogger.record(
+                previous: "running",
+                next: "not_running",
+                eventType: "workspace-terminate",
+                extra: ["pid": "\(pid)", "session": String(reg.sessionId.prefix(8))]
+            )
         }
     }
 

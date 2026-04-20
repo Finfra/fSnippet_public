@@ -11,6 +11,7 @@
 		0809371B00344E88F41F91B8 /* AtomicPropertyWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = D416F125ACE2417E35E68007 /* AtomicPropertyWrapper.swift */; };
 		08E1434902003EEF39902D7E /* FileUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 106EB42A6154CB1CEC250B9B /* FileUtilities.swift */; };
 		09DDE19F48CC704C4EC882F8 /* ClipboardDB.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBB3B206501109A2A167AD12 /* ClipboardDB.swift */; };
+		0C504F8844304D4EBC2D2C40 /* PaidAppDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB926AB0390348829D47D0F2 /* PaidAppDetector.swift */; };
 		0CD9E2D2FB3A6D29ABD63675 /* _rule.yml in Resources */ = {isa = PBXBuildFile; fileRef = 0CE1F3421FEE7018283DA1EE /* _rule.yml */; };
 		0E315304296FEAC8BCF46344 /* SnippetCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D606FDBA0D4ECEB63A53E9A /* SnippetCommand.swift */; };
 		0FAE58A12D08909364B4AA57 /* SingleInstanceGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83B3F7B00249F54D85E1DB2A /* SingleInstanceGuard.swift */; };
@@ -136,7 +137,6 @@
 		EFA6A925A48BB9FB3FFC95D9 /* SnippetCacheManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 888ACDC6D2AA17FA938DCE3F /* SnippetCacheManager.swift */; };
 		F1510F94FAC2C5AC9986E561 /* StatsCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 407B0655339D9E14F7345941 /* StatsCommand.swift */; };
 		F228CA07EB8BF021511B8BD9 /* PaidAppStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6493A488147AF375C044ADBB /* PaidAppStateStore.swift */; };
-		0C504F8844304D4EBC2D2C40 /* PaidAppDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB926AB0390348829D47D0F2 /* PaidAppDetector.swift */; };
 		F27D9138EDF276295B44BA3D /* MenuBarManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E17E3A2DE24ABDB9D44DC7F7 /* MenuBarManager.swift */; };
 		F44420D26BBF7C8412E08353 /* WindowContextManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5C4C51C3DC533E5E7952F12 /* WindowContextManager.swift */; };
 		F906327C9348F6FA44E1DDCB /* HistoryPreviewManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 191F41B83FE93946E1786015 /* HistoryPreviewManager.swift */; };
@@ -204,7 +204,6 @@
 		5EEEF28C78DC5887737C1D8B /* SnippetIconProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetIconProvider.swift; sourceTree = "<group>"; };
 		62BB87A5066D3E5ED28F512C /* FolderCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderCommand.swift; sourceTree = "<group>"; };
 		6493A488147AF375C044ADBB /* PaidAppStateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaidAppStateStore.swift; sourceTree = "<group>"; };
-		CB926AB0390348829D47D0F2 /* PaidAppDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaidAppDetector.swift; sourceTree = "<group>"; };
 		6522075150AB35B3DAB835B5 /* OnScreenNotificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnScreenNotificationView.swift; sourceTree = "<group>"; };
 		67E9242732A5322E18E116F3 /* SettingsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
 		6C74CD8C9B41F5F48D0246C2 /* SnippetExpansionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetExpansionCoordinator.swift; sourceTree = "<group>"; };
@@ -262,6 +261,7 @@
 		C79CAF04EEB2F6F13AC88A07 /* ImageDetailManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageDetailManager.swift; sourceTree = "<group>"; };
 		C9E11217CF7F5DB78A0CF3B6 /* HistorySearchBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistorySearchBar.swift; sourceTree = "<group>"; };
 		CA99A063D2EA630A1846BFC8 /* fSnippetCli.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = fSnippetCli.entitlements; sourceTree = "<group>"; };
+		CB926AB0390348829D47D0F2 /* PaidAppDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaidAppDetector.swift; sourceTree = "<group>"; };
 		CBB3B206501109A2A167AD12 /* ClipboardDB.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardDB.swift; sourceTree = "<group>"; };
 		CCD40BF25B626C79B33C05DC /* SnippetIndexManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetIndexManager.swift; sourceTree = "<group>"; };
 		CD96250E8069C14777E309FA /* CLIRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CLIRouter.swift; sourceTree = "<group>"; };
@@ -830,7 +830,9 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_IDENTITY = "";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = BZDZFZWF6K;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -850,6 +852,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = fSnippetCli/fSnippetCli.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = BZDZFZWF6K;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = fSnippetCli/Info.plist;
@@ -926,6 +929,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = fSnippetCli/fSnippetCli.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = BZDZFZWF6K;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = fSnippetCli/Info.plist;
@@ -1008,7 +1012,9 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_IDENTITY = "";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = BZDZFZWF6K;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

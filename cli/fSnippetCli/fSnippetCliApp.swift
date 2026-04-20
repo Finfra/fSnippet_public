@@ -141,7 +141,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             logI("fSnippet(유료) 실행 감지 — 메뉴바 아이콘 숨김")
         }
 
-        // fSnippet 종료 감지 → 메뉴바 복원
+        // fSnippet 종료 감지 → 메뉴바 복원 + Store stale 처리 (A-11)
         workspace.notificationCenter.addObserver(
             forName: NSWorkspace.didTerminateApplicationNotification,
             object: nil, queue: .main
@@ -150,7 +150,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                   app.bundleIdentifier == paidBundleID else { return }
             AppState.shared.showMenuBar = true
             logI("fSnippet(유료) 종료 감지 — 메뉴바 아이콘 복원")
+            // REST unregister 미수신 시 Store 정합성 보장 (직교 2채널 보강)
+            PaidAppStateStore.shared.markStaleFromWorkspace(pid: app.processIdentifier)
         }
+        // didLaunch 시 Store 갱신 안 함 — paidApp이 직접 REST register 수행 대기 (A-11)
 
         // 현재 fSnippet이 실행 중인지 확인
         let isRunning = workspace.runningApplications.contains { $0.bundleIdentifier == paidBundleID }

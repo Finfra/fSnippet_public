@@ -1753,15 +1753,18 @@ class APIRouter {
   private func handleCliVersion() -> APIServer.HTTPResponse {
     let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
     let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "unknown"
+    let minPaidAppVersion = Bundle.main.infoDictionary?["MinPaidAppVersion"] as? String
+    var data: [String: Any] = [
+      "app": "fSnippetCli",
+      "version": version,
+      "build": build,
+      "swift_version": "5.0",
+      "macos_target": "14.0"
+    ]
+    if let min = minPaidAppVersion { data["minPaidAppVersion"] = min }
     let response: [String: Any] = [
       "success": true,
-      "data": [
-        "app": "fSnippetCli",
-        "version": version,
-        "build": build,
-        "swift_version": "5.0",
-        "macos_target": "14.0"
-      ] as [String: Any]
+      "data": data
     ]
     if let data = try? JSONSerialization.data(withJSONObject: response),
        let json = String(data: data, encoding: .utf8) {
@@ -1805,7 +1808,7 @@ class APIRouter {
     }
 
     let cliVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
-    let minPaidVersion: String? = nil  // 추후 설정 연동 (A-10)
+    let minPaidVersion: String? = Bundle.main.infoDictionary?["MinPaidAppVersion"] as? String
 
     do {
       let reg = try PaidAppStateStore.shared.register(req)
@@ -1828,6 +1831,12 @@ class APIRouter {
         return errorResponse(code: "DUPLICATE_SESSION", message: "이미 등록된 sessionId: \(id)", statusCode: 409)
       case .verificationFailed(let reason):
         logW("🏷️ [APIRouter] paidApp 등록 거부: \(reason)")
+        try? PaidAppStateLogger.record(
+          previous: "unknown",
+          next: "rejected",
+          eventType: reason.contains("pid") ? "pid-mismatch" : reason.contains("bundlePath") ? "bundleURL-mismatch" : "codesign-fail",
+          extra: ["reason": reason]
+        )
         return errorResponse(code: "VERIFICATION_FAILED", message: "발신자 검증 실패: \(reason)", statusCode: 403)
       }
     } catch {
