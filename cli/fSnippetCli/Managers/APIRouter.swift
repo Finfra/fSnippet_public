@@ -305,6 +305,14 @@ class APIRouter {
     case ("POST", "/api/v2/cli/quit"):
       return handleCliQuit(request: request)
 
+    // PaidApp Lifecycle (Phase A)
+    case ("POST", "/api/v2/paidapp/register"):
+      return handlePaidAppRegister(request: request)
+    case ("POST", "/api/v2/paidapp/unregister"):
+      return handlePaidAppUnregister(request: request)
+    case ("GET", "/api/v2/paidapp/status"):
+      return handlePaidAppStatus()
+
     // Reload
     case ("POST", "/api/v2/reload"):
       return handleReload()
@@ -1756,6 +1764,105 @@ class APIRouter {
       return APIServer.HTTPResponse(statusCode: 200, body: json, headers: ["Content-Type": "application/json"])
     }
     return errorResponse(code: "INTERNAL_ERROR", message: "직렬화 실패", statusCode: 500)
+  }
+
+  // MARK: - PaidApp Lifecycle Handlers (Phase A)
+
+  /// POST /api/v2/paidapp/register — paidApp 기동 등록
+  private func handlePaidAppRegister(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    guard let bodyBytes = request.body,
+          let req = try? JSONDecoder().decode(PaidAppRegistrationRequest.self, from: bodyBytes)
+    else {
+      return errorResponse(code: "INVALID_REQUEST", message: "요청 본문 파싱 실패", statusCode: 400)
+    }
+
+    let cliVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+    let minPaidVersion: String? = nil  // 추후 설정 연동 (A-10)
+
+    do {
+      let reg = try PaidAppStateStore.shared.register(req)
+      let isCompatible: Bool = minPaidVersion.map { compareVersions(req.version, greaterOrEqualTo: $0) } ?? true
+      let resp = PaidAppRegistrationResponse(
+        ok: true,
+        sessionId: reg.sessionId,
+        cliVersion: cliVersion,
+        minPaidAppVersion: minPaidVersion,
+        compatible: isCompatible
+      )
+      if let encoded = try? JSONEncoder().encode(resp),
+         let json = String(data: encoded, encoding: .utf8) {
+        return APIServer.HTTPResponse(statusCode: 200, body: json, headers: ["Content-Type": "application/json"])
+      }
+      return errorResponse(code: "INTERNAL_ERROR", message: "직렬화 실패", statusCode: 500)
+    } catch let err as PaidAppStateStore.RegisterError {
+      switch err {
+      case .duplicateSession(let id):
+        return errorResponse(code: "DUPLICATE_SESSION", message: "이미 등록된 sessionId: \(id)", statusCode: 409)
+      case .verificationFailed(let reason):
+        logW("🏷️ [APIRouter] paidApp 등록 거부: \(reason)")
+        return errorResponse(code: "VERIFICATION_FAILED", message: "발신자 검증 실패: \(reason)", statusCode: 403)
+      }
+    } catch {
+      return errorResponse(code: "INTERNAL_ERROR", message: error.localizedDescription, statusCode: 500)
+    }
+  }
+
+  /// POST /api/v2/paidapp/unregister — paidApp 종료 해제
+  private func handlePaidAppUnregister(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    guard let bodyBytes = request.body,
+          let req = try? JSONDecoder().decode(PaidAppUnregistrationRequest.self, from: bodyBytes)
+    else {
+      return errorResponse(code: "INVALID_REQUEST", message: "요청 본문 파싱 실패", statusCode: 400)
+    }
+
+    do {
+      try PaidAppStateStore.shared.unregister(sessionId: req.sessionId)
+      return APIServer.HTTPResponse(statusCode: 200, body: "{\"ok\":true}", headers: ["Content-Type": "application/json"])
+    } catch let err as PaidAppStateStore.UnregisterError {
+      switch err {
+      case .notFound(let id):
+        return errorResponse(code: "NOT_FOUND", message: "sessionId 미등록: \(id)", statusCode: 404)
+      }
+    } catch {
+      return errorResponse(code: "INTERNAL_ERROR", message: error.localizedDescription, statusCode: 500)
+    }
+  }
+
+  /// GET /api/v2/paidapp/status — paidApp 등록 상태 조회
+  private func handlePaidAppStatus() -> APIServer.HTTPResponse {
+    let isoFmt = isoFormatter
+    if let reg = PaidAppStateStore.shared.status() {
+      let data: [String: Any] = [
+        "pid": reg.pid,
+        "bundlePath": reg.bundlePath,
+        "sessionId": reg.sessionId,
+        "version": reg.version,
+        "startTime": reg.startTime,
+        "registeredAt": isoFmt.string(from: reg.registeredAt)
+      ]
+      let resp: [String: Any] = ["registered": true, "data": data]
+      if let bytes = try? JSONSerialization.data(withJSONObject: resp),
+         let json = String(data: bytes, encoding: .utf8) {
+        return APIServer.HTTPResponse(statusCode: 200, body: json, headers: ["Content-Type": "application/json"])
+      }
+    }
+    let resp = "{\"registered\":false,\"data\":null}"
+    return APIServer.HTTPResponse(statusCode: 200, body: resp, headers: ["Content-Type": "application/json"])
+  }
+
+  // MARK: - 버전 비교 유틸리티
+
+  private func compareVersions(_ version: String, greaterOrEqualTo minimum: String) -> Bool {
+    let vParts = version.split(separator: ".").compactMap { Int($0) }
+    let mParts = minimum.split(separator: ".").compactMap { Int($0) }
+    let count = max(vParts.count, mParts.count)
+    for i in 0..<count {
+      let v = i < vParts.count ? vParts[i] : 0
+      let m = i < mParts.count ? mParts[i] : 0
+      if v > m { return true }
+      if v < m { return false }
+    }
+    return true
   }
 
   /// POST /api/cli/quit — fSnippetCli 종료 (X-Confirm 헤더 필수)

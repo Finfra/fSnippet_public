@@ -13,6 +13,7 @@
 		09DDE19F48CC704C4EC882F8 /* ClipboardDB.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBB3B206501109A2A167AD12 /* ClipboardDB.swift */; };
 		0CD9E2D2FB3A6D29ABD63675 /* _rule.yml in Resources */ = {isa = PBXBuildFile; fileRef = 0CE1F3421FEE7018283DA1EE /* _rule.yml */; };
 		0E315304296FEAC8BCF46344 /* SnippetCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D606FDBA0D4ECEB63A53E9A /* SnippetCommand.swift */; };
+		0FAE58A12D08909364B4AA57 /* SingleInstanceGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83B3F7B00249F54D85E1DB2A /* SingleInstanceGuard.swift */; };
 		10977BD2A8BDED9D1033CA4C /* FolderCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62BB87A5066D3E5ED28F512C /* FolderCommand.swift */; };
 		1115F695E2D06B5BF9C5750E /* MockDIProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = F09D78EC1DD71C0085633D00 /* MockDIProtocols.swift */; };
 		128C19D586BB193A5787CC44 /* KeyEventDataExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9DA40EF50ABD406C3985B73 /* KeyEventDataExtractor.swift */; };
@@ -45,6 +46,7 @@
 		4BB2D98B48D4EA7A2451A7F5 /* SnippetError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80A3099B2592981FBED644C2 /* SnippetError.swift */; };
 		4C449867531EE0DF9001FEF9 /* HistoryViewerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ECD1786CFA3BFE603236D11 /* HistoryViewerManager.swift */; };
 		4E8B2B5B0577AE90BA9AA1BA /* TriggerKeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FDDB98DF69E423CC1DBA777 /* TriggerKeyManager.swift */; };
+		5333F3BF33FE8D1902AE0943 /* BrewServiceSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 298EBCF12C5525882B631CFB /* BrewServiceSync.swift */; };
 		53620529BE3962830D269D95 /* SnippetNonActivatingWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFD4EBE4E5EF18AFFBC53914 /* SnippetNonActivatingWindow.swift */; };
 		542A49B2C974AF6CDBEC249C /* PopupUIConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = F45E092B76F1C3BCE05A01C8 /* PopupUIConstants.swift */; };
 		58D26FDD4A1813D486FE25ED /* UnifiedHistoryViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACF2B6605E6B4FF5F14C48D4 /* UnifiedHistoryViewer.swift */; };
@@ -133,13 +135,12 @@
 		EF6056F662C55F70C8F40831 /* SnippetPopupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD27E534CFE17FF347016A0C /* SnippetPopupView.swift */; };
 		EFA6A925A48BB9FB3FFC95D9 /* SnippetCacheManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 888ACDC6D2AA17FA938DCE3F /* SnippetCacheManager.swift */; };
 		F1510F94FAC2C5AC9986E561 /* StatsCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 407B0655339D9E14F7345941 /* StatsCommand.swift */; };
+		F228CA07EB8BF021511B8BD9 /* PaidAppStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6493A488147AF375C044ADBB /* PaidAppStateStore.swift */; };
 		F27D9138EDF276295B44BA3D /* MenuBarManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E17E3A2DE24ABDB9D44DC7F7 /* MenuBarManager.swift */; };
 		F44420D26BBF7C8412E08353 /* WindowContextManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5C4C51C3DC533E5E7952F12 /* WindowContextManager.swift */; };
 		F906327C9348F6FA44E1DDCB /* HistoryPreviewManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 191F41B83FE93946E1786015 /* HistoryPreviewManager.swift */; };
 		FA57CF2BBCAB6FFA829563CE /* APIRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7804F97D92EF402565B92E1D /* APIRouter.swift */; };
 		FAF8E7FBEDD46BDA3C214F9C /* PaidAppStateLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DD21578E571498DB78C391E /* PaidAppStateLogger.swift */; };
-		2AD77550B0D1582B36F83B39 /* BrewServiceSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A6075368E3780EA33447024 /* BrewServiceSync.swift */; };
-		E083AA434C3223BF00DE0FA6 /* SingleInstanceGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6CD46902C5BEF2742D93CDE /* SingleInstanceGuard.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -179,6 +180,7 @@
 		216BDD57B7C2A5E6D9359282 /* AutoStartManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoStartManager.swift; sourceTree = "<group>"; };
 		25156CDA4065D94285A9F35A /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		26368958CA59705E7711070A /* AlfredLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlfredLogic.swift; sourceTree = "<group>"; };
+		298EBCF12C5525882B631CFB /* BrewServiceSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrewServiceSync.swift; sourceTree = "<group>"; };
 		2CDF1BD625BF3C22D8C3529B /* SnippetExpansionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetExpansionManager.swift; sourceTree = "<group>"; };
 		2F0C7F8A5EE3D59B6EC584E8 /* SnippetEditorWindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetEditorWindowManager.swift; sourceTree = "<group>"; };
 		3CA31356553F2DC8BEEB8204 /* HelpCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpCommand.swift; sourceTree = "<group>"; };
@@ -200,6 +202,7 @@
 		5ABD470AE754A20B4BE2B61A /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		5EEEF28C78DC5887737C1D8B /* SnippetIconProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetIconProvider.swift; sourceTree = "<group>"; };
 		62BB87A5066D3E5ED28F512C /* FolderCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderCommand.swift; sourceTree = "<group>"; };
+		6493A488147AF375C044ADBB /* PaidAppStateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaidAppStateStore.swift; sourceTree = "<group>"; };
 		6522075150AB35B3DAB835B5 /* OnScreenNotificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnScreenNotificationView.swift; sourceTree = "<group>"; };
 		67E9242732A5322E18E116F3 /* SettingsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
 		6C74CD8C9B41F5F48D0246C2 /* SnippetExpansionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetExpansionCoordinator.swift; sourceTree = "<group>"; };
@@ -214,6 +217,7 @@
 		807184FF5117B5314478E6F9 /* AbbreviationMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AbbreviationMatcher.swift; sourceTree = "<group>"; };
 		80A3099B2592981FBED644C2 /* SnippetError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetError.swift; sourceTree = "<group>"; };
 		81D1E5718BBE065841F40AE9 /* NotificationNames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationNames.swift; sourceTree = "<group>"; };
+		83B3F7B00249F54D85E1DB2A /* SingleInstanceGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingleInstanceGuard.swift; sourceTree = "<group>"; };
 		83E37737AD9B7C2A906A6A44 /* SuffixMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuffixMatcher.swift; sourceTree = "<group>"; };
 		86C095986A60FFD1A2270AA1 /* SnippetRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetRowView.swift; sourceTree = "<group>"; };
 		86F9FE58054BACD0F3510D1F /* visual_key_definitions.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = visual_key_definitions.json; sourceTree = "<group>"; };
@@ -288,8 +292,6 @@
 		FF5931F850FDDE979F7AAD37 /* StatusCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusCommand.swift; sourceTree = "<group>"; };
 		FFD4EBE4E5EF18AFFBC53914 /* SnippetNonActivatingWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetNonActivatingWindow.swift; sourceTree = "<group>"; };
 		FFEB5912076E84E12F962005 /* SQLiteDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLiteDatabase.swift; sourceTree = "<group>"; };
-		0A6075368E3780EA33447024 /* BrewServiceSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrewServiceSync.swift; sourceTree = "<group>"; };
-		D6CD46902C5BEF2742D93CDE /* SingleInstanceGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingleInstanceGuard.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -396,6 +398,15 @@
 			path = Protocols;
 			sourceTree = "<group>";
 		};
+		7C01324B2D49B070E716AA6F /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				298EBCF12C5525882B631CFB /* BrewServiceSync.swift */,
+				83B3F7B00249F54D85E1DB2A /* SingleInstanceGuard.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
 		87F30CEF93F04291F0E928B1 /* Managers */ = {
 			isa = PBXGroup;
 			children = (
@@ -419,6 +430,7 @@
 				E17E3A2DE24ABDB9D44DC7F7 /* MenuBarManager.swift */,
 				25156CDA4065D94285A9F35A /* NotificationManager.swift */,
 				893EFD68F808F44AA0BDC332 /* PaidAppManager.swift */,
+				6493A488147AF375C044ADBB /* PaidAppStateStore.swift */,
 				76B5A5819D849447BF6F72AB /* PSKeyManager.swift */,
 				67E9242732A5322E18E116F3 /* SettingsManager.swift */,
 				BE9C89140D1A966668F78173 /* SettingsWindowManager.swift */,
@@ -527,7 +539,7 @@
 				87F30CEF93F04291F0E928B1 /* Managers */,
 				33A6F350F000EE4CA1AA1DC4 /* Models */,
 				732F12DB159DC6054B1FF284 /* Protocols */,
-				28FB009D12D8BB78976BBA95 /* Services */,
+				7C01324B2D49B070E716AA6F /* Services */,
 				1DD765592837A3EBF7280F34 /* UI */,
 				BB40FAF1003A8C904C70514F /* Utils */,
 				3006D4402D90A2AE329760BE /* Views */,
@@ -561,15 +573,6 @@
 				FFEB5912076E84E12F962005 /* SQLiteDatabase.swift */,
 			);
 			path = Data;
-			sourceTree = "<group>";
-		};
-		28FB009D12D8BB78976BBA95 /* Services */ = {
-			isa = PBXGroup;
-			children = (
-				0A6075368E3780EA33447024 /* BrewServiceSync.swift */,
-				D6CD46902C5BEF2742D93CDE /* SingleInstanceGuard.swift */,
-			);
-			path = Services;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -618,7 +621,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 2640;
+				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					7DAC764A90BE3685455B6384 = {
 						ProvisioningStyle = Automatic;
@@ -690,9 +693,9 @@
 				621B95E98B072BBCA85FCF56 /* AppSettingManager.swift in Sources */,
 				0809371B00344E88F41F91B8 /* AtomicPropertyWrapper.swift in Sources */,
 				81AC84A2BB787C9DAC8A6733 /* AutoStartManager.swift in Sources */,
+				5333F3BF33FE8D1902AE0943 /* BrewServiceSync.swift in Sources */,
 				13F7598718829BC666B06ADC /* BufferController.swift in Sources */,
 				CE9121525135CDFED020D1A7 /* BufferManager.swift in Sources */,
-				2AD77550B0D1582B36F83B39 /* BrewServiceSync.swift in Sources */,
 				5B304FF5D12C60D64A8B74FD /* CGEventTapManager.swift in Sources */,
 				1F063FD1B1238DEAB12E08EB /* CIDRFilter.swift in Sources */,
 				EC754A06858945DC1BF8E292 /* CLIAPIClient.swift in Sources */,
@@ -746,6 +749,7 @@
 				90582A97B3BB90B8A7689E7C /* PSKeyManager.swift in Sources */,
 				E58FB81737DDC7FCCCEDDAC5 /* PaidAppManager.swift in Sources */,
 				FAF8E7FBEDD46BDA3C214F9C /* PaidAppStateLogger.swift in Sources */,
+				F228CA07EB8BF021511B8BD9 /* PaidAppStateStore.swift in Sources */,
 				E49D8CFD68172A0DB877A132 /* PlaceholderCache.swift in Sources */,
 				83D1C22E1A4634E4F452B52E /* PlaceholderInputWindow.swift in Sources */,
 				CF26324E7DCD9CD965BE3AB0 /* PopupController.swift in Sources */,
@@ -760,9 +764,9 @@
 				915B933502E15F6C43DCA21C /* SettingsManager.swift in Sources */,
 				B71D3B08CBE15AFF366BE706 /* SettingsObservableObject.swift in Sources */,
 				1307B400F5F22512FACE9338 /* SettingsWindowManager.swift in Sources */,
-				E083AA434C3223BF00DE0FA6 /* SingleInstanceGuard.swift in Sources */,
 				EB7108B17B0D4F8478F3B10A /* SharedKeyMap.swift in Sources */,
 				AD855BF9446D935C78F2E0C9 /* ShortcutMgr.swift in Sources */,
+				0FAE58A12D08909364B4AA57 /* SingleInstanceGuard.swift in Sources */,
 				18567037DF7E70F497541EB2 /* SingleShortcutMapper.swift in Sources */,
 				EFA6A925A48BB9FB3FFC95D9 /* SnippetCacheManager.swift in Sources */,
 				0E315304296FEAC8BCF46344 /* SnippetCommand.swift in Sources */,
@@ -822,9 +826,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_IDENTITY = "";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				COMBINE_HIDPI_IMAGES = YES;
-				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -844,7 +846,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = fSnippetCli/fSnippetCli.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = fSnippetCli/Info.plist;
@@ -892,12 +893,9 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = BZDZFZWF6K;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -912,7 +910,6 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = fSnippetCli;
 				SDKROOT = macosx;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
@@ -925,7 +922,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = fSnippetCli/fSnippetCli.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = fSnippetCli/Info.plist;
@@ -973,12 +969,9 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = BZDZFZWF6K;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -1000,7 +993,6 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = fSnippetCli;
 				SDKROOT = macosx;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -1012,9 +1004,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_IDENTITY = "";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				COMBINE_HIDPI_IMAGES = YES;
-				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
