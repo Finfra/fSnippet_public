@@ -615,3 +615,78 @@ struct APIV2RestApiSettings: Codable {
   let allowedCidr: String?
   let running: Bool?  // read-only
 }
+
+// MARK: - PaidApp Lifecycle (Phase A)
+
+/// POST /paidapp/register 요청 모델
+struct PaidAppRegistrationRequest: Codable {
+  let pid: Int32
+  let bundlePath: String
+  let sessionId: String
+  let version: String
+  let startTime: Int64
+
+  enum CodingKeys: String, CodingKey {
+    case pid, bundlePath, sessionId, version, startTime
+  }
+}
+
+/// POST /paidapp/register 응답 모델
+struct PaidAppRegistrationResponse: Codable {
+  let ok: Bool
+  let sessionId: String
+  let cliVersion: String
+  let minPaidAppVersion: String?
+  let compatible: Bool
+
+  enum CodingKeys: String, CodingKey {
+    case ok, sessionId, cliVersion, minPaidAppVersion, compatible
+  }
+}
+
+/// POST /paidapp/unregister 요청 모델
+struct PaidAppUnregistrationRequest: Codable {
+  let sessionId: String
+}
+
+/// GET /paidapp/status 응답 — 등록된 paidApp 메타데이터
+struct PaidAppStatusData: Codable {
+  let pid: Int32
+  let bundlePath: String
+  let sessionId: String
+  let version: String
+  let startTime: Int64
+  let registeredAt: String
+
+  enum CodingKeys: String, CodingKey {
+    case pid, bundlePath, sessionId, version, startTime, registeredAt
+  }
+}
+
+/// GET /paidapp/status 응답 래퍼
+struct PaidAppStatusResponse: Codable {
+  let registered: Bool
+  let data: PaidAppStatusData?
+}
+
+/// GET /cli/version 응답 (minPaidAppVersion 확장)
+struct CliVersionResponseV2: Codable {
+  let success: Bool
+  let data: CliVersionData?
+
+  struct CliVersionData: Codable {
+    let app: String
+    let version: String
+    let build: String
+    let swiftVersion: String
+    let macosTarget: String
+    let minPaidAppVersion: String?
+
+    enum CodingKeys: String, CodingKey {
+      case app, version, build
+      case swiftVersion = "swift_version"
+      case macosTarget = "macos_target"
+      case minPaidAppVersion
+    }
+  }
+}
