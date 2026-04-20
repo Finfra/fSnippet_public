@@ -20,30 +20,22 @@ date: 2026-04-07
 
 # 📕 중요
 
-## Issue52: 메뉴바 아이콘 cliApp 단일 소유화 — paidApp 종료 시 REST kill 연동 (등록: 2026-04-20)
-* 목적: cliApp(fSnippetCli, #25)과 paidApp(fSnippet, #15)이 메뉴바 아이콘을 각각 관리하여 종료 시 2회 클릭이 필요한 UX 문제 해소. 메뉴바 소유권을 cliApp 단일로 이전하고 paidApp 종료 시 `POST /api/v2/shutdown` REST 호출로 cliApp 동시 종료. paidApp 메뉴 기능은 cliApp 메뉴에 통합하고 paidApp 감지 로직(`PaidAppDetector`) 추가. 완료 후 pairApp(fWarrangeCli, #26)에도 동일 패턴 후속 이슈 등록.
-* plan: `cli/_doc_work/plan/menubar-cli-ownership_plan.md`
-* 상세:
-    - **cliApp 구현 (본 이슈 책임)**
-        - **Phase 0 (선행)**: 종료 경로 단일화 — `BrewServiceSync.onAppStop` 을 `applicationWillTerminate` 로 이동 (timeout 2→3s), `MenuBarView` 선행 호출 제거, `kill.sh`·`fsc-run-xcode.sh` 에 launchctl 잔존 fallback 추가. API·SettingsVM·기타 `NSApp.terminate` 경로가 brew stop 을 bypass 하던 버그 해결.
-        - `POST /api/v2/shutdown` REST 엔드포인트 추가 (APIRouter, APIModels, openapi_v2.yaml)
-        - `PaidAppDetector` 유틸 신규 — 설치 경로 탐지 + 실행 상태 감지 + 실행 트리거
-        - MenuBarView에 fSnippet 섹션 통합 (열기·설정·상태 표시)
-    - **paidApp 별도 이슈 (현 이슈 미포함, 후속 등록 필요)**
-        - 메뉴바 아이콘 제거, 종료 훅에 cliApp shutdown REST 호출, cliApp 감지 로직 추가
-        - ⚠️ paidApp 메뉴바 제거 전 **사용자 UX 검증 필수** (진입점 상실 리스크)
-    - **pairApp 후속 이슈 (완료 후)**: fWarrangeCli에 동일 패턴 미러 이식
-* 구현 명세:
-    - shutdown API: `reason`(로그용) + `delayMs`(종료 지연) body 수락, 응답 후 `NSApplication.shared.terminate` 비동기 실행
-    - paidApp 감지: Bundle ID prefix `kr.finfra.fSnippet` + suffix `Cli` 제외 매칭 (Debug 접미사 허용)
-    - REST 호출 실패 시 paidApp은 정상 종료 유지 (cliApp 부재는 오류 아님)
-    - timeout 0.5s 상한으로 paidApp 종료 지연 최소화
-
 # 📙 일반
 
 # 📗 선택
 
 # ✅ 완료
+
+## Issue52: 메뉴바 아이콘 cliApp 단일 소유화 — paidApp 종료 시 REST kill 연동 (등록: 2026-04-20, 해결: 2026-04-20, commit: 815e496, 5af2721, d0abfd6, 1ea8878) ✅
+* 목적: cliApp(fSnippetCli, #25)과 paidApp(fSnippet, #15)이 메뉴바 아이콘을 각각 관리하여 종료 시 2회 클릭이 필요한 UX 문제 해소. 메뉴바 소유권을 cliApp 단일로 이전하고 paidApp 종료 시 `POST /api/v2/shutdown` REST 호출로 cliApp 동시 종료. paidApp 메뉴 기능은 cliApp 메뉴에 통합하고 paidApp 감지 로직(`PaidAppDetector`) 추가.
+* plan: `cli/_doc_work/plan/menubar-cli-ownership_plan.md`
+* 해결 (cliApp 측):
+    - **Phase 0** (commit 815e496): 종료 경로 단일화 — `applicationWillTerminate`가 brew stop 단일 수렴점
+    - **Phase 1** (commit 5af2721): `POST /api/v2/shutdown` REST 엔드포인트 추가 (APIRouter, APIModels, openapi_v2.yaml)
+    - **Phase 2** (commit d0abfd6): `PaidAppDetector` 유틸 신규 — 설치 경로 탐지 + 실행 상태 감지 + 실행 트리거
+    - **Phase 3** (commit 1ea8878): MenuBarView에 fSnippet 섹션 통합 (열기·설정·상태 표시)
+* 검증: `POST /api/v2/shutdown` → `{"accepted":true,"message":"cliApp 종료 예약됨 (delay=300ms)"}` 응답 + 프로세스 종료 확인
+* 후속: paidApp 측 메뉴바 제거·REST 호출 훅은 별도 이슈 (#15 레포), pairApp fWarrangeCli 미러는 후속 이슈
 
 ## Issue53: 메뉴바 종료 후 /Applications 심링크 실행 시 SingleInstanceGuard 연쇄 terminate — 앱 기동 실패 (등록: 2026-04-20, 해결: 2026-04-20, commit: 17623e5, 1b59c6c, b3f598d) ✅
 * 원인: `open /Applications/_nowage_app/fSnippetCli.app` 기동 시 LaunchServices 가 `XPC_SERVICE_NAME=application.*` 로 wrap → `BrewServiceSync.isLaunchedByLaunchd=false` → `onAppStart` 가 brew start 호출 → launchd 가 별도 프로세스(`XPC=homebrew.mxcl.*`) spawn → SingleInstanceGuard 승자 경로 → 원본(open) 인스턴스 terminate → 연쇄적으로 앱·brew 모두 stopped.
