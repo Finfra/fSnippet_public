@@ -23,20 +23,17 @@ date: 2026-04-07
 
 # 📙 일반
 
-## Issue54: `/paidapp/register` 위조 PID 검증 — 400 대신 403 반환 필요 (등록: 2026-04-20)
-* 목적: `startTime` 누락 요청 시 JSON 디코딩 실패(400)로 보안 검증 우회 가능 — `startTime` 선택 필드화로 PID 검증 경로까지 도달하게 하여 403 반환
-* 상세:
-    - 재현: `curl -X POST http://localhost:3015/api/v2/paidapp/register -d '{"pid":99999,"bundlePath":"/fake/path","sessionId":"qa-test-fake","version":"0.98.1"}'`
-    - 기대: HTTP 403 Forbidden
-    - 실제: HTTP 400 (`INVALID_REQUEST` — `startTime` 누락으로 JSONDecoder 실패)
-* 구현 명세:
-    - `cli/fSnippetCli/Data/APIModels.swift:626` — `startTime: Int64` → `startTime: Int64?` (선택 필드, 기본 nil)
-    - `cli/fSnippetCli/Managers/APIRouter.swift:1803` — `handlePaidAppRegister` 디코딩 실패 구간이 보안 검증 전에 400을 반환하지 않도록 모델 변경으로 해결
-    - `openapi_v2.yaml` — `/paidapp/register` request body `startTime` 필드를 `required` 목록에서 제거하거나 `nullable: true`로 변경
-
 # 📗 선택
 
 # ✅ 완료
+
+## Issue54: `/paidapp/register` 위조 PID 검증 — 400 대신 403 반환 (등록: 2026-04-20, 해결: 2026-04-20, commit: 02a7832) ✅
+* 목적: `startTime` 누락 요청 시 JSON 디코딩 실패(400)로 보안 검증 우회 가능 — `startTime` 선택 필드화로 PID 검증 경로까지 도달하게 하여 403 반환
+* 해결:
+    - `APIModels.swift`: `PaidAppRegistrationRequest.startTime Int64` → `Int64?`
+    - `PaidAppStateStore.swift`: `Registration` 생성 시 `startTime ?? 0` 기본값 적용
+    - `openapi_v2.yaml`: `required` 목록에서 `startTime` 제거
+* 검증: `curl -X POST .../paidapp/register -d '{"pid":99999,...}'` (startTime 누락) → HTTP 403 확인
 
 ## Issue52: 메뉴바 아이콘 cliApp 단일 소유화 — paidApp 종료 시 REST kill 연동 (등록: 2026-04-20, 해결: 2026-04-20, commit: 815e496, 5af2721, d0abfd6, 1ea8878) ✅
 * 목적: cliApp(fSnippetCli, #25)과 paidApp(fSnippet, #15)이 메뉴바 아이콘을 각각 관리하여 종료 시 2회 클릭이 필요한 UX 문제 해소. 메뉴바 소유권을 cliApp 단일로 이전하고 paidApp 종료 시 `POST /api/v2/shutdown` REST 호출로 cliApp 동시 종료. paidApp 메뉴 기능은 cliApp 메뉴에 통합하고 paidApp 감지 로직(`PaidAppDetector`) 추가.
