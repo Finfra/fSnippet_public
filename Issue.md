@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 55
+* Issue HWM: 58
 - Save Point: 2026-04-19 (8b88964) Feat(Test)(Issue50): fsc-test.sh에 fwc 오케스트레이션 3단계 역이식
 
 # 🤔 결정사항
@@ -17,6 +17,13 @@ date: 2026-04-07
 * [QA발견 2026-04-20] Issue53(SingleInstanceGuard handoff) 심볼명 명세 불일치 — 기대: performHandoffStart/handoffInProgress/isLaunchedViaLaunchServices, 실제: isLaunchedByLaunchd/shouldTerminateAsDuplicate/waitForOthersToExit (기능은 동작하나 심볼명이 명세와 다름)
 
 # 🚧 진행중
+## Issue56: cliApp 메뉴 다국어 미지원 — 시스템 언어 English 설정 시 한국어로 표시 (등록: 2026-04-21)
+* 목적: MenuBarView.swift · fSnippetCliApp.swift 의 하드코딩된 한국어 문자열을 LocalizedStringKey 기반으로 전환. 시스템 언어에 따라 영어/한국어 메뉴가 자동 표시되도록 함. paidApp(fSnippet)은 정상 동작.
+* 상세:
+    - `ko.lproj/Localizable.strings` 생성 — 한국어 번역 매핑
+    - `MenuBarView.swift` 영어 키 전환 (SwiftUI LocalizedStringKey 자동 적용)
+    - `fSnippetCliApp.swift` NSAlert 문자열 NSLocalizedString 전환
+    - `project.yml` `developmentLanguage: en` 추가 + xcodegen 재생성
 
 # 📕 중요
 
@@ -25,6 +32,24 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue58: paidApp 종료 시 cliApp 자동 종료 — brew service 포함 (등록: 2026-04-21, 해결: 2026-04-21, commit: 3810e40) ✅
+* 목적: paidApp(fSnippet) 종료 감지 시 cliApp(fSnippetCli)도 함께 종료하여 brew service까지 정리. `/api/v2/shutdown` REST 호출과 동일한 효과.
+* 상세:
+    - `fSnippetCliApp.swift`: `setupPaidAppMonitoring()` `didTerminateApplicationNotification` 핸들러에 200ms 딜레이 후 `NSApplication.shared.terminate(nil)` 추가
+    - `applicationWillTerminate` 에서 `BrewServiceSync.onAppStop(timeout: 3.0)` 자동 실행 → brew service 종료
+* 검증: paidApp 종료 → 로그 "🛑 paidApp 종료 연동 — cliApp 종료" + `brew services list` 상태 stopped 확인
+
+## Issue57: paidApp 종료 후 직접 실행 시 LaunchServices 오류 방어 + 메뉴바 복원 자동화 (등록: 2026-04-21, 해결: 2026-04-21, commit: 3810e40) ✅
+* 목적: paidApp 종료 후 cliApp 메뉴바가 없는 상태에서 `/Applications/_nowage_app/fSnippetCli.app`을 직접 실행 시 "The application is not open anymore." 오류 다이얼로그 방지 + 메뉴바 복원.
+* 원인: AppKit 초기화 전 `exit(0)` 호출 → LaunchServices 가 비정상 종료로 인식하여 오류 표시
+* 해결:
+    - `main.swift`: GUI 분기의 `SingleInstanceGuard.shouldTerminateAsDuplicate() + exit(0)` 블록 제거
+    - `fSnippetCliApp.swift`: `applicationDidFinishLaunching` 초반에 중복 감지 → `terminate(nil)` graceful 종료
+    - `fSnippetCliApp.swift`: `isDuplicateInstance` 플래그 — `applicationWillTerminate` 정리 로직 건너뜀
+    - 중복 인스턴스 실행 시 `DistributedNotificationCenter` 로 `fSnippetCliRestoreMenuBar` 신호 전송 → 기존 인스턴스가 수신하여 메뉴바 복원 트리거
+    - `PaidAppStateStore.swift`: `fSnippetCliRestoreMenuBar` Notification.Name 추가
+* 검증: paidApp 종료 후 직접 실행 → 오류 다이얼로그 미표시 + 기존 인스턴스 메뉴바 복원 확인
+
 ## Issue55: cliApp 메뉴바 숨김 복원 — paidApp 실행 시 isInserted=false (등록: 2026-04-20) (✅ 완료, b7551cb) ✅
 * 목적: Issue828 Phase C에서 제거된 cliApp 메뉴바 숨김 로직 복원. paidApp 실행 중에는 paidApp이 자체 메뉴바 이벤트(설정·About 등)를 처리하므로 cliApp 메뉴바가 표시되면 안 됨.
 * 연관 이슈: paidApp Issue834 (MenuBarManager 복원)
@@ -45,7 +70,7 @@ date: 2026-04-07
 
 ## Issue52: 메뉴바 아이콘 cliApp 단일 소유화 — paidApp 종료 시 REST kill 연동 (등록: 2026-04-20, 해결: 2026-04-20, commit: 815e496, 5af2721, d0abfd6, 1ea8878) ✅
 * 목적: cliApp(fSnippetCli, #25)과 paidApp(fSnippet, #15)이 메뉴바 아이콘을 각각 관리하여 종료 시 2회 클릭이 필요한 UX 문제 해소. 메뉴바 소유권을 cliApp 단일로 이전하고 paidApp 종료 시 `POST /api/v2/shutdown` REST 호출로 cliApp 동시 종료. paidApp 메뉴 기능은 cliApp 메뉴에 통합하고 paidApp 감지 로직(`PaidAppDetector`) 추가.
-* plan: `cli/_doc_work/plan/menubar-cli-ownership_plan.md`
+* plan: `_doc_work/z_done/plan/menubar-cli-ownership_plan.md`
 * 해결 (cliApp 측):
     - **Phase 0** (commit 815e496): 종료 경로 단일화 — `applicationWillTerminate`가 brew stop 단일 수렴점
     - **Phase 1** (commit 5af2721): `POST /api/v2/shutdown` REST 엔드포인트 추가 (APIRouter, APIModels, openapi_v2.yaml)
