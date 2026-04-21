@@ -17,13 +17,6 @@ date: 2026-04-07
 * [QA발견 2026-04-20] Issue53(SingleInstanceGuard handoff) 심볼명 명세 불일치 — 기대: performHandoffStart/handoffInProgress/isLaunchedViaLaunchServices, 실제: isLaunchedByLaunchd/shouldTerminateAsDuplicate/waitForOthersToExit (기능은 동작하나 심볼명이 명세와 다름)
 
 # 🚧 진행중
-## Issue56: cliApp 메뉴 다국어 미지원 — 시스템 언어 English 설정 시 한국어로 표시 (등록: 2026-04-21)
-* 목적: MenuBarView.swift · fSnippetCliApp.swift 의 하드코딩된 한국어 문자열을 LocalizedStringKey 기반으로 전환. 시스템 언어에 따라 영어/한국어 메뉴가 자동 표시되도록 함. paidApp(fSnippet)은 정상 동작.
-* 상세:
-    - `ko.lproj/Localizable.strings` 생성 — 한국어 번역 매핑
-    - `MenuBarView.swift` 영어 키 전환 (SwiftUI LocalizedStringKey 자동 적용)
-    - `fSnippetCliApp.swift` NSAlert 문자열 NSLocalizedString 전환
-    - `project.yml` `developmentLanguage: en` 추가 + xcodegen 재생성
 
 # 📕 중요
 
@@ -32,6 +25,13 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue56: cliApp 메뉴 다국어 지원 — 시스템 언어에 따라 영어/한국어 자동 전환 (등록: 2026-04-21, 해결: 2026-04-21, commit: 80e9a90) ✅
+* 목적: MenuBarView.swift · fSnippetCliApp.swift 의 하드코딩된 한국어 문자열을 LocalizedStringKey 기반으로 전환. 시스템 언어에 따라 영어/한국어 메뉴가 자동 표시되도록 함.
+* 상세:
+    - `ko.lproj/Localizable.strings` 신규 생성 — 한국어 번역 매핑 (12개 문자열)
+    - `MenuBarView.swift`: 한국어 하드코딩 → 영어 LocalizedStringKey 전환 (SwiftUI 자동 적용)
+    - `fSnippetCliApp.swift`: NSAlert 문자열 → NSLocalizedString 전환
+    - `project.yml`: `developmentLanguage: en` 추가 + xcodegen 재생성
 ## Issue58: paidApp 종료 시 cliApp 자동 종료 — brew service 포함 (등록: 2026-04-21, 해결: 2026-04-21, commit: 3810e40) ✅
 * 목적: paidApp(fSnippet) 종료 감지 시 cliApp(fSnippetCli)도 함께 종료하여 brew service까지 정리. `/api/v2/shutdown` REST 호출과 동일한 효과.
 * 상세:
