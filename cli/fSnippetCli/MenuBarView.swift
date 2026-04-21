@@ -36,7 +36,7 @@ struct MenuBarView: View {
 
         // 상태 정보 섹션
         Section {
-            Label("활성 스니펫: \(SnippetIndexManager.shared.entries.count)개", systemImage: "doc.text")
+            Label("Active snippets: \(SnippetIndexManager.shared.entries.count)", systemImage: "doc.text")
                 .disabled(true)
         }
 
@@ -48,9 +48,9 @@ struct MenuBarView: View {
             toggleMonitoring()
         } label: {
             if isPaused {
-                Label("모니터링 재개", systemImage: "play.fill")
+                Label("Resume Monitoring", systemImage: "play.fill")
             } else {
-                Label("모니터링 일시 정지", systemImage: "pause.fill")
+                Label("Pause Monitoring", systemImage: "pause.fill")
             }
         }
 
@@ -60,23 +60,23 @@ struct MenuBarView: View {
         Button {
             openLogDirectory()
         } label: {
-            Label("로그 폴더 열기", systemImage: "folder")
+            Label("Open Log Folder", systemImage: "folder")
         }
 
         // fSnippet (paidApp) 섹션 (Issue52 Phase3)
         if PaidAppDetector.installedURL() != nil {
             Divider()
             Text("fSnippet").font(.caption).foregroundStyle(.secondary)
-            Button("fSnippet 열기") {
+            Button("Open fSnippet") {
                 PaidAppDetector.launch()
             }
-            Button("fSnippet 설정 열기") {
+            Button("Open fSnippet Settings") {
                 PaidAppDetector.openSettings()
             }
             if PaidAppDetector.isRunning() {
-                Text("● 실행 중").font(.caption2).foregroundStyle(.green)
+                Text("● Running").font(.caption2).foregroundStyle(.green)
             } else {
-                Text("○ 중지됨").font(.caption2).foregroundStyle(.secondary)
+                Text("○ Stopped").font(.caption2).foregroundStyle(.secondary)
             }
         }
 
@@ -87,24 +87,22 @@ struct MenuBarView: View {
             // Issue52 Phase0: applicationWillTerminate 가 단일 수렴점 — brew stop 은 delegate 전담.
             NSApplication.shared.terminate(nil)
         } label: {
-            Label("종료", systemImage: "power")
+            Label("Quit", systemImage: "power")
         }
         .keyboardShortcut("q")
     }
 
     // MARK: - Actions
 
-    /// 모니터링 일시 정지/재개 토글
     private func toggleMonitoring() {
         // TODO: Phase 2에서 CGEventTapManager와 연동
         if isPaused {
-            NSLog("모니터링 일시 정지")
+            NSLog("Pause Monitoring")
         } else {
-            NSLog("모니터링 재개")
+            NSLog("Resume Monitoring")
         }
     }
 
-    /// 로그 디렉토리를 Finder에서 열기
     private func openLogDirectory() {
         let homeDir = FileManager.default.homeDirectoryForCurrentUser
         let logPath = homeDir
@@ -116,7 +114,7 @@ struct MenuBarView: View {
         if FileManager.default.fileExists(atPath: logPath.path) {
             NSWorkspace.shared.open(logPath)
         } else {
-            NSLog("로그 디렉토리 없음: \(logPath.path)")
+            NSLog("Log directory not found: \(logPath.path)")
         }
     }
 }

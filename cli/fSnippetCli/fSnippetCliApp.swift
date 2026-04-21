@@ -279,11 +279,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// 접근성 권한 미승인 시 사용자에게 알림 표시
     private func showAccessibilityAlert() {
         let alert = NSAlert()
-        alert.messageText = "접근성 권한 필요"
-        alert.informativeText = "fSnippetCli가 키보드 입력을 모니터링하려면 접근성 권한이 필요합니다.\n\n시스템 설정 > 개인정보 및 보안 > 접근성에서 fSnippetCli를 활성화해 주세요."
+        alert.messageText = NSLocalizedString("Accessibility Permission Required", comment: "Alert title when accessibility permission is not granted")
+        alert.informativeText = NSLocalizedString("fSnippetCli requires accessibility permission to monitor keyboard input.\n\nPlease enable fSnippetCli in System Settings > Privacy & Security > Accessibility.", comment: "Alert body explaining how to grant accessibility permission")
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "시스템 설정 열기")
-        alert.addButton(withTitle: "나중에")
+        alert.addButton(withTitle: NSLocalizedString("Open System Settings", comment: "Button to open System Settings"))
+        alert.addButton(withTitle: NSLocalizedString("Later", comment: "Button to dismiss the alert"))
 
         let response = alert.runModal()
         if response == .alertFirstButtonReturn {
