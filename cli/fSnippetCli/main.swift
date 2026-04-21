@@ -21,13 +21,10 @@ let args = rawArgs.filter { arg in
 
 if args.isEmpty {
     // GUI 모드: 기존 MenuBarExtra 앱 실행
-    // Issue51 Phase4: 동일 Bundle ID 중복 인스턴스 차단.
-    // LaunchServices 가 심링크/경로 차이로 별개 인스턴스를 허용하는 경우
-    // (`open _nowage_app/...` + `brew services start` 조합) 를 런타임에서 방어.
-    // launchd-bootstrap 프로세스가 우선권을 갖도록 기존 인스턴스를 terminate 함.
-    if SingleInstanceGuard.shouldTerminateAsDuplicate() {
-        exit(0)
-    }
+    // Issue51 Phase4: 중복 인스턴스 방어는 AppDelegate.applicationDidFinishLaunching 에서 수행.
+    // 이전에는 여기서 exit(0)를 호출했으나, AppKit 초기화 전 exit(0)는 LaunchServices 가
+    // 비정상 종료로 인식하여 "not open anymore" 오류 다이얼로그를 표시하는 부작용이 있었음.
+    // applicationDidFinishLaunching 으로 이동하면 AppKit 초기화 후 terminate(nil) 호출 가능 → 정상 종료.
     fSnippetCliApp.main()
 } else {
     // CLI 모드: GUI 초기화 없이 커맨드 실행 후 종료

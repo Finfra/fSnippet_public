@@ -3,6 +3,8 @@ import Foundation
 
 extension Notification.Name {
     static let paidAppStateChanged = Notification.Name("kr.finfra.fSnippetCli.paidAppStateChanged")
+    /// 중복 인스턴스(직접 실행된)가 기존 인스턴스에 메뉴바 복원을 요청할 때 사용 (DistributedNotificationCenter)
+    static let fSnippetCliRestoreMenuBar = Notification.Name("kr.finfra.fSnippetCli.restoreMenuBar")
 }
 
 /// Phase A — REST 2차 채널 paidApp 등록 상태 저장소

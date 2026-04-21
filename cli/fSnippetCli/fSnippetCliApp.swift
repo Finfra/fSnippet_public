@@ -81,7 +81,33 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// 사용자가 시스템 설정에서 권한을 부여하면 `KeyEventMonitor`를 자동 재초기화함.
     private var accessibilityPollingTimer: Timer?
 
+    /// 중복 인스턴스 여부 — true 이면 applicationWillTerminate 에서 정리 로직 건너뜀
+    private var isDuplicateInstance = false
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Issue51 Phase4 (방어 이전: main.swift exit(0) → LaunchServices 오류 발생):
+        // AppKit 완전 초기화 후 중복 인스턴스를 감지하여 terminate(nil) 로 graceful 종료.
+        // 이렇게 하면 LaunchServices 가 정상 종료로 인식하여 "not open anymore" 다이얼로그를 띄우지 않음.
+        if SingleInstanceGuard.shouldTerminateAsDuplicate() {
+            isDuplicateInstance = true
+            // 기존 인스턴스에 메뉴바 복원 신호 전송 (paidApp 종료 후 아이콘이 없는 상태일 수 있음)
+            DistributedNotificationCenter.default().postNotificationName(
+                .fSnippetCliRestoreMenuBar,
+                object: nil,
+                deliverImmediately: true
+            )
+            NSApplication.shared.terminate(nil)
+            return
+        }
+
+        // 다른 인스턴스가 직접 실행될 때 보내는 메뉴바 복원 신호 구독
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(onRestoreMenuBarSignal),
+            name: .fSnippetCliRestoreMenuBar,
+            object: nil
+        )
+
         // 접근성 권한 확인
         checkAccessibilityPermission()
 
@@ -118,6 +144,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        // 중복 인스턴스로 판정된 경우 정리 로직 불필요 (초기화 자체를 건너뜀)
+        guard !isDuplicateInstance else { return }
+
         // Issue52 Phase0: 모든 종료 경로(메뉴바·API·SettingsVM·Relauncher 등)의 공통 수렴점.
         // brew 가 started 상태면 여기서 stop 하여 브루 상태 일관성 보장.
         // timeout 3.0s: macOS 종료 허용 시간(5~20s) 내 충분한 여유.
@@ -127,6 +156,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         SnippetFileManager.shared.stopFolderWatching()
         APIServer.shared.stop()
         logI("fSnippetCli 종료")
+    }
+
+    // MARK: - 메뉴바 복원 신호 처리
+
+    /// 중복 인스턴스가 직접 실행되었을 때 DistributedNotificationCenter 를 통해 수신
+    /// paidApp 종료 후 메뉴바 아이콘이 숨겨진 상태에서 직접 실행 시 복원 트리거
+    @objc private func onRestoreMenuBarSignal() {
+        logI("메뉴바 복원 신호 수신 — paidApp 미실행 상태로 강제 전환")
+        NotificationCenter.default.post(name: .paidAppStateChanged, object: nil, userInfo: ["isRunning": false])
     }
 
     // MARK: - 유료 앱 실행/종료 감시
@@ -160,6 +198,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                   app.bundleIdentifier == paidBundleID else { return }
             logI("fSnippet(유료) 종료 감지")
             PaidAppStateStore.shared.markStaleFromWorkspace(pid: app.processIdentifier)
+            // markStaleFromWorkspace 는 pid 일치 시에만 발송하므로,
+            // REST register 없이 실행된 paidApp 종료 시 누락될 수 있음 → 직접 발송으로 보장
+            NotificationCenter.default.post(name: .paidAppStateChanged, object: nil, userInfo: ["isRunning": false])
+            // paidApp 종료 시 cliApp도 함께 종료 (brew service 포함)
+            // applicationWillTerminate 에서 BrewServiceSync.onAppStop() 자동 호출됨
+            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(200)) {
+                logI("🛑 paidApp 종료 연동 — cliApp 종료")
+                NSApplication.shared.terminate(nil)
+            }
         }
     }
 
