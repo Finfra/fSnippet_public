@@ -96,6 +96,9 @@ cli/
     │   ├── ClipboardManager.swift
     │   ├── APIServer.swift
     │   └── ...
+    ├── Services/              ← System services
+    │   ├── BrewServiceSync.swift
+    │   └── SingleInstanceGuard.swift
     ├── UI/                    ← Popup/history windows
     │   ├── UnifiedSnippetPopupView.swift
     │   └── History/
@@ -105,15 +108,14 @@ cli/
     └── Views/
 ```
 
-# REST API (v1)
+# REST API
 
 fSnippetCli includes a built-in REST API server for communication with the fSnippet GUI and external tools (MCP servers, Agent skills).
 
-* **API Version**: v1
-* **Service Root**: `/api/v1/`
-* **OpenAPI Spec**: [`api/openapi.yaml`](../api/openapi.yaml)
+* **OpenAPI Spec v1**: [`api/openapi_v1.yaml`](../api/openapi_v1.yaml) — snippets / clipboard / stats / status
+* **OpenAPI Spec v2**: [`api/openapi_v2.yaml`](../api/openapi_v2.yaml) — Settings CRUD + PaidApp lifecycle
 
-## Endpoints
+## v1 Endpoints (`/api/v1/`)
 
 | Method | Path                                | Description                  |
 | :----- | :---------------------------------- | :--------------------------- |
@@ -136,6 +138,27 @@ fSnippetCli includes a built-in REST API server for communication with the fSnip
 | POST   | `/api/v1/cli/quit`                | Quit CLI (X-Confirm required)|
 | POST   | `/api/v1/import/alfred`           | Import Alfred snippets       |
 
+## v2 Endpoints (`/api/v2/`)
+
+| Method       | Path                                          | Description                        |
+| :----------- | :-------------------------------------------- | :--------------------------------- |
+| GET          | `/api/v2/changes`                            | Change events (adaptive polling)   |
+| GET/PATCH    | `/api/v2/settings/general`                   | General settings                   |
+| GET/PATCH    | `/api/v2/settings/popup`                     | Popup settings                     |
+| GET/PATCH    | `/api/v2/settings/behavior`                  | App behavior settings              |
+| GET/PUT      | `/api/v2/settings/shortcuts/{name}`          | Shortcut read/write                |
+| GET/PATCH    | `/api/v2/settings/snippet-folders/{folder}`  | Per-folder prefix/suffix rules     |
+| GET/PUT      | `/api/v2/settings/excluded-files/per-folder/{folder}` | Per-folder excluded files |
+| GET/PATCH    | `/api/v2/settings/history`                   | History settings                   |
+| GET/PATCH    | `/api/v2/settings/advanced/debug`            | Log level / debug settings         |
+| GET/PATCH    | `/api/v2/settings/advanced/api`              | REST API server settings           |
+| GET/PUT      | `/api/v2/settings/snapshot`                  | Full settings export/import        |
+| POST         | `/api/v2/settings/actions/factory-reset`     | Factory reset (Danger Zone)        |
+| POST         | `/api/v2/paidapp/register`                   | paidApp startup registration       |
+| POST         | `/api/v2/paidapp/unregister`                 | paidApp termination deregistration |
+| GET          | `/api/v2/paidapp/status`                     | paidApp registration status        |
+| POST         | `/api/v2/shutdown`                           | Shutdown cliApp (with delay)       |
+
 ## Quick Test
 
 ```bash
@@ -147,6 +170,9 @@ curl "http://localhost:3015/api/v1/snippets/search?q=docker&limit=5"
 
 # CLI version
 curl http://localhost:3015/api/v1/cli/version
+
+# Settings (v2)
+curl http://localhost:3015/api/v2/settings/general
 ```
 
 # Menu Bar Features

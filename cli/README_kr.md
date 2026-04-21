@@ -96,6 +96,9 @@ cli/
     │   ├── ClipboardManager.swift
     │   ├── APIServer.swift
     │   └── ...
+    ├── Services/              ← 시스템 서비스
+    │   ├── BrewServiceSync.swift
+    │   └── SingleInstanceGuard.swift
     ├── UI/                    ← 팝업/히스토리 윈도우
     │   ├── UnifiedSnippetPopupView.swift
     │   └── History/
@@ -105,19 +108,19 @@ cli/
     └── Views/
 ```
 
-# REST API (v1)
+# REST API
 
 fSnippetCli는 REST API 서버를 내장하여 fSnippet GUI 및 외부 도구(MCP 서버, Agent 스킬)와 통신함.
 
-* **API 버전**: v1
-* **서비스 루트**: `/api/v1/`
-* **OpenAPI 명세**: [`api/openapi.yaml`](../api/openapi.yaml)
+* **OpenAPI 명세 v1**: [`api/openapi_v1.yaml`](../api/openapi_v1.yaml) — 스니펫/클립보드/통계/상태 조회
+* **OpenAPI 명세 v2**: [`api/openapi_v2.yaml`](../api/openapi_v2.yaml) — Settings CRUD + PaidApp 라이프사이클
 
-## 엔드포인트
+## v1 엔드포인트 (`/api/v1/`)
 
 | Method | Path                                | 설명                        |
 | :----- | :---------------------------------- | :-------------------------- |
 | GET    | `/`                                 | Health check                |
+| GET    | `/api/v1/snippets`                 | 스니펫 목록                 |
 | GET    | `/api/v1/snippets/search?q=`       | 스니펫 검색                 |
 | GET    | `/api/v1/snippets/by-abbreviation/` | abbreviation으로 조회       |
 | GET    | `/api/v1/snippets/{id}`            | 스니펫 상세                 |
@@ -135,6 +138,27 @@ fSnippetCli는 REST API 서버를 내장하여 fSnippet GUI 및 외부 도구(MC
 | POST   | `/api/v1/cli/quit`                | CLI 종료 (X-Confirm 필수)   |
 | POST   | `/api/v1/import/alfred`           | Alfred 스니펫 임포트        |
 
+## v2 엔드포인트 (`/api/v2/`)
+
+| Method       | Path                                          | 설명                              |
+| :----------- | :-------------------------------------------- | :-------------------------------- |
+| GET          | `/api/v2/changes`                            | 변경 이벤트 조회 (적응형 폴링)    |
+| GET/PATCH    | `/api/v2/settings/general`                   | General 설정                      |
+| GET/PATCH    | `/api/v2/settings/popup`                     | 팝업 설정                         |
+| GET/PATCH    | `/api/v2/settings/behavior`                  | 앱 동작 설정                      |
+| GET/PUT      | `/api/v2/settings/shortcuts/{name}`          | 단축키 조회/수정                  |
+| GET/PATCH    | `/api/v2/settings/snippet-folders/{folder}`  | 폴더별 prefix/suffix 규칙         |
+| GET/PUT      | `/api/v2/settings/excluded-files/per-folder/{folder}` | 폴더별 제외 파일      |
+| GET/PATCH    | `/api/v2/settings/history`                   | 히스토리 설정                     |
+| GET/PATCH    | `/api/v2/settings/advanced/debug`            | 로그 레벨/디버그 설정             |
+| GET/PATCH    | `/api/v2/settings/advanced/api`              | REST API 서버 설정                |
+| GET/PUT      | `/api/v2/settings/snapshot`                  | 전체 설정 내보내기/가져오기       |
+| POST         | `/api/v2/settings/actions/factory-reset`     | 공장 초기화 (Danger Zone)         |
+| POST         | `/api/v2/paidapp/register`                   | paidApp 기동 등록                 |
+| POST         | `/api/v2/paidapp/unregister`                 | paidApp 종료 해제                 |
+| GET          | `/api/v2/paidapp/status`                     | paidApp 등록 상태                 |
+| POST         | `/api/v2/shutdown`                           | cliApp 종료 (지연 지원)           |
+
 ## 빠른 테스트
 
 ```bash
@@ -146,6 +170,9 @@ curl "http://localhost:3015/api/v1/snippets/search?q=docker&limit=5"
 
 # CLI 버전
 curl http://localhost:3015/api/v1/cli/version
+
+# 설정 조회 (v2)
+curl http://localhost:3015/api/v2/settings/general
 ```
 
 # 메뉴바 기능
