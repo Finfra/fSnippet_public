@@ -7,7 +7,7 @@ date: 2026-04-07
 # Issue Management
 
 * Issue HWM: 58
-- Save Point: 2026-04-19 (8b88964) Feat(Test)(Issue50): fsc-test.sh에 fwc 오케스트레이션 3단계 역이식
+- Save Point: 2026-04-21 (dde45a3) Docs: Close Issue56 — 메뉴 다국어 지원 완료
 
 # 🤔 결정사항
 
