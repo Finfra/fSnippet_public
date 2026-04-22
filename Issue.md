@@ -17,12 +17,6 @@ date: 2026-04-07
 * [QA발견 2026-04-20] Issue53(SingleInstanceGuard handoff) 심볼명 명세 불일치 — 기대: performHandoffStart/handoffInProgress/isLaunchedViaLaunchServices, 실제: isLaunchedByLaunchd/shouldTerminateAsDuplicate/waitForOthersToExit (기능은 동작하나 심볼명이 명세와 다름)
 
 # 🚧 진행중
-## Issue59: 용어 통일 (paidApp/cliApp) — CLAUDE.md 및 규칙 파일 정리 (등록: 2026-04-22)
-* 목적: 프로젝트 전반의 용어를 `paidApp`(fSnippet GUI) 및 `cliApp`(fSnippetCli Helper)으로 통일하여 의사소통 효율성 제고 (fWarrange Issue203 동기화)
-* 상세:
-    - `_public/CLAUDE.md` — 용어 규약 적용 (원명 fSnippet/fSnippetCli 최초 소개 유지, 이후 서술은 paidApp/cliApp)
-    - `_public/.claude/rules/*.md` — `coding-rules.md`, `deploy-rules.md` 등 서술문 치환
-    - `_public/cli/_doc_design/fSnippetCli_design.md` 존재 시 적용
 
 # 📕 중요
 
@@ -31,6 +25,13 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue59: 용어 통일 (paidApp/cliApp) — CLAUDE.md 및 규칙 파일 정리 (등록: 2026-04-22, 해결: 2026-04-22) ✅
+* 목적: 프로젝트 전반 용어를 `paidApp`(fSnippet GUI) / `cliApp`(fSnippetCli Helper)으로 통일 (fWarrange Issue203 동기화)
+* 수정 파일 (.gitignore 대상, 별도 커밋 없음):
+    - `CLAUDE.md`: 3곳 치환 — "fSnippetCli는 fSnippet App Store 앱의 비샌드박스 헬퍼" → cliApp/paidApp 병기, 데이터 경로 헤더, 다국어 설명
+    - `.claude/rules/coding-rules.md`: 앱 개요 서술 + 로그 시스템 참조
+    - `.claude/rules/path-rules.md`: 데이터 경로 헤더
+    - `cli/_doc_design/`: 치환 대상 없음 (이미 paidApp/cliApp 미사용 문서)
 ## Issue56: cliApp 메뉴 다국어 지원 — 시스템 언어에 따라 영어/한국어 자동 전환 (등록: 2026-04-21, 해결: 2026-04-21, commit: 80e9a90) ✅
 * 목적: MenuBarView.swift · fSnippetCliApp.swift 의 하드코딩된 한국어 문자열을 LocalizedStringKey 기반으로 전환. 시스템 언어에 따라 영어/한국어 메뉴가 자동 표시되도록 함.
 * 상세:
