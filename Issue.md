@@ -7,7 +7,8 @@ date: 2026-04-07
 # Issue Management
 
 * Issue HWM: 63
-- Save Point: 2026-04-22 — Issue61, Issue62 완료
+* Save Point :
+      - 2026.04.22: 6af95cb (Feat: Implement Launch at Login (Brew services integration) & Project Optimization)
 
 # 🤔 결정사항
 
