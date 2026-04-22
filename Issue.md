@@ -6,8 +6,8 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 60
-- Save Point: 2026-04-21 (dde45a3) Docs: Close Issue56 — 메뉴 다국어 지원 완료
+* Issue HWM: 62
+- Save Point: 2026-04-22 (TBD) — Issue61 완료, Issue62 추가
 
 # 🤔 결정사항
 
@@ -18,6 +18,16 @@ date: 2026-04-07
 
 # 🚧 진행중
 
+## Issue62: Homebrew Formula 동기화 — tap 최종 테스트 버전 + caveats 영어화 (등록: 2026-04-22)
+* 목적: fSnippetCli의 Formula를 Homebrew tap의 최종 테스트 통과 버전과 동기화. caveats를 영어로 번역 (pairApp fWarrangeCli 작업 미러링)
+* 현상:
+    - `cli/Formula/fsnippet-cli.rb` (프로젝트 레포)와 tap 배포본이 불일치
+    - tap의 caveats가 한국어이지만 공개 프로젝트는 영어 권장
+* 구현 명세:
+    - tap의 최종 테스트 버전을 프로젝트 레포에 동기화 (url, service 설정, caveats)
+    - caveats: 한국어 → 영어 번역 (설치 후 가이드, 권한 설정 안내)
+    - openapi_v2.yaml, 배포 스크립트 검증
+* 참조: pairApp fWarrangeCli 커밋 4f8f188 (Homebrew tap 최종 테스트 버전으로 동기화)
 
 # 📕 중요
 
@@ -26,6 +36,20 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue61: launchAtLogin ↔ brew services plist 연동 (A+C 방식) (등록: 2026-04-22, 해결: 2026-04-22) ✅
+* 목적: `_config.yml`의 `launchAtLogin` 설정이 실제 LaunchAgent plist 설치 여부와 연동되도록 구현 (pairApp fWarrangeCli Issue51 동기화)
+* plan: `cli/_doc_work/plan/launchAtLogin-plist-sync_plan.md`
+* 현상/원인:
+    - `brew services stop` 후 상태가 `none`(plist 제거)이 되어 재부팅 시 자동 시작 불가
+    - `launchAtLogin` 설정은 저장만 될 뿐 plist 설치/제거에 미연동 (Issue36 obsolete 처리)
+* 구현 방식:
+    - **방식 A**: `SettingsObservableObject.setLaunchAtLogin()` — `true`면 `brew services start`, `false`면 plist 직접 rm
+    - **방식 C**: `fsc-deploy-brew.sh` — 배포 시 `_config.yml`의 `launchAtLogin` 읽어 start/run 분기
+* 기술 주의:
+    - brew 경로: `/opt/homebrew/bin/brew` (Apple Silicon 전용, Intel 미지원)
+    - plist 경로: `~/Library/LaunchAgents/kr.finfra.fSnippetCli.plist`
+* 검증: fWarrangeCli Issue51과 동일 메커니즘 구현, 앱 종료 시 brew services 제어 동작 확인
 
 ## Issue60: 언어 설정 코드 통일 (kr → ko) (등록: 2026-04-22, 완료: 2026-04-22, commit: ba112954) ✅
 * 목적: set_kr.sh 파일명과 capture.sh 언어 모드를 ISO 639-1 표준 "ko"(한국어)로 통일. 현재 파일명 "set_kr.sh"(지역 코드)와 내부 구현 `LANG_CODE="ko"`(언어 코드) 간 불일치 해소.
