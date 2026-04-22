@@ -46,6 +46,11 @@ class APIRouter {
   /// 내부 라우팅 로직
   private func routeInternal(method: String, decodedPath: String, request: APIServer.HTTPRequest, server: APIServer) -> APIServer.HTTPResponse {
 
+    // v1 API disabled — use /api/v2/* instead
+    if decodedPath.hasPrefix("/api/v1/") {
+      return errorResponse(code: "GONE", message: "API v1 is deprecated. Use /api/v2/ instead.", statusCode: 410)
+    }
+
     switch (method, decodedPath) {
     case ("GET", "/"):
       return handleHealthCheck(server: server)
@@ -1045,13 +1050,28 @@ class APIRouter {
     if let err = err { return err }
     guard let patch = maybe else { return v2Error(code: "internal", message: "decode failed", statusCode: 500) }
 
+    var shouldSyncLaunchAtLogin = false
+    var launchAtLoginValue: Bool? = nil
+
     PreferencesManager.shared.batchUpdate { config in
-      if let v = patch.launchAtLogin { config["start_at_login"] = v }
+      if let v = patch.launchAtLogin {
+        config["start_at_login"] = v
+        shouldSyncLaunchAtLogin = true
+        launchAtLoginValue = v
+      }
       if let v = patch.hideFromMenuBar { config["hide_menu_bar_icon"] = v }
       if let v = patch.showInAppSwitcher { config["show_in_app_switcher"] = v }
       if let v = patch.showNotifications { config["show_notifications"] = v }
       if let v = patch.playSoundOnReady { config["play_ready_sound"] = v }
     }
+
+    // Issue61: launchAtLogin plist 동기화 — 비동기 디스패치로 API 응답 블로킹 방지
+    if shouldSyncLaunchAtLogin, let enabled = launchAtLoginValue {
+      DispatchQueue.global(qos: .background).async {
+        SettingsObservableObject.shared.setLaunchAtLogin(enabled)
+      }
+    }
+
     return jsonResponse(buildV2Behavior())
   }
 

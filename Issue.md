@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 62
+* Issue HWM: 63
 - Save Point: 2026-04-22 — Issue61, Issue62 완료
 
 # 🤔 결정사항
@@ -22,6 +22,16 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
+
+## Issue63: API v1 비활성화 — `/api/v1/*` 호출 시 HTTP 410 반환 (등록: 2026-04-22, 종료: 2026-04-22) ✅
+* 목적: fSnippetCli가 v2 기반으로 운영되므로 v1 엔드포인트 직접 호출을 차단
+* 상세:
+    - pairApp fWarrangeCli(#26) 동일 정책 Mirror (Feat(REST): v1 API 비활성화)
+    - `/api/v1/*` 직접 호출 → HTTP 410 Gone + `{"success":false,"error":{"code":"GONE","message":"..."}}`
+    - `GET /` (health check)는 영향 없음
+    - `APIRouter.routeInternal` 상단에 v1 차단 분기 추가 (switch 진입 전)
+    - fSnippetCli는 v2 폴백→v1 구조 없음 — early return으로 충분
+    - 확인: `curl http://localhost:3015/api/v1/cli/status` → 410 GONE ✅
 
 # 📗 선택
 
