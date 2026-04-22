@@ -7,7 +7,7 @@ date: 2026-04-07
 # Issue Management
 
 * Issue HWM: 62
-- Save Point: 2026-04-22 (TBD) — Issue61 완료, Issue62 추가
+- Save Point: 2026-04-22 — Issue61, Issue62 완료
 
 # 🤔 결정사항
 
@@ -19,22 +19,6 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue62: Homebrew Formula 동기화 — tap 최종 테스트 버전 + caveats 영어화 (등록: 2026-04-22)
-* 목적: fSnippetCli의 Formula를 Homebrew tap의 최종 테스트 통과 버전과 동기화. caveats를 영어로 번역 (pairApp fWarrangeCli 작업 미러링)
-* 현상:
-    - `cli/Formula/fsnippet-cli.rb` (프로젝트 레포)와 tap 배포본이 불일치
-    - tap의 caveats가 한국어이지만 공개 프로젝트는 영어 권장
-* 구현 명세:
-    - `cli/Formula/fsnippet-cli.rb`:
-        - caveats: 한국어 → 영어 번역 (설치 후 가이드, 권한 설정 안내)
-        - service 블록에 `run_at_load true` 추가 (자동 시작 활성화)
-        - 주석도 한국어 → 영어 통일
-    - `cli/_tool/fsc-deploy-brew.sh`:
-        - Step 5 로컬 tap Formula 생성 부분 caveats 영어화
-        - service 블록에 `run_at_load true` 추가
-    - openapi_v2.yaml 존재 확인 (기존 구현 상태 유지)
-* 참조: pairApp fWarrangeCli 커밋 4f8f188 (Homebrew tap 최종 테스트 버전으로 동기화)
-
 # 📕 중요
 
 # 📙 일반
@@ -42,6 +26,26 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue62: Homebrew Formula 동기화 — tap 최종 테스트 버전 + caveats 영어화 (등록: 2026-04-22, 해결: 2026-04-22, commit: 311c4dd) ✅
+* 목적: fSnippetCli Homebrew Formula를 pairApp fWarrangeCli와 동기화. caveats를 English로 통일하고 `run_at_load true` 옵션 추가하여 Homebrew 설치 후 자동 시작(auto-launch at boot) 지원
+* plan: `cli/_doc_work/plan/homebrew-formula-sync_plan.md`
+* 참조 원본: pairApp fWarrangeCli Formula (cli/Formula/fwarrange-cli.rb)
+* 구현 명세:
+    - **파일 1** `cli/Formula/fsnippet-cli.rb`:
+        - caveats: "fSnippetCli requires Accessibility permissions." (Korean 제거)
+        - install method 주석: English only ("Pre-built fSnippetCli.app is included in tarball...")
+        - service block에 `run_at_load true` 추가 → brew 설치 후 자동 시작 활성화
+    - **파일 2** `cli/_tool/fsc-deploy-brew.sh` (Step 5 로컬 tap Formula 갱신):
+        - 동적 생성 Formula에도 동일한 English caveats 적용
+        - service block에 `run_at_load true` 추가
+        - Step 8 (launchAtLogin 연동): Issue61 구현된 로직 활용하여 brew services 제어 동기화
+    - **검증**: OpenAPI v1/v2 specification 파일 없음 (API 명세와 무관한 배포 설정 변경)
+* 기술 참고:
+    - Homebrew service 자동 시작: `run_at_load true` (macOS launchd KeepAlive 동치)
+    - Caveats 영어화: 공개 레포(fSnippet_public) 컨벤션에 따른 다국어 표준화
+    - Formula parity: fWarrangeCli Issue51과 동일 패턴 적용
+* 검증: `brew install finfra/tap/fsnippet-cli` → `brew services list` 에서 `started` 상태 표시 + 재부팅 후 자동 시작 확인
 
 ## Issue61: launchAtLogin ↔ brew services plist 연동 (A+C 방식) (등록: 2026-04-22, 해결: 2026-04-22) ✅
 * 목적: `_config.yml`의 `launchAtLogin` 설정이 실제 LaunchAgent plist 설치 여부와 연동되도록 구현 (pairApp fWarrangeCli Issue51 동기화)
