@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 59
+* Issue HWM: 60
 - Save Point: 2026-04-21 (dde45a3) Docs: Close Issue56 — 메뉴 다국어 지원 완료
 
 # 🤔 결정사항
@@ -18,6 +18,7 @@ date: 2026-04-07
 
 # 🚧 진행중
 
+
 # 📕 중요
 
 # 📙 일반
@@ -25,6 +26,17 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue60: 언어 설정 코드 통일 (kr → ko) (등록: 2026-04-22, 완료: 2026-04-22, commit: ba112954) ✅
+* 목적: set_kr.sh 파일명과 capture.sh 언어 모드를 ISO 639-1 표준 "ko"(한국어)로 통일. 현재 파일명 "set_kr.sh"(지역 코드)와 내부 구현 `LANG_CODE="ko"`(언어 코드) 간 불일치 해소.
+* 상세:
+    - `set_kr.sh` → `set_ko.sh` 파일명 변경
+    - `capture.sh`: 언어 모드 "kr" → "ko" 변경 (명령어, 변수, 주석 10곳)
+    - `capture-rules.md`: 언어 suffix "_kr" → "_ko" 업데이트
+    - `set_ko.sh`: 주석의 파일명 참조 "set_kr.sh" → "set_ko.sh"
+    - `README_kr.md` → `README_ko.md` (5개 파일: 루트 + agents/claude + mcp + cli + api)
+    - wiki 문서: README_kr → README_ko 참조 통일 (mcp-server, agents, rest-api)
+    - `_config.yml`: language 기본값 "en" → "ko" 설정
 ## Issue59: 용어 통일 (paidApp/cliApp) — CLAUDE.md 및 규칙 파일 정리 (등록: 2026-04-22, 해결: 2026-04-22) ✅
 * 목적: 프로젝트 전반 용어를 `paidApp`(fSnippet GUI) / `cliApp`(fSnippetCli Helper)으로 통일 (fWarrange Issue203 동기화)
 * 수정 파일 (.gitignore 대상, 별도 커밋 없음):
