@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 58
+* Issue HWM: 59
 - Save Point: 2026-04-21 (dde45a3) Docs: Close Issue56 — 메뉴 다국어 지원 완료
 
 # 🤔 결정사항
@@ -17,6 +17,12 @@ date: 2026-04-07
 * [QA발견 2026-04-20] Issue53(SingleInstanceGuard handoff) 심볼명 명세 불일치 — 기대: performHandoffStart/handoffInProgress/isLaunchedViaLaunchServices, 실제: isLaunchedByLaunchd/shouldTerminateAsDuplicate/waitForOthersToExit (기능은 동작하나 심볼명이 명세와 다름)
 
 # 🚧 진행중
+## Issue59: 용어 통일 (paidApp/cliApp) — CLAUDE.md 및 규칙 파일 정리 (등록: 2026-04-22)
+* 목적: 프로젝트 전반의 용어를 `paidApp`(fSnippet GUI) 및 `cliApp`(fSnippetCli Helper)으로 통일하여 의사소통 효율성 제고 (fWarrange Issue203 동기화)
+* 상세:
+    - `_public/CLAUDE.md` — 용어 규약 적용 (원명 fSnippet/fSnippetCli 최초 소개 유지, 이후 서술은 paidApp/cliApp)
+    - `_public/.claude/rules/*.md` — `coding-rules.md`, `deploy-rules.md` 등 서술문 치환
+    - `_public/cli/_doc_design/fSnippetCli_design.md` 존재 시 적용
 
 # 📕 중요
 
