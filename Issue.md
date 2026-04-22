@@ -16,7 +16,31 @@ date: 2026-04-07
     - Paid 앱의 기능이 모듈로 구성되어 있는지 확인
 2. [QA발견 2026-04-20] Issue53(SingleInstanceGuard handoff) 심볼명 명세 불일치 — 기대: performHandoffStart/handoffInProgress/isLaunchedViaLaunchServices, 실제: isLaunchedByLaunchd/shouldTerminateAsDuplicate/waitForOthersToExit (기능은 동작하나 심볼명이 명세와 다름)
 3. 모든 코드 주석 영어로
-
+4. isMeenuBarVisible추가
+```
+╰─$ curl -s http://localhost:3016
+{
+  "app" : "fWarrangeCli",
+  "isMenuBarVisible" : true,
+  "isRunning" : true,
+  "port" : 3016,
+  "status" : "ok",
+  "uptime" : "00:00:20",
+  "uptimeSeconds" : 20,
+  "version" : "1.0.0"
+}%
+╭─nowage@jm4 ~
+╰─$ curl -s http://localhost:3015
+{
+  "app" : "fSnippet",
+  "clipboard_count" : 1,
+  "port" : 3015,
+  "snippet_count" : 1963,
+  "status" : "ok",
+  "uptime_seconds" : 469,
+  "version" : "1.0.0"
+}%
+```
 # 🚧 진행중
 
 # 📕 중요

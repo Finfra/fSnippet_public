@@ -84,6 +84,10 @@ class SettingsObservableObject: ObservableObject {
     @Published var apiPort: Int = 3015
     @Published var apiAllowExternal: Bool = false
     @Published var apiAllowedCIDR: String = "127.0.0.1/32"
+
+    // MARK: - Issue 61: launchAtLogin ↔ brew services plist 연동
+    @Published var launchAtLogin: Bool = false
+
     // MARK: - Issue 359: 언어 설정
     @Published var language: String = "system" {
         didSet {
@@ -334,7 +338,7 @@ class SettingsObservableObject: ObservableObject {
     static func normalizeLanguageCode(_ code: String) -> String {
         // 흔한 오류: 국가 코드(ISO 3166-1)를 언어 코드로 사용
         let countryToLanguage: [String: String] = [
-            "kr": "ko",  // 한국(KR) → 한국어(ko)
+            "kr": "ko",  // 하위 호환: 구형 config의 "kr" 값 → "ko" 자동 변환
             "jp": "ja",  // 일본(JP) → 일본어(ja)
             "cn": "zh-Hans",  // 중국(CN) → 중국어 간체
             "tw": "zh-Hant",  // 대만(TW) → 중국어 번체
@@ -756,6 +760,9 @@ class SettingsObservableObject: ObservableObject {
         apiAllowExternal = prefs.bool(forKey: "api_allow_external", defaultValue: false)
         apiAllowedCIDR = prefs.string(forKey: "api_allowed_cidr", defaultValue: "127.0.0.1/32")
 
+        // 4.7 Launch at Login 설정 (Issue 61)
+        launchAtLogin = prefs.bool(forKey: "launch_at_login", defaultValue: false)
+
         // 5. Appearance Mode (Issue 386)
         // PreferencesManager -> SnippetSettings via SettingsManager.load()
         let loadedSettings = SettingsManager.shared.load()
@@ -956,6 +963,9 @@ class SettingsObservableObject: ObservableObject {
             config["api_allow_external"] = self.apiAllowExternal
             config["api_allowed_cidr"] = self.apiAllowedCIDR
 
+            // Issue 61: Launch at Login 설정
+            config["launch_at_login"] = self.launchAtLogin
+
             // Trigger Key Save logic is handled by SettingsManager.shared.save()
         }
 
@@ -1035,6 +1045,97 @@ class SettingsObservableObject: ObservableObject {
     func deleteAllStatistics() {
         SnippetUsageManager.shared.deleteAllHistory()
         logI("📡 [Settings] 통계 데이터 삭제 요청됨")
+    }
+
+    // MARK: - Issue 61: launchAtLogin ↔ brew services plist 연동
+
+    /// launchAtLogin 설정 변경 — brew services plist 연동
+    /// - enabled: true → brew services start, false → brew services stop
+    /// - 호출 전제: 반드시 background 스레드에서 호출 (process.waitUntilExit 사용)
+    func setLaunchAtLogin(_ enabled: Bool) {
+        logI("📡 [Settings] launchAtLogin 변경 요청: \(enabled)")
+
+        // 1. _config.yml 저장
+        let prefs = PreferencesManager.shared
+        prefs.set(enabled, forKey: "launch_at_login")
+
+        // 2. brew services 동기화 (현재 스레드에서 블로킹 — background 스레드에서 호출 가정)
+        if enabled {
+            startBrewService()
+        } else {
+            stopBrewService()
+        }
+
+        // 3. @Published 상태 갱신 — 반드시 메인 스레드에서 실행
+        DispatchQueue.main.async {
+            self.launchAtLogin = enabled
+            logI("📡 [Settings] launchAtLogin 설정 완료: \(enabled)")
+        }
+    }
+
+    /// brew services start 실행 (헬퍼 메서드)
+    private func startBrewService() {
+        // brew 경로 찾기 (Apple Silicon: /opt/homebrew/bin/brew)
+        let brewCandidates = [
+            "/opt/homebrew/bin/brew",
+            "/usr/local/bin/brew"
+        ]
+
+        for brewPath in brewCandidates {
+            if FileManager.default.fileExists(atPath: brewPath) {
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: brewPath)
+                process.arguments = ["services", "start", "fsnippet-cli"]
+
+                do {
+                    try process.run()
+                    process.waitUntilExit()
+                    let rc = process.terminationStatus
+                    if rc == 0 {
+                        logI("📡 [Settings] ✅ brew services start 성공")
+                    } else {
+                        logW("📡 [Settings] ⚠️ brew services start 실패 (rc=\(rc))")
+                    }
+                    return
+                } catch {
+                    logE("📡 [Settings] ❌ brew 실행 실패: \(error.localizedDescription)")
+                }
+            }
+        }
+
+        logW("📡 [Settings] ⚠️ brew 바이너리를 찾을 수 없음")
+    }
+
+    /// brew services stop 실행 (헬퍼 메서드)
+    private func stopBrewService() {
+        let brewCandidates = [
+            "/opt/homebrew/bin/brew",
+            "/usr/local/bin/brew"
+        ]
+
+        for brewPath in brewCandidates {
+            if FileManager.default.fileExists(atPath: brewPath) {
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: brewPath)
+                process.arguments = ["services", "stop", "fsnippet-cli"]
+
+                do {
+                    try process.run()
+                    process.waitUntilExit()
+                    let rc = process.terminationStatus
+                    if rc == 0 {
+                        logI("📡 [Settings] ✅ brew services stop 성공")
+                    } else {
+                        logW("📡 [Settings] ⚠️ brew services stop 실패 (rc=\(rc))")
+                    }
+                    return
+                } catch {
+                    logE("📡 [Settings] ❌ brew 실행 실패: \(error.localizedDescription)")
+                }
+            }
+        }
+
+        logW("📡 [Settings] ⚠️ brew 바이너리를 찾을 수 없음")
     }
 }
 

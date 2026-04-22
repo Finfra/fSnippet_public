@@ -7,7 +7,7 @@ func L10n(_ key: String, default defaultValue: String? = nil) -> String {
 }
 
 /// Issue14: 다국어 문자열 관리자
-/// _config.yml의 language 설정("kr", "en", "system" 등)에 따라 적절한 문자열을 반환함.
+/// _config.yml의 language 설정("ko", "en", "system" 등)에 따라 적절한 문자열을 반환함.
 /// NSLocalizedString 대신 직접 딕셔너리 기반으로 관리하여 .strings 파일 없이도 동작.
 class LocalizedStringManager {
     static let shared = LocalizedStringManager()
@@ -53,7 +53,7 @@ class LocalizedStringManager {
     /// SettingsObservableObject.normalizeLanguageCode와 동일 로직 (의존성 분리)
     static func normalizeLanguageCode(_ code: String) -> String {
         let countryToLanguage: [String: String] = [
-            "kr": "ko",  // 한국(KR) → 한국어(ko)
+            "kr": "ko",  // 하위 호환: 구형 config의 "kr" 값 → "ko" 자동 변환
             "jp": "ja",  // 일본(JP) → 일본어(ja)
             "cn": "zh-Hans",  // 중국(CN) → 중국어 간체
             "tw": "zh-Hant",  // 대만(TW) → 중국어 번체

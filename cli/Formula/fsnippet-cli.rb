@@ -17,7 +17,6 @@ class FsnippetCli < Formula
   service do
     run [opt_prefix/"fSnippetCli.app/Contents/MacOS/fSnippetCli"]
     keep_alive successful_exit: false
-    run_at_load true
     log_path var/"log/fsnippet-cli.log"
     error_log_path var/"log/fsnippet-cli.err.log"
     process_type :interactive

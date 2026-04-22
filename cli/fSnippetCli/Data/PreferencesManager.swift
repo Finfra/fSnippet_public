@@ -21,7 +21,7 @@ class PreferencesManager: PreferencesManagerProtocol {
         return get("cursor_max_distance") ?? 100
     }
 
-    /// Issue14: 현재 설정된 언어 코드 (config의 원본 값: "kr", "en", "system" 등)
+    /// Issue14: 현재 설정된 언어 코드 (config의 원본 값: "ko", "en", "system" 등; 구형 "kr"은 자동 변환)
     var language: String {
         return get("language") ?? "system"
     }

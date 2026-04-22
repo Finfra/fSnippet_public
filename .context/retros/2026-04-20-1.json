@@ -1,0 +1,59 @@
+{
+  "date": "2026-04-20",
+  "window": "2026-04-13 to 2026-04-20",
+  "branch": "feat/phase-a-lifecycle-rest",
+  "author": "Steve J. South(NamJungGu)",
+  "metrics": {
+    "commits": 96,
+    "active_days": 6,
+    "issues_closed": 26,
+    "lines_added": 11843,
+    "lines_deleted": 2474,
+    "net_delta": 9369,
+    "ai_assisted": 49,
+    "ai_assisted_pct": 51,
+    "streak_days": 4
+  },
+  "commit_types": {
+    "Docs": 43,
+    "Feat": 29,
+    "Fix": 14,
+    "Chore": 4,
+    "Build": 2,
+    "Other": 4
+  },
+  "hotspots": [
+    {"file": "api/openapi_v2.yaml", "volume": 2170},
+    {"file": "Issue.md", "volume": 1902},
+    {"file": "cli/fSnippetCli/Managers/APIRouter.swift", "volume": 1325},
+    {"file": "cli/_tool/fsc-deploy-brew.sh", "volume": 755},
+    {"file": "cli/_tool/fsc-loginitem.sh", "volume": 566}
+  ],
+  "issues_shipped": [
+    "Issue29","Issue30","Issue31","Issue32","Issue33","Issue34","Issue35",
+    "Issue36","Issue37","Issue38","Issue39","Issue40","Issue41","Issue42",
+    "Issue43","Issue44","Issue45","Issue46","Issue47","Issue48","Issue49",
+    "Issue50","Issue51","Issue52","Issue53","Issue54","Issue826","Issue827","Issue828"
+  ],
+  "ship_of_week": "Issue29 — API v2 full Settings CRUD (8 commits in ~3 hours)",
+  "test_files_added": [
+    "PaidAppStateLoggerTests.swift",
+    "PaidAppPhaseATests.swift",
+    "PaidAppAPIRouterTests.swift"
+  ],
+  "wins": [
+    "API v2 shipped spec-first (OpenAPI in sync)",
+    "Brew services 4-quadrant sync complete (Issue51)",
+    "paidApp lifecycle REST + dynamic icon shipped same day"
+  ],
+  "improvements": [
+    "43 Docs commits (45%) — batch close/register where gap <15 min",
+    "fsc-loginitem.sh (566 lines) had no test coverage before obsolete",
+    "3 Xcode/TCC issues in one week — integration test needed for launch handoff"
+  ],
+  "habits_next_week": [
+    "Add # test: comment block when touching fsc-*.sh scripts",
+    "Check if new issue belongs to existing stream before opening",
+    "Run /api-test before closing any API issue"
+  ]
+}

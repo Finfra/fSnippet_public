@@ -398,6 +398,11 @@ class Logger {
         NotificationCenter.default.post(name: .logLevelDidChange, object: level)
     }
 
+    /// 비동기 쓰기 큐가 완료될 때까지 블록 (앱 종료 직전 호출)
+    func flush() {
+        queue.sync {}
+    }
+
     /// 로그 파일 경로 반환
     func getLogFilePath() -> String {
         return logFileURL.path

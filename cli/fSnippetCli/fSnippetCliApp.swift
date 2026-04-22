@@ -156,6 +156,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         SnippetFileManager.shared.stopFolderWatching()
         APIServer.shared.stop()
         logI("fSnippetCli 종료")
+        logger.flush()  // async 로그 큐 완료 대기 (종료 전 파일 기록 보장)
     }
 
     // MARK: - 메뉴바 복원 신호 처리
