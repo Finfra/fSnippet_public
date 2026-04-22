@@ -203,6 +203,7 @@ class FsnippetCli < Formula
   service do
     run [opt_prefix/"fSnippetCli.app/Contents/MacOS/fSnippetCli"]
     keep_alive successful_exit: false
+    run_at_load true
     log_path var/"log/fsnippet-cli.log"
     error_log_path var/"log/fsnippet-cli.err.log"
     process_type :interactive
@@ -210,15 +211,15 @@ class FsnippetCli < Formula
 
   def caveats
     <<~EOS
-      fSnippetCli는 접근성(Accessibility) 권한이 필요합니다.
+      fSnippetCli requires Accessibility permissions.
 
-      설치 후 자동 시작 등록:
+      To enable auto-start after installation:
         brew services start finfra/tap/fsnippet-cli
 
-      권한 승인:
-        시스템 설정 > 개인정보 보호 및 보안 > 접근성 > fSnippetCli 체크
+      To grant Accessibility permissions:
+        System Settings > Privacy & Security > Accessibility > fSnippetCli
 
-      TCC 권한이 꼬이면 Xcode Debug 경로로 재설정: /run tcc
+      If TCC permissions are corrupted, reset via Xcode Debug path: /run tcc
     EOS
   end
 
@@ -261,22 +262,46 @@ FORMULA
         fi
     fi
 
-    # Step 8: brew services 자동 등록 (기본 ON — FSC_AUTOSTART=0 으로 opt-out)
+    # Step 8: brew services 자동 등록 + Issue61 launchAtLogin 동기화
     # Formula의 service do 블록을 LaunchAgent plist로 변환 + load
     # Step 2에서 bootout + uninstall 완료 상태이므로 stale 잔존 우려 없음
+    # Issue61 Phase3: _config.yml의 launchAtLogin 설정과 brew services 상태 동기화
     echo ""
-    echo "=== Step 8: brew services 자동 시작 등록 ==="
-    if [ "${FSC_AUTOSTART:-1}" = "1" ]; then
+    echo "=== Step 8: brew services 자동 시작 등록 + launchAtLogin 동기화 ==="
+
+    # Issue61: _config.yml에서 launchAtLogin 설정값 읽기
+    local CONFIG_FILE="$HOME/Documents/finfra/fSnippetData/_config.yml"
+    local LAUNCH_AT_LOGIN="false"
+    if [ -f "$CONFIG_FILE" ]; then
+        # YAML 형식: launchAtLogin: true/false
+        # grep -A1 로 다음 줄도 함께 추출 (멀티라인 YAML 대비), sed로 불린 값 추출
+        LAUNCH_AT_LOGIN=$(grep "launchAtLogin:" "$CONFIG_FILE" | head -1 | awk '{print $2}' | tr -d '\r')
+        [ -z "$LAUNCH_AT_LOGIN" ] && LAUNCH_AT_LOGIN="false"
+        echo "[config] launchAtLogin: $LAUNCH_AT_LOGIN (from $CONFIG_FILE)"
+    else
+        echo "[config] $CONFIG_FILE 미존재 — launchAtLogin 기본값: false"
+    fi
+
+    # Issue61: launchAtLogin 값에 따라 brew services 상태 분기
+    if [ "$LAUNCH_AT_LOGIN" = "true" ]; then
+        echo "[sync] launchAtLogin=true → brew services start fsnippet-cli"
         brew services start finfra/tap/fsnippet-cli 2>&1 | tail -3
         local SVC_STATUS=${PIPESTATUS[0]}
         if [ "$SVC_STATUS" -eq 0 ]; then
-            record_result "brew services start" "PASS" "finfra/tap/fsnippet-cli"
+            record_result "brew services start" "PASS" "finfra/tap/fsnippet-cli (launchAtLogin=true)"
         else
             record_result "brew services start" "FAIL" "exit=$SVC_STATUS"
         fi
     else
-        echo "ℹ️  FSC_AUTOSTART=0 — 자동 기동 skip (수동 기동: brew services start fsnippet-cli)"
-        record_result "brew services" "PASS" "skip (FSC_AUTOSTART=0)"
+        echo "[sync] launchAtLogin=false → plist 제거 + brew services stop"
+        local PLIST_PATH="$HOME/Library/LaunchAgents/kr.finfra.fSnippetCli.plist"
+        if [ -f "$PLIST_PATH" ]; then
+            rm -f "$PLIST_PATH"
+            echo "  ✅ plist 제거: $PLIST_PATH"
+        fi
+        # brew services stop (이미 uninstall 되었으면 no-op)
+        brew services stop fsnippet-cli 2>/dev/null || true
+        record_result "brew services stop" "PASS" "plist 제거됨 (launchAtLogin=false)"
     fi
 
     # Step 9: REST API 헬스 체크 (자동 기동된 경우에만 실측)

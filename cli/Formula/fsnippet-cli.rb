@@ -9,14 +9,15 @@ class FsnippetCli < Formula
   depends_on :macos
 
   def install
-    # tarball에 사전 빌드된 fSnippetCli.app 포함됨 (Apple Development 서명 유지).
-    # brew sandbox에서는 키체인 접근이 제한되므로 재빌드하지 않고 그대로 복사.
+    # Pre-built fSnippetCli.app is included in tarball (Apple Development signature retained).
+    # Keychain access is restricted in brew sandbox, so we copy as-is without rebuilding.
     prefix.install "fSnippetCli.app"
   end
 
   service do
     run [opt_prefix/"fSnippetCli.app/Contents/MacOS/fSnippetCli"]
     keep_alive successful_exit: false
+    run_at_load true
     log_path var/"log/fsnippet-cli.log"
     error_log_path var/"log/fsnippet-cli.err.log"
     process_type :interactive
@@ -24,15 +25,15 @@ class FsnippetCli < Formula
 
   def caveats
     <<~EOS
-      fSnippetCli는 접근성(Accessibility) 권한이 필요합니다.
+      fSnippetCli requires Accessibility permissions.
 
-      설치 후 자동 시작 등록:
+      To enable auto-start after installation:
         brew services start finfra/tap/fsnippet-cli
 
-      권한 승인:
-        시스템 설정 > 개인정보 보호 및 보안 > 접근성 > fSnippetCli 체크
+      To grant Accessibility permissions:
+        System Settings > Privacy & Security > Accessibility > fSnippetCli
 
-      TCC 권한이 꼬이면 Xcode Debug 경로로 재설정: /run tcc
+      If TCC permissions are corrupted, reset via Xcode Debug path: /run tcc
     EOS
   end
 

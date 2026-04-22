@@ -12,9 +12,10 @@ date: 2026-04-07
 # 🤔 결정사항
 
 # 🌱 이슈후보
-* 클립보드 히스토리 기능 중에서 고급 기능은 Paid 앱이 활성화 되어 있어야 실행 가능하게끔 해 줘 활성화 되어 있지 않다면 활성화 창[기존 코드 찾아서] 열게 해야함.
+1. 클립보드 히스토리 기능 중에서 고급 기능은 Paid 앱이 활성화 되어 있어야 실행 가능하게끔 해 줘 활성화 되어 있지 않다면 활성화 창[기존 코드 찾아서] 열게 해야함.
     - Paid 앱의 기능이 모듈로 구성되어 있는지 확인
-* [QA발견 2026-04-20] Issue53(SingleInstanceGuard handoff) 심볼명 명세 불일치 — 기대: performHandoffStart/handoffInProgress/isLaunchedViaLaunchServices, 실제: isLaunchedByLaunchd/shouldTerminateAsDuplicate/waitForOthersToExit (기능은 동작하나 심볼명이 명세와 다름)
+2. [QA발견 2026-04-20] Issue53(SingleInstanceGuard handoff) 심볼명 명세 불일치 — 기대: performHandoffStart/handoffInProgress/isLaunchedViaLaunchServices, 실제: isLaunchedByLaunchd/shouldTerminateAsDuplicate/waitForOthersToExit (기능은 동작하나 심볼명이 명세와 다름)
+3. 모든 코드 주석 영어로
 
 # 🚧 진행중
 
@@ -24,9 +25,14 @@ date: 2026-04-07
     - `cli/Formula/fsnippet-cli.rb` (프로젝트 레포)와 tap 배포본이 불일치
     - tap의 caveats가 한국어이지만 공개 프로젝트는 영어 권장
 * 구현 명세:
-    - tap의 최종 테스트 버전을 프로젝트 레포에 동기화 (url, service 설정, caveats)
-    - caveats: 한국어 → 영어 번역 (설치 후 가이드, 권한 설정 안내)
-    - openapi_v2.yaml, 배포 스크립트 검증
+    - `cli/Formula/fsnippet-cli.rb`:
+        - caveats: 한국어 → 영어 번역 (설치 후 가이드, 권한 설정 안내)
+        - service 블록에 `run_at_load true` 추가 (자동 시작 활성화)
+        - 주석도 한국어 → 영어 통일
+    - `cli/_tool/fsc-deploy-brew.sh`:
+        - Step 5 로컬 tap Formula 생성 부분 caveats 영어화
+        - service 블록에 `run_at_load true` 추가
+    - openapi_v2.yaml 존재 확인 (기존 구현 상태 유지)
 * 참조: pairApp fWarrangeCli 커밋 4f8f188 (Homebrew tap 최종 테스트 버전으로 동기화)
 
 # 📕 중요
