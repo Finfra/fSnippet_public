@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 63
+* Issue HWM: 65
 * Save Point :
       - 2026.04.22: 6af95cb (Feat: Implement Launch at Login (Brew services integration) & Project Optimization)
 
@@ -17,36 +17,28 @@ date: 2026-04-07
     - Paid 앱의 기능이 모듈로 구성되어 있는지 확인
 2. [QA발견 2026-04-20] Issue53(SingleInstanceGuard handoff) 심볼명 명세 불일치 — 기대: performHandoffStart/handoffInProgress/isLaunchedViaLaunchServices, 실제: isLaunchedByLaunchd/shouldTerminateAsDuplicate/waitForOthersToExit (기능은 동작하나 심볼명이 명세와 다름)
 3. 모든 코드 주석 영어로
-4. isMeenuBarVisible추가
-```
-╰─$ curl -s http://localhost:3016
-{
-  "app" : "fWarrangeCli",
-  "isMenuBarVisible" : true,
-  "isRunning" : true,
-  "port" : 3016,
-  "status" : "ok",
-  "uptime" : "00:00:20",
-  "uptimeSeconds" : 20,
-  "version" : "1.0.0"
-}%
-╭─nowage@jm4 ~
-╰─$ curl -s http://localhost:3015
-{
-  "app" : "fSnippet",
-  "clipboard_count" : 1,
-  "port" : 3015,
-  "snippet_count" : 1963,
-  "status" : "ok",
-  "uptime_seconds" : 469,
-  "version" : "1.0.0"
-}%
-```
+
 # 🚧 진행중
 
 # 📕 중요
 
 # 📙 일반
+
+## Issue65: `GET /` 응답에 `isMenuBarVisible` · CLIStatus 포맷 필드 추가 (등록: 2026-04-24, 종료: 2026-04-24) ✅
+* 목적: `curl http://localhost:3015/` 응답에 `isMenuBarVisible`, `isRunning`, `uptime`, `uptimeSeconds` 추가 — pairApp fWarrangeCli Issue52+53 Full Mirror
+* 상세:
+    - paidApp 실행 여부(`PaidAppManager.shared.isRunning() || PaidAppStateStore.shared.status() != nil`)를 기반으로 `isMenuBarVisible` 산출
+    - `uptime` 필드 추가 (`HH:mm:ss` 포맷 문자열, fWarrangeCli 동일)
+    - `isRunning` 필드 추가 (`server.isRunning` 직접 반영)
+    - `HealthResponse` 구조체에 4개 필드 추가 (`uptime`, `uptimeSeconds` camelCase, `isRunning`, `isMenuBarVisible`)
+    - `openapi_v1.yaml` HealthResponse 스키마 동기화
+    - 확인: `curl http://localhost:3015/` → `"isMenuBarVisible": true` ✅
+* 커밋: TBD
+
+## Issue64: `GET /` health check 응답을 CLIStatus 포맷으로 통일 (등록: 2026-04-24, 종료: 2026-04-24) ✅
+* 목적: pairApp fWarrangeCli Issue53 Mirror — `GET /` 가 `uptime`, `uptimeSeconds`, `isRunning`, `isMenuBarVisible` 포함한 통일 포맷 반환
+* 상세: Issue65와 함께 단일 커밋으로 구현
+* 커밋: TBD
 
 ## Issue63: API v1 비활성화 — `/api/v1/*` 호출 시 HTTP 410 반환 (등록: 2026-04-22, 종료: 2026-04-22) ✅
 * 목적: fSnippetCli가 v2 기반으로 운영되므로 v1 엔드포인트 직접 호출을 차단

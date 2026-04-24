@@ -73,7 +73,10 @@ paths:
                 app: fSnippet
                 version: "2.1.0"
                 port: 3015
-                uptime_seconds: 3600
+                uptime: "01:00:00"
+                uptimeSeconds: 3600
+                isRunning: true
+                isMenuBarVisible: true
                 snippet_count: 1937
                 clipboard_count: 245
 
@@ -900,9 +903,18 @@ components:
         port:
           type: integer
           example: 3015
-        uptime_seconds:
+        uptime:
+          type: string
+          example: "01:00:00"
+        uptimeSeconds:
           type: integer
           example: 3600
+        isRunning:
+          type: boolean
+          example: true
+        isMenuBarVisible:
+          type: boolean
+          example: true
         snippet_count:
           type: integer
           example: 1937
@@ -914,7 +926,10 @@ components:
         - app
         - port
         - version
-        - uptime_seconds
+        - uptime
+        - uptimeSeconds
+        - isRunning
+        - isMenuBarVisible
         - snippet_count
         - clipboard_count
 

@@ -33,12 +33,18 @@ struct HealthResponse: Codable {
   let app: String
   let version: String
   let port: Int
+  let uptime: String
   let uptimeSeconds: Int
+  let isRunning: Bool
+  let isMenuBarVisible: Bool
   let snippetCount: Int
   let clipboardCount: Int
   enum CodingKeys: String, CodingKey {
     case status, app, version, port
-    case uptimeSeconds = "uptime_seconds"
+    case uptime
+    case uptimeSeconds
+    case isRunning
+    case isMenuBarVisible
     case snippetCount = "snippet_count"
     case clipboardCount = "clipboard_count"
   }

@@ -1228,13 +1228,22 @@ class APIRouter {
     let snippetCount = SnippetIndexManager.shared.entries.count
     let (clipItems, _) = ClipboardDB.shared.search(query: "", limit: 1, offset: 0)
     let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+    let uptimeSecs = server.uptimeSeconds
+    let hours = uptimeSecs / 3600
+    let minutes = (uptimeSecs % 3600) / 60
+    let seconds = uptimeSecs % 60
+    let uptimeString = String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+    let isPaidAppRunning = PaidAppManager.shared.isRunning() || PaidAppStateStore.shared.status() != nil
 
     let response = HealthResponse(
       status: "ok",
       app: "fSnippet",
       version: version,
       port: Int(server.currentPort),
-      uptimeSeconds: server.uptimeSeconds,
+      uptime: uptimeString,
+      uptimeSeconds: uptimeSecs,
+      isRunning: server.isRunning,
+      isMenuBarVisible: !isPaidAppRunning,
       snippetCount: snippetCount,
       clipboardCount: clipItems.count
     )
