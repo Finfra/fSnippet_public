@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 67
+* Issue HWM: 68
 * Save Point :
       - 2026.04.24: bac440b (Fix(Brew): launchAtLogin=false 시 brew services run으로 전환 Issue67)
       - 2026.04.22: 6af95cb (Feat: Implement Launch at Login (Brew services integration) & Project Optimization)
@@ -28,6 +28,14 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue68: `APIRouter.swift` v1 라우트 핸들러 dead code 제거 (등록: 2026-04-24, 종료: 2026-04-24) ✅
+* 목적: Issue63에서 v1 엔드포인트를 HTTP 410으로 차단한 이후, `switch` 내 v1 case 핸들러 125줄이 도달 불가 dead code로 남아있던 것을 제거
+* 상세:
+    - 제거 대상: `/api/v1/snippets`, `/api/v1/snippets/search`, `/api/v1/snippets/by-abbreviation/`, `/api/v1/snippets/expand`, `/api/v1/clipboard/*`, `/api/v1/folders/*` 등 v1 case 전체
+    - v1 요청은 Issue63 early return 분기에서 410 처리됨 — switch 진입 자체가 없으므로 안전한 제거
+    - `Harness.md` 최신화도 동일 커밋에 포함
+* 커밋: 9bb35e4
 
 ## Issue67: `launchAtLogin=false` 시 `brew services run`으로 전환 (등록: 2026-04-24, 종료: 2026-04-24) ✅
 * 목적: `brew services list`에서 fsnippet-cli plist 경로가 `~/Library/LaunchAgents/`가 아닌 `/opt/homebrew/opt/...`에 위치하도록 수정 — fWarrangeCli 패턴 적용
