@@ -32,7 +32,7 @@ date: 2026-04-07
     - 수정 위치: `cli/_tool/fsc-deploy-brew.sh` Step 8 `launchAtLogin=false` 분기
     - 확인: `brew services list` → `fsnippet-cli started /opt/homebrew/opt/fsnippet-cli/homebrew.mxcl.fsnippet-cli.plist` ✅
     - 확인: `/deploy brew local` 9 PASS / 0 FAIL ✅
-* 커밋: TBD
+* 커밋: bac440b
 
 ## Issue66: `openapi_v2.yaml` `/shutdown` 스키마 `nullable` 누락 수정 (등록: 2026-04-24, 종료: 2026-04-24) ✅
 * 목적: `POST /api/v2/shutdown` 요청 스키마에서 `reason`, `delayMs` 필드의 `nullable: true` 누락 수정 — pairApp fWarrangeCli 명세와 동기화
