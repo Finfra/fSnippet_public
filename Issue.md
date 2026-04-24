@@ -21,22 +21,6 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue69: CLI Commands — `/api/v1/` → `/api/v2/` 전환 (등록: 2026-04-24, 종료: 2026-04-24) ✅
-* 목적: `CLI/Commands/*.swift` 7개 파일, 16개 v1 경로 참조를 v2로 전환 (Issue63으로 v1 차단 → CLI 기능 broken 상태)
-* 상세:
-    - `FolderCommand`: `/api/v1/folders` → `/api/v2/folders`
-    - `StatusCommand`: `/api/v1/cli/status` → `/api/v2/cli/status`
-    - `TriggerCommand`: `/api/v1/triggers` → `/api/v2/triggers`
-    - `ConfigCommand`: `/api/v1/settings` → `/api/v2/settings/general` + 응답 파싱 v2 포맷(`settingsFolder`, `snippetFolder`, `language`, `appearance`, `triggerKey.token`) 으로 수정
-    - `VersionCommand`: `/api/v1/cli/version` → `/api/v2/cli/version`
-    - `SnippetCommand`: `/api/v1/snippets*` → `/api/v2/snippets*` (4개)
-    - `ClipboardCommand`: `/api/v1/clipboard/*` → `/api/v2/clipboard/*` (3개)
-    - `ImportCommand`: `/api/v1/import/alfred` → `/api/v2/import/alfred`
-    - `StatsCommand`: `/api/v1/stats/*` → `/api/v2/stats/*` (2개)
-    - `APIRouter.swift` docstring 잔존 v1 경로 → v2로 정리
-    - 빌드: ** BUILD SUCCEEDED ** ✅
-* 커밋: TBD
-
 # 📕 중요
 
 # 📙 일반
@@ -44,6 +28,16 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue69: CLI Commands — `/api/v1/` → `/api/v2/` 전환 (등록: 2026-04-24, 종료: 2026-04-24) ✅
+* 목적: `CLI/Commands/*.swift` 8개 파일, 16개 v1 경로 참조를 v2로 전환 (Issue63 v1 차단 → CLI 기능 broken 상태 해소)
+* 상세:
+    - `FolderCommand`, `StatusCommand`, `TriggerCommand`, `VersionCommand`, `SnippetCommand`, `ClipboardCommand`, `ImportCommand`, `StatsCommand`: `/api/v1/` → `/api/v2/` 단순 치환
+    - `ConfigCommand`: `/api/v1/settings` → `/api/v2/settings/general` + 응답 파싱 v2 포맷 적용 (`settingsFolder`, `snippetFolder`, `language`, `appearance`, `triggerKey.token`)
+    - `APIRouter.swift` docstring 잔존 v1 참조 v2로 정리
+    - 잔존 v1: `APIRouter.swift:L50` 차단 로직만 — 의도된 항목
+    - 빌드: BUILD SUCCEEDED ✅
+* 커밋: b37b026
 
 ## Issue68: `APIRouter.swift` v1 라우트 핸들러 dead code 제거 (등록: 2026-04-24, 종료: 2026-04-24) ✅
 * 목적: Issue63에서 v1 엔드포인트를 HTTP 410으로 차단한 이후, `switch` 내 v1 case 핸들러 125줄이 도달 불가 dead code로 남아있던 것을 제거
