@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 69
+* Issue HWM: 72
 * Save Point :
       - 2026.04.24: bac440b (Fix(Brew): launchAtLogin=false 시 brew services run으로 전환 Issue67)
       - 2026.04.22: 6af95cb (Feat: Implement Launch at Login (Brew services integration) & Project Optimization)
@@ -14,14 +14,38 @@ date: 2026-04-07
 # 🤔 결정사항
 
 # 🌱 이슈후보
-1. 클립보드 히스토리 기능 중에서 고급 기능은 Paid 앱이 활성화 되어 있어야 실행 가능하게끔 해 줘 활성화 되어 있지 않다면 활성화 창[기존 코드 찾아서] 열게 해야함.
-    - Paid 앱의 기능이 모듈로 구성되어 있는지 확인
-2. [QA발견 2026-04-20] Issue53(SingleInstanceGuard handoff) 심볼명 명세 불일치 — 기대: performHandoffStart/handoffInProgress/isLaunchedViaLaunchServices, 실제: isLaunchedByLaunchd/shouldTerminateAsDuplicate/waitForOthersToExit (기능은 동작하나 심볼명이 명세와 다름)
-3. 모든 코드 주석 영어로
 
 # 🚧 진행중
 
 # 📕 중요
+
+## Issue72: 코드 주석 언어 통일 — 영어 표준화 (등록: 2026-04-25)
+* 목적: `_public/` 공개 레포 기준에 따라 모든 Swift/Shell/Python 코드 주석을 영어로 통일 (Issue59 언어 규약 "코드 주석은 English only")
+* 상세:
+    - 범위: `cli/fSnippetCli/` 소스 + `cli/_tool/` 스크립트 + `cli/_doc_design/` 작업 문서 제외
+    - 현황: 한글 주석 잔존 확인 필요
+    - 대응: 문서 생성 후 대량 변환 (sed 또는 프로그래밍)
+* 참조: `.claude/rules/language-rules.md` (공개 레포 코드 주석 영어만)
+
+## Issue71: SingleInstanceGuard 심볼명 동기화 — pairApp(Issue41) 패턴 적용 (등록: 2026-04-25)
+* 목적: SingleInstanceGuard 심볼명을 pairApp(fWarrangeCli Issue41)에서 이미 해결된 패턴으로 동기화
+* 현황: fSnippetCli는 `isLaunchedByLaunchd()`, `shouldTerminateAsDuplicate()`, `waitForOthersToExit()` 사용 중 (기능은 동작)
+* 기대: pairApp의 `performHandoffStart()`, `handoffInProgress`, `getpid()` 패턴으로 교체 → 명세 일치 + 일관성
+* pairApp 참조: fWarrangeCli `cli/fWarrangeCli/Services/SingleInstanceGuard.swift` + Issue41 + Issue39 (brew-service-menubar-sync)
+* 영향: API 심볼 명세(`openapi_v2.yaml`)는 영향 없음 (내부 구현 변경)
+
+## Issue70: 클립보드 히스토리 고급 기능 — Paid 앱 활성화 의존성 처리 (등록: 2026-04-25)
+* 목적: 클립보드 히스토리 고급 기능 실행 시 paidApp(fSnippet) 미활성화 상태 감지 → 활성화 유도 창 표시
+* 현황: cliApp 단독 실행 시 고급 기능 제약 (paidApp 활성화 필수)
+* 기대 동작:
+    1. 고급 기능 클릭 → paidApp 미활성화 감지
+    2. "fSnippet이 필요합니다" 안내 창 표시
+    3. "열기" 버튼 → paidApp 실행 트리거 또는 설정 창 열기
+* 구현 고려:
+    - paidApp 활성화 여부 확인 로직 (PaidAppDetector 활용 가능)
+    - paidApp 실행 경로 탐지
+    - UI 안내 메시지 작성
+* 참조: pairApp(fWarrangeCli)도 동일 문제 미해결
 
 # 📙 일반
 
