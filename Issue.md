@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 66
+* Issue HWM: 67
 * Save Point :
       - 2026.04.22: 6af95cb (Feat: Implement Launch at Login (Brew services integration) & Project Optimization)
 
@@ -23,6 +23,16 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
+
+## Issue67: `launchAtLogin=false` 시 `brew services run`으로 전환 (등록: 2026-04-24, 종료: 2026-04-24) ✅
+* 목적: `brew services list`에서 fsnippet-cli plist 경로가 `~/Library/LaunchAgents/`가 아닌 `/opt/homebrew/opt/...`에 위치하도록 수정 — fWarrangeCli 패턴 적용
+* 상세:
+    - 현상: `launchAtLogin=false` 시 `brew services stop`으로 완전 중지 → plist `none` 상태
+    - 수정: fWarrangeCli처럼 `brew services run` 사용 → `/opt/homebrew/opt/fsnippet-cli/` keg plist 직접 사용, 재부팅 미지속
+    - 수정 위치: `cli/_tool/fsc-deploy-brew.sh` Step 8 `launchAtLogin=false` 분기
+    - 확인: `brew services list` → `fsnippet-cli started /opt/homebrew/opt/fsnippet-cli/homebrew.mxcl.fsnippet-cli.plist` ✅
+    - 확인: `/deploy brew local` 9 PASS / 0 FAIL ✅
+* 커밋: TBD
 
 ## Issue66: `openapi_v2.yaml` `/shutdown` 스키마 `nullable` 누락 수정 (등록: 2026-04-24, 종료: 2026-04-24) ✅
 * 목적: `POST /api/v2/shutdown` 요청 스키마에서 `reason`, `delayMs` 필드의 `nullable: true` 누락 수정 — pairApp fWarrangeCli 명세와 동기화

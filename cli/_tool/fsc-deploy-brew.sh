@@ -293,15 +293,27 @@ FORMULA
             record_result "brew services start" "FAIL" "exit=$SVC_STATUS"
         fi
     else
-        echo "[sync] launchAtLogin=false → plist 제거 + brew services stop"
-        local PLIST_PATH="$HOME/Library/LaunchAgents/kr.finfra.fSnippetCli.plist"
+        # Issue67: launchAtLogin=false → brew services run (fWarrangeCli 패턴)
+        # - brew services stop: LaunchAgents plist 제거 + launchd 해제
+        # - brew services run: keg plist(/opt/homebrew/opt/...) 직접 사용, 재부팅 미지속
+        echo "[sync] launchAtLogin=false → brew services run (keg plist, no LaunchAgents)"
+        local PLIST_PATH="$HOME/Library/LaunchAgents/homebrew.mxcl.fsnippet-cli.plist"
+        local PLIST_PATH_ALT="$HOME/Library/LaunchAgents/kr.finfra.fSnippetCli.plist"
         if [ -f "$PLIST_PATH" ]; then
+            brew services stop fsnippet-cli 2>/dev/null || true
+            launchctl bootout "gui/$(id -u)/homebrew.mxcl.fsnippet-cli" 2>/dev/null || true
             rm -f "$PLIST_PATH"
-            echo "  ✅ plist 제거: $PLIST_PATH"
+            echo "  ✅ LaunchAgents plist 제거: $PLIST_PATH"
         fi
-        # brew services stop (이미 uninstall 되었으면 no-op)
-        brew services stop fsnippet-cli 2>/dev/null || true
-        record_result "brew services stop" "PASS" "plist 제거됨 (launchAtLogin=false)"
+        [ -f "$PLIST_PATH_ALT" ] && rm -f "$PLIST_PATH_ALT"
+        sleep 0.3
+        brew services run finfra/tap/fsnippet-cli 2>&1 | tail -3
+        local RUN_STATUS=${PIPESTATUS[0]}
+        if [ "$RUN_STATUS" -eq 0 ]; then
+            record_result "brew services run" "PASS" "keg plist 직접 실행 (launchAtLogin=false)"
+        else
+            record_result "brew services run" "FAIL" "exit=$RUN_STATUS"
+        fi
     fi
 
     # Step 9: REST API 헬스 체크 (자동 기동된 경우에만 실측)
