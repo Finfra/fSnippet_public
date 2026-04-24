@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 65
+* Issue HWM: 66
 * Save Point :
       - 2026.04.22: 6af95cb (Feat: Implement Launch at Login (Brew services integration) & Project Optimization)
 
@@ -23,6 +23,14 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
+
+## Issue66: `openapi_v2.yaml` `/shutdown` 스키마 `nullable` 누락 수정 (등록: 2026-04-24) 🚧
+* 목적: `POST /api/v2/shutdown` 요청 스키마에서 `reason`, `delayMs` 필드의 `nullable: true` 누락 수정 — pairApp fWarrangeCli 명세와 동기화
+* 상세:
+    - 현재: inline schema, `nullable` 미기재
+    - 변경: `nullable: true` 추가, `$ref` 방식으로 통일 (`ShutdownRequest`·`ShutdownResponse` 컴포넌트 추가)
+    - 구현 로직은 이미 동일 (`reason?: String?`, `delayMs?: Int?`) — yaml 명세만 불일치
+* 완료 조건: `openapi_v2.yaml` `/shutdown` 스키마가 fWarrangeCli 명세와 동일
 
 ## Issue65: `GET /` 응답에 `isMenuBarVisible` · CLIStatus 포맷 필드 추가 (등록: 2026-04-24, 종료: 2026-04-24) ✅
 * 목적: `curl http://localhost:3015/` 응답에 `isMenuBarVisible`, `isRunning`, `uptime`, `uptimeSeconds` 추가 — pairApp fWarrangeCli Issue52+53 Full Mirror
