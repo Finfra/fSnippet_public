@@ -33,12 +33,12 @@ date: 2026-04-07
     - `HealthResponse` 구조체에 4개 필드 추가 (`uptime`, `uptimeSeconds` camelCase, `isRunning`, `isMenuBarVisible`)
     - `openapi_v1.yaml` HealthResponse 스키마 동기화
     - 확인: `curl http://localhost:3015/` → `"isMenuBarVisible": true` ✅
-* 커밋: TBD
+* 커밋: 9b84332
 
 ## Issue64: `GET /` health check 응답을 CLIStatus 포맷으로 통일 (등록: 2026-04-24, 종료: 2026-04-24) ✅
 * 목적: pairApp fWarrangeCli Issue53 Mirror — `GET /` 가 `uptime`, `uptimeSeconds`, `isRunning`, `isMenuBarVisible` 포함한 통일 포맷 반환
 * 상세: Issue65와 함께 단일 커밋으로 구현
-* 커밋: TBD
+* 커밋: 9b84332
 
 ## Issue63: API v1 비활성화 — `/api/v1/*` 호출 시 HTTP 410 반환 (등록: 2026-04-22, 종료: 2026-04-22) ✅
 * 목적: fSnippetCli가 v2 기반으로 운영되므로 v1 엔드포인트 직접 호출을 차단
