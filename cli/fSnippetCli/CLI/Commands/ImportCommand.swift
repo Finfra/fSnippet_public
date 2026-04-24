@@ -20,7 +20,7 @@ struct ImportCommand {
             body = ["db_path": path]
         }
 
-        let result = client.post(path: "/api/v1/import/alfred", body: body)
+        let result = client.post(path: "/api/v2/import/alfred", body: body)
 
         if formatter.jsonMode {
             formatter.printJSON(result.data)

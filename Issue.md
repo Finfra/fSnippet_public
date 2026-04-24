@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 68
+* Issue HWM: 69
 * Save Point :
       - 2026.04.24: bac440b (Fix(Brew): launchAtLogin=false 시 brew services run으로 전환 Issue67)
       - 2026.04.22: 6af95cb (Feat: Implement Launch at Login (Brew services integration) & Project Optimization)
@@ -20,6 +20,22 @@ date: 2026-04-07
 3. 모든 코드 주석 영어로
 
 # 🚧 진행중
+
+## Issue69: CLI Commands — `/api/v1/` → `/api/v2/` 전환 (등록: 2026-04-24, 종료: 2026-04-24) ✅
+* 목적: `CLI/Commands/*.swift` 7개 파일, 16개 v1 경로 참조를 v2로 전환 (Issue63으로 v1 차단 → CLI 기능 broken 상태)
+* 상세:
+    - `FolderCommand`: `/api/v1/folders` → `/api/v2/folders`
+    - `StatusCommand`: `/api/v1/cli/status` → `/api/v2/cli/status`
+    - `TriggerCommand`: `/api/v1/triggers` → `/api/v2/triggers`
+    - `ConfigCommand`: `/api/v1/settings` → `/api/v2/settings/general` + 응답 파싱 v2 포맷(`settingsFolder`, `snippetFolder`, `language`, `appearance`, `triggerKey.token`) 으로 수정
+    - `VersionCommand`: `/api/v1/cli/version` → `/api/v2/cli/version`
+    - `SnippetCommand`: `/api/v1/snippets*` → `/api/v2/snippets*` (4개)
+    - `ClipboardCommand`: `/api/v1/clipboard/*` → `/api/v2/clipboard/*` (3개)
+    - `ImportCommand`: `/api/v1/import/alfred` → `/api/v2/import/alfred`
+    - `StatsCommand`: `/api/v1/stats/*` → `/api/v2/stats/*` (2개)
+    - `APIRouter.swift` docstring 잔존 v1 경로 → v2로 정리
+    - 빌드: ** BUILD SUCCEEDED ** ✅
+* 커밋: TBD
 
 # 📕 중요
 

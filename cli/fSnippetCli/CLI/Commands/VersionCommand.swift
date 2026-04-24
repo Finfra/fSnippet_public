@@ -4,7 +4,7 @@ import Foundation
 
 struct VersionCommand {
     static func run(client: CLIAPIClient, formatter: OutputFormatter) -> Int32 {
-        let result = client.get(path: "/api/v1/cli/version")
+        let result = client.get(path: "/api/v2/cli/version")
 
         guard result.error == nil else {
             OutputFormatter.printError(CLIError.serviceNotRunning.description)

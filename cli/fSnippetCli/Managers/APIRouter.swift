@@ -1828,7 +1828,7 @@ class APIRouter {
 
   // MARK: - Reload
 
-  /// POST /api/v1/reload — 스니펫, 규칙, 설정을 런타임에 재로딩
+  /// POST /api/v2/reload — 스니펫, 규칙, 설정을 런타임에 재로딩
   private func handleReload() -> APIServer.HTTPResponse {
     let startTime = CFAbsoluteTimeGetCurrent()
 
@@ -1927,7 +1927,7 @@ class APIRouter {
 
   // MARK: - CRUD: 폴더 생성/삭제
 
-  /// POST /api/v1/folders — 새 스니펫 폴더 생성
+  /// POST /api/v2/folders — 새 스니펫 폴더 생성
   private func handleCreateFolder(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
     guard let bodyData = request.body,
           let req = try? JSONDecoder().decode(APICreateFolderRequest.self, from: bodyData) else {
@@ -1967,7 +1967,7 @@ class APIRouter {
     }
   }
 
-  /// DELETE /api/v1/folders/{name} — 스니펫 폴더 삭제
+  /// DELETE /api/v2/folders/{name} — 스니펫 폴더 삭제
   private func handleDeleteFolder(name: String) -> APIServer.HTTPResponse {
     let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmedName.isEmpty else {
@@ -2014,7 +2014,7 @@ class APIRouter {
 
   // MARK: - CRUD: 스니펫 생성/삭제
 
-  /// POST /api/v1/snippets — 새 스니펫 파일 생성
+  /// POST /api/v2/snippets — 새 스니펫 파일 생성
   private func handleCreateSnippet(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
     guard let bodyData = request.body,
           let req = try? JSONDecoder().decode(APICreateSnippetRequest.self, from: bodyData) else {
@@ -2079,7 +2079,7 @@ class APIRouter {
     }
   }
 
-  /// DELETE /api/v1/snippets/{id} — 스니펫 파일 삭제
+  /// DELETE /api/v2/snippets/{id} — 스니펫 파일 삭제
   /// id 형식: "folder/keyword===name.txt" (URL 인코딩됨)
   private func handleDeleteSnippet(id: String) -> APIServer.HTTPResponse {
     let trimmedId = id.trimmingCharacters(in: .whitespacesAndNewlines)

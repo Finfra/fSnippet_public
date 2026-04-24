@@ -26,7 +26,7 @@ struct FolderCommand {
     }
 
     private static func runList(client: CLIAPIClient, formatter: OutputFormatter) -> Int32 {
-        let result = client.get(path: "/api/v1/folders")
+        let result = client.get(path: "/api/v2/folders")
         guard result.isSuccess else {
             OutputFormatter.printError("폴더 목록 조회 실패")
             return 4
@@ -67,7 +67,7 @@ struct FolderCommand {
         query["limit"] = parsed.options["limit"] ?? "50"
         query["offset"] = parsed.options["offset"] ?? "0"
 
-        let result = client.get(path: "/api/v1/folders/\(encodedName)", query: query)
+        let result = client.get(path: "/api/v2/folders/\(encodedName)", query: query)
         guard result.isSuccess else {
             OutputFormatter.printError("폴더를 찾을 수 없습니다: \(name)")
             return 1

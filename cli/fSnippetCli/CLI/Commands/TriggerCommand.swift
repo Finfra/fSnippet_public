@@ -9,7 +9,7 @@ struct TriggerCommand {
             return CLIError.serviceNotRunning.exitCode
         }
 
-        let result = client.get(path: "/api/v1/triggers")
+        let result = client.get(path: "/api/v2/triggers")
         guard result.isSuccess else {
             OutputFormatter.printError("트리거 정보 조회 실패")
             return 4

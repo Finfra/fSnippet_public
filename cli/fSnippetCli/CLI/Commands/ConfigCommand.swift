@@ -9,7 +9,7 @@ struct ConfigCommand {
             return CLIError.serviceNotRunning.exitCode
         }
 
-        let result = client.get(path: "/api/v1/settings")
+        let result = client.get(path: "/api/v2/settings/general")
         guard result.isSuccess else {
             OutputFormatter.printError("설정 조회 실패")
             return 4
@@ -20,28 +20,22 @@ struct ConfigCommand {
             return 0
         }
 
-        if let dict = result.jsonDict(),
-           let data = dict["data"] as? [String: Any] {
-            let appRoot = data["app_root_path"] as? String ?? ""
-            let configPath = data["config_path"] as? String ?? ""
+        if let dict = result.jsonDict() {
+            let settingsFolder = dict["settingsFolder"] as? String ?? ""
+            let snippetFolder = dict["snippetFolder"] as? String ?? ""
+            let language = dict["language"] as? String ?? ""
+            let appearance = dict["appearance"] as? String ?? ""
 
             formatter.printKeyValue([
-                ("App Root", appRoot),
-                ("Config Path", configPath)
+                ("Settings Folder", settingsFolder),
+                ("Snippet Folder", snippetFolder),
+                ("Language", language),
+                ("Appearance", appearance)
             ])
 
-            if let config = data["config"] as? [String: Any], !config.isEmpty {
-                print("\n설정 항목:")
-                let sorted = config.keys.sorted()
-                let pairs = sorted.map { key -> (String, String) in
-                    let value = config[key]
-                    let str: String
-                    if let boolVal = value as? Bool { str = boolVal ? "true" : "false" }
-                    else if let intVal = value as? Int { str = "\(intVal)" }
-                    else { str = "\(value ?? "")" }
-                    return ("  \(key)", str)
-                }
-                formatter.printKeyValue(pairs)
+            if let triggerKey = dict["triggerKey"] as? [String: Any],
+               let token = triggerKey["token"] as? String {
+                formatter.printKeyValue([("Trigger Key", token)])
             }
         }
 

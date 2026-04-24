@@ -29,7 +29,7 @@ struct StatsCommand {
         var query: [String: String] = [:]
         query["limit"] = parsed.options["limit"] ?? "10"
 
-        let result = client.get(path: "/api/v1/stats/top", query: query)
+        let result = client.get(path: "/api/v2/stats/top", query: query)
         guard result.isSuccess else {
             OutputFormatter.printError("통계 조회 실패")
             return 4
@@ -64,7 +64,7 @@ struct StatsCommand {
         query["limit"] = parsed.options["limit"] ?? "20"
         query["offset"] = parsed.options["offset"] ?? "0"
 
-        let result = client.get(path: "/api/v1/stats/history", query: query)
+        let result = client.get(path: "/api/v2/stats/history", query: query)
         guard result.isSuccess else {
             OutputFormatter.printError("사용 이력 조회 실패")
             return 4

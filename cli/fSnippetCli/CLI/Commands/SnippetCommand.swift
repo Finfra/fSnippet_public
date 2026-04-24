@@ -44,7 +44,7 @@ struct SnippetCommand {
             query["folder"] = folder
         }
 
-        let result = client.get(path: "/api/v1/snippets", query: query)
+        let result = client.get(path: "/api/v2/snippets", query: query)
         guard result.isSuccess else {
             OutputFormatter.printError("스니펫 목록 조회 실패")
             return 4
@@ -87,7 +87,7 @@ struct SnippetCommand {
         params["limit"] = parsed.options["limit"] ?? "20"
         params["offset"] = parsed.options["offset"] ?? "0"
 
-        let result = client.get(path: "/api/v1/snippets/search", query: params)
+        let result = client.get(path: "/api/v2/snippets/search", query: params)
         guard result.isSuccess else {
             OutputFormatter.printError("스니펫 검색 실패")
             return 4
@@ -126,7 +126,7 @@ struct SnippetCommand {
         }
 
         let encodedId = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
-        let result = client.get(path: "/api/v1/snippets/\(encodedId)")
+        let result = client.get(path: "/api/v2/snippets/\(encodedId)")
         guard result.isSuccess else {
             OutputFormatter.printError("스니펫을 찾을 수 없습니다: \(id)")
             return 1
@@ -164,7 +164,7 @@ struct SnippetCommand {
         }
 
         let body: [String: Any] = ["abbreviation": abbrev]
-        let result = client.post(path: "/api/v1/snippets/expand", body: body)
+        let result = client.post(path: "/api/v2/snippets/expand", body: body)
         guard result.isSuccess else {
             OutputFormatter.printError("스니펫 확장 실패: \(abbrev)")
             return 1

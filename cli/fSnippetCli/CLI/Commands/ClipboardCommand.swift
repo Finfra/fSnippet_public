@@ -32,7 +32,7 @@ struct ClipboardCommand {
         query["limit"] = parsed.options["limit"] ?? "20"
         query["offset"] = parsed.options["offset"] ?? "0"
 
-        let result = client.get(path: "/api/v1/clipboard/history", query: query)
+        let result = client.get(path: "/api/v2/clipboard/history", query: query)
         guard result.isSuccess else {
             OutputFormatter.printError("클립보드 히스토리 조회 실패")
             return 4
@@ -69,7 +69,7 @@ struct ClipboardCommand {
             return 2
         }
 
-        let result = client.get(path: "/api/v1/clipboard/history/\(id)")
+        let result = client.get(path: "/api/v2/clipboard/history/\(id)")
         guard result.isSuccess else {
             OutputFormatter.printError("클립보드 항목을 찾을 수 없습니다: \(id)")
             return 1
@@ -107,7 +107,7 @@ struct ClipboardCommand {
         params["limit"] = parsed.options["limit"] ?? "20"
         params["offset"] = parsed.options["offset"] ?? "0"
 
-        let result = client.get(path: "/api/v1/clipboard/search", query: params)
+        let result = client.get(path: "/api/v2/clipboard/search", query: params)
         guard result.isSuccess else {
             OutputFormatter.printError("클립보드 검색 실패")
             return 4

@@ -21,7 +21,7 @@ struct StatusCommand {
         }
 
         // 서비스 실행 중 → API 호출로 상세 정보
-        let result = client.get(path: "/api/v1/cli/status")
+        let result = client.get(path: "/api/v2/cli/status")
 
         guard result.isSuccess else {
             if formatter.jsonMode {
