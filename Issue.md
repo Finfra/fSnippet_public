@@ -113,7 +113,7 @@ date: 2026-04-07
     - **fSnippetCli `BrewServiceSync.swift` 심볼**: `performHandoffStart()` (L86), `handoffInProgress` (L25), `isLaunchedViaLaunchServices()` (L170) — pairApp `BrewServiceSync.swift`와 **완전 동일**
     - 즉, pairApp과 이미 심볼명·구조가 일치함. 동기화 대상 없음.
 * 결론: 이슈 후보 등록 당시 파일 경계(SingleInstanceGuard vs BrewServiceSync)를 혼동. 실제 명세 불일치 없음. **오분석으로 종결**
-* 커밋: (문서 종결만, 코드 변경 없음)
+* 커밋: ea6c621 (문서 종결만, 코드 변경 없음)
 
 ## Issue69: CLI Commands — `/api/v1/` → `/api/v2/` 전환 (등록: 2026-04-24, 종료: 2026-04-24) ✅
 * 목적: `CLI/Commands/*.swift` 8개 파일, 16개 v1 경로 참조를 v2로 전환 (Issue63 v1 차단 → CLI 기능 broken 상태 해소)
