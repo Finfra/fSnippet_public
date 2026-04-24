@@ -8,6 +8,7 @@ date: 2026-04-07
 
 * Issue HWM: 67
 * Save Point :
+      - 2026.04.24: bac440b (Fix(Brew): launchAtLogin=false 시 brew services run으로 전환 Issue67)
       - 2026.04.22: 6af95cb (Feat: Implement Launch at Login (Brew services integration) & Project Optimization)
 
 # 🤔 결정사항
@@ -23,6 +24,10 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
+
+# 📗 선택
+
+# ✅ 완료
 
 ## Issue67: `launchAtLogin=false` 시 `brew services run`으로 전환 (등록: 2026-04-24, 종료: 2026-04-24) ✅
 * 목적: `brew services list`에서 fsnippet-cli plist 경로가 `~/Library/LaunchAgents/`가 아닌 `/opt/homebrew/opt/...`에 위치하도록 수정 — fWarrangeCli 패턴 적용
@@ -68,10 +73,7 @@ date: 2026-04-07
     - `APIRouter.routeInternal` 상단에 v1 차단 분기 추가 (switch 진입 전)
     - fSnippetCli는 v2 폴백→v1 구조 없음 — early return으로 충분
     - 확인: `curl http://localhost:3015/api/v1/cli/status` → 410 GONE ✅
-
-# 📗 선택
-
-# ✅ 완료
+* 커밋: dabfbc4
 
 ## Issue62: Homebrew Formula 동기화 — tap 최종 테스트 버전 + caveats 영어화 (등록: 2026-04-22, 해결: 2026-04-22, commit: 311c4dd) ✅
 * 목적: fSnippetCli Homebrew Formula를 pairApp fWarrangeCli와 동기화. caveats를 English로 통일하고 `run_at_load true` 옵션 추가하여 Homebrew 설치 후 자동 시작(auto-launch at boot) 지원
