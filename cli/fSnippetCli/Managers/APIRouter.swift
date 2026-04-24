@@ -55,85 +55,6 @@ class APIRouter {
     case ("GET", "/"):
       return handleHealthCheck(server: server)
 
-    case ("GET", "/api/v1/snippets"):
-      return handleSnippetList(request: request)
-
-    case ("GET", _) where decodedPath.hasPrefix("/api/v1/snippets/search"):
-      return handleSnippetSearch(request: request)
-
-    case ("GET", _) where decodedPath.hasPrefix("/api/v1/snippets/by-abbreviation/"):
-      let abbrev = String(decodedPath.dropFirst("/api/v1/snippets/by-abbreviation/".count))
-      return handleGetByAbbreviation(abbrev: abbrev.removingPercentEncoding ?? abbrev)
-
-    case ("POST", "/api/v1/snippets/expand"):
-      return handleExpandSnippet(request: request)
-
-    case ("GET", _) where decodedPath.hasPrefix("/api/v1/snippets/"):
-      let id = String(decodedPath.dropFirst("/api/v1/snippets/".count))
-      return handleGetSnippetDetail(id: id.removingPercentEncoding ?? id)
-
-    case ("GET", _) where decodedPath.hasPrefix("/api/v1/clipboard/search"):
-      return handleClipboardSearch(request: request)
-
-    case ("GET", _) where decodedPath.hasPrefix("/api/v1/clipboard/history/"):
-      let idStr = String(decodedPath.dropFirst("/api/v1/clipboard/history/".count))
-      return handleGetClipboardDetail(idStr: idStr)
-
-    case ("GET", _) where decodedPath.hasPrefix("/api/v1/clipboard/history"):
-      return handleGetClipboardHistory(request: request)
-
-    case ("GET", _) where decodedPath.hasPrefix("/api/v1/folders/"):
-      let name = String(decodedPath.dropFirst("/api/v1/folders/".count))
-      return handleGetFolderDetail(name: name.removingPercentEncoding ?? name, request: request)
-
-    case ("GET", "/api/v1/folders"):
-      return handleGetFolders()
-
-    case ("GET", "/api/v1/stats/top"):
-      return handleGetTopStats(request: request)
-
-    case ("GET", _) where decodedPath.hasPrefix("/api/v1/stats/history"):
-      return handleGetStatsHistory(request: request)
-
-    case ("GET", "/api/v1/triggers"):
-      return handleGetTriggers()
-
-    // Settings 엔드포인트
-    case ("GET", "/api/v1/settings"):
-      return handleGetSettings()
-
-    // fSnippetCli 전용 엔드포인트
-    case ("GET", "/api/v1/cli/status"):
-      return handleCliStatus(server: server)
-    case ("GET", "/api/v1/cli/version"):
-      return handleCliVersion()
-    case ("POST", "/api/v1/cli/quit"):
-      return handleCliQuit(request: request)
-
-    // Reload 엔드포인트
-    case ("POST", "/api/v1/reload"):
-      return handleReload()
-
-    // Alfred Import 엔드포인트
-    case ("POST", "/api/v1/import/alfred"):
-      return handleAlfredImport(request: request)
-
-    // CRUD 엔드포인트 — 폴더 생성/삭제
-    case ("POST", "/api/v1/folders"):
-      return handleCreateFolder(request: request)
-
-    case ("DELETE", _) where decodedPath.hasPrefix("/api/v1/folders/"):
-      let name = String(decodedPath.dropFirst("/api/v1/folders/".count))
-      return handleDeleteFolder(name: name.removingPercentEncoding ?? name)
-
-    // CRUD 엔드포인트 — 스니펫 생성/삭제
-    case ("POST", "/api/v1/snippets"):
-      return handleCreateSnippet(request: request)
-
-    case ("DELETE", _) where decodedPath.hasPrefix("/api/v1/snippets/"):
-      let id = String(decodedPath.dropFirst("/api/v1/snippets/".count))
-      return handleDeleteSnippet(id: id.removingPercentEncoding ?? id)
-
     // ======================================================================
     // v2 — Settings CRUD
     // ======================================================================
@@ -1696,52 +1617,6 @@ class APIRouter {
   }
 
   // MARK: - Settings
-
-  private func handleGetSettings() -> APIServer.HTTPResponse {
-    // 환경변수 fSnippetCli_config → 기본 경로 순 (PreferencesManager.resolveAppRootPath 동일 로직)
-    let appRootPath = PreferencesManager.resolveAppRootPath()
-    let configPath = (appRootPath as NSString).appendingPathComponent("_config.yml")
-
-    var configDict: [String: Any] = [:]
-    if let data = FileManager.default.contents(atPath: configPath),
-       let content = String(data: data, encoding: .utf8) {
-      // 간단한 YAML 파싱: "key: value" 형태의 preferences 섹션
-      var inPreferences = false
-      for line in content.components(separatedBy: .newlines) {
-        let trimmed = line.trimmingCharacters(in: .whitespaces)
-        if trimmed == "preferences:" { inPreferences = true; continue }
-        if inPreferences && !line.hasPrefix(" ") && !line.hasPrefix("\t") && !trimmed.isEmpty {
-          inPreferences = false
-        }
-        if inPreferences {
-          let parts = trimmed.components(separatedBy: ": ")
-          if parts.count >= 2 {
-            let key = parts[0].trimmingCharacters(in: .whitespaces)
-            let value = parts.dropFirst().joined(separator: ": ")
-              .trimmingCharacters(in: .whitespaces)
-              .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-            if let boolVal = Bool(value) { configDict[key] = boolVal }
-            else if let intVal = Int(value) { configDict[key] = intVal }
-            else { configDict[key] = value }
-          }
-        }
-      }
-    }
-
-    let response: [String: Any] = [
-      "success": true,
-      "data": [
-        "app_root_path": appRootPath,
-        "config_path": configPath,
-        "config": configDict
-      ] as [String: Any]
-    ]
-    if let data = try? JSONSerialization.data(withJSONObject: response, options: [.prettyPrinted, .sortedKeys]),
-       let json = String(data: data, encoding: .utf8) {
-      return APIServer.HTTPResponse(statusCode: 200, body: json, headers: ["Content-Type": "application/json"])
-    }
-    return errorResponse(code: "INTERNAL_ERROR", message: "직렬화 실패", statusCode: 500)
-  }
 
   // MARK: - 유틸리티
 
