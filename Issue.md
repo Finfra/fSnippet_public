@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 72
+* Issue HWM: 74
 * Save Point :
       - 2026.04.24: bac440b (Fix(Brew): launchAtLogin=false 시 brew services run으로 전환 Issue67)
       - 2026.04.22: 6af95cb (Feat: Implement Launch at Login (Brew services integration) & Project Optimization)
@@ -21,18 +21,12 @@ date: 2026-04-07
 
 ## Issue72: 코드 주석 언어 통일 — 영어 표준화 (등록: 2026-04-25)
 * 목적: `_public/` 공개 레포 기준에 따라 모든 Swift/Shell/Python 코드 주석을 영어로 통일 (Issue59 언어 규약 "코드 주석은 English only")
+* **복잡하니까 haiku사용**
 * 상세:
     - 범위: `cli/fSnippetCli/` 소스 + `cli/_tool/` 스크립트 + `cli/_doc_design/` 작업 문서 제외
     - 현황: 한글 주석 잔존 확인 필요
     - 대응: 문서 생성 후 대량 변환 (sed 또는 프로그래밍)
 * 참조: `.claude/rules/language-rules.md` (공개 레포 코드 주석 영어만)
-
-## Issue71: SingleInstanceGuard 심볼명 동기화 — pairApp(Issue41) 패턴 적용 (등록: 2026-04-25)
-* 목적: SingleInstanceGuard 심볼명을 pairApp(fWarrangeCli Issue41)에서 이미 해결된 패턴으로 동기화
-* 현황: fSnippetCli는 `isLaunchedByLaunchd()`, `shouldTerminateAsDuplicate()`, `waitForOthersToExit()` 사용 중 (기능은 동작)
-* 기대: pairApp의 `performHandoffStart()`, `handoffInProgress`, `getpid()` 패턴으로 교체 → 명세 일치 + 일관성
-* pairApp 참조: fWarrangeCli `cli/fWarrangeCli/Services/SingleInstanceGuard.swift` + Issue41 + Issue39 (brew-service-menubar-sync)
-* 영향: API 심볼 명세(`openapi_v2.yaml`)는 영향 없음 (내부 구현 변경)
 
 ## Issue70: 클립보드 히스토리 고급 기능 — Paid 앱 활성화 의존성 처리 (등록: 2026-04-25)
 * 목적: 클립보드 히스토리 고급 기능 실행 시 paidApp(fSnippet) 미활성화 상태 감지 → 활성화 유도 창 표시
@@ -49,9 +43,77 @@ date: 2026-04-07
 
 # 📙 일반
 
+## Issue74: [Refactor] APIModels CodingKeys 중앙화 — snake_case ↔ camelCase 자동 변환 (등록: 2026-04-25)
+* 목적: `Data/APIModels.swift`에서 각 응답 구조체마다 반복 정의되는 CodingKeys를 JSONEncoder/Decoder의 `keyEncodingStrategy = .convertToSnakeCase` + `keyDecodingStrategy = .convertFromSnakeCase`로 대체 → 코드량 감소 + 명세 변경 영향도 축소
+* 복잡도: **중간** (API 계약 불변 전제 시 plan 필수, task/report는 가치 판단)
+* 상세:
+    - **현황**: 10+ 구조체(`APIMetadata`, `HealthResponse`, `APISnippetSummary`, `APISnippetDetail`, `APIExpandData`, `APIClipboardItem`, `APIClipboardItemDetail`, `APIFolderSummary` 등)가 각각 CodingKeys 블록 소유
+        - 예: `case durationMs = "duration_ms"`, `case contentPreview = "content_preview"`, `case snippetCount = "snippet_count"`
+        - 단순 snake→camel 매핑이 대부분 (예외: 특수 필드 거의 없음 확인 필요)
+    - **해결책**:
+        1. `JSONEncoder`/`JSONDecoder` 팩토리 추가 (`APICoderFactory`) — `convertToSnakeCase`/`convertFromSnakeCase` 적용된 공용 인스턴스 제공
+        2. `APIServer`/`APIRouter` 및 CLI `Commands/*` 가 동일 팩토리 사용하도록 전환
+        3. 각 구조체의 단순 매핑 CodingKeys 제거 (예외 필드는 CodingKeys로 잔존)
+        4. 스냅샷 테스트: 기존 JSON 응답과 바이트 레벨 동치 확인
+    - **API 계약 영향**:
+        - **불변 유지 필수**: JSON 응답 키는 현재와 동일(snake_case) 유지
+        - `openapi_v1.yaml`/`openapi_v2.yaml` 스펙 변경 없음
+        - paidApp `RESTClient`/MCP 서버 호환성 영향 없음
+    - **기대 효과**:
+        - 각 구조체당 평균 5~10줄 CodingKeys 제거 → 총 ~80줄 감소 추정
+        - 신규 API 응답 타입 추가 시 CodingKeys 작성 불필요
+* 구현 명세:
+    - 신규: `cli/fSnippetCli/Utils/APICoderFactory.swift`
+    - 수정: `cli/fSnippetCli/Data/APIModels.swift` (단순 매핑 CodingKeys 제거)
+    - 수정: `cli/fSnippetCli/Managers/APIRouter.swift`, `APIServer.swift` (팩토리 주입)
+    - 수정: `cli/fSnippetCli/CLI/Commands/*` (클라이언트 측 디코더)
+    - 테스트: 기존 `/api/v1/*` + `/api/v2/*` 응답 스냅샷 비교 (기존 curl 회귀)
+* 참조: `.claude/rules/api-rules.md` (SSOT OpenAPI 스펙 불변)
+
+## Issue73: [Refactor] PopupController 책임 분리 — UI 위젯 직접 소유 해소 (등록: 2026-04-25)
+* 목적: `Core/PopupController.swift`가 UI 위젯(`SnippetNonActivatingWindow`)을 직접 소유 + 상태 관리 + Core 콜백 수신까지 수행 → 책임 분리로 SRP 준수 및 테스트성 확보
+* 복잡도: **복잡** (설계 결정이 KeyEventMonitor/TextReplacer 콜백 경로에 영향 → plan + task + report 전체 사이클)
+* 상세:
+    - **현황**: `Core/PopupController.swift` (300+ 줄) 단일 클래스가 다음을 모두 수행:
+        1. UI 위젯 소유: `private let popupWindow = SnippetNonActivatingWindow()` — Core 폴더 소속 파일이 UI를 직접 생성·관리
+        2. Core 콜백 수신: `showPopup(with:searchTerm:cursorRect:onSelection:)` — KeyEventMonitor/TextReplacer로부터 호출
+        3. 설정 실시간 반영: `SettingsManager.shared.load()` + `popupSearchScopeDidChange` 관찰
+        4. 상태 보관: `isVisible`, `mode`, `allCandidates`, `currentSearchTerm`
+        5. 부수 효과: `InputSourceManager.applyForceInputSource()`, `ClipboardManager.chvMode = .deactive`, `MouseUtils.ensureMouseOutside(...)`, `SettingsWindowManager.temporarilyHide()`
+    - **문제점**:
+        1. **계층 경계 모호**: Core 폴더 파일이 AppKit 윈도우 위젯을 직접 소유
+        2. **테스트 어려움**: 단위 테스트 시 NSWindow 모킹 필수 → Headless CI 불가
+        3. **확장 비용**: 팝업 UI 교체(스타일/애니메이션) 또는 대체 프레젠터 추가 시 Core 콜백 경로까지 영향
+    - **해결책** (3-layer 분해):
+        1. `UI/PopupPresenter.swift` (신규) — `SnippetNonActivatingWindow` 소유·표시·닫기·검색어 갱신 전담
+        2. `Core/PopupCoordinator.swift` (신규) — KeyEventMonitor/TextReplacer 콜백 수신 + 부수 효과 오케스트레이션 + PopupPresenter 호출
+        3. `Models/PopupState.swift` (신규) — `isVisible`, `mode`, `currentSearchTerm` 등 @Published 상태 객체
+        4. `Core/PopupController.swift` (유지) — 기존 공개 인터페이스 유지하는 파사드로 축소 (호출 측 변경 최소화)
+    - **API 계약 영향**: 없음 (내부 구조 변경만, REST API/OpenAPI 스펙 영향 없음)
+    - **기대 효과**:
+        - UI 교체 비용 축소 (PopupPresenter만 교체)
+        - PopupCoordinator 단위 테스트 가능 (Presenter mock 주입)
+        - 히스토리 윈도우 등 유사 UI에 Presenter 패턴 재사용
+* 구현 명세:
+    - 신규 파일: `UI/PopupPresenter.swift`, `Core/PopupCoordinator.swift`, `Models/PopupState.swift`
+    - 수정 파일: `Core/PopupController.swift` (파사드화), `Core/KeyEventMonitor.swift`·`TextReplacer.swift` (의존성 주입 경로 조정)
+    - 전이 전략: Phase1 = Presenter 분리 → Phase2 = Coordinator 분리 → Phase3 = State 분리
+    - 테스트: Presenter/Coordinator 각각 독립 단위 테스트 작성
+* 배경: fSnippet paidApp 레포에서 graphify God Nodes 분석 시 `popupcontroller_ui` Hyperedge로 Core-UI 경계 모호성 식별
+
 # 📗 선택
 
 # ✅ 완료
+
+## Issue71: SingleInstanceGuard 심볼명 동기화 — 오분석으로 종결 (등록: 2026-04-25, 종료: 2026-04-25) ✅
+* 목적: SingleInstanceGuard 심볼명을 pairApp(Issue41) 패턴으로 동기화한다는 취지로 등록됨
+* 검증 결과 (2026-04-25, 코드 변경 없이 종결):
+    - **이슈 후보의 파일 혼동 확인**: `performHandoffStart`, `handoffInProgress`, `isLaunchedViaLaunchServices`는 `SingleInstanceGuard.swift`가 아닌 `BrewServiceSync.swift` 소속 심볼
+    - **fSnippetCli `SingleInstanceGuard.swift` 심볼**: `shouldTerminateAsDuplicate()`, `isLaunchedByLaunchd()`, `waitForOthersToExit()` — pairApp `fWarrangeCli/Services/SingleInstanceGuard.swift`와 **완전 동일**
+    - **fSnippetCli `BrewServiceSync.swift` 심볼**: `performHandoffStart()` (L86), `handoffInProgress` (L25), `isLaunchedViaLaunchServices()` (L170) — pairApp `BrewServiceSync.swift`와 **완전 동일**
+    - 즉, pairApp과 이미 심볼명·구조가 일치함. 동기화 대상 없음.
+* 결론: 이슈 후보 등록 당시 파일 경계(SingleInstanceGuard vs BrewServiceSync)를 혼동. 실제 명세 불일치 없음. **오분석으로 종결**
+* 커밋: (문서 종결만, 코드 변경 없음)
 
 ## Issue69: CLI Commands — `/api/v1/` → `/api/v2/` 전환 (등록: 2026-04-24, 종료: 2026-04-24) ✅
 * 목적: `CLI/Commands/*.swift` 8개 파일, 16개 v1 경로 참조를 v2로 전환 (Issue63 v1 차단 → CLI 기능 broken 상태 해소)
