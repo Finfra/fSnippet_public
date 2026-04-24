@@ -19,15 +19,6 @@ date: 2026-04-07
 
 # 📕 중요
 
-## Issue72: 코드 주석 언어 통일 — 영어 표준화 (등록: 2026-04-25)
-* 목적: `_public/` 공개 레포 기준에 따라 모든 Swift/Shell/Python 코드 주석을 영어로 통일 (Issue59 언어 규약 "코드 주석은 English only")
-* **복잡하니까 haiku사용**
-* 상세:
-    - 범위: `cli/fSnippetCli/` 소스 + `cli/_tool/` 스크립트 + `cli/_doc_design/` 작업 문서 제외
-    - 현황: 한글 주석 잔존 확인 필요
-    - 대응: 문서 생성 후 대량 변환 (sed 또는 프로그래밍)
-* 참조: `.claude/rules/language-rules.md` (공개 레포 코드 주석 영어만)
-
 ## Issue70: 클립보드 히스토리 고급 기능 — Paid 앱 활성화 의존성 처리 (등록: 2026-04-25)
 * 목적: 클립보드 히스토리 고급 기능 실행 시 paidApp(fSnippet) 미활성화 상태 감지 → 활성화 유도 창 표시
 * 현황: cliApp 단독 실행 시 고급 기능 제약 (paidApp 활성화 필수)
@@ -1153,6 +1144,16 @@ date: 2026-04-07
     - 마크다운 규칙 준수 확인
 
 # ⏸️ 보류
+
+## Issue72: 코드 주석 언어 통일 — 영어 표준화 (등록: 2026-04-25, 보류: 2026-04-25)
+* 목적: `_public/` 공개 레포 기준에 따라 모든 Swift/Shell/Python 코드 주석을 영어로 통일 (Issue59 언어 규약 "코드 주석은 English only")
+* 복잡도: 중간 (4명 Haiku 에이전트 병렬 작업 기획)
+* 상세:
+    - 범위: `cli/fSnippetCli/` 소스 + `cli/_tool/` 스크립트
+    - 현황: 전체 약 5,000줄 한글 주석 (Core 770개, Script 795개, Logic/Data/Services 등 3,400+개)
+    - 대응: 팀 기반 병렬 처리 기획 (Core-Reviewer, Script-Reviewer, UI-Reviewer, Logic-Reviewer)
+* 보류 사유: 대규모 변환 작업으로 인한 merge conflict 위험 → command_eng 브랜치로 격리
+* 참조: `.claude/rules/language-rules.md` (공개 레포 코드 주석 영어만)
 
 # 🚫 취소
 
