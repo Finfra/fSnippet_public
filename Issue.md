@@ -20,19 +20,6 @@ date: 2026-04-07
 
 # 📕 중요
 
-## Issue70: 클립보드 히스토리 고급 기능 — Paid 앱 활성화 의존성 처리 (등록: 2026-04-25)
-* 목적: 클립보드 히스토리 고급 기능 실행 시 paidApp(fSnippet) 미활성화 상태 감지 → 활성화 유도 창 표시
-* 현황: cliApp 단독 실행 시 고급 기능 제약 (paidApp 활성화 필수)
-* 기대 동작:
-    1. 고급 기능 클릭 → paidApp 미활성화 감지
-    2. "fSnippet이 필요합니다" 안내 창 표시
-    3. "열기" 버튼 → paidApp 실행 트리거 또는 설정 창 열기
-* 구현 고려:
-    - paidApp 활성화 여부 확인 로직 (PaidAppDetector 활용 가능)
-    - paidApp 실행 경로 탐지
-    - UI 안내 메시지 작성
-* 참조: pairApp(fWarrangeCli)도 동일 문제 미해결
-
 # 📙 일반
 
 ## Issue78: v2 미구현 라우트 11종 구현 — General 세부/Advanced API/History clear (등록: 2026-04-26)
@@ -85,6 +72,20 @@ date: 2026-04-07
     - 같은 문서 내 다른 v1 언급 추가 검색하여 일괄 정정
 
 # ✅ 완료
+
+## Issue70: 클립보드 히스토리 고급 기능 — Paid 앱 활성화 의존성 처리 (등록: 2026-04-25, 종료: 2026-04-27, commit: d874895) ✅
+* 목적: 클립보드 히스토리 고급 기능 실행 시 paidApp(fSnippet) 미활성화 상태 감지 → 활성화 유도 창 표시
+* 커밋: d874895
+* 구현 명세:
+    - **변경 파일**: [cli/fSnippetCli/Managers/PaidAppManager.swift](cli/fSnippetCli/Managers/PaidAppManager.swift) `handlePaidFeature()` 재구성 + `showRequirePaidAlert()` 신설
+    - **§4.2 준수**: 기존 자동 `launchPaidApp()` 호출 제거 — paid_cli_protocol §4.2 "cliApp은 사용자 명시 요청 시에만 paidApp을 띄움. 자동 기동 금지" 위반 해소
+    - **분기**: 미설치 → 기존 `showPaidOnlyAlert` (App Store/Locate/Show Config/Cancel) 유지 / 설치됨 → `showRequirePaidAlert` ("fSnippet이 필요합니다" + [열기]/[취소])
+    - **사용자 동의 후 활성화**: [열기] 클릭 시에만 `PaidAppDetector.openSettings()` 호출 → URL Scheme(`fsnippet://command?action=settings`) 경유로 paidApp 활성화 또는 기동+설정창 열기 (§1.2)
+    - **Korean wording**: 안내문구 "이 기능은 fSnippet 앱(유료 버전)에서 사용할 수 있습니다" — _public/.claude/rules/language-rules.md 사용자 알림 한국어 정책 준수
+    - **호출처 영향 범위**: SnippetPopupView(3), HistoryViewer, HistoryPreviewView, KeyEventHandler, SettingsWindowManager — 모두 동일 진입점 `PaidAppManager.shared.handlePaidFeature()` 사용하므로 자동 적용
+    - **검증**: `xcodebuild -scheme fSnippetCli -configuration Release build` BUILD SUCCEEDED
+* 후속:
+    - pairApp(fWarrangeCli) 동일 문제는 별도 이슈로 분리 필요 (참조 항목 유지)
 
 ## Issue77: `.claude/rules/api-rules.md` v1-obsolete 반영 (등록: 2026-04-26, 종료: 2026-04-26, commit: dbf1bfb) ✅
 * 목적: API 룰이 "v1 유지(Backward Compatible)"로 기술되어 있어 실제 코드(v1=410 Gone) 및 메모리(`project_api-v1-obsolete.md`)와 충돌. 룰을 현 상태에 맞게 갱신
