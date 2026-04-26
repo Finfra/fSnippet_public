@@ -80,25 +80,35 @@ class PaidAppManager {
 
     // MARK: - paid 전용 기능 핸들링
 
-    /// paid 전용 기능 시도 시 호출
-    /// - 감지됨 → paid 앱 실행 → 안내 알림
-    /// - 감지 안 됨 → NSAlert (App Store / Locate... / Show Config in Finder / Cancel)
+    /// paid 전용 기능 시도 시 호출 (Issue70 — paid_cli_protocol §4.2 준수)
+    /// - 미설치 → showPaidOnlyAlert (App Store / Locate / Show Config / Cancel)
+    /// - 설치됨 → showRequirePaidAlert ("fSnippet이 필요합니다" + [열기]/[취소])
+    /// - 자동 기동 금지: 사용자가 [열기]를 명시적으로 누른 경우에만 paidApp 기동
     func handlePaidFeature() {
         if isInstalled() {
-            let launched = launchPaidApp()
-            if launched {
-                let alert = NSAlert()
-                alert.messageText = "fSnippet launched"
-                alert.informativeText = "fSnippet (paid version) has been launched.\nPlease use the feature from fSnippet."
-                alert.alertStyle = .informational
-                alert.addButton(withTitle: "OK")
-                NSApplication.shared.activate(ignoringOtherApps: true)
-                alert.runModal()
-            } else {
-                showPaidOnlyAlert()
-            }
+            showRequirePaidAlert()
         } else {
             showPaidOnlyAlert()
+        }
+    }
+
+    /// "fSnippet이 필요합니다" 안내 NSAlert (Issue70)
+    /// 사용자가 [열기] 버튼을 누르면 PaidAppDetector.openSettings()로 URL Scheme 경유 활성화
+    private func showRequirePaidAlert() {
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "fSnippet이 필요합니다"
+        alert.informativeText = "이 기능은 fSnippet 앱(유료 버전)에서 사용할 수 있습니다.\nfSnippet을 여시겠습니까?"
+        alert.alertStyle = .informational
+        if let appIcon = NSApplication.shared.applicationIconImage {
+            alert.icon = appIcon
+        }
+        alert.addButton(withTitle: "열기")
+        alert.addButton(withTitle: "취소")
+
+        if alert.runModal() == .alertFirstButtonReturn {
+            // User explicit consent — launch via URL Scheme (paid_cli_protocol §1.2)
+            PaidAppDetector.openSettings()
         }
     }
 
