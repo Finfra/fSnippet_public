@@ -34,32 +34,6 @@ date: 2026-04-07
 
 # 📙 일반
 
-## Issue75: [Bug] 첫 스니펫 확장 시 abbreviation 이전 문장 전체 삭제 — 빠른 후속 입력 레이스 컨디션 (등록: 2026-04-26)
-* 목적: 앱 기동 후 첫 번째 스니펫 확장에서 abbreviation+suffix 입력 직후 스니펫이 뿌려지기 전에 추가 키 입력이 들어오면, 백스페이스 처리가 잘못되어 커서 위치부터 문장 시작까지 모든 문자가 지워지는 버그 해결
-* 복잡도: **중간** (KeyEventMonitor + TextReplacer 동기화 경로 분석 필요, plan 필수)
-* 상세:
-    - **재현 조건**:
-        1. 앱 기동 직후 첫 스니펫 확장 시도 (이후 정상 동작)
-        2. abbreviation + suffix(트리거 키) 입력 후 스니펫이 화면에 출력되기 전에 추가 키를 빠르게 입력
-        3. 결과: abbreviation 길이만큼이 아닌, 커서 위치부터 문장(line) 시작까지 모든 문자가 삭제됨
-    - **추정 원인**:
-        - `TextReplacer`의 백스페이스 카운트 산정 로직이 첫 실행 시 abbreviation 길이를 정확히 인식하지 못하거나, 후속 키 입력으로 버퍼 상태가 변형되는 레이스 컨디션
-        - `KeyEventMonitor`의 텍스트 버퍼와 실제 입력 스트림 간 비동기 타이밍 이슈
-        - 첫 회만 발생 → 초기화/캐시 워밍업 누락 가능성
-    - **분석 필요 항목**:
-        1. `Core/KeyEventMonitor.swift` 텍스트 버퍼 갱신 시점 (`processCharInput`, `clearBuffer`)
-        2. `Core/TextReplacer.swift` 백스페이스 카운트 산출 로직 (`performSyncTextReplacement`, `replaceTextSync`)
-        3. `Core/KeyEventProcessor.swift` 키 이벤트 분기 처리 순서
-        4. 첫 실행 시점의 초기화 부족 여부 (RuleManager, SnippetFileManager 캐시 워밍업)
-    - **기대 동작**:
-        - 첫 회를 포함한 모든 스니펫 확장에서 abbreviation+suffix 길이만큼만 정확히 백스페이스 처리
-        - 빠른 후속 입력이 있어도 추가 입력은 보존되거나 정상 큐잉
-* 구현 명세:
-    - 진단: 로그 추가 (`logD`)로 백스페이스 카운트 산출 과정 추적 (`abbreviation.count`, `suffix.count`, 실제 발행 백스페이스 수)
-    - 수정 후보: `Core/TextReplacer.swift`, `Core/KeyEventMonitor.swift`, `Core/KeyEventProcessor.swift`
-    - 검증: 앱 콜드 스타트 직후 즉시 스니펫 확장 + 빠른 후속 입력 시나리오 재현 테스트
-* 배경: 사용자 보고 (이슈후보) — 재현성 있는 첫 회 한정 버그
-
 
 ## Issue74: [Refactor] APIModels CodingKeys 중앙화 — snake_case ↔ camelCase 자동 변환 (등록: 2026-04-25)
 * 목적: `Data/APIModels.swift`에서 각 응답 구조체마다 반복 정의되는 CodingKeys를 JSONEncoder/Decoder의 `keyEncodingStrategy = .convertToSnakeCase` + `keyDecodingStrategy = .convertFromSnakeCase`로 대체 → 코드량 감소 + 명세 변경 영향도 축소
@@ -122,6 +96,14 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue75: [Bug] 첫 스니펫 확장 시 줄 전체 삭제 — CGEventPool 첫 실행 modifier 잔류 (등록: 2026-04-26, 종료: 2026-04-26) ✅
+* 목적: 앱 기동 후 첫 번째 스니펫 확장에서 줄 전체가 삭제되는 버그 해결
+* 커밋: 360b181
+* 구현 명세:
+    - **원인**: `CGEventPool.getBackspaceEvent` / `getCmdEvent` 에서 풀이 빈 상태(첫 실행)일 때 `CGEvent(keyboardEventSource: nil, ...)` 로 새 이벤트를 생성하면 `keyboardEventSource: nil` 이 HID 시스템의 현재 modifier 상태를 상속받음. `{right_command}` 트리거가 눌린 직후라면 `.maskCommand` 플래그가 잔류하여 `Cmd+Backspace` 로 해석되고 줄 전체 삭제 발생. 두 번째 이후는 풀에서 재사용 이벤트를 꺼내고 `configureBackspaceEvent` 에서 `flags = []` 를 명시하므로 정상 동작.
+    - **수정**: `Core/TextReplacer.swift` `CGEventPool` — 새 이벤트 생성 경로(`getBackspaceEvent`, `getCmdEvent`)에 `event?.flags = []` 추가
+    - **검증**: Release 빌드 성공 (`BUILD SUCCEEDED`)
 
 ## Issue71: SingleInstanceGuard 심볼명 동기화 — 오분석으로 종결 (등록: 2026-04-25, 종료: 2026-04-25) ✅
 * 목적: SingleInstanceGuard 심볼명을 pairApp(Issue41) 패턴으로 동기화한다는 취지로 등록됨
