@@ -16,8 +16,8 @@ The API exposes snippet search/expansion, clipboard history, usage statistics, a
 | API Enabled  | OFF by default (must be explicitly enabled in Settings) |
 | Binding      | `127.0.0.1` (localhost only) by default                 |
 > OpenAPI 3.0 specs:
-> - v1 (read operations): [openapi_v1.yaml](./openapi_v1.yaml)
-> - v2 (settings CRUD): [openapi_v2.yaml](./openapi_v2.yaml)
+> - v2 (full API — read + settings CRUD): [openapi_v2.yaml](./openapi_v2.yaml)
+> - v1 ([openapi_v1.yaml](./openapi_v1.yaml)) is **deprecated** — all `/api/v1/*` requests return HTTP 410 Gone. Use `/api/v2/*` for everything.
 
 ---
 
@@ -62,7 +62,7 @@ GET /
 # 2. Search Snippets
 
 ```
-GET /api/snippets/search?q={query}
+GET /api/v2/snippets/search?q={query}
 ```
 
 ### Parameters
@@ -87,7 +87,7 @@ GET /api/snippets/search?q={query}
 # 3. Get Snippet by Abbreviation
 
 ```
-GET /api/snippets/by-abbreviation/{abbrev}
+GET /api/v2/snippets/by-abbreviation/{abbrev}
 ```
 
 | Field    | Type          | Required | Description                                              |
@@ -102,7 +102,7 @@ GET /api/snippets/by-abbreviation/{abbrev}
 # 4. Get Snippet Detail by ID
 
 ```
-GET /api/snippets/{id}
+GET /api/v2/snippets/{id}
 ```
 
 | Field | Type          | Required | Description                                                |
@@ -117,7 +117,7 @@ GET /api/snippets/{id}
 # 5. Expand Snippet
 
 ```
-POST /api/snippets/expand
+POST /api/v2/snippets/expand
 Content-Type: application/json
 ```
 
@@ -167,7 +167,7 @@ Content-Type: application/json
 # 6. Get Clipboard History
 
 ```
-GET /api/clipboard/history
+GET /api/v2/clipboard/history
 ```
 
 ### Parameters
@@ -186,7 +186,7 @@ GET /api/clipboard/history
 # 7. Get Clipboard Item Detail
 
 ```
-GET /api/clipboard/history/{id}
+GET /api/v2/clipboard/history/{id}
 ```
 
 | Field | Type           | Required | Description       |
@@ -201,7 +201,7 @@ GET /api/clipboard/history/{id}
 # 8. Search Clipboard History
 
 ```
-GET /api/clipboard/search?q={query}
+GET /api/v2/clipboard/search?q={query}
 ```
 
 | Field    | Type    | Required | Default | Description               |
@@ -216,7 +216,7 @@ GET /api/clipboard/search?q={query}
 # 9. List Folders
 
 ```
-GET /api/folders
+GET /api/v2/folders
 ```
 
 **Success (200)**: List of snippet folders with rule information
@@ -226,7 +226,7 @@ GET /api/folders
 # 10. Get Folder Detail with Snippets
 
 ```
-GET /api/folders/{name}
+GET /api/v2/folders/{name}
 ```
 
 | Field    | Type          | Required | Default | Description                |
@@ -241,7 +241,7 @@ GET /api/folders/{name}
 # 11. Top N Usage Statistics
 
 ```
-GET /api/stats/top
+GET /api/v2/stats/top
 ```
 
 | Field   | Type    | Required | Default | Description                  |
@@ -254,7 +254,7 @@ GET /api/stats/top
 # 12. Usage History
 
 ```
-GET /api/stats/history
+GET /api/v2/stats/history
 ```
 
 | Field    | Type    | Required | Default | Description               |
@@ -270,7 +270,7 @@ GET /api/stats/history
 # 13. Get Trigger Keys
 
 ```
-GET /api/triggers
+GET /api/v2/triggers
 ```
 
 **Success (200)**:
@@ -439,41 +439,41 @@ All errors follow a consistent format:
 curl http://localhost:3015/
 
 # Search snippets
-curl "http://localhost:3015/api/snippets/search?q=docker&limit=10"
+curl "http://localhost:3015/api/v2/snippets/search?q=docker&limit=10"
 
 # Get snippet by abbreviation
-curl "http://localhost:3015/api/snippets/by-abbreviation/awsec2%E2%97%8A"
+curl "http://localhost:3015/api/v2/snippets/by-abbreviation/awsec2%E2%97%8A"
 
 # Expand snippet
-curl -X POST http://localhost:3015/api/snippets/expand \
+curl -X POST http://localhost:3015/api/v2/snippets/expand \
   -H "Content-Type: application/json" \
   -d '{"abbreviation": "bb{right_command}"}'
 
 # Expand with placeholder values
-curl -X POST http://localhost:3015/api/snippets/expand \
+curl -X POST http://localhost:3015/api/v2/snippets/expand \
   -H "Content-Type: application/json" \
   -d '{"abbreviation": "awsec2{right_command}", "placeholder_values": {"clipboard": "i-0123456789abcdef0"}}'
 
 # Clipboard history
-curl "http://localhost:3015/api/clipboard/history?limit=20"
+curl "http://localhost:3015/api/v2/clipboard/history?limit=20"
 
 # Search clipboard
-curl "http://localhost:3015/api/clipboard/search?q=password"
+curl "http://localhost:3015/api/v2/clipboard/search?q=password"
 
 # List folders
-curl http://localhost:3015/api/folders
+curl http://localhost:3015/api/v2/folders
 
 # Folder detail (AWS)
-curl "http://localhost:3015/api/folders/AWS"
+curl "http://localhost:3015/api/v2/folders/AWS"
 
 # Top 10 usage statistics
-curl "http://localhost:3015/api/stats/top?limit=10"
+curl "http://localhost:3015/api/v2/stats/top?limit=10"
 
 # Usage history (date range)
-curl "http://localhost:3015/api/stats/history?from=2026-01-01T00:00:00Z&to=2026-03-18T23:59:59Z"
+curl "http://localhost:3015/api/v2/stats/history?from=2026-01-01T00:00:00Z&to=2026-03-18T23:59:59Z"
 
 # Trigger keys
-curl http://localhost:3015/api/triggers
+curl http://localhost:3015/api/v2/triggers
 ```
 
 # Python
@@ -488,16 +488,16 @@ resp = requests.get(f"{BASE}/")
 print(resp.json())
 
 # Search snippets
-resp = requests.get(f"{BASE}/api/snippets/search", params={"q": "docker", "limit": 10})
+resp = requests.get(f"{BASE}/api/v2/snippets/search", params={"q": "docker", "limit": 10})
 for s in resp.json()["data"]:
     print(f"{s['abbreviation']} -> {s['description']}")
 
 # Expand snippet
-resp = requests.post(f"{BASE}/api/snippets/expand", json={"abbreviation": "bb{right_command}"})
+resp = requests.post(f"{BASE}/api/v2/snippets/expand", json={"abbreviation": "bb{right_command}"})
 print(resp.json()["data"]["expanded_text"])
 
 # Clipboard history
-resp = requests.get(f"{BASE}/api/clipboard/history", params={"limit": 5})
+resp = requests.get(f"{BASE}/api/v2/clipboard/history", params={"limit": 5})
 for item in resp.json()["data"]:
     print(f"[{item['kind']}] {item['text_preview']}")
 ```
