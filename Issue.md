@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 75
+* Issue HWM: 81
 * Save Point :
       - 2026.04.26: 48b378d (Fix(Core): Issue75 — CGEventPool 첫 실행 modifier 잔류 줄 전체 삭제 버그 수정)
       - 2026.04.24: bac440b (Fix(Brew): launchAtLogin=false 시 brew services run으로 전환 Issue67)
@@ -19,6 +19,18 @@ date: 2026-04-07
 # 🚧 진행중
 
 # 📕 중요
+
+## Issue77: `.claude/rules/api-rules.md` v1-obsolete 반영 (등록: 2026-04-26)
+* 목적: API 룰이 "v1 유지(Backward Compatible)"로 기술되어 있어 실제 코드(v1=410 Gone) 및 메모리(`project_api-v1-obsolete.md`)와 충돌. 룰을 현 상태에 맞게 갱신
+* 상세:
+    - 현재 [.claude/rules/api-rules.md](.claude/rules/api-rules.md) L17: "v1: `/api/v1/` — 기존 엔드포인트. 유지(Backward Compatible)"
+    - 실제 [cli/fSnippetCli/Managers/APIRouter.swift:50-51](cli/fSnippetCli/Managers/APIRouter.swift#L50-L51): `/api/v1/*` → 410 Gone
+    - 메모리 `project_api-v1-obsolete.md`: "모든 통신은 v2 only"
+    - 해당 룰을 보고 자동화·에이전트가 v1을 유효 SSOT로 오인할 수 있음
+* 구현 명세:
+    - api-rules.md 의 v1 항목을 "deprecated (HTTP 410)"로 명시
+    - `openapi_v1.yaml` 의 SSOT 지위를 "아카이브"로 표시 (또는 파일 자체 archived 폴더 이동 검토)
+    - 동기화 규칙도 "v2 단독 SSOT"로 단순화
 
 ## Issue70: 클립보드 히스토리 고급 기능 — Paid 앱 활성화 의존성 처리 (등록: 2026-04-25)
 * 목적: 클립보드 히스토리 고급 기능 실행 시 paidApp(fSnippet) 미활성화 상태 감지 → 활성화 유도 창 표시
@@ -35,68 +47,66 @@ date: 2026-04-07
 
 # 📙 일반
 
-
-## Issue74: [Refactor] APIModels CodingKeys 중앙화 — snake_case ↔ camelCase 자동 변환 (등록: 2026-04-25)
-* 목적: `Data/APIModels.swift`에서 각 응답 구조체마다 반복 정의되는 CodingKeys를 JSONEncoder/Decoder의 `keyEncodingStrategy = .convertToSnakeCase` + `keyDecodingStrategy = .convertFromSnakeCase`로 대체 → 코드량 감소 + 명세 변경 영향도 축소
-* 복잡도: **중간** (API 계약 불변 전제 시 plan 필수, task/report는 가치 판단)
+## Issue78: v2 미구현 라우트 11종 구현 — General 세부/Advanced API/History clear (등록: 2026-04-26)
+* 목적: `openapi_v2.yaml` SSOT에 정의되어 있으나 [APIRouter.swift](cli/fSnippetCli/Managers/APIRouter.swift) 에 라우트가 없어 호출 시 404가 발생하는 엔드포인트 11종 일괄 구현
 * 상세:
-    - **현황**: 10+ 구조체(`APIMetadata`, `HealthResponse`, `APISnippetSummary`, `APISnippetDetail`, `APIExpandData`, `APIClipboardItem`, `APIClipboardItemDetail`, `APIFolderSummary` 등)가 각각 CodingKeys 블록 소유
-        - 예: `case durationMs = "duration_ms"`, `case contentPreview = "content_preview"`, `case snippetCount = "snippet_count"`
-        - 단순 snake→camel 매핑이 대부분 (예외: 특수 필드 거의 없음 확인 필요)
-    - **해결책**:
-        1. `JSONEncoder`/`JSONDecoder` 팩토리 추가 (`APICoderFactory`) — `convertToSnakeCase`/`convertFromSnakeCase` 적용된 공용 인스턴스 제공
-        2. `APIServer`/`APIRouter` 및 CLI `Commands/*` 가 동일 팩토리 사용하도록 전환
-        3. 각 구조체의 단순 매핑 CodingKeys 제거 (예외 필드는 CodingKeys로 잔존)
-        4. 스냅샷 테스트: 기존 JSON 응답과 바이트 레벨 동치 확인
-    - **API 계약 영향**:
-        - **불변 유지 필수**: JSON 응답 키는 현재와 동일(snake_case) 유지
-        - `openapi_v1.yaml`/`openapi_v2.yaml` 스펙 변경 없음
-        - paidApp `RESTClient`/MCP 서버 호환성 영향 없음
-    - **기대 효과**:
-        - 각 구조체당 평균 5~10줄 CodingKeys 제거 → 총 ~80줄 감소 추정
-        - 신규 API 응답 타입 추가 시 CodingKeys 작성 불필요
+    - General 세부 9종: `/settings/general/{language,appearance,paths,trigger-key,trigger-bias,quick-select-modifier,permissions,snippet-folder/rebuild-index,snippet-folder/open}` (yaml L163-347)
+    - Advanced REST API 1종: `GET/PATCH /settings/advanced/api` (yaml L809-836)
+    - History 1종: `POST /settings/history/clear` (yaml L629-642)
+    - 코드는 현재 `/settings/general` 일괄 GET/PATCH만 처리 → 세분화된 PUT 호출 모두 404
+    - 외부 클라이언트가 `/settings/advanced/api` PATCH 로 API 활성/포트/CIDR 변경 불가 — 자기참조성 핵심 엔드포인트
 * 구현 명세:
-    - 신규: `cli/fSnippetCli/Utils/APICoderFactory.swift`
-    - 수정: `cli/fSnippetCli/Data/APIModels.swift` (단순 매핑 CodingKeys 제거)
-    - 수정: `cli/fSnippetCli/Managers/APIRouter.swift`, `APIServer.swift` (팩토리 주입)
-    - 수정: `cli/fSnippetCli/CLI/Commands/*` (클라이언트 측 디코더)
-    - 테스트: 기존 `/api/v1/*` + `/api/v2/*` 응답 스냅샷 비교 (기존 curl 회귀)
-* 참조: `.claude/rules/api-rules.md` (SSOT OpenAPI 스펙 불변)
+    - APIRouter.swift switch에 11개 case 추가
+    - Handler 메서드 신설 (각 필드별 단건 GET/PUT)
+    - PreferencesManager 연동 (단건 update API 추가 필요)
+    - rebuild-index/open 은 202/200 즉시 응답 + 비동기 작업
+    - 검증: cli/_tool/apiTest 에 11개 케이스 추가
 
-## Issue73: [Refactor] PopupController 책임 분리 — UI 위젯 직접 소유 해소 (등록: 2026-04-25)
-* 목적: `Core/PopupController.swift`가 UI 위젯(`SnippetNonActivatingWindow`)을 직접 소유 + 상태 관리 + Core 콜백 수신까지 수행 → 책임 분리로 SRP 준수 및 테스트성 확보
-* 복잡도: **복잡** (설계 결정이 KeyEventMonitor/TextReplacer 콜백 경로에 영향 → plan + task + report 전체 사이클)
+## Issue79: `RestAPI_v2.md` 설계서에 shutdown·PaidApp Lifecycle 섹션 보강 (등록: 2026-04-26)
+* 목적: 설계 SSOT 문서 [cli/_doc_design/api/RestAPI_v2.md](cli/_doc_design/api/RestAPI_v2.md) 가 `openapi_v2.yaml` 및 코드보다 뒤처져 있음. 신규 채널이 설계서에 흔적 없는 상태
 * 상세:
-    - **현황**: `Core/PopupController.swift` (300+ 줄) 단일 클래스가 다음을 모두 수행:
-        1. UI 위젯 소유: `private let popupWindow = SnippetNonActivatingWindow()` — Core 폴더 소속 파일이 UI를 직접 생성·관리
-        2. Core 콜백 수신: `showPopup(with:searchTerm:cursorRect:onSelection:)` — KeyEventMonitor/TextReplacer로부터 호출
-        3. 설정 실시간 반영: `SettingsManager.shared.load()` + `popupSearchScopeDidChange` 관찰
-        4. 상태 보관: `isVisible`, `mode`, `allCandidates`, `currentSearchTerm`
-        5. 부수 효과: `InputSourceManager.applyForceInputSource()`, `ClipboardManager.chvMode = .deactive`, `MouseUtils.ensureMouseOutside(...)`, `SettingsWindowManager.temporarilyHide()`
-    - **문제점**:
-        1. **계층 경계 모호**: Core 폴더 파일이 AppKit 윈도우 위젯을 직접 소유
-        2. **테스트 어려움**: 단위 테스트 시 NSWindow 모킹 필수 → Headless CI 불가
-        3. **확장 비용**: 팝업 UI 교체(스타일/애니메이션) 또는 대체 프레젠터 추가 시 Core 콜백 경로까지 영향
-    - **해결책** (3-layer 분해):
-        1. `UI/PopupPresenter.swift` (신규) — `SnippetNonActivatingWindow` 소유·표시·닫기·검색어 갱신 전담
-        2. `Core/PopupCoordinator.swift` (신규) — KeyEventMonitor/TextReplacer 콜백 수신 + 부수 효과 오케스트레이션 + PopupPresenter 호출
-        3. `Models/PopupState.swift` (신규) — `isVisible`, `mode`, `currentSearchTerm` 등 @Published 상태 객체
-        4. `Core/PopupController.swift` (유지) — 기존 공개 인터페이스 유지하는 파사드로 축소 (호출 측 변경 최소화)
-    - **API 계약 영향**: 없음 (내부 구조 변경만, REST API/OpenAPI 스펙 영향 없음)
-    - **기대 효과**:
-        - UI 교체 비용 축소 (PopupPresenter만 교체)
-        - PopupCoordinator 단위 테스트 가능 (Presenter mock 주입)
-        - 히스토리 윈도우 등 유사 UI에 Presenter 패턴 재사용
+    - C1: "Data Endpoints (v1 일원화)" 표(L293-313)에 `POST /shutdown` 누락. yaml L1677-1698 정의 + 코드 라우트 존재
+    - C2: PaidApp Lifecycle 섹션 전체 누락. yaml L908-996 (`/paidapp/register`, `/unregister`, `/status`) 정의 + [APIRouter.swift:1706-1808](cli/fSnippetCli/Managers/APIRouter.swift#L1706) 구현. Issue52·54 의 핵심 채널인데 설계서에 없음
 * 구현 명세:
-    - 신규 파일: `UI/PopupPresenter.swift`, `Core/PopupCoordinator.swift`, `Models/PopupState.swift`
-    - 수정 파일: `Core/PopupController.swift` (파사드화), `Core/KeyEventMonitor.swift`·`TextReplacer.swift` (의존성 주입 경로 조정)
-    - 전이 전략: Phase1 = Presenter 분리 → Phase2 = Coordinator 분리 → Phase3 = State 분리
-    - 테스트: Presenter/Coordinator 각각 독립 단위 테스트 작성
-* 배경: fSnippet paidApp 레포에서 graphify God Nodes 분석 시 `popupcontroller_ui` Hyperedge로 Core-UI 경계 모호성 식별
+    - "주요 추가 영역" 표에 PaidApp Lifecycle 행 추가
+    - 신규 H2 섹션 "PaidApp 라이프사이클" 추가 — 3-단계 발신자 검증, 사용 예제, sessionId 흐름
+    - "Data Endpoints" 표에 `/shutdown` 행 추가 (delayMs/reason 포함)
+    - 사용 예제 #N에 paidApp 등록·종료 시퀀스 추가
 
 # 📗 선택
 
+## Issue80: v2 응답 모델 `success` → `ok` 필드 표준화 검토 (등록: 2026-04-26)
+* 목적: yaml SSOT 및 RestAPI_v2.md 공통 응답 규칙은 `{ "ok": true, "data": ... }` 인데 [APIModels.swift](cli/fSnippetCli/Data/APIModels.swift) 가 v1 호환 위해 `success: Bool` 필드를 광범위 사용 (15곳). 외부 클라이언트가 yaml 기반 코드젠 시 필드명 불일치
+* 상세:
+    - APIModels.swift 의 `success` 사용 위치: L24, L99, L106, L122, L183, L190, L214, L227, L265, L272, L302, L324, L337, L357, L679 (총 15곳)
+    - yaml 기준 v2 표준은 `ok` (L1815-1822 Error 스키마, L20-23 공통 응답 규칙)
+    - v1 deprecated 이후로 호환성 명분 약함
+* 구현 명세 (검토 결과에 따라):
+    - 옵션 A: 전체 응답 모델 `success` → `ok` 일괄 교체 + yaml 일치
+    - 옵션 B: 두 필드를 모두 직렬화 (`success` 와 `ok` 동시 출력) — 점진적 전환
+    - 옵션 C: yaml을 코드 사실에 맞춰 `success` 로 정정 (현재 외부 사용자 영향 최소)
+    - 결정 시 `api/test-api.sh`, `_tool/apiTest`, MCP 서버, agent 스킬 응답 파싱 코드 영향 검토 필요
+
+## Issue81: `cli/_doc_design/paidApp_version.md` v1 표기 정정 (등록: 2026-04-26)
+* 목적: 설계 문서가 "REST API: `localhost:3015/api/v1`, `/api/v2` 제공"으로 기술되어 v1 obsolete(410 Gone) 사실과 충돌
+* 상세:
+    - [cli/_doc_design/paidApp_version.md:32](cli/_doc_design/paidApp_version.md#L32) 표 항목 "REST API" 셀 갱신 필요
+    - Issue63·68 종결 후 미반영
+* 구현 명세:
+    - 해당 셀을 "`localhost:3015/api/v2` 제공 (v1 deprecated)"로 갱신
+    - 같은 문서 내 다른 v1 언급 추가 검색하여 일괄 정정
+
 # ✅ 완료
+
+## Issue76: `api/README.md` 전체를 v2 prefix로 갱신 (외부 공개 문서) (등록: 2026-04-26, 종료: 2026-04-26, commit: 0d472cf) ✅
+* 목적: 외부 공개 레포의 1차 진입 문서가 v1 prefix-less 경로(`/api/snippets/...` 등)를 그대로 안내. 사용자가 README 따라 호출 시 모두 410 Gone 응답
+* 커밋: 0d472cf
+* 구현 명세:
+    - **변경 파일**: [api/README.md](api/README.md) (+28 / -28)
+    - **prefix 갱신**: `/api/{snippets,clipboard,folders,stats,triggers}` 26곳 → `/api/v2/...` (Endpoints 섹션 1~13 + cURL/Python 예제 전체)
+    - **OpenAPI 안내(L18-20)**: v1 항목을 `deprecated (HTTP 410)`로 명시, v2를 'full API — read + settings CRUD'로 표기
+    - **유지**: Health check `/`(prefix 없음), 응답 예제 `success` 필드(Issue80에서 일괄 정합화 예정)
+    - **검증**: `grep -nE 'localhost:3015/api/(snippets|clipboard|folders|stats|triggers)'` → 0건. 잔존 v1 prefix-less 경로 없음
 
 ## Issue75: [Bug] 첫 스니펫 확장 시 줄 전체 삭제 — CGEventPool 첫 실행 modifier 잔류 (등록: 2026-04-26, 종료: 2026-04-26) ✅
 * 목적: 앱 기동 후 첫 번째 스니펫 확장에서 줄 전체가 삭제되는 버그 해결
@@ -1154,6 +1164,66 @@ date: 2026-04-07
     - 마크다운 규칙 준수 확인
 
 # ⏸️ 보류
+
+## Issue73: [Refactor] PopupController 책임 분리 — UI 위젯 직접 소유 해소 (등록: 2026-04-25, 보류: 2026-04-26)
+* 목적: `Core/PopupController.swift`가 UI 위젯(`SnippetNonActivatingWindow`)을 직접 소유 + 상태 관리 + Core 콜백 수신까지 수행 → 책임 분리로 SRP 준수 및 테스트성 확보
+* 복잡도: **복잡** (설계 결정이 KeyEventMonitor/TextReplacer 콜백 경로에 영향 → plan + task + report 전체 사이클)
+* 보류 사유: 기능 동작 이상 없음 (순수 리팩토링). Phase1~3 전이 시 KeyEventMonitor/KeyEventHandler 콜백 경로 동시 수정 필요로 회귀 위험 내포. 다른 기능 이슈가 없을 때 재개.
+* 상세:
+    - **현황**: `Core/PopupController.swift` (539줄) 단일 클래스가 다음을 모두 수행:
+        1. UI 위젯 소유: `private let popupWindow = SnippetNonActivatingWindow()` — Core 폴더 소속 파일이 UI를 직접 생성·관리
+        2. Core 콜백 수신: `showPopup(with:searchTerm:cursorRect:onSelection:)` — KeyEventMonitor/TextReplacer로부터 호출
+        3. 설정 실시간 반영: `SettingsManager.shared.load()` + `popupSearchScopeDidChange` 관찰
+        4. 상태 보관: `isVisible`, `mode`, `allCandidates`, `currentSearchTerm`
+        5. 부수 효과: `InputSourceManager.applyForceInputSource()`, `ClipboardManager.chvMode = .deactive`, `MouseUtils.ensureMouseOutside(...)`, `SettingsWindowManager.temporarilyHide()`
+    - **문제점**:
+        1. **계층 경계 모호**: Core 폴더 파일이 AppKit 윈도우 위젯을 직접 소유
+        2. **테스트 어려움**: 단위 테스트 시 NSWindow 모킹 필수 → Headless CI 불가
+        3. **확장 비용**: 팝업 UI 교체(스타일/애니메이션) 또는 대체 프레젠터 추가 시 Core 콜백 경로까지 영향
+    - **해결책** (3-layer 분해):
+        1. `UI/PopupPresenter.swift` (신규) — `SnippetNonActivatingWindow` 소유·표시·닫기·검색어 갱신 전담
+        2. `Core/PopupCoordinator.swift` (신규) — KeyEventMonitor/TextReplacer 콜백 수신 + 부수 효과 오케스트레이션 + PopupPresenter 호출
+        3. `Models/PopupState.swift` (신규) — `isVisible`, `mode`, `currentSearchTerm` 등 @Published 상태 객체
+        4. `Core/PopupController.swift` (유지) — 기존 공개 인터페이스 유지하는 파사드로 축소 (호출 측 변경 최소화)
+    - **API 계약 영향**: 없음 (내부 구조 변경만, REST API/OpenAPI 스펙 영향 없음)
+    - **기대 효과**:
+        - UI 교체 비용 축소 (PopupPresenter만 교체)
+        - PopupCoordinator 단위 테스트 가능 (Presenter mock 주입)
+        - 히스토리 윈도우 등 유사 UI에 Presenter 패턴 재사용
+* 구현 명세:
+    - 신규 파일: `UI/PopupPresenter.swift`, `Core/PopupCoordinator.swift`, `Models/PopupState.swift`
+    - 수정 파일: `Core/PopupController.swift` (파사드화), `Core/KeyEventMonitor.swift`·`TextReplacer.swift` (의존성 주입 경로 조정)
+    - 전이 전략: Phase1 = Presenter 분리 → Phase2 = Coordinator 분리 → Phase3 = State 분리
+    - 테스트: Presenter/Coordinator 각각 독립 단위 테스트 작성
+* 배경: fSnippet paidApp 레포에서 graphify God Nodes 분석 시 `popupcontroller_ui` Hyperedge로 Core-UI 경계 모호성 식별
+
+## Issue74: [Refactor] APIModels CodingKeys 중앙화 — snake_case ↔ camelCase 자동 변환 (등록: 2026-04-25, 보류: 2026-04-26)
+* 목적: `Data/APIModels.swift`에서 각 응답 구조체마다 반복 정의되는 CodingKeys를 JSONEncoder/Decoder의 `keyEncodingStrategy = .convertToSnakeCase` + `keyDecodingStrategy = .convertFromSnakeCase`로 대체 → 코드량 감소 + 명세 변경 영향도 축소
+* 복잡도: **중간** (API 계약 불변 전제 시 plan 필수, task/report는 가치 판단)
+* 상세:
+    - **현황**: 10+ 구조체(`APIMetadata`, `HealthResponse`, `APISnippetSummary`, `APISnippetDetail`, `APIExpandData`, `APIClipboardItem`, `APIClipboardItemDetail`, `APIFolderSummary` 등)가 각각 CodingKeys 블록 소유
+        - 예: `case durationMs = "duration_ms"`, `case contentPreview = "content_preview"`, `case snippetCount = "snippet_count"`
+        - 단순 snake→camel 매핑이 대부분 (예외: 특수 필드 거의 없음 확인 필요)
+    - **해결책**:
+        1. `JSONEncoder`/`JSONDecoder` 팩토리 추가 (`APICoderFactory`) — `convertToSnakeCase`/`convertFromSnakeCase` 적용된 공용 인스턴스 제공
+        2. `APIServer`/`APIRouter` 및 CLI `Commands/*` 가 동일 팩토리 사용하도록 전환
+        3. 각 구조체의 단순 매핑 CodingKeys 제거 (예외 필드는 CodingKeys로 잔존)
+        4. 스냅샷 테스트: 기존 JSON 응답과 바이트 레벨 동치 확인
+    - **API 계약 영향**:
+        - **불변 유지 필수**: JSON 응답 키는 현재와 동일(snake_case) 유지
+        - `openapi_v2.yaml` 스펙 변경 없음 (v1은 `410 GONE` — 실측 2026-04-26 확인)
+        - paidApp `RESTClient`/MCP 서버 호환성 영향 없음
+    - **기대 효과**:
+        - 각 구조체당 평균 5~10줄 CodingKeys 제거 → 총 ~80줄 감소 추정
+        - 신규 API 응답 타입 추가 시 CodingKeys 작성 불필요
+* 구현 명세:
+    - 신규: `cli/fSnippetCli/Utils/APICoderFactory.swift`
+    - 수정: `cli/fSnippetCli/Data/APIModels.swift` (단순 매핑 CodingKeys 제거)
+    - 수정: `cli/fSnippetCli/Managers/APIRouter.swift`, `APIServer.swift` (팩토리 주입)
+    - 수정: `cli/fSnippetCli/CLI/Commands/*` (클라이언트 측 디코더)
+    - 테스트: `/api/v2/*` 응답 스냅샷 비교 (v1은 `410 GONE` — curl 회귀 대상 제외)
+* 보류 사유: 감소 효과(~56줄, 전체 8%) 대비 수정 범위(4개 파일)와 `convertToSnakeCase` 자동 변환 예외 검증 비용이 더 큼. CodingKeys는 명시적 타입 안전망 역할도 하므로 v2 API가 안정화된 이후 재검토
+* 참조: `.claude/rules/api-rules.md` (SSOT OpenAPI 스펙 불변)
 
 ## Issue72: 코드 주석 언어 통일 — 영어 표준화 (등록: 2026-04-25, 보류: 2026-04-25)
 * 목적: `_public/` 공개 레포 기준에 따라 모든 Swift/Shell/Python 코드 주석을 영어로 통일 (Issue59 언어 규약 "코드 주석은 English only")
