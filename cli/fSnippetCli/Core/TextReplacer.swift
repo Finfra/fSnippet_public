@@ -19,8 +19,11 @@ class CGEventPool {
                 configureBackspaceEvent(reusableEvent, keyDown: keyDown)
                 return reusableEvent
             } else {
-                // 새 이벤트 생성
-                return CGEvent(keyboardEventSource: nil, virtualKey: 51, keyDown: keyDown)
+                // Issue75: flags = [] 명시 — 풀이 비어있을 때(첫 실행) {right_command} modifier가
+                // 잔류하면 Cmd+Backspace로 동작해 줄 전체가 삭제되는 버그 방지
+                let event = CGEvent(keyboardEventSource: nil, virtualKey: 51, keyDown: keyDown)
+                event?.flags = []
+                return event
             }
         }
     }
@@ -31,7 +34,10 @@ class CGEventPool {
                 configureCmdEvent(reusableEvent, keyDown: keyDown)
                 return reusableEvent
             } else {
-                return CGEvent(keyboardEventSource: nil, virtualKey: 55, keyDown: keyDown)
+                // Issue75: flags 초기화 후 .maskCommand 설정 (pool miss 시 잔류 modifier 방지)
+                let event = CGEvent(keyboardEventSource: nil, virtualKey: 55, keyDown: keyDown)
+                event?.flags = []
+                return event
             }
         }
     }
