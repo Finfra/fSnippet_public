@@ -8,6 +8,7 @@ date: 2026-04-07
 
 * Issue HWM: 75
 * Save Point :
+      - 2026.04.26: 48b378d (Fix(Core): Issue75 — CGEventPool 첫 실행 modifier 잔류 줄 전체 삭제 버그 수정)
       - 2026.04.24: bac440b (Fix(Brew): launchAtLogin=false 시 brew services run으로 전환 Issue67)
       - 2026.04.22: 6af95cb (Feat: Implement Launch at Login (Brew services integration) & Project Optimization)
 
