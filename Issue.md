@@ -20,18 +20,6 @@ date: 2026-04-07
 
 # 📕 중요
 
-## Issue77: `.claude/rules/api-rules.md` v1-obsolete 반영 (등록: 2026-04-26)
-* 목적: API 룰이 "v1 유지(Backward Compatible)"로 기술되어 있어 실제 코드(v1=410 Gone) 및 메모리(`project_api-v1-obsolete.md`)와 충돌. 룰을 현 상태에 맞게 갱신
-* 상세:
-    - 현재 [.claude/rules/api-rules.md](.claude/rules/api-rules.md) L17: "v1: `/api/v1/` — 기존 엔드포인트. 유지(Backward Compatible)"
-    - 실제 [cli/fSnippetCli/Managers/APIRouter.swift:50-51](cli/fSnippetCli/Managers/APIRouter.swift#L50-L51): `/api/v1/*` → 410 Gone
-    - 메모리 `project_api-v1-obsolete.md`: "모든 통신은 v2 only"
-    - 해당 룰을 보고 자동화·에이전트가 v1을 유효 SSOT로 오인할 수 있음
-* 구현 명세:
-    - api-rules.md 의 v1 항목을 "deprecated (HTTP 410)"로 명시
-    - `openapi_v1.yaml` 의 SSOT 지위를 "아카이브"로 표시 (또는 파일 자체 archived 폴더 이동 검토)
-    - 동기화 규칙도 "v2 단독 SSOT"로 단순화
-
 ## Issue70: 클립보드 히스토리 고급 기능 — Paid 앱 활성화 의존성 처리 (등록: 2026-04-25)
 * 목적: 클립보드 히스토리 고급 기능 실행 시 paidApp(fSnippet) 미활성화 상태 감지 → 활성화 유도 창 표시
 * 현황: cliApp 단독 실행 시 고급 기능 제약 (paidApp 활성화 필수)
@@ -97,6 +85,20 @@ date: 2026-04-07
     - 같은 문서 내 다른 v1 언급 추가 검색하여 일괄 정정
 
 # ✅ 완료
+
+## Issue77: `.claude/rules/api-rules.md` v1-obsolete 반영 (등록: 2026-04-26, 종료: 2026-04-26, commit: dbf1bfb) ✅
+* 목적: API 룰이 "v1 유지(Backward Compatible)"로 기술되어 있어 실제 코드(v1=410 Gone) 및 메모리(`project_api-v1-obsolete.md`)와 충돌. 룰을 현 상태에 맞게 갱신
+* 커밋: dbf1bfb (`.claude/`는 `.gitignore` 처리되어 git 미추적 — Issue.md 커밋 해시로 기록)
+* 구현 명세:
+    - **변경 파일**: [.claude/rules/api-rules.md](.claude/rules/api-rules.md) (구조 단순화 + 표현 갱신)
+    - **frontmatter**: description "v2 단독 SSOT 및 v1 deprecated 정책"으로 명확화, date 2026-04-26
+    - **API 명세 (SSOT)**: v2를 **단독 SSOT**로 격상, v1을 **아카이브 (deprecated, 신규 변경 금지)**로 명시
+    - **API 버전**: v1 = `HTTP 410 Gone` 반환 명시 + APIRouter.swift L50-51 참조 / v2 = "활성 버전, 모든 신규/수정은 v2"
+    - **동기화 규칙**: "openapi_v2.yaml 단독 갱신 대상" 표현, "openapi_v1.yaml은 수정 대상 아님" 추가
+    - **관련 파일 표**: APIRouter.swift 비고에 "v1 → 410 Gone" 추가
+    - **검증**: `.claude/`가 `.gitignore` 처리되어 git status에 안 잡힘 (정상). 파일 직접 Read로 변경 확인
+* 후속:
+    - 메인 레포 `fSnippet/.claude/rules/api-rules.md`도 동일 문제 보유 → 별도 세션에서 처리 필요
 
 ## Issue76: `api/README.md` 전체를 v2 prefix로 갱신 (외부 공개 문서) (등록: 2026-04-26, 종료: 2026-04-26, commit: 0d472cf) ✅
 * 목적: 외부 공개 레포의 1차 진입 문서가 v1 prefix-less 경로(`/api/snippets/...` 등)를 그대로 안내. 사용자가 README 따라 호출 시 모두 410 Gone 응답
