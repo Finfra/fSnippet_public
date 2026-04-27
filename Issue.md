@@ -24,16 +24,16 @@ date: 2026-04-07
 
 # 📗 선택
 
-## Issue81: `cli/_doc_design/paidApp_version.md` v1 표기 정정 (등록: 2026-04-26)
-* 목적: 설계 문서가 "REST API: `localhost:3015/api/v1`, `/api/v2` 제공"으로 기술되어 v1 obsolete(410 Gone) 사실과 충돌
-* 상세:
-    - [cli/_doc_design/paidApp_version.md:32](cli/_doc_design/paidApp_version.md#L32) 표 항목 "REST API" 셀 갱신 필요
-    - Issue63·68 종결 후 미반영
-* 구현 명세:
-    - 해당 셀을 "`localhost:3015/api/v2` 제공 (v1 deprecated)"로 갱신
-    - 같은 문서 내 다른 v1 언급 추가 검색하여 일괄 정정
-
 # ✅ 완료
+
+## Issue81: `cli/_doc_design/paidApp_version.md` v1 표기 정정 (등록: 2026-04-26, 종료: 2026-04-27, commit: 9f60322) ✅
+* 목적: 설계 문서가 "REST API: `localhost:3015/api/v1`, `/api/v2` 제공"으로 기술되어 v1 obsolete(410 Gone) 사실과 충돌
+* 커밋: 9f60322 (`cli/_doc_design/`는 `.gitignore` 처리되어 git 미추적 — Issue.md 커밋 해시로 기록)
+* 구현 명세:
+    - **변경 파일**: `cli/_doc_design/paidApp_version.md` L32
+    - **변경 전**: `` `localhost:3015/api/v1`, `/api/v2` 제공 ``
+    - **변경 후**: `` `localhost:3015/api/v2` 제공 (v1 deprecated, 410 Gone) ``
+    - **추가 검색**: `grep -in "api/v1\|backward\|호환"` — 동일 문서 내 다른 v1 언급 없음 확인
 
 ## Issue80: v2 응답 모델 `success` → `ok` 필드 표준화 (등록: 2026-04-26, 종료: 2026-04-27, commit: 69a8e96, 옵션 A 채택) ✅
 * 목적: yaml SSOT 및 RestAPI_v2.md 공통 응답 규칙 `{ ok: true, data: ... }`에 정합화. v1 deprecated(410 Gone) 이후 호환 명분 사라짐
