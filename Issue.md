@@ -24,18 +24,6 @@ date: 2026-04-07
 
 # 📗 선택
 
-## Issue80: v2 응답 모델 `success` → `ok` 필드 표준화 검토 (등록: 2026-04-26)
-* 목적: yaml SSOT 및 RestAPI_v2.md 공통 응답 규칙은 `{ "ok": true, "data": ... }` 인데 [APIModels.swift](cli/fSnippetCli/Data/APIModels.swift) 가 v1 호환 위해 `success: Bool` 필드를 광범위 사용 (15곳). 외부 클라이언트가 yaml 기반 코드젠 시 필드명 불일치
-* 상세:
-    - APIModels.swift 의 `success` 사용 위치: L24, L99, L106, L122, L183, L190, L214, L227, L265, L272, L302, L324, L337, L357, L679 (총 15곳)
-    - yaml 기준 v2 표준은 `ok` (L1815-1822 Error 스키마, L20-23 공통 응답 규칙)
-    - v1 deprecated 이후로 호환성 명분 약함
-* 구현 명세 (검토 결과에 따라):
-    - 옵션 A: 전체 응답 모델 `success` → `ok` 일괄 교체 + yaml 일치
-    - 옵션 B: 두 필드를 모두 직렬화 (`success` 와 `ok` 동시 출력) — 점진적 전환
-    - 옵션 C: yaml을 코드 사실에 맞춰 `success` 로 정정 (현재 외부 사용자 영향 최소)
-    - 결정 시 `api/test-api.sh`, `_tool/apiTest`, MCP 서버, agent 스킬 응답 파싱 코드 영향 검토 필요
-
 ## Issue81: `cli/_doc_design/paidApp_version.md` v1 표기 정정 (등록: 2026-04-26)
 * 목적: 설계 문서가 "REST API: `localhost:3015/api/v1`, `/api/v2` 제공"으로 기술되어 v1 obsolete(410 Gone) 사실과 충돌
 * 상세:
@@ -46,6 +34,19 @@ date: 2026-04-07
     - 같은 문서 내 다른 v1 언급 추가 검색하여 일괄 정정
 
 # ✅ 완료
+
+## Issue80: v2 응답 모델 `success` → `ok` 필드 표준화 (등록: 2026-04-26, 종료: 2026-04-27, commit: 69a8e96, 옵션 A 채택) ✅
+* 목적: yaml SSOT 및 RestAPI_v2.md 공통 응답 규칙 `{ ok: true, data: ... }`에 정합화. v1 deprecated(410 Gone) 이후 호환 명분 사라짐
+* 커밋: 69a8e96
+* 결정: **옵션 A 채택** (일괄 교체) — 사용자 승인. 옵션 B(둘 다 출력)는 응답 크기·복잡도, 옵션 C(yaml을 success로)는 다른 SSOT 문서 동시 변경 필요로 기각
+* 구현 명세:
+    - **APIModels.swift** (15곳): `let success: Bool` → `let ok: Bool` (APIErrorResponse, APISnippetSearchResponse, APIExpandResponse, APIClipboardDetailResponse, APIFolderMutationResponse, APISnippetMutationResponse, APIReloadResponse 등)
+    - **APIRouter.swift** (22곳): 호출 인자 17곳 (`success: true/false` → `ok: true/false`) + 인라인 JSON 4곳 + APIReloadResponse 1곳
+    - **StatusCommand.swift** (2곳): CLI JSON 출력 정합화
+    - **api/README.md, README_ko.md** (8곳): 응답 예제 정합화
+    - **api/test-api.sh** (7곳): 매처 `'"success"'` → `'"ok"'`
+    - **cli/_tool/apiTest/v1/*.sh** (4곳): success 추출/리터럴 일관화
+    - **검증**: Release 빌드 BUILD SUCCEEDED. 모든 success 잔존 검사 통과 (Result enum의 `.success` case는 유지)
 
 ## Issue79: `RestAPI_v2.md` 설계서에 shutdown·PaidApp Lifecycle 섹션 보강 (등록: 2026-04-26, 종료: 2026-04-27, commit: c36f672) ✅
 * 목적: 설계 SSOT 문서 `cli/_doc_design/api/RestAPI_v2.md`가 `openapi_v2.yaml` 및 코드보다 뒤처져 있던 부분을 동기화
