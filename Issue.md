@@ -6,8 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 82
+* Issue HWM: 84
 * Save Point :
+      - 2026.04.27: 7956918 (Feat(Cli): Issue83 — Restart Daemon backend brew services restart)
       - 2026.04.27: 72f4dfd (Feat(Cli): Issue82 — cliApp 메뉴바 개선 그룹화 + 단축키 토큰 공유 + Launch at Login)
       - 2026.04.26: 48b378d (Fix(Core): Issue75 — CGEventPool 첫 실행 modifier 잔류 줄 전체 삭제 버그 수정)
       - 2026.04.24: bac440b (Fix(Brew): launchAtLogin=false 시 brew services run으로 전환 Issue67)
@@ -18,11 +19,20 @@ date: 2026-04-07
 * _doc_design/menuBar_enhance.md 기준 진행(메뉴바)
 
 # 🌱 이슈후보
-* Restart Daemon backend 구현 — `MenuBarView.swift` `showRestartDaemonStub()` NSAlert 스텁을 실제 `brew services restart fsnippet-cli` 호출로 대체. Issue82 Out of Scope §1
-* 메인 레포 paidApp `MenuBarManager.swift` 메뉴 트리 동기화 — `_doc_design/menuBar_enhance.md` paidApp 섹션(L37-60) 1:1 반영. **메인 레포 fSnippet/ 별도 이슈로 등록 필요** (본 _public 레포 범위 밖)
-* `{registerSnippet}` 단축키 메뉴 노출 — 설계서 액션 표 §1에 미명세, 메뉴 트리 노출 위치·라벨 결정 필요. 후속 설계 결정
 
 # 🚧 진행중
+
+## Issue84: `{registerSnippet}` 단축키 메뉴 노출 — 메뉴 트리 노출 위치·라벨 결정 (등록: 2026-04-27)
+* 목적: `_doc_design/menuBar_enhance.md` 액션 표 §1에 `{registerSnippet}` 단축키가 미명세 상태. 메뉴 트리 노출 위치·라벨을 결정하고 cliApp `MenuBarView.swift`에 반영
+* plan: `_doc_work/plan/menuBar_register-snippet_plan.md`
+* 상세:
+    - 단축키 이름: `register.snippet.hotkey` (또는 `snippet.register.hotkey` — `_config.yml` 키 결정 필요)
+    - 노출 위치 후보:
+        * (a) 평면 항목 (Snippet Popup 아래)
+        * (b) 서브메뉴 — 신설 `📦 Snippet ▶` 또는 기존 `Clipboard ▶` 확장
+    - 단축키 SSOT: `ShortcutMgr.swift` `registerAppGlobalShortcuts()` 항목 추가 필요
+    - 메인 레포 paidApp 측 동일 단축키 토큰 표기 정합 필요 (Issue82 동일 원칙)
+* 의존성: 후속 이슈 후보 #2 (메인 레포 paidApp 동기화)와 토큰 SSOT 공유 필요
 
 # 📕 중요
 
@@ -31,6 +41,20 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue83: Restart Daemon backend 구현 — `brew services restart fsnippet-cli` 호출 (등록: 2026-04-27, 종료: 2026-04-27, commit: 7956918) ✅
+* 목적: `MenuBarView.swift` `showRestartDaemonStub()` NSAlert 스텁을 실제 `brew services restart fsnippet-cli` 호출로 대체. Issue82 Out of Scope §1 후속
+* 커밋: 7956918
+* 구현 명세:
+    - **변경 파일**: `cli/fSnippetCli/MenuBarView.swift` (단일, 40 ins / 6 del)
+    - **`restartDaemon()`** 신설: `Process` API로 `brew services restart fsnippet-cli` 비동기 호출
+        * brew 경로 탐색: `/opt/homebrew/bin/brew` (Apple Silicon) → `/usr/local/bin/brew` (Intel) 폴백, 둘 다 부재 시 NSAlert
+        * `DispatchQueue.global(qos: .userInitiated)`에서 실행하여 메뉴 응답성 확보
+        * stderr Pipe 캡처 → 실행 실패 시 메인 스레드 NSAlert로 사유 표시
+    - **`showRestartFailure(reason:)`** 신설: 정적 메서드, NSAlert `.warning` 스타일로 실패 메시지 표시
+    - **자기 종료 특성**: brew restart는 현재 daemon에 SIGTERM 발송 → 호출 후 결과 관찰 불가, 사전 실패만 보고
+    - **호출부**: `Button("Restart Daemon") { restartDaemon() }` (기존 `showRestartDaemonStub()` 교체)
+    - **검증**: `xcodebuild -scheme fSnippetCli -configuration Release` BUILD SUCCEEDED
 
 ## Issue82: cliApp 메뉴바 개선 — 그룹화 서브메뉴 + 단축키 토큰 공유 + 시간적 배타성 (등록: 2026-04-27, 종료: 2026-04-27, commits: 588e178, 72f4dfd) ✅
 * 목적: `_doc_design/menuBar_enhance.md` 설계 SSOT를 cliApp(`MenuBarView.swift`)에 1:1 반영. paidApp과 동일 단축키 토큰을 동일 표기로 노출하여 시간적 배타성에도 사용자 학습 비용 0 달성
