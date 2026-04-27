@@ -22,21 +22,6 @@ date: 2026-04-07
 
 # 📙 일반
 
-## Issue78: v2 미구현 라우트 11종 구현 — General 세부/Advanced API/History clear (등록: 2026-04-26)
-* 목적: `openapi_v2.yaml` SSOT에 정의되어 있으나 [APIRouter.swift](cli/fSnippetCli/Managers/APIRouter.swift) 에 라우트가 없어 호출 시 404가 발생하는 엔드포인트 11종 일괄 구현
-* 상세:
-    - General 세부 9종: `/settings/general/{language,appearance,paths,trigger-key,trigger-bias,quick-select-modifier,permissions,snippet-folder/rebuild-index,snippet-folder/open}` (yaml L163-347)
-    - Advanced REST API 1종: `GET/PATCH /settings/advanced/api` (yaml L809-836)
-    - History 1종: `POST /settings/history/clear` (yaml L629-642)
-    - 코드는 현재 `/settings/general` 일괄 GET/PATCH만 처리 → 세분화된 PUT 호출 모두 404
-    - 외부 클라이언트가 `/settings/advanced/api` PATCH 로 API 활성/포트/CIDR 변경 불가 — 자기참조성 핵심 엔드포인트
-* 구현 명세:
-    - APIRouter.swift switch에 11개 case 추가
-    - Handler 메서드 신설 (각 필드별 단건 GET/PUT)
-    - PreferencesManager 연동 (단건 update API 추가 필요)
-    - rebuild-index/open 은 202/200 즉시 응답 + 비동기 작업
-    - 검증: cli/_tool/apiTest 에 11개 케이스 추가
-
 ## Issue79: `RestAPI_v2.md` 설계서에 shutdown·PaidApp Lifecycle 섹션 보강 (등록: 2026-04-26)
 * 목적: 설계 SSOT 문서 [cli/_doc_design/api/RestAPI_v2.md](cli/_doc_design/api/RestAPI_v2.md) 가 `openapi_v2.yaml` 및 코드보다 뒤처져 있음. 신규 채널이 설계서에 흔적 없는 상태
 * 상세:
@@ -72,6 +57,20 @@ date: 2026-04-07
     - 같은 문서 내 다른 v1 언급 추가 검색하여 일괄 정정
 
 # ✅ 완료
+
+## Issue78: v2 미구현 라우트 11종 구현 — General 세부/Advanced API/History clear (등록: 2026-04-26, 종료: 2026-04-27, commit: b52bd69) ✅
+* 목적: `openapi_v2.yaml` SSOT에 정의되어 있으나 [APIRouter.swift](cli/fSnippetCli/Managers/APIRouter.swift) 에 라우트가 없어 호출 시 404가 발생하던 엔드포인트 11종 일괄 구현
+* 커밋: b52bd69
+* 구현 명세:
+    - **변경 파일**: [APIRouter.swift](cli/fSnippetCli/Managers/APIRouter.swift) (+303), [ClipboardDB.swift](cli/fSnippetCli/Data/ClipboardDB.swift) (+15)
+    - **General 9종 (yaml L163-347)**: `GET/PUT /settings/general/{language,appearance,trigger-key,trigger-bias,quick-select-modifier}` (5×2=10) + `GET/PATCH /paths` + `GET /permissions` + `POST /snippet-folder/{rebuild-index,open}`
+    - **History 1종**: `POST /settings/history/clear` — `ClipboardDB.totalCount()` 신설로 `removedEntries` 정확도 확보
+    - **Advanced 1종**: `GET/PATCH /settings/advanced/api` — 자기참조 안전 정책: PATCH는 prefs만 저장, 서버 재바인딩 미수행 (잘못된 port/cidr로 영구 다운 방지). 다음 cliApp 재시작에 적용
+    - **검증 규칙 적용**: language/appearance/quickSelectModifier enum, triggerBias `-10..10`, port `1024..65535`, allowedCidr/token 비빈 검증
+    - **응답 모델**: 9개 fileprivate Encodable struct (V2LanguageResponse 등) — 인라인 dict 대신 Codable 보장
+    - **검증**: Release 빌드 BUILD SUCCEEDED
+* 후속 (선택):
+    - cli/_tool/apiTest 에 11개 케이스 추가 (이슈 명세 마지막 줄 — 실 동작 검증)
 
 ## Issue70: 클립보드 히스토리 고급 기능 — Paid 앱 활성화 의존성 처리 (등록: 2026-04-25, 종료: 2026-04-27, commit: d874895) ✅
 * 목적: 클립보드 히스토리 고급 기능 실행 시 paidApp(fSnippet) 미활성화 상태 감지 → 활성화 유도 창 표시
