@@ -81,7 +81,7 @@ GET /api/v2/snippets/search?q={query}
 
 | Status Code | Cause                | Example                                                                              |
 | :---------- | :------------------- | :----------------------------------------------------------------------------------- |
-| 400         | Missing search query | `{"success": false, "error": {"code": "MISSING_QUERY", "message": "Missing query"}}` |
+| 400         | Missing search query | `{"ok": false, "error": {"code": "MISSING_QUERY", "message": "Missing query"}}` |
 ---
 
 # 3. Get Snippet by Abbreviation
@@ -143,7 +143,7 @@ Content-Type: application/json
 **Success (200)**:
 ```json
 {
-  "success": true,
+  "ok": true,
   "data": {
     "original_abbreviation": "awsec2{right_command}",
     "snippet_id": "AWS/ec2===EC2.txt",
@@ -276,7 +276,7 @@ GET /api/v2/triggers
 **Success (200)**:
 ```json
 {
-  "success": true,
+  "ok": true,
   "data": {
     "default": {
       "symbol": "{right_command}",
@@ -416,7 +416,7 @@ All errors follow a consistent format:
 
 ```json
 {
-  "success": false,
+  "ok": false,
   "error": {
     "code": "NOT_FOUND",
     "message": "Snippet not found"

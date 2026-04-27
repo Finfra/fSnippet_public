@@ -21,7 +21,7 @@ struct APIErrorDetail: Codable {
 
 /// API 에러 응답
 struct APIErrorResponse: Codable {
-  let success: Bool
+  let ok: Bool
   let error: APIErrorDetail
 }
 
@@ -96,14 +96,14 @@ struct APISnippetDetail: Codable {
 
 /// 스니펫 검색 응답
 struct APISnippetSearchResponse: Codable {
-  let success: Bool
+  let ok: Bool
   let data: [APISnippetSummary]
   let meta: APIMetadata
 }
 
 /// 스니펫 상세 조회 응답
 struct APISnippetDetailResponse: Codable {
-  let success: Bool
+  let ok: Bool
   let data: APISnippetDetail
 }
 
@@ -119,7 +119,7 @@ struct APIExpandRequest: Codable {
 
 /// 스니펫 확장 응답
 struct APIExpandResponse: Codable {
-  let success: Bool
+  let ok: Bool
   let data: APIExpandData
 }
 
@@ -180,14 +180,14 @@ struct APIClipboardItemDetail: Codable {
 
 /// 클립보드 히스토리 목록 응답
 struct APIClipboardHistoryResponse: Codable {
-  let success: Bool
+  let ok: Bool
   let data: [APIClipboardItem]
   let meta: APIMetadata
 }
 
 /// 클립보드 항목 상세 조회 응답
 struct APIClipboardDetailResponse: Codable {
-  let success: Bool
+  let ok: Bool
   let data: APIClipboardItemDetail
 }
 
@@ -211,7 +211,7 @@ struct APIFolderSummary: Codable {
 
 /// 폴더 목록 응답
 struct APIFolderListResponse: Codable {
-  let success: Bool
+  let ok: Bool
   let data: [APIFolderSummary]
   let meta: APIMetadata
 }
@@ -224,7 +224,7 @@ struct APIFolderDetailData: Codable {
 
 /// 폴더 상세 조회 응답
 struct APIFolderDetailResponse: Codable {
-  let success: Bool
+  let ok: Bool
   let data: APIFolderDetailData
   let meta: APIMetadata
 }
@@ -262,14 +262,14 @@ struct APIUsageLog: Codable {
 
 /// 상위 사용 통계 응답
 struct APIStatsTopResponse: Codable {
-  let success: Bool
+  let ok: Bool
   let data: [APIUsageStat]
   let meta: APIMetadata
 }
 
 /// 사용 이력 조회 응답
 struct APIStatsHistoryResponse: Codable {
-  let success: Bool
+  let ok: Bool
   let data: [APIUsageLog]
   let meta: APIMetadata
 }
@@ -299,7 +299,7 @@ struct APITriggerData: Codable {
 
 /// 트리거 조회 응답
 struct APITriggerResponse: Codable {
-  let success: Bool
+  let ok: Bool
   let data: APITriggerData
 }
 
@@ -321,7 +321,7 @@ struct APIReloadData: Codable {
 
 /// 리로드 응답
 struct APIReloadResponse: Codable {
-  let success: Bool
+  let ok: Bool
   let data: APIReloadData
 }
 
@@ -334,7 +334,7 @@ struct APICreateFolderRequest: Codable {
 
 /// 폴더 생성/삭제 응답
 struct APIFolderMutationResponse: Codable {
-  let success: Bool
+  let ok: Bool
   let data: APIFolderMutationData
 }
 
@@ -354,7 +354,7 @@ struct APICreateSnippetRequest: Codable {
 
 /// 스니펫 생성/삭제 응답
 struct APISnippetMutationResponse: Codable {
-  let success: Bool
+  let ok: Bool
   let data: APISnippetMutationData
 }
 
@@ -676,7 +676,7 @@ struct PaidAppStatusResponse: Codable {
 
 /// GET /cli/version 응답 (minPaidAppVersion 확장)
 struct CliVersionResponseV2: Codable {
-  let success: Bool
+  let ok: Bool
   let data: CliVersionData?
 
   struct CliVersionData: Codable {

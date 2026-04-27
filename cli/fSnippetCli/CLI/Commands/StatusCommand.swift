@@ -10,7 +10,7 @@ struct StatusCommand {
         if !isRunning {
             if formatter.jsonMode {
                 let json = """
-                {"success": true, "data": {"status": "stopped"}}
+                {"ok": true, "data": {"status": "stopped"}}
                 """
                 print(json)
             } else {
@@ -26,7 +26,7 @@ struct StatusCommand {
         guard result.isSuccess else {
             if formatter.jsonMode {
                 let json = """
-                {"success": true, "data": {"status": "running", "api": "unreachable"}}
+                {"ok": true, "data": {"status": "running", "api": "unreachable"}}
                 """
                 print(json)
             } else {

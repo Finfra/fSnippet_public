@@ -87,7 +87,7 @@ test_endpoint "Health Check (GET /)" \
 
 # 2. Snippet Search
 test_endpoint "Snippet Search (GET /api/snippets/search?q=test)" \
-  "GET" "$BASE_URL/api/snippets/search?q=test" "200" "" '"success"'
+  "GET" "$BASE_URL/api/snippets/search?q=test" "200" "" '"ok"'
 
 # 3. Snippet Search - missing query
 test_endpoint "Snippet Search - missing query (400)" \
@@ -118,11 +118,11 @@ test_endpoint "Snippet by ID - not found (404)" \
 
 # 9. Clipboard History
 test_endpoint "Clipboard History (GET /api/clipboard/history)" \
-  "GET" "$BASE_URL/api/clipboard/history?limit=5" "200" "" '"success"'
+  "GET" "$BASE_URL/api/clipboard/history?limit=5" "200" "" '"ok"'
 
 # 10. Clipboard Search
 test_endpoint "Clipboard Search (GET /api/clipboard/search?q=test)" \
-  "GET" "$BASE_URL/api/clipboard/search?q=test" "200" "" '"success"'
+  "GET" "$BASE_URL/api/clipboard/search?q=test" "200" "" '"ok"'
 
 # 11. Clipboard Search - missing query
 test_endpoint "Clipboard Search - missing query (400)" \
@@ -134,7 +134,7 @@ test_endpoint "Clipboard Detail - not found (404)" \
 
 # 13. Folder List
 test_endpoint "Folder List (GET /api/folders)" \
-  "GET" "$BASE_URL/api/folders" "200" "" '"success"'
+  "GET" "$BASE_URL/api/folders" "200" "" '"ok"'
 
 # 14. Folder Detail - not found
 test_endpoint "Folder Detail - not found (404)" \
@@ -142,15 +142,15 @@ test_endpoint "Folder Detail - not found (404)" \
 
 # 15. Stats Top
 test_endpoint "Stats Top (GET /api/stats/top)" \
-  "GET" "$BASE_URL/api/stats/top?limit=5" "200" "" '"success"'
+  "GET" "$BASE_URL/api/stats/top?limit=5" "200" "" '"ok"'
 
 # 16. Stats History
 test_endpoint "Stats History (GET /api/stats/history)" \
-  "GET" "$BASE_URL/api/stats/history?limit=5" "200" "" '"success"'
+  "GET" "$BASE_URL/api/stats/history?limit=5" "200" "" '"ok"'
 
 # 17. Trigger Keys
 test_endpoint "Trigger Keys (GET /api/triggers)" \
-  "GET" "$BASE_URL/api/triggers" "200" "" '"success"'
+  "GET" "$BASE_URL/api/triggers" "200" "" '"ok"'
 
 # 18. 404 - Unknown path
 test_endpoint "Unknown Path (404)" \

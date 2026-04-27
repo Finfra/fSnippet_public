@@ -81,7 +81,7 @@ GET /api/snippets/search?q={query}
 
 | 상태 코드 | 원인       | 응답 예시                                                                                |
 | :---- | :------- | :----------------------------------------------------------------------------------- |
-| 400   | 검색 쿼리 누락 | `{"success": false, "error": {"code": "MISSING_QUERY", "message": "Missing query"}}` |
+| 400   | 검색 쿼리 누락 | `{"ok": false, "error": {"code": "MISSING_QUERY", "message": "Missing query"}}` |
 ---
 
 # 3. Abbreviation으로 스니펫 조회
@@ -143,7 +143,7 @@ Content-Type: application/json
 **성공 (200)**:
 ```json
 {
-  "success": true,
+  "ok": true,
   "data": {
     "original_abbreviation": "awsec2{right_command}",
     "snippet_id": "AWS/ec2===EC2.txt",
@@ -276,7 +276,7 @@ GET /api/triggers
 **성공 (200)**:
 ```json
 {
-  "success": true,
+  "ok": true,
   "data": {
     "default": {
       "symbol": "{right_command}",
@@ -296,7 +296,7 @@ GET /api/triggers
 
 ```json
 {
-  "success": false,
+  "ok": false,
   "error": {
     "code": "NOT_FOUND",
     "message": "Snippet not found"

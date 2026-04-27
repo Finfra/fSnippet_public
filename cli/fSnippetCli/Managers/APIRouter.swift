@@ -1175,7 +1175,7 @@ class APIRouter {
   }
 
   private func errorResponse(code: String, message: String, statusCode: Int) -> APIServer.HTTPResponse {
-    let err = APIErrorResponse(success: false, error: APIErrorDetail(code: code, message: message))
+    let err = APIErrorResponse(ok: false, error: APIErrorDetail(code: code, message: message))
     return jsonResponse(err, statusCode: statusCode)
   }
 
@@ -1246,7 +1246,7 @@ class APIRouter {
     }
 
     return jsonResponse(APISnippetSearchResponse(
-      success: true, data: data,
+      ok: true, data: data,
       meta: APIMetadata(count: data.count, total: total, durationMs: duration)
     ))
   }
@@ -1290,7 +1290,7 @@ class APIRouter {
     }
 
     return jsonResponse(APISnippetSearchResponse(
-      success: true, data: data,
+      ok: true, data: data,
       meta: APIMetadata(count: data.count, total: total, durationMs: duration)
     ))
   }
@@ -1343,7 +1343,7 @@ class APIRouter {
       hasPlaceholders: !placeholders.isEmpty,
       placeholders: placeholders
     )
-    return jsonResponse(APISnippetDetailResponse(success: true, data: detail))
+    return jsonResponse(APISnippetDetailResponse(ok: true, data: detail))
   }
 
   // MARK: - Expand Snippet
@@ -1389,7 +1389,7 @@ class APIRouter {
       deleteCount: entry.abbreviation.count,
       placeholdersResolved: resolvedPlaceholders
     )
-    return jsonResponse(APIExpandResponse(success: true, data: data))
+    return jsonResponse(APIExpandResponse(ok: true, data: data))
   }
 
   // MARK: - Clipboard History
@@ -1429,7 +1429,7 @@ class APIRouter {
     }
 
     return jsonResponse(APIClipboardHistoryResponse(
-      success: true, data: data,
+      ok: true, data: data,
       meta: APIMetadata(count: data.count, total: total, durationMs: duration)
     ))
   }
@@ -1459,7 +1459,7 @@ class APIRouter {
       pinned: item.pinned != 0,
       createdAt: isoFormatter.string(from: Date(timeIntervalSince1970: TimeInterval(item.createdAt)))
     )
-    return jsonResponse(APIClipboardDetailResponse(success: true, data: detail))
+    return jsonResponse(APIClipboardDetailResponse(ok: true, data: detail))
   }
 
   // MARK: - Clipboard Search
@@ -1492,7 +1492,7 @@ class APIRouter {
     }
 
     return jsonResponse(APIClipboardHistoryResponse(
-      success: true, data: data,
+      ok: true, data: data,
       meta: APIMetadata(count: data.count, total: total, durationMs: duration)
     ))
   }
@@ -1527,7 +1527,7 @@ class APIRouter {
 
     let duration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
     return jsonResponse(APIFolderListResponse(
-      success: true, data: data,
+      ok: true, data: data,
       meta: APIMetadata(count: data.count, total: data.count, durationMs: duration)
     ))
   }
@@ -1574,7 +1574,7 @@ class APIRouter {
 
     let duration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
     return jsonResponse(APIFolderDetailResponse(
-      success: true,
+      ok: true,
       data: APIFolderDetailData(folder: folder, snippets: snippets),
       meta: APIMetadata(count: snippets.count, total: folderEntries.count, durationMs: duration)
     ))
@@ -1599,7 +1599,7 @@ class APIRouter {
 
     let duration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
     return jsonResponse(APIStatsTopResponse(
-      success: true, data: data,
+      ok: true, data: data,
       meta: APIMetadata(count: data.count, total: data.count, durationMs: duration)
     ))
   }
@@ -1625,7 +1625,7 @@ class APIRouter {
 
     let duration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
     return jsonResponse(APIStatsHistoryResponse(
-      success: true, data: data,
+      ok: true, data: data,
       meta: APIMetadata(count: data.count, total: total, durationMs: duration)
     ))
   }
@@ -1651,7 +1651,7 @@ class APIRouter {
     }
 
     return jsonResponse(APITriggerResponse(
-      success: true,
+      ok: true,
       data: APITriggerData(defaultTrigger: defaultTrigger, active: active)
     ))
   }
@@ -1676,7 +1676,7 @@ class APIRouter {
   private func handleCliStatus(server: APIServer) -> APIServer.HTTPResponse {
     let snippetCount = SnippetIndexManager.shared.entries.count
     let status: [String: Any] = [
-      "success": true,
+      "ok": true,
       "data": [
         "app": "fSnippetCli",
         "status": "running",
@@ -1707,7 +1707,7 @@ class APIRouter {
     ]
     if let min = minPaidAppVersion { data["minPaidAppVersion"] = min }
     let response: [String: Any] = [
-      "success": true,
+      "ok": true,
       "data": data
     ]
     if let data = try? JSONSerialization.data(withJSONObject: response),
@@ -1856,7 +1856,7 @@ class APIRouter {
       NSApplication.shared.terminate(nil)
     }
     let response: [String: Any] = [
-      "success": true,
+      "ok": true,
       "data": ["message": "fSnippetCli가 1초 후 종료됩니다"]
     ]
     if let data = try? JSONSerialization.data(withJSONObject: response),
@@ -1911,7 +1911,7 @@ class APIRouter {
       errors: errors.isEmpty ? nil : errors,
       durationMs: duration
     )
-    return jsonResponse(APIReloadResponse(success: errors.isEmpty, data: data))
+    return jsonResponse(APIReloadResponse(ok: errors.isEmpty, data: data))
   }
 
   // MARK: - Alfred Import
@@ -1947,7 +1947,7 @@ class APIRouter {
     switch result {
     case .success(let stats):
       let response: [String: Any] = [
-        "success": true,
+        "ok": true,
         "data": [
           "total": stats.total,
           "collections": stats.collections,
@@ -2000,7 +2000,7 @@ class APIRouter {
       SnippetFileManager.shared.loadAllSnippets(reason: "API/createFolder", force: true)
 
       let data = APIFolderMutationData(name: name, message: "폴더 생성 완료")
-      return jsonResponse(APIFolderMutationResponse(success: true, data: data), statusCode: 201)
+      return jsonResponse(APIFolderMutationResponse(ok: true, data: data), statusCode: 201)
     } catch {
       logE("🌐 ❌ 폴더 생성 실패: \(error)")
       return errorResponse(code: "CREATE_FAILED", message: "폴더 생성 실패: \(error.localizedDescription)", statusCode: 500)
@@ -2045,7 +2045,7 @@ class APIRouter {
       SnippetFileManager.shared.loadAllSnippets(reason: "API/deleteFolder", force: true)
 
       let data = APIFolderMutationData(name: trimmedName, message: "폴더 삭제 완료")
-      return jsonResponse(APIFolderMutationResponse(success: true, data: data))
+      return jsonResponse(APIFolderMutationResponse(ok: true, data: data))
     } catch {
       logE("🌐 ❌ 폴더 삭제 실패: \(error)")
       return errorResponse(code: "DELETE_FAILED", message: "폴더 삭제 실패: \(error.localizedDescription)", statusCode: 500)
@@ -2112,7 +2112,7 @@ class APIRouter {
       SnippetIndexManager.shared.loadSnippets(basePath: settings.basePath)
 
       let data = APISnippetMutationData(id: snippetId, message: "스니펫 생성 완료")
-      return jsonResponse(APISnippetMutationResponse(success: true, data: data), statusCode: 201)
+      return jsonResponse(APISnippetMutationResponse(ok: true, data: data), statusCode: 201)
     } catch {
       logE("🌐 ❌ 스니펫 생성 실패: \(error)")
       return errorResponse(code: "CREATE_FAILED", message: "스니펫 생성 실패: \(error.localizedDescription)", statusCode: 500)
@@ -2155,7 +2155,7 @@ class APIRouter {
       SnippetIndexManager.shared.loadSnippets(basePath: settings.basePath)
 
       let data = APISnippetMutationData(id: trimmedId, message: "스니펫 삭제 완료")
-      return jsonResponse(APISnippetMutationResponse(success: true, data: data))
+      return jsonResponse(APISnippetMutationResponse(ok: true, data: data))
     } catch {
       logE("🌐 ❌ 스니펫 삭제 실패: \(error)")
       return errorResponse(code: "DELETE_FAILED", message: "스니펫 삭제 실패: \(error.localizedDescription)", statusCode: 500)
