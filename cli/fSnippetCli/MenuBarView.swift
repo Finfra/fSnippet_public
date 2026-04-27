@@ -89,7 +89,7 @@ struct MenuBarView: View {
                 }
 
             Button("Restart Daemon") {
-                showRestartDaemonStub()
+                restartDaemon()
             }
         }
 
@@ -188,12 +188,46 @@ struct MenuBarView: View {
         return "\(sec)s"
     }
 
-    private func showRestartDaemonStub() {
-        // Phase 3.4 — Out of Scope §1: backend implementation deferred to follow-up issue
+    private func restartDaemon() {
+        // Issue83 — invoke `brew services restart fsnippet-cli` asynchronously.
+        // The current process is the daemon itself; brew will SIGTERM us shortly after launch,
+        // so we cannot observe completion here. Surface only pre-launch failures.
+        DispatchQueue.global(qos: .userInitiated).async {
+            let candidates = [
+                "/opt/homebrew/bin/brew",  // Apple Silicon
+                "/usr/local/bin/brew",     // Intel
+            ]
+            let brewPath = candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
+            guard let path = brewPath else {
+                DispatchQueue.main.async { Self.showRestartFailure(reason: "brew not found in standard locations") }
+                return
+            }
+
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: path)
+            process.arguments = ["services", "restart", "fsnippet-cli"]
+
+            let stderr = Pipe()
+            process.standardError = stderr
+            process.standardOutput = Pipe()
+
+            do {
+                try process.run()
+                NSLog("[MenuBar] Restart Daemon dispatched: \(path) services restart fsnippet-cli")
+                // brew restart kills this process; no further work needed.
+            } catch {
+                let data = stderr.fileHandleForReading.availableData
+                let detail = String(data: data, encoding: .utf8) ?? error.localizedDescription
+                DispatchQueue.main.async { Self.showRestartFailure(reason: detail) }
+            }
+        }
+    }
+
+    private static func showRestartFailure(reason: String) {
         let alert = NSAlert()
-        alert.messageText = "Restart Daemon"
-        alert.informativeText = "Pending implementation. Run `brew services restart fsnippet-cli` manually for now."
-        alert.alertStyle = .informational
+        alert.messageText = "Restart Daemon Failed"
+        alert.informativeText = reason
+        alert.alertStyle = .warning
         alert.runModal()
     }
 
