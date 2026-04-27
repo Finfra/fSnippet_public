@@ -22,17 +22,6 @@ date: 2026-04-07
 
 # 📙 일반
 
-## Issue79: `RestAPI_v2.md` 설계서에 shutdown·PaidApp Lifecycle 섹션 보강 (등록: 2026-04-26)
-* 목적: 설계 SSOT 문서 [cli/_doc_design/api/RestAPI_v2.md](cli/_doc_design/api/RestAPI_v2.md) 가 `openapi_v2.yaml` 및 코드보다 뒤처져 있음. 신규 채널이 설계서에 흔적 없는 상태
-* 상세:
-    - C1: "Data Endpoints (v1 일원화)" 표(L293-313)에 `POST /shutdown` 누락. yaml L1677-1698 정의 + 코드 라우트 존재
-    - C2: PaidApp Lifecycle 섹션 전체 누락. yaml L908-996 (`/paidapp/register`, `/unregister`, `/status`) 정의 + [APIRouter.swift:1706-1808](cli/fSnippetCli/Managers/APIRouter.swift#L1706) 구현. Issue52·54 의 핵심 채널인데 설계서에 없음
-* 구현 명세:
-    - "주요 추가 영역" 표에 PaidApp Lifecycle 행 추가
-    - 신규 H2 섹션 "PaidApp 라이프사이클" 추가 — 3-단계 발신자 검증, 사용 예제, sessionId 흐름
-    - "Data Endpoints" 표에 `/shutdown` 행 추가 (delayMs/reason 포함)
-    - 사용 예제 #N에 paidApp 등록·종료 시퀀스 추가
-
 # 📗 선택
 
 ## Issue80: v2 응답 모델 `success` → `ok` 필드 표준화 검토 (등록: 2026-04-26)
@@ -57,6 +46,19 @@ date: 2026-04-07
     - 같은 문서 내 다른 v1 언급 추가 검색하여 일괄 정정
 
 # ✅ 완료
+
+## Issue79: `RestAPI_v2.md` 설계서에 shutdown·PaidApp Lifecycle 섹션 보강 (등록: 2026-04-26, 종료: 2026-04-27, commit: c36f672) ✅
+* 목적: 설계 SSOT 문서 `cli/_doc_design/api/RestAPI_v2.md`가 `openapi_v2.yaml` 및 코드보다 뒤처져 있던 부분을 동기화
+* 커밋: c36f672 (`cli/_doc_design/`는 `.gitignore` 처리되어 git 미추적 — Issue.md 커밋 해시로 기록)
+* 구현 명세:
+    - **변경 파일**: `cli/_doc_design/api/RestAPI_v2.md`
+    - **L11 v1 표기 정합화**: "유지(Backward Compatible)" → "**deprecated** — 모든 요청 `HTTP 410 Gone` 반환" (Issue77 정책 정합)
+    - **주요 추가 영역 표**: `PaidApp Lifecycle` + `CLI Shutdown` 2개 행 추가
+    - **Data Endpoints 표**: `POST /shutdown` 행 추가 (delayMs/reason 포함)
+    - **사용 예제 #13** 신설: paidApp register/status/unregister 3단계 cURL 시퀀스 + 응답 예 + 보안 검증·에러 코드 안내
+    - **사용 예제 #14** 신설: cliApp 동반 종료 `/shutdown` cURL — `reason`/`delayMs` 동작 명시
+    - **신규 H2 섹션 "PaidApp Lifecycle"**: 전체 엔드포인트 목록 영역에 신설 — 3개 라우트 표 + 3단계 발신자 검증(kill/bundlePath/Team ID) + sessionId 흐름 + paid_cli_protocol §3 참조
+    - **검증**: `grep -nE "PaidApp|paidapp|/shutdown"` 12개 매치 확인
 
 ## Issue78: v2 미구현 라우트 11종 구현 — General 세부/Advanced API/History clear (등록: 2026-04-26, 종료: 2026-04-27, commit: b52bd69) ✅
 * 목적: `openapi_v2.yaml` SSOT에 정의되어 있으나 [APIRouter.swift](cli/fSnippetCli/Managers/APIRouter.swift) 에 라우트가 없어 호출 시 404가 발생하던 엔드포인트 11종 일괄 구현
