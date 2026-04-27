@@ -11,10 +11,12 @@ import SwiftUI
 struct MenuBarView: View {
     @State private var isPaused: Bool = PreferencesManager.shared.bool(
         forKey: "history.isPaused", defaultValue: false)
-    @State private var launchAtLoginEnabled: Bool = false  // Phase 6: brew services binding
+    @State private var launchAtLoginEnabled: Bool = PreferencesManager.shared.bool(
+        forKey: "start_at_login", defaultValue: false)
     @State private var statusLine: String = "Status: Running · Port 3015"
 
     private let appLaunchTime: Date = Date()
+    private let statusTimer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
 
     var body: some View {
         // ─── About ───
@@ -79,6 +81,12 @@ struct MenuBarView: View {
             Text(statusLine)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .onReceive(statusTimer) { _ in
+                    statusLine = formatStatusLine()
+                }
+                .onAppear {
+                    statusLine = formatStatusLine()
+                }
 
             Button("Restart Daemon") {
                 showRestartDaemonStub()
@@ -156,9 +164,28 @@ struct MenuBarView: View {
     }
 
     private func reloadSnippets() {
-        // SnippetIndexManager rebuild is already wired via existing notification
-        NotificationCenter.default.post(
-            name: NSNotification.Name("fSnippetReloadSnippets"), object: nil)
+        let basePath = PreferencesManager.shared.string(
+            forKey: "snippet_base_path",
+            defaultValue: "~/Documents/finfra/fSnippetData/snippets")
+        SnippetIndexManager.shared.rebuildIndex(basePath: basePath) { count in
+            NSLog("[MenuBar] Snippets reloaded: \(count) entries")
+        }
+    }
+
+    private func formatStatusLine() -> String {
+        let uptime = Date().timeIntervalSince(appLaunchTime)
+        let formatted = formatUptime(uptime)
+        return "Status: Running · Port 3015 · Uptime \(formatted)"
+    }
+
+    private func formatUptime(_ seconds: TimeInterval) -> String {
+        let s = Int(seconds)
+        let h = s / 3600
+        let m = (s % 3600) / 60
+        let sec = s % 60
+        if h > 0 { return "\(h)h \(m)m" }
+        if m > 0 { return "\(m)m \(sec)s" }
+        return "\(sec)s"
     }
 
     private func showRestartDaemonStub() {
@@ -171,8 +198,12 @@ struct MenuBarView: View {
     }
 
     private func handleLaunchAtLoginToggle(_ enabled: Bool) {
-        // Phase 6 stub: brew services enable/disable binding to be implemented next
-        NSLog("[MenuBar] Launch at Login toggled: \(enabled) (Phase 6 binding pending)")
+        // Issue61 reuse — same entry point as REST `PATCH /api/v2/behavior` (APIRouter:1032)
+        PreferencesManager.shared.set(enabled, forKey: "start_at_login")
+        DispatchQueue.global(qos: .background).async {
+            SettingsObservableObject.shared.setLaunchAtLogin(enabled)
+        }
+        NSLog("[MenuBar] Launch at Login toggled: \(enabled) — brew services sync dispatched")
     }
 
     private func openConfigFile() {
