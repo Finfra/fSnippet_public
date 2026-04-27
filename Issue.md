@@ -20,11 +20,7 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-# 📕 중요
-
-# 📙 일반
-
-## Issue82: cliApp 메뉴바 개선 — 그룹화 서브메뉴 + 단축키 토큰 공유 + 시간적 배타성 (등록: 2026-04-27)
+## Issue82: cliApp 메뉴바 개선 — 그룹화 서브메뉴 + 단축키 토큰 공유 + 시간적 배타성 (등록: 2026-04-27, 시작: 2026-04-27)
 * 목적: `_doc_design/menuBar_enhance.md` 설계 SSOT를 cliApp(`MenuBarView.swift`)에 1:1 반영. paidApp과 동일 단축키 토큰을 동일 표기로 노출하여 시간적 배타성에도 사용자 학습 비용 0 달성
 * plan: `_doc_work/plan/menuBar_enhance_plan.md`
 * 상세:
@@ -41,6 +37,10 @@ date: 2026-04-07
         * `{registerSnippet}` 단축키 메뉴화 — 설계서 메뉴 트리에 미노출, 후속 설계 결정 필요
     - **변경 파일** (5종): `cli/fSnippetCli/MenuBarView.swift`, `cli/fSnippetCli/Managers/MenuBarManager.swift`, `cli/fSnippetCli/Managers/ShortcutMgr.swift`, `cli/fSnippetCli/Managers/PaidAppDetector.swift`, `cli/fSnippetCli/Managers/LaunchAtLoginManager.swift` (신규 또는 기존)
     - **검증**: 시각 비교(설계서 트리 1:1) + `verification-loop` green + paidApp 실행/종료 시 메뉴바 숨김/복귀 확인
+
+# 📕 중요
+
+# 📙 일반
 
 # 📗 선택
 
