@@ -8,6 +8,7 @@ date: 2026-04-07
 
 * Issue HWM: 82
 * Save Point :
+      - 2026.04.27: 72f4dfd (Feat(Cli): Issue82 — cliApp 메뉴바 개선 그룹화 + 단축키 토큰 공유 + Launch at Login)
       - 2026.04.26: 48b378d (Fix(Core): Issue75 — CGEventPool 첫 실행 modifier 잔류 줄 전체 삭제 버그 수정)
       - 2026.04.24: bac440b (Fix(Brew): launchAtLogin=false 시 brew services run으로 전환 Issue67)
       - 2026.04.22: 6af95cb (Feat: Implement Launch at Login (Brew services integration) & Project Optimization)
@@ -17,26 +18,11 @@ date: 2026-04-07
 * _doc_design/menuBar_enhance.md 기준 진행(메뉴바)
 
 # 🌱 이슈후보
+* Restart Daemon backend 구현 — `MenuBarView.swift` `showRestartDaemonStub()` NSAlert 스텁을 실제 `brew services restart fsnippet-cli` 호출로 대체. Issue82 Out of Scope §1
+* 메인 레포 paidApp `MenuBarManager.swift` 메뉴 트리 동기화 — `_doc_design/menuBar_enhance.md` paidApp 섹션(L37-60) 1:1 반영. **메인 레포 fSnippet/ 별도 이슈로 등록 필요** (본 _public 레포 범위 밖)
+* `{registerSnippet}` 단축키 메뉴 노출 — 설계서 액션 표 §1에 미명세, 메뉴 트리 노출 위치·라벨 결정 필요. 후속 설계 결정
 
 # 🚧 진행중
-
-## Issue82: cliApp 메뉴바 개선 — 그룹화 서브메뉴 + 단축키 토큰 공유 + 시간적 배타성 (등록: 2026-04-27, 시작: 2026-04-27)
-* 목적: `_doc_design/menuBar_enhance.md` 설계 SSOT를 cliApp(`MenuBarView.swift`)에 1:1 반영. paidApp과 동일 단축키 토큰을 동일 표기로 노출하여 시간적 배타성에도 사용자 학습 비용 0 달성
-* plan: `_doc_work/plan/menuBar_enhance_plan.md`
-* 상세:
-    - **메뉴 트리 재구성** (설계서 L82-105): 평면 7종(`About`/`Launch fSnippet`/`Snippet Popup`/`Show History`/`Settings…`/`☑ Launch at Login`/`Quit`) + 서브메뉴 3종(`📜 Clipboard ▶`/`👻 Daemon ▶`/`⚙️ Configuration ▶`)
-    - **단축키 SSOT 정합** (4종 SwiftUI 바인딩): `_config.yml`의 `snippet_popup_hotkey`/`history.viewer.hotkey`/`history.pause.hotkey`/`settings.hotkey` → `ShortcutMgr.swift` 등록 갱신
-    - **단축키 라벨만 표기** (2종, ⌃⇧⌘W 중복 방지): `Launch fSnippet`·`Daemon ▶ Open Main Window`는 텍스트 라벨만 표시, `keyboardShortcut` 미바인딩 (paidApp 측 핫키와 충돌 방지)
-    - **Launch at Login 토글**: brew services enable/disable fsnippet-cli 연동 (Issue61 자산 재사용)
-    - **시간적 배타성**: `MenuBarExtra(isInserted: !isPaidAppRunning)` 바인딩 + `PaidAppDetector` 폴링(≤2초) + `NSWorkspace.didLaunch/didTerminateApplicationNotification` 이중 안전망
-    - **Daemon ▶ Status 라이브 표기**: `Status: Running · Port 3015 · Uptime …` (`Timer.publish` 5초 간격)
-    - **Configuration ▶**: `Open Config File`/`Open Data Folder`/`Open Log Folder` 통합
-    - **제외 (Out of Scope)**:
-        * `Restart Daemon` backend 구현 — 본 plan은 스텁만 (메뉴 항목 + 후속 안내). 실제 brew restart 로직은 별도 후속 이슈
-        * paidApp 측 `MenuBarManager.swift` 동기화 — 메인 레포(fSnippet/) 별도 이슈로 분리 필요
-        * `{registerSnippet}` 단축키 메뉴화 — 설계서 메뉴 트리에 미노출, 후속 설계 결정 필요
-    - **변경 파일** (5종): `cli/fSnippetCli/MenuBarView.swift`, `cli/fSnippetCli/Managers/MenuBarManager.swift`, `cli/fSnippetCli/Managers/ShortcutMgr.swift`, `cli/fSnippetCli/Managers/PaidAppDetector.swift`, `cli/fSnippetCli/Managers/LaunchAtLoginManager.swift` (신규 또는 기존)
-    - **검증**: 시각 비교(설계서 트리 1:1) + `verification-loop` green + paidApp 실행/종료 시 메뉴바 숨김/복귀 확인
 
 # 📕 중요
 
@@ -45,6 +31,30 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue82: cliApp 메뉴바 개선 — 그룹화 서브메뉴 + 단축키 토큰 공유 + 시간적 배타성 (등록: 2026-04-27, 종료: 2026-04-27, commits: 588e178, 72f4dfd) ✅
+* 목적: `_doc_design/menuBar_enhance.md` 설계 SSOT를 cliApp(`MenuBarView.swift`)에 1:1 반영. paidApp과 동일 단축키 토큰을 동일 표기로 노출하여 시간적 배타성에도 사용자 학습 비용 0 달성
+* plan: `_doc_work/plan/menuBar_enhance_plan.md`
+* 커밋:
+    - **588e178** Phase 2: MenuBarView 그룹화 재구성 + 단축키 토큰 표기 (153 ins / 66 del)
+    - **72f4dfd** Phase 3+6: Daemon Status 라이브 표기 + Launch at Login 연동 (37 ins / 6 del)
+* 구현 명세:
+    - **변경 파일**: `cli/fSnippetCli/MenuBarView.swift` (단일 파일, 250줄, 184 ins / 66 del)
+    - **메뉴 트리** (설계서 L82-105 1:1):
+        * 평면 7종: `About fSnippetCli` · `Launch fSnippet` (⌃⇧⌘W 라벨) · `Snippet Popup` (⌃⇧Space) · `Show History` (⌘;) · `Settings…` (⌃⇧⌘;) · `Launch at Login` 토글 · `Quit` (⌘Q)
+        * 서브메뉴 3종: `📜 Clipboard ▶` (Pause/Resume ⌃⌥⌘P + Clear) · `👻 Daemon ▶` (Reload + Open Main Window ⌃⇧⌘W + Status + Restart 스텁) · `⚙️ Configuration ▶` (Config File + Data Folder + Log Folder)
+    - **단축키 SSOT 검증** (Phase 1 — 변경 없음, 이미 정합): [`ShortcutMgr.swift:347-405`](cli/fSnippetCli/Managers/ShortcutMgr.swift#L347-L405) `registerAppGlobalShortcuts()`가 4종(`history.viewer.hotkey`/`history.pause.hotkey`/`settings.hotkey`/`snippet.popup.hotkey`) 단일 진입점 등록. `_config.yml`의 `snippet_popup_hotkey: ⌃⇧Space`가 SSOT, `PreferencesManager.swift:504`의 `⌘Space`는 fallback (충돌 없음)
+    - **⌃⇧⌘W 중복 처리**: `Launch fSnippet`·`Daemon ▶ Open Main Window` 둘 다 라벨만 표기. `shortcutRow(label:shortcut:)` 헬퍼로 SwiftUI `keyboardShortcut` 미바인딩 (paidApp 측 핫키와 충돌 방지)
+    - **Daemon Status 라이브 표기**: `Timer.publish(every: 5)` 자동연결 + `appLaunchTime`으로 Uptime 계산. 형식: `Status: Running · Port 3015 · Uptime Xh Ym`
+    - **Reload Snippets**: `SnippetIndexManager.shared.rebuildIndex(basePath:completion:)` 직접 호출 (notification 우회)
+    - **Launch at Login 토글**: 초기값을 `PreferencesManager.shared.bool("start_at_login")`에서 읽고, `onChange`에서 `SettingsObservableObject.shared.setLaunchAtLogin(enabled)` 호출. Issue61에서 도입된 brew services 동기화 진입점 재사용 ([APIRouter.swift:1032](cli/fSnippetCli/Managers/APIRouter.swift#L1032)와 동일)
+    - **시간적 배타성**: 기존 [`fSnippetCliApp.swift:37-46`](cli/fSnippetCli/fSnippetCliApp.swift#L37-L46) `MenuBarExtra(isInserted: !isPaidAppRunning)` 바인딩 그대로 활용. 변경 없음
+    - **Restart Daemon**: NSAlert 스텁 ("Pending implementation. Run `brew services restart fsnippet-cli` manually for now.") — 후속 이슈 후보로 분리
+    - **검증**: Debug + Release 모두 BUILD SUCCEEDED. SwiftUI MenuBarExtra 트리 설계서 L82-105와 1:1 일치
+* 후속 이슈 후보:
+    - 🌱 `Restart Daemon` backend 구현 (NSAlert 스텁 → 실제 brew restart 호출)
+    - 🌱 메인 레포 paidApp `MenuBarManager.swift` 동기화 (별도 메인 레포 이슈)
+    - 🌱 `{registerSnippet}` 단축키 메뉴 노출 (설계 결정)
 
 ## Issue81: `cli/_doc_design/paidApp_version.md` v1 표기 정정 (등록: 2026-04-26, 종료: 2026-04-27, commit: 9f60322) ✅
 * 목적: 설계 문서가 "REST API: `localhost:3015/api/v1`, `/api/v2` 제공"으로 기술되어 v1 obsolete(410 Gone) 사실과 충돌
