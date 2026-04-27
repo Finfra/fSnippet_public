@@ -8,6 +8,7 @@ date: 2026-04-07
 
 * Issue HWM: 84
 * Save Point :
+      - 2026.04.27: 0cacd11 (Feat(Cli): Issue84 — registerSnippet 단축키 메뉴 노출 + 등록 로직)
       - 2026.04.27: 7956918 (Feat(Cli): Issue83 — Restart Daemon backend brew services restart)
       - 2026.04.27: 72f4dfd (Feat(Cli): Issue82 — cliApp 메뉴바 개선 그룹화 + 단축키 토큰 공유 + Launch at Login)
       - 2026.04.26: 48b378d (Fix(Core): Issue75 — CGEventPool 첫 실행 modifier 잔류 줄 전체 삭제 버그 수정)
@@ -22,18 +23,6 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue84: `{registerSnippet}` 단축키 메뉴 노출 — 메뉴 트리 노출 위치·라벨 결정 (등록: 2026-04-27)
-* 목적: `_doc_design/menuBar_enhance.md` 액션 표 §1에 `{registerSnippet}` 단축키가 미명세 상태. 메뉴 트리 노출 위치·라벨을 결정하고 cliApp `MenuBarView.swift`에 반영
-* plan: `_doc_work/plan/menuBar_register-snippet_plan.md`
-* 상세:
-    - 단축키 이름: `register.snippet.hotkey` (또는 `snippet.register.hotkey` — `_config.yml` 키 결정 필요)
-    - 노출 위치 후보:
-        * (a) 평면 항목 (Snippet Popup 아래)
-        * (b) 서브메뉴 — 신설 `📦 Snippet ▶` 또는 기존 `Clipboard ▶` 확장
-    - 단축키 SSOT: `ShortcutMgr.swift` `registerAppGlobalShortcuts()` 항목 추가 필요
-    - 메인 레포 paidApp 측 동일 단축키 토큰 표기 정합 필요 (Issue82 동일 원칙)
-* 의존성: 후속 이슈 후보 #2 (메인 레포 paidApp 동기화)와 토큰 SSOT 공유 필요
-
 # 📕 중요
 
 # 📙 일반
@@ -41,6 +30,27 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue84: `{registerSnippet}` 단축키 메뉴 노출 + 등록 로직 (등록: 2026-04-27, 종료: 2026-04-27, commit: 0cacd11) ✅
+* 목적: `_doc_design/menuBar_enhance.md` 액션 표에 `{registerSnippet}` 신설하고, cliApp 메뉴 트리·단축키 등록 로직·dispatcher 동작을 일관 반영. 백엔드(클립보드 → 새 스니펫 파일 생성)는 후속 이슈로 분리
+* plan: `_doc_work/plan/menuBar_register-snippet_plan.md` (gitignored)
+* 커밋: 0cacd11
+* 구현 명세 (5단계):
+    - **Phase 1 — 설계서**: `_public/_doc_design/menuBar_enhance.md` (gitignored)
+        * 액션 토큰 표에 `{registerSnippet} — Register Snippet from Clipboard | (unset)` 행 추가 (paidApp ✅ / cliApp ✅ 스텁)
+        * paidApp 메뉴 트리 `📜 Clipboard ▶`에 `Register Snippet` 항목 추가 (Pause/Resume과 Clear Clipboard History 사이)
+        * cliApp 메뉴 트리 동일 위치에 추가
+    - **Phase 2 — `ShortcutMgr.swift`** `registerAppGlobalShortcuts()` (L407 부근): 5번째 등록 추가
+        * `history.registerSnippet.hotkey` 키를 `PreferencesManager`에서 읽어 비어있지 않을 때만 `register(ShortcutItem(...))` 호출 — 사용자 설정 시에만 활성화
+    - **Phase 3 — dispatcher case** (L598-603): `Future Implementation` 주석 → `ToastManager.shared.showToast(message: "Register Snippet — pending implementation", iconName: "hammer")` 토스트로 교체. 사용자에게 단축키 인식 확인 신호 제공
+    - **Phase 4 — `MenuBarView.swift`** (L55-80): `📜 Clipboard ▶` 서브메뉴에 `Button { registerSnippetAction() } label: { shortcutRow(label: "Register Snippet", shortcut: registerSnippetShortcutLabel()) }` 추가
+        * `registerSnippetAction()`: dispatcher와 동일 토스트 (UI/단축키 동작 일관성)
+        * `registerSnippetShortcutLabel()`: `_config.yml`의 `history.registerSnippet.hotkey` 값을 동적 표시 (미설정 시 빈 문자열)
+    - **Phase 5 — 검증**: `xcodebuild -scheme fSnippetCli -configuration Release` BUILD SUCCEEDED
+* 후속 이슈 후보:
+    - 🌱 Register Snippet 백엔드 구현 — 클립보드 내용을 새 스니펫 파일로 저장 (UI 입력 폼·RuleManager 갱신·파일 감시 통합)
+    - 🌱 메인 레포 paidApp `MenuBarManager.swift` 동기화 (별도 메인 레포 이슈)
+    - 🌱 paidApp Settings UI에 `register.snippet.hotkey` 단축키 노출 (현재 `_config.yml` 직접 편집만 가능)
 
 ## Issue83: Restart Daemon backend 구현 — `brew services restart fsnippet-cli` 호출 (등록: 2026-04-27, 종료: 2026-04-27, commit: 7956918) ✅
 * 목적: `MenuBarView.swift` `showRestartDaemonStub()` NSAlert 스텁을 실제 `brew services restart fsnippet-cli` 호출로 대체. Issue82 Out of Scope §1 후속
