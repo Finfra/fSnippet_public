@@ -403,6 +403,20 @@ class ShortcutMgr: ObservableObject {
                     source: "Settings"
                 ))
         }
+
+        // 5. Register Snippet Hotkey (Issue84)
+        // Default unset; user-configured only. Backend implementation deferred (Issue84 Out of Scope §1).
+        let registerKey = prefs.string(forKey: "history.registerSnippet.hotkey")
+        if !registerKey.isEmpty {
+            register(
+                ShortcutItem(
+                    id: "history.registerSnippet.hotkey",
+                    keySpec: registerKey,
+                    type: .appShortcut,
+                    description: "Register Snippet from Clipboard",
+                    source: "Preferences"
+                ))
+        }
     }
 
     /// 트리거 키 등록 (TriggerKeyManager)
@@ -596,8 +610,11 @@ class ShortcutMgr: ObservableObject {
                 NotificationCenter.default.post(
                     name: NSNotification.Name("fSnippetShowPopup"), object: nil)
             case "history.registerSnippet.hotkey":
-                // Future Implementation
-                break
+                // Issue84 — UI wiring complete; backend deferred (see Issue.md Out of Scope §1).
+                // Surface a toast so the user confirms the hotkey was recognised.
+                ToastManager.shared.showToast(
+                    message: "Register Snippet — pending implementation",
+                    iconName: "hammer")
             default:
                 logW("🚀 [ShortcutMgr] Unknown Action ID: \(id)")
             }

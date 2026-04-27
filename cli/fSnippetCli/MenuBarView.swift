@@ -61,6 +61,15 @@ struct MenuBarView: View {
                     shortcut: "⌃⌥⌘P")
             }
 
+            // Issue84 — Register Snippet (UI wired; backend deferred)
+            Button {
+                registerSnippetAction()
+            } label: {
+                shortcutRow(
+                    label: "Register Snippet",
+                    shortcut: registerSnippetShortcutLabel())
+            }
+
             Button("Clear Clipboard History") {
                 clearClipboardHistory()
             }
@@ -161,6 +170,19 @@ struct MenuBarView: View {
 
     private func clearClipboardHistory() {
         ClipboardDB.shared.clearAll()
+    }
+
+    // Issue84 — UI wiring only; backend deferred (Out of Scope §1).
+    // Hotkey path goes through ShortcutMgr dispatcher; menu click mirrors that toast.
+    private func registerSnippetAction() {
+        ToastManager.shared.showToast(
+            message: "Register Snippet — pending implementation",
+            iconName: "hammer")
+    }
+
+    private func registerSnippetShortcutLabel() -> String {
+        let key = PreferencesManager.shared.string(forKey: "history.registerSnippet.hotkey")
+        return key
     }
 
     private func reloadSnippets() {
