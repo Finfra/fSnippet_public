@@ -112,6 +112,21 @@ class ClipboardDB {
     func getDBPath() -> String? { dbURL?.path }
     func getBlobsDir() -> String? { blobsDirURL?.path }
 
+    /// 전체 항목 개수 조회 (히스토리 clear 응답에서 removedEntries 산출 등에 사용)
+    func totalCount() -> Int {
+        return dbQueue.sync {
+            guard let db = db else { return 0 }
+            do {
+                guard let stmt = try db.prepare(sql: "SELECT COUNT(*) FROM items;") else { return 0 }
+                defer { sqlite3_finalize(stmt) }
+                guard sqlite3_step(stmt) == SQLITE_ROW else { return 0 }
+                return Int(sqlite3_column_int64(stmt, 0))
+            } catch {
+                return 0
+            }
+        }
+    }
+
     /// 항목 삽입
     func insertItem(_ item: ClipboardItem) {
         dbQueue.sync {

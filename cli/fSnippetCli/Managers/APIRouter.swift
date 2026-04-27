@@ -62,6 +62,46 @@ class APIRouter {
       return handleV2GetGeneral()
     case ("PATCH", "/api/v2/settings/general"):
       return handleV2PatchGeneral(request: request)
+    // Issue78 Phase 1 — General sub-endpoints (read-only + simple PUT)
+    case ("GET", "/api/v2/settings/general/language"):
+      return handleV2GetGeneralLanguage()
+    case ("PUT", "/api/v2/settings/general/language"):
+      return handleV2PutGeneralLanguage(request: request)
+    case ("GET", "/api/v2/settings/general/appearance"):
+      return handleV2GetGeneralAppearance()
+    case ("PUT", "/api/v2/settings/general/appearance"):
+      return handleV2PutGeneralAppearance(request: request)
+    case ("GET", "/api/v2/settings/general/trigger-key"):
+      return handleV2GetGeneralTriggerKey()
+    case ("PUT", "/api/v2/settings/general/trigger-key"):
+      return handleV2PutGeneralTriggerKey(request: request)
+    case ("GET", "/api/v2/settings/general/trigger-bias"):
+      return handleV2GetGeneralTriggerBias()
+    case ("PUT", "/api/v2/settings/general/trigger-bias"):
+      return handleV2PutGeneralTriggerBias(request: request)
+    case ("GET", "/api/v2/settings/general/quick-select-modifier"):
+      return handleV2GetGeneralQuickSelectModifier()
+    case ("PUT", "/api/v2/settings/general/quick-select-modifier"):
+      return handleV2PutGeneralQuickSelectModifier(request: request)
+    case ("GET", "/api/v2/settings/general/permissions"):
+      return handleV2GetGeneralPermissions()
+    // Issue78 Phase 2 — paths GET/PATCH
+    case ("GET", "/api/v2/settings/general/paths"):
+      return handleV2GetGeneralPaths()
+    case ("PATCH", "/api/v2/settings/general/paths"):
+      return handleV2PatchGeneralPaths(request: request)
+    // Issue78 Phase 3 — actions
+    case ("POST", "/api/v2/settings/general/snippet-folder/rebuild-index"):
+      return handleV2PostSnippetFolderRebuildIndex(request: request)
+    case ("POST", "/api/v2/settings/general/snippet-folder/open"):
+      return handleV2PostSnippetFolderOpen(request: request)
+    case ("POST", "/api/v2/settings/history/clear"):
+      return handleV2PostHistoryClear(request: request)
+    // Issue78 Phase 4 — Advanced API GET/PATCH
+    case ("GET", "/api/v2/settings/advanced/api"):
+      return handleV2GetAdvancedApi()
+    case ("PATCH", "/api/v2/settings/advanced/api"):
+      return handleV2PatchAdvancedApi(request: request)
     case ("GET", "/api/v2/settings/popup"):
       return handleV2GetPopup()
     case ("PATCH", "/api/v2/settings/popup"):
@@ -2161,6 +2201,269 @@ class APIRouter {
     }
 
     return jsonResponse(buildV2General())
+  }
+
+  // MARK: - v2 General sub-endpoints (Issue78 Phase 1)
+  // openapi_v2.yaml L163-347 — single-field GET/PUT for fine-grained Settings UI/REST control.
+
+  private struct V2LanguageResponse: Encodable {
+    let language: String
+    let requiresRestart: Bool
+  }
+  private struct V2AppearanceResponse: Encodable { let appearance: String }
+  private struct V2TriggerBiasResponse: Encodable { let triggerBias: Int }
+  private struct V2ModifierResponse: Encodable { let modifier: String }
+  private struct V2PermissionsResponse: Encodable {
+    let accessibility: Bool
+    let automation: Bool
+    let overall: String
+  }
+
+  private func handleV2GetGeneralLanguage() -> APIServer.HTTPResponse {
+    let lang: String = PreferencesManager.shared.get("language") ?? "system"
+    return jsonResponse(V2LanguageResponse(language: lang, requiresRestart: true))
+  }
+
+  private func handleV2PutGeneralLanguage(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    struct Body: Decodable { let language: String }
+    let (maybe, err) = decodeV2Body(request, as: Body.self)
+    if let err = err { return err }
+    guard let body = maybe else { return v2Error(code: "internal", message: "decode failed", statusCode: 500) }
+    let allowed = ["system", "en", "ko", "ja", "zh-Hans", "zh-Hant"]
+    guard allowed.contains(body.language) else {
+      return v2Error(code: "invalid_argument", message: "language must be one of \(allowed)", statusCode: 400)
+    }
+    PreferencesManager.shared.batchUpdate { config in config["language"] = body.language }
+    return jsonResponse(V2LanguageResponse(language: body.language, requiresRestart: true))
+  }
+
+  private func handleV2GetGeneralAppearance() -> APIServer.HTTPResponse {
+    let appearance: String = PreferencesManager.shared.get("appearance") ?? "system"
+    return jsonResponse(V2AppearanceResponse(appearance: appearance))
+  }
+
+  private func handleV2PutGeneralAppearance(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    struct Body: Decodable { let appearance: String }
+    let (maybe, err) = decodeV2Body(request, as: Body.self)
+    if let err = err { return err }
+    guard let body = maybe else { return v2Error(code: "internal", message: "decode failed", statusCode: 500) }
+    let allowed = ["system", "light", "dark"]
+    guard allowed.contains(body.appearance) else {
+      return v2Error(code: "invalid_argument", message: "appearance must be one of \(allowed)", statusCode: 400)
+    }
+    PreferencesManager.shared.batchUpdate { config in config["appearance"] = body.appearance }
+    return jsonResponse(V2AppearanceResponse(appearance: body.appearance))
+  }
+
+  private func handleV2GetGeneralTriggerKey() -> APIServer.HTTPResponse {
+    let token: String = PreferencesManager.shared.get("snippet_trigger_key") ?? "{right_command}"
+    return jsonResponse(APIV2TriggerKey(keyCode: nil, display: token, token: token))
+  }
+
+  private func handleV2PutGeneralTriggerKey(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    let (maybe, err) = decodeV2Body(request, as: APIV2TriggerKey.self)
+    if let err = err { return err }
+    guard let body = maybe else { return v2Error(code: "internal", message: "decode failed", statusCode: 500) }
+    guard !body.token.isEmpty else {
+      return v2Error(code: "invalid_argument", message: "token must not be empty", statusCode: 400)
+    }
+    PreferencesManager.shared.batchUpdate { config in config["snippet_trigger_key"] = body.token }
+    return jsonResponse(APIV2TriggerKey(keyCode: body.keyCode, display: body.display, token: body.token))
+  }
+
+  private func handleV2GetGeneralTriggerBias() -> APIServer.HTTPResponse {
+    let bias: Int = PreferencesManager.shared.get("snippet_trigger_bias") ?? 0
+    return jsonResponse(V2TriggerBiasResponse(triggerBias: bias))
+  }
+
+  private func handleV2PutGeneralTriggerBias(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    struct Body: Decodable { let triggerBias: Int }
+    let (maybe, err) = decodeV2Body(request, as: Body.self)
+    if let err = err { return err }
+    guard let body = maybe else { return v2Error(code: "internal", message: "decode failed", statusCode: 500) }
+    guard (-10...10).contains(body.triggerBias) else {
+      return v2Error(code: "invalid_argument", message: "triggerBias must be between -10 and 10", statusCode: 400)
+    }
+    PreferencesManager.shared.batchUpdate { config in config["snippet_trigger_bias"] = body.triggerBias }
+    return jsonResponse(V2TriggerBiasResponse(triggerBias: body.triggerBias))
+  }
+
+  private func handleV2GetGeneralQuickSelectModifier() -> APIServer.HTTPResponse {
+    let modifier: String = PreferencesManager.shared.get("quick_select_modifier") ?? "command"
+    return jsonResponse(V2ModifierResponse(modifier: modifier))
+  }
+
+  private func handleV2PutGeneralQuickSelectModifier(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    struct Body: Decodable { let modifier: String }
+    let (maybe, err) = decodeV2Body(request, as: Body.self)
+    if let err = err { return err }
+    guard let body = maybe else { return v2Error(code: "internal", message: "decode failed", statusCode: 500) }
+    let allowed = ["command", "option", "control", "shift"]
+    guard allowed.contains(body.modifier) else {
+      return v2Error(code: "invalid_argument", message: "modifier must be one of \(allowed)", statusCode: 400)
+    }
+    PreferencesManager.shared.batchUpdate { config in config["quick_select_modifier"] = body.modifier }
+    return jsonResponse(V2ModifierResponse(modifier: body.modifier))
+  }
+
+  private func handleV2GetGeneralPermissions() -> APIServer.HTTPResponse {
+    let accessibility = AXIsProcessTrusted()
+    let automation = false
+    let overall: String = {
+      if accessibility && automation { return "granted" }
+      if accessibility || automation { return "partial" }
+      return "denied"
+    }()
+    return jsonResponse(V2PermissionsResponse(
+      accessibility: accessibility,
+      automation: automation,
+      overall: overall
+    ))
+  }
+
+  // Phase 2 — paths
+  private struct V2PathsResponse: Encodable {
+    let settingsFolder: String
+    let snippetFolder: String
+  }
+
+  private func currentSettingsFolder() -> String {
+    return PreferencesManager.shared.get("app_root_path")
+      ?? FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent("Documents/finfra/fSnippetData").path
+  }
+
+  private func currentSnippetFolder() -> String {
+    return PreferencesManager.shared.get("snippet_base_path") ?? "./snippets"
+  }
+
+  private func handleV2GetGeneralPaths() -> APIServer.HTTPResponse {
+    return jsonResponse(V2PathsResponse(
+      settingsFolder: currentSettingsFolder(),
+      snippetFolder: currentSnippetFolder()
+    ))
+  }
+
+  private func handleV2PatchGeneralPaths(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    struct Body: Decodable {
+      let settingsFolder: String?
+      let snippetFolder: String?
+    }
+    let (maybe, err) = decodeV2Body(request, as: Body.self)
+    if let err = err { return err }
+    guard let body = maybe else { return v2Error(code: "internal", message: "decode failed", statusCode: 500) }
+    if body.settingsFolder == nil && body.snippetFolder == nil {
+      return v2Error(code: "invalid_argument", message: "At least one of settingsFolder or snippetFolder is required", statusCode: 400)
+    }
+    if let v = body.settingsFolder, v.isEmpty {
+      return v2Error(code: "invalid_argument", message: "settingsFolder must not be empty", statusCode: 400)
+    }
+    if let v = body.snippetFolder, v.isEmpty {
+      return v2Error(code: "invalid_argument", message: "snippetFolder must not be empty", statusCode: 400)
+    }
+    PreferencesManager.shared.batchUpdate { config in
+      if let v = body.settingsFolder { config["app_root_path"] = v }
+      if let v = body.snippetFolder { config["snippet_base_path"] = v }
+    }
+    return jsonResponse(V2PathsResponse(
+      settingsFolder: currentSettingsFolder(),
+      snippetFolder: currentSnippetFolder()
+    ))
+  }
+
+  // Phase 3 — actions
+  private struct V2HistoryClearResponse: Encodable { let removedEntries: Int }
+
+  private func handleV2PostSnippetFolderRebuildIndex(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    let basePath = currentSnippetFolder()
+    DispatchQueue.global(qos: .userInitiated).async {
+      SnippetIndexManager.shared.rebuildIndex(basePath: basePath) { _ in }
+    }
+    let body = "{\"ok\":true,\"data\":{\"action\":\"rebuild-index\",\"status\":\"accepted\"}}"
+    return APIServer.HTTPResponse(statusCode: 202, body: body)
+  }
+
+  private func handleV2PostSnippetFolderOpen(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    let raw = currentSnippetFolder()
+    let expanded = (raw as NSString).expandingTildeInPath
+    let url = URL(fileURLWithPath: expanded)
+    DispatchQueue.main.async {
+      NSWorkspace.shared.open(url)
+    }
+    let body = "{\"ok\":true,\"data\":{\"action\":\"open\",\"status\":\"done\"}}"
+    return APIServer.HTTPResponse(statusCode: 200, body: body)
+  }
+
+  private func handleV2PostHistoryClear(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    let removed = ClipboardDB.shared.totalCount()
+    ClipboardDB.shared.clearAll()
+    return jsonResponse(V2HistoryClearResponse(removedEntries: removed))
+  }
+
+  // Phase 4 — Advanced API (자기참조 안전 정책)
+  // PATCH는 prefs만 저장하며 서버 재바인딩은 수행하지 않음.
+  // enabled/port 변경은 다음 cliApp 재시작(brew services restart fsnippet-cli) 시 적용.
+  // allowExternal/allowedCidr 도 동일 정책으로 일관성 유지.
+  private struct V2AdvancedApiResponse: Encodable {
+    let enabled: Bool
+    let port: Int
+    let allowExternal: Bool
+    let allowedCidr: String
+    let running: Bool
+  }
+
+  private func buildV2AdvancedApi() -> V2AdvancedApiResponse {
+    let prefs = PreferencesManager.shared
+    let enabled: Bool = prefs.get("api_enabled") ?? false
+    let port: Int = prefs.get("api_port") ?? 3015
+    let allowExternal: Bool = prefs.get("api_allow_external") ?? false
+    let allowedCidr = prefs.string(forKey: "api_allowed_cidr", defaultValue: "127.0.0.1/32")
+    return V2AdvancedApiResponse(
+      enabled: enabled,
+      port: port,
+      allowExternal: allowExternal,
+      allowedCidr: allowExternal ? allowedCidr : "127.0.0.1/32",
+      running: APIServer.shared.isRunning
+    )
+  }
+
+  private func handleV2GetAdvancedApi() -> APIServer.HTTPResponse {
+    return jsonResponse(buildV2AdvancedApi())
+  }
+
+  private func handleV2PatchAdvancedApi(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    struct Body: Decodable {
+      let enabled: Bool?
+      let port: Int?
+      let allowExternal: Bool?
+      let allowedCidr: String?
+    }
+    let (maybe, err) = decodeV2Body(request, as: Body.self)
+    if let err = err { return err }
+    guard let body = maybe else { return v2Error(code: "internal", message: "decode failed", statusCode: 500) }
+    if let p = body.port, !(1024...65535).contains(p) {
+      return v2Error(code: "invalid_argument", message: "port must be between 1024 and 65535", statusCode: 400)
+    }
+    if let cidr = body.allowedCidr, cidr.isEmpty {
+      return v2Error(code: "invalid_argument", message: "allowedCidr must not be empty", statusCode: 400)
+    }
+    PreferencesManager.shared.batchUpdate { config in
+      if let v = body.enabled { config["api_enabled"] = v }
+      if let v = body.port { config["api_port"] = v }
+      if let v = body.allowExternal { config["api_allow_external"] = v }
+      if let v = body.allowedCidr { config["api_allowed_cidr"] = v }
+    }
+    return jsonResponse(buildV2AdvancedApi())
   }
 
   // MARK: - v2 History GET/PATCH
