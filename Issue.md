@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 84
+* Issue HWM: 85
 * Save Point :
       - 2026.04.27: 0cacd11 (Feat(Cli): Issue84 — registerSnippet 단축키 메뉴 노출 + 등록 로직)
       - 2026.04.27: 7956918 (Feat(Cli): Issue83 — Restart Daemon backend brew services restart)
@@ -26,6 +26,14 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
+
+## Issue85: API v2 테스트 진행 (등록: 2026-04-28)
+* 목적: `cli/_tool/apiTest/v2/` 스크립트 전체를 실행하여 v2 엔드포인트 동작 검증 및 결과 리포트 생성
+* 상세:
+    - `/api-test all` 실행 (내부: `apiTestDo.sh v2` 기본)
+    - 정상 스크립트 28개 + 에러 시나리오 7개 검증
+    - 결과를 `cli/_doc_work/report/apiTestReport_{날짜}_{일련번호}.md`로 저장
+    - 실패 항목 원인 분석 및 수정
 
 # 📗 선택
 
