@@ -22,16 +22,6 @@ date: 2026-04-07
 
 # 📙 일반
 
-## Issue90: 시스템 예약 단축키 블랙리스트 (등록: 2026-05-01)
-* 목적: `ShortcutMgr.registerAppGlobalShortcuts()` 에 macOS 표준 단축키(⌘S/C/V/X/A/Z/N/O/P/F/Q/W/T/R) 등록을 거부하고, 시도 시 사용자에게 경고하여 시스템 충돌 회귀(Issue87 류) 재발을 차단
-* 상세:
-    - **블랙리스트 정의**: `ShortcutMgr` 또는 별도 상수에 macOS 표준 modifier+key 조합 셋 정의 (⌘S, ⌘C, ⌘V, ⌘X, ⌘A, ⌘Z, ⌘N, ⌘O, ⌘P, ⌘F, ⌘Q, ⌘W, ⌘T, ⌘R 외 적정 범위)
-    - **등록 검증**: `registerAppGlobalShortcuts()` 진입 시 각 hotkey 토큰을 파싱하여 블랙리스트 매칭 — 매칭 시 `Carbon RegisterEventHotKey` 호출 차단
-    - **사용자 알림**: 차단된 항목은 logW + 사용자 알림(메뉴바 경고 또는 NSAlert) — 어떤 액션이 어떤 시스템 단축키와 충돌했는지 명시
-    - **단위 테스트**: 블랙리스트 셋 검증 + 차단 케이스 + 정상 케이스 unit 테스트
-    - **회귀 보호**: Issue87(VSCode ⌘S 차단)·Issue88(SSOT 위반) 류 재발 방지
-* 선행: Issue87/88 완료됨
-
 ## Issue89: 박제된 잘못된 hotkey 자동 정리 마이그레이션 (등록: 2026-05-01)
 * 목적: 앱 시작 시 사용자 `_config.yml` 의 비활성/구버전/시스템 충돌 hotkey 라인을 자동 정리하여, Issue88 이전 사용자가 박제된 잘못된 단축키(예: ⌘S 등록)로 인해 시스템 동작이 차단되는 문제를 해결
 * 상세:
@@ -56,6 +46,22 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue90: 시스템 예약 단축키 블랙리스트 (등록: 2026-05-01, 종료: 2026-05-01, commit: 1681de8) ✅
+* 목적: `ShortcutMgr.registerAppGlobalShortcuts()` 에 macOS 표준 단축키(⌘S/C/V/X/A/Z/N/O/P/F/Q/W/T/R) 등록을 거부하고, 시도 시 사용자에게 경고하여 시스템 충돌 회귀(Issue87 류) 재발을 차단
+* 상세:
+    - **블랙리스트 정의**: `ShortcutMgr` 또는 별도 상수에 macOS 표준 modifier+key 조합 셋 정의 (⌘S, ⌘C, ⌘V, ⌘X, ⌘A, ⌘Z, ⌘N, ⌘O, ⌘P, ⌘F, ⌘Q, ⌘W, ⌘T, ⌘R 외 적정 범위)
+    - **등록 검증**: `registerAppGlobalShortcuts()` 진입 시 각 hotkey 토큰을 파싱하여 블랙리스트 매칭 — 매칭 시 `Carbon RegisterEventHotKey` 호출 차단
+    - **사용자 알림**: 차단된 항목은 logW + 사용자 알림(메뉴바 경고 또는 NSAlert) — 어떤 액션이 어떤 시스템 단축키와 충돌했는지 명시
+    - **단위 테스트**: 블랙리스트 셋 검증 + 차단 케이스 + 정상 케이스 unit 테스트
+    - **회귀 보호**: Issue87(VSCode ⌘S 차단)·Issue88(SSOT 위반) 류 재발 방지
+* 결과:
+    - `cli/fSnippetCli/Managers/ShortcutBlacklist.swift` 신설 — 15건 (명세 14 + ⌘⇧Z Redo 추가)
+    - `normalize()` 함수: 중괄호 `{}` 제거 + 알파벳 키 대문자화 + `⌃→^` 정규화 — 사용자 토큰 형식(`"{⌘S}"`, `"⌘s"`, `"⌘S"`) 모두 일관 처리
+    - `ShortcutMgr.registerAppGlobalShortcuts()`: 5개 액션(viewer/pause/settings/popup/registerSnippet)에 `tryRegister` 헬퍼 적용 — 예약 시 `logW("🚀 [ShortcutMgr] Issue90 차단: {id} 단축키 '{token}' 는 macOS 표준 예약 ({사유}) — 등록 거부")`
+    - `cli/fSnippetCliTests/ShortcutBlacklistTests.swift` 16개 케이스 — 예약/비예약/normalize/reason 검증
+    - `xcodebuild -scheme fSnippetCli -configuration Release build` → **BUILD SUCCEEDED**
+    - 후속 한계: 사용자 알림은 logW 만 적용 (NSAlert 모달은 추후 별도 이슈) — Issue89 마이그레이션과 결합되면 사실상 사용자 노출 빈도 매우 낮음
 
 ## Issue85: API v2 테스트 진행 (등록: 2026-04-28, 종료: 2026-05-01, commit: N/A — 검증 전용, 코드 변경 없음) ✅
 * 목적: `cli/_tool/apiTest/v2/` 스크립트 전체를 실행하여 v2 엔드포인트 동작 검증 및 결과 리포트 생성
