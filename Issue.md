@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 87
+* Issue HWM: 88
 * Save Point :
       - 2026.04.27: 0cacd11 (Feat(Cli): Issue84 — registerSnippet 단축키 메뉴 노출 + 등록 로직)
       - 2026.04.27: 7956918 (Feat(Cli): Issue83 — Restart Daemon backend brew services restart)
@@ -49,6 +49,23 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue88: 글로벌 단축키 SSOT 정책 강제 — `_config.yml` 외 default 등록 차단 (등록: 2026-05-01, 종료: 2026-05-01, commit: 9d33a23) ✅
+* 목적: 코드에 하드코딩된 hotkey default 8곳이 `PreferencesManager.loadConfigInternal()` L269 `getDefaults().merging(parsed)` 경로로 cachedConfig에 머지되어 사용자 `_config.yml`에 키가 없어도 글로벌 단축키로 등록되는 회귀 차단
+* 정책: **`_config.yml`에 명시한 hotkey만 글로벌 등록, 그 외 절대 금지**
+* 배경: Issue87 종결 후 사용자 _config.yml에 `history.registerSnippet.hotkey: "⌘S"`가 다시 박혀있음 발견 — `saveConfigInternal()`이 옛 default ⌘S를 사용자 파일에 써넣은 2차 효과. registerSnippet뿐 아니라 viewer/pause/settings/popup도 동일 회귀 위험
+* 구현 명세 (3개 파일, 8 default → 빈 문자열):
+    - **PreferencesManager.swift** (`getDefaults()` 4개): `snippet_popup_hotkey` / `history.viewer.hotkey` / `history.pause.hotkey` / `settings.hotkey` — 모두 `""`
+    - **SettingsManager.swift** (`SnippetSettings.default` 3개): `settingsHotkey` / `historyViewerHotkey` / `historyPauseHotkey` — 모두 `PopupKeyShortcut.from(hotkeyString: "")`
+    - **SettingsObservableObject.swift** (`@Published` 3개): 동일 3종 초기값 `""`
+    - **메커니즘**: `ShortcutMgr.registerAppGlobalShortcuts()` L354/367/380/396/410의 `if !key.isEmpty` 조건이 빈 값을 reject → 등록 안 됨 → OS 표준 단축키(⌘S/⌘C/⌘V 등) 보존
+* 검증:
+    - `xcodebuild -scheme fSnippetCli -configuration Release` → BUILD SUCCEEDED
+    - `/run` 재배포 후 `🚀총 등록된 단축키: 11개 "App Shortcuts (4) + Trigger Keys (4) + Buffer Clear Keys (0) + Folder Shortcuts (3)"`
+    - **App Shortcuts 4개 = 사용자 _config.yml의 비-빈 hotkey 4종**(pause/viewer/settings/popup)과 정확 일치. preview(빈 값)·registerSnippet(라인 없음) 모두 등록 안 됨
+* 후속 권장:
+    - 🌱 사용자 _config.yml의 박제된 잘못된 default값(있다면) 일괄 정리 마이그레이션 — 앱 시작 시 비활성 hotkey 라인 자동 제거
+    - 🌱 시스템 예약 단축키 블랙리스트 (Issue87 후속) — 사용자가 _config.yml에 ⌘S/⌘C/⌘V 등을 직접 매핑할 때 경고/거부
 
 ## Issue87: [Bug] VSCode ⌘S 차단 — registerSnippet hotkey default 제거 (등록: 2026-05-01, 종료: 2026-05-01, commit: 825042a) ✅
 * 목적: VSCode에서 `⌘S`(저장) 입력이 fSnippetCli daemon 실행 중에 호스트 앱(VSCode)으로 전달되지 않는 치명적 회귀 해결
