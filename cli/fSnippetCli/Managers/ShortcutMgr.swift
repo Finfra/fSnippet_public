@@ -344,48 +344,64 @@ class ShortcutMgr: ObservableObject {
     // MARK: - Data Source Integration
 
     /// 앱 글로벌 단축키 등록 (PreferencesManager)
+    ///
+    /// Issue90: macOS 시스템 표준 단축키(⌘S/C/V/X/A/Z/N/O/P/F/Q/W/T/R 등)는
+    /// `ShortcutBlacklist.isReserved()` 검사로 등록 거부 + logW 경고
     private func registerAppGlobalShortcuts() {
         clear(type: .appShortcut)
 
         let prefs = PreferencesManager.shared
 
+        /// Issue90: 시스템 예약 단축키 검사 헬퍼 — 예약 시 false 반환 + 경고 로그
+        func tryRegister(id: String, keySpec: String, description: String, source: String) {
+            if ShortcutBlacklist.isReserved(keySpec) {
+                let reason = ShortcutBlacklist.reason(for: keySpec) ?? "System Reserved"
+                logW(
+                    "🚀 [ShortcutMgr] Issue90 차단: \(id) 단축키 '\(keySpec)' 는 macOS 표준 예약 (\(reason)) — 등록 거부"
+                )
+                return
+            }
+            register(
+                ShortcutItem(
+                    id: id,
+                    keySpec: keySpec,
+                    type: .appShortcut,
+                    description: description,
+                    source: source
+                ))
+        }
+
         // 1. History Viewer Hotkey
         let viewerKey = prefs.string(forKey: "history.viewer.hotkey")
         if !viewerKey.isEmpty {
-            register(
-                ShortcutItem(
-                    id: "history.viewer.hotkey",
-                    keySpec: viewerKey,
-                    type: .appShortcut,
-                    description: "History Viewer",
-                    source: "Preferences"
-                ))
+            tryRegister(
+                id: "history.viewer.hotkey",
+                keySpec: viewerKey,
+                description: "History Viewer",
+                source: "Preferences"
+            )
         }
 
         // 2. Pause Hotkey
         let pauseKey = prefs.string(forKey: "history.pause.hotkey")
         if !pauseKey.isEmpty {
-            register(
-                ShortcutItem(
-                    id: "history.pause.hotkey",
-                    keySpec: pauseKey,
-                    type: .appShortcut,
-                    description: "Pause/Resume",
-                    source: "Preferences"
-                ))
+            tryRegister(
+                id: "history.pause.hotkey",
+                keySpec: pauseKey,
+                description: "Pause/Resume",
+                source: "Preferences"
+            )
         }
 
         // 3. Settings Hotkey (Issue727)
         let settingsKey = prefs.string(forKey: "settings.hotkey")
         if !settingsKey.isEmpty {
-            register(
-                ShortcutItem(
-                    id: "settings.hotkey",
-                    keySpec: settingsKey,
-                    type: .appShortcut,
-                    description: "Settings Window",
-                    source: "Preferences"
-                ))
+            tryRegister(
+                id: "settings.hotkey",
+                keySpec: settingsKey,
+                description: "Settings Window",
+                source: "Preferences"
+            )
         }
 
         // 4. Snippet Popup Hotkey (Legacy)
@@ -394,28 +410,24 @@ class ShortcutMgr: ObservableObject {
         let settings = SettingsManager.shared.load()
         let popupKey = settings.popupKeyShortcut
         if !popupKey.toHotkeyString.isEmpty {
-            register(
-                ShortcutItem(
-                    id: "snippet.popup.hotkey",
-                    keySpec: popupKey.toHotkeyString,
-                    type: .appShortcut,
-                    description: "Snippet Popup",
-                    source: "Settings"
-                ))
+            tryRegister(
+                id: "snippet.popup.hotkey",
+                keySpec: popupKey.toHotkeyString,
+                description: "Snippet Popup",
+                source: "Settings"
+            )
         }
 
         // 5. Register Snippet Hotkey (Issue84)
         // Default unset; user-configured only. Backend implementation deferred (Issue84 Out of Scope §1).
         let registerKey = prefs.string(forKey: "history.registerSnippet.hotkey")
         if !registerKey.isEmpty {
-            register(
-                ShortcutItem(
-                    id: "history.registerSnippet.hotkey",
-                    keySpec: registerKey,
-                    type: .appShortcut,
-                    description: "Register Snippet from Clipboard",
-                    source: "Preferences"
-                ))
+            tryRegister(
+                id: "history.registerSnippet.hotkey",
+                keySpec: registerKey,
+                description: "Register Snippet from Clipboard",
+                source: "Preferences"
+            )
         }
     }
 
