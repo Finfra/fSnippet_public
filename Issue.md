@@ -6,28 +6,41 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 88
+* Issue HWM: 90
 * Save Point :
       - 2026.04.27: 0cacd11 (Feat(Cli): Issue84 — registerSnippet 단축키 메뉴 노출 + 등록 로직)
-      - 2026.04.27: 7956918 (Feat(Cli): Issue83 — Restart Daemon backend brew services restart)
-      - 2026.04.27: 72f4dfd (Feat(Cli): Issue82 — cliApp 메뉴바 개선 그룹화 + 단축키 토큰 공유 + Launch at Login)
-      - 2026.04.26: 48b378d (Fix(Core): Issue75 — CGEventPool 첫 실행 modifier 잔류 줄 전체 삭제 버그 수정)
-      - 2026.04.24: bac440b (Fix(Brew): launchAtLogin=false 시 brew services run으로 전환 Issue67)
-      - 2026.04.22: 6af95cb (Feat: Implement Launch at Login (Brew services integration) & Project Optimization)
 
 # 🤔 결정사항
 * _doc_design/paid_cli_protocol.md 기준 진행(paidApp앱과 연동)
 * _doc_design/menuBar_enhance.md 기준 진행(메뉴바)
 
 # 🌱 이슈후보
-* 박제된 잘못된 hotkey 자동 정리 마이그레이션 — 앱 시작 시 사용자 `_config.yml`의 비활성/구버전 hotkey 라인 자동 제거 (Issue88 후속)
-* 시스템 예약 단축키 블랙리스트 — `ShortcutMgr.registerAppGlobalShortcuts()`에 macOS 표준(⌘S/C/V/X/A/Z/N/O/P/F/Q/W/T/R) 등록 거부 검증 + 사용자 알림 (Issue87/88 후속)
 
 # 🚧 진행중
 
 # 📕 중요
 
 # 📙 일반
+
+## Issue90: 시스템 예약 단축키 블랙리스트 (등록: 2026-05-01)
+* 목적: `ShortcutMgr.registerAppGlobalShortcuts()` 에 macOS 표준 단축키(⌘S/C/V/X/A/Z/N/O/P/F/Q/W/T/R) 등록을 거부하고, 시도 시 사용자에게 경고하여 시스템 충돌 회귀(Issue87 류) 재발을 차단
+* 상세:
+    - **블랙리스트 정의**: `ShortcutMgr` 또는 별도 상수에 macOS 표준 modifier+key 조합 셋 정의 (⌘S, ⌘C, ⌘V, ⌘X, ⌘A, ⌘Z, ⌘N, ⌘O, ⌘P, ⌘F, ⌘Q, ⌘W, ⌘T, ⌘R 외 적정 범위)
+    - **등록 검증**: `registerAppGlobalShortcuts()` 진입 시 각 hotkey 토큰을 파싱하여 블랙리스트 매칭 — 매칭 시 `Carbon RegisterEventHotKey` 호출 차단
+    - **사용자 알림**: 차단된 항목은 logW + 사용자 알림(메뉴바 경고 또는 NSAlert) — 어떤 액션이 어떤 시스템 단축키와 충돌했는지 명시
+    - **단위 테스트**: 블랙리스트 셋 검증 + 차단 케이스 + 정상 케이스 unit 테스트
+    - **회귀 보호**: Issue87(VSCode ⌘S 차단)·Issue88(SSOT 위반) 류 재발 방지
+* 선행: Issue87/88 완료됨
+
+## Issue89: 박제된 잘못된 hotkey 자동 정리 마이그레이션 (등록: 2026-05-01)
+* 목적: 앱 시작 시 사용자 `_config.yml` 의 비활성/구버전/시스템 충돌 hotkey 라인을 자동 정리하여, Issue88 이전 사용자가 박제된 잘못된 단축키(예: ⌘S 등록)로 인해 시스템 동작이 차단되는 문제를 해결
+* 상세:
+    - **진단 로직**: `PreferencesManager` 또는 별도 마이그레이션 모듈에서 `_config.yml` 로드 시 hotkey 섹션 검사
+    - **정리 대상**: (1) Issue88 에서 빈 값으로 정정된 default 액션 8건의 사용자 박제 값, (2) Issue90 블랙리스트(시스템 예약) 매칭 항목, (3) 폐기된 액션 키
+    - **백업·로깅**: 정리 전 `_config.yml.backup_{date}` 백업 + logI 기록
+    - **idempotent**: 재실행 시 무동작 보장 (이미 정리된 경우 패스)
+    - **단위 테스트**: 마이그레이션 입력→출력 케이스 unit 테스트
+* 선행: Issue88 완료됨, Issue90 블랙리스트 정의 우선 권장 (병렬 가능 시 분리 가능)
 
 ## Issue86: cmdTest v2 전체 검증 및 v1 폴더 제거 (등록: 2026-04-28)
 * 목적: `cli/_tool/cmdTest/v2/` 스크립트 전체 실행으로 fsc 커맨드 v2 동작 검증 + v1 테스트 폴더 및 cmdTestDo.sh 기본값 정리
@@ -444,16 +457,16 @@ date: 2026-04-07
     - 현재 fSnippetCli 는 실측상 증상이 약함 (`brew services list` 에서 `started` 정상 표시) — 이는 주로 launchd-bootstrap 만 사용하는 사용 패턴 덕분. `open` 경로 병용 / Debug 빌드 경로 병존 시 동일 재현 가능성 존재 → 사전 방지 차원 Full Mirror
 * 재설계 상태 매트릭스 (pairApp Issue39 동일):
 
-    | Trigger        | 상대 상태      | 기대 동작                                              |
-    | :------------- | :------------- | :----------------------------------------------------- |
-    | **brew start** | 앱 실행 중      | brew state 만 `started` 로 이동 (앱 재기동 없음)       |
-    | **brew start** | 앱 정지         | 앱 시작 + brew state `started`                         |
-    | **brew stop**  | 앱 정지         | brew state `stopped`                                   |
-    | **brew stop**  | 앱 실행 중      | brew state `stopped` (launchctl unload, 앱 종료 동반)  |
-    | **app start**  | brew `started` | 앱만 시작, brew 호출 skip                              |
-    | **app start**  | brew `stopped` | 앱 시작 + `brew services start` 호출 (state 동기화)    |
-    | **app stop**   | brew `started` | `brew services stop` 호출 + `NSApplication.terminate`  |
-    | **app stop**   | brew `stopped` | `terminate` 만 (brew 호출 skip)                        |
+    | Trigger        | 상대 상태      | 기대 동작                                             |
+    | :------------- | :------------- | :---------------------------------------------------- |
+    | **brew start** | 앱 실행 중     | brew state 만 `started` 로 이동 (앱 재기동 없음)      |
+    | **brew start** | 앱 정지        | 앱 시작 + brew state `started`                        |
+    | **brew stop**  | 앱 정지        | brew state `stopped`                                  |
+    | **brew stop**  | 앱 실행 중     | brew state `stopped` (launchctl unload, 앱 종료 동반) |
+    | **app start**  | brew `started` | 앱만 시작, brew 호출 skip                             |
+    | **app start**  | brew `stopped` | 앱 시작 + `brew services start` 호출 (state 동기화)   |
+    | **app stop**   | brew `started` | `brew services stop` 호출 + `NSApplication.terminate` |
+    | **app stop**   | brew `stopped` | `terminate` 만 (brew 호출 skip)                       |
 
 * 해결 방법 (실적용):
     - **앱 구조 차이 어댑테이션** (pairApp → fSnippetCli 매핑):
@@ -732,12 +745,12 @@ date: 2026-04-07
     - 자동화: `dawidd6/action-homebrew-bump-formula` GitHub Action
 * 서브커맨드 스펙:
 
-    | 서브커맨드               | 동작                                                                                  | 상태               |
-    | :----------------------- | :------------------------------------------------------------------------------------ | :----------------- |
-    | `/deploy brew local`     | Release 빌드 + 로컬 tap(`finfra/tap`) 재설치 + 앱 실행 (기존 fsc-deploy-brew.sh 로직) | ✅ 구현 예정       |
+    | 서브커맨드               | 동작                                                                                  | 상태             |
+    | :----------------------- | :------------------------------------------------------------------------------------ | :--------------- |
+    | `/deploy brew local`     | Release 빌드 + 로컬 tap(`finfra/tap`) 재설치 + 앱 실행 (기존 fsc-deploy-brew.sh 로직) | ✅ 구현 예정      |
     | `/deploy brew publish`   | 원격 `finfra/homebrew-tap` 저장소 생성/푸시, 태그 기반 Formula 업데이트               | 🚧 TODO (Phase B) |
-    | `/deploy brew status`    | brew list, brew --prefix, 프로세스·REST 상태 조회                                     | ✅ 구현 예정       |
-    | `/deploy brew uninstall` | brew uninstall + 로컬 tap Formula 정리                                                | ✅ 구현 예정       |
+    | `/deploy brew status`    | brew list, brew --prefix, 프로세스·REST 상태 조회                                     | ✅ 구현 예정      |
+    | `/deploy brew uninstall` | brew uninstall + 로컬 tap Formula 정리                                                | ✅ 구현 예정      |
 * Phase A (local/status/uninstall + Usage 강제): 🚧 진행중
     - `fsc-deploy-brew.sh`를 서브커맨드 분기 구조로 재작성
     - `deploy.md`에 `brew <sub>` 서브커맨드 필수 명시, 인자 없으면 Usage
