@@ -1,11 +1,9 @@
 #!/bin/bash
-# apiTestDo.sh - API 테스트 실행기 (v1/v2 분리 지원)
+# apiTestDo.sh - API 테스트 실행기 (v2 전용, v1은 deprecated)
 # Usage:
-#   bash apiTestDo.sh         # v1 전체 (기본)
-#   bash apiTestDo.sh v1      # v1만
+#   bash apiTestDo.sh         # v2 전체 (기본)
 #   bash apiTestDo.sh v2      # v2만
-#   bash apiTestDo.sh all     # v1 + v2 전체
-#   bash apiTestDo.sh 5       # v1/05.*.sh 실행
+#   bash apiTestDo.sh 5       # v2/05.*.sh 실행
 #   bash apiTestDo.sh v2 5    # v2/05.*.sh 실행
 
 # source 호환
@@ -16,13 +14,19 @@ else
 fi
 
 # 인자 파싱
-VERSION="${1:-v1}"
+VERSION="${1:-v2}"
 TEST_NUM="${2:---all}"
 
-# v1, v2, all 외의 값이 버전으로 넘어온 경우 처리
-if [[ ! "$VERSION" =~ ^(v1|v2|all)$ ]]; then
+# v2 외의 값이 버전으로 넘어온 경우 처리
+if [[ "$VERSION" = "v1" ]]; then
+  echo "⚠️  v1은 deprecated (410 Gone). v2로 전환됨."
+  VERSION="v2"
+elif [[ "$VERSION" = "all" ]]; then
+  echo "⚠️  all 옵션은 v1 deprecated로 v2만 실행됨."
+  VERSION="v2"
+elif [[ ! "$VERSION" =~ ^(v2)$ ]]; then
   TEST_NUM="$VERSION"
-  VERSION="v1"
+  VERSION="v2"
 fi
 
 run_version() {
@@ -56,29 +60,10 @@ run_version() {
       echo
     done
 
-    # 17.cli-quit은 마지막에 (v1만)
-    if [ "$ver" = "v1" ]; then
-      QUIT_SCRIPT="$base_dir/17.cli-quit.sh"
-      if [ -f "$QUIT_SCRIPT" ]; then
-        echo "=== [$ver] $(basename "$QUIT_SCRIPT") [LAST - 앱 종료됨] ==="
-        printf "cli-quit 실행? (y/N): "; read yn
-        if [ "$yn" = "y" ] || [ "$yn" = "Y" ]; then
-          bash "$QUIT_SCRIPT"
-        else
-          echo "⏭️ 건너뜀"
-        fi
-      fi
-    fi
+    # 17.cli-quit은 v1 전용이므로 v2에서는 생략
+    :
   fi
 }
 
 # 메인 로직
-if [ "$VERSION" = "all" ]; then
-  echo "📋 v1 테스트 실행..."
-  run_version "v1" "--all"
-  echo ""
-  echo "📋 v2 테스트 실행..."
-  run_version "v2" "--all"
-else
-  run_version "$VERSION" "$TEST_NUM"
-fi
+run_version "$VERSION" "$TEST_NUM"

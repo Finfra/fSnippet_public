@@ -32,7 +32,11 @@ date: 2026-04-07
     - **단위 테스트**: 마이그레이션 입력→출력 케이스 unit 테스트
 * 선행: Issue88 완료됨, Issue90 블랙리스트 정의 우선 권장 (병렬 가능 시 분리 가능)
 
-## Issue86: cmdTest v2 전체 검증 및 v1 폴더 제거 (등록: 2026-04-28)
+# 📗 선택
+
+# ✅ 완료
+
+## Issue86: cmdTest v2 전체 검증 및 v1 폴더 제거 (등록: 2026-04-28, 종료: 2026-05-01, commit: PLACEHOLDER86) ✅
 * 목적: `cli/_tool/cmdTest/v2/` 스크립트 전체 실행으로 fsc 커맨드 v2 동작 검증 + v1 테스트 폴더 및 cmdTestDo.sh 기본값 정리
 * 상세:
     - **사전 확인**: CLI 커맨드 코드가 전부 `/api/v2/` 사용 확인됨 (선수 이슈 없음)
@@ -41,11 +45,12 @@ date: 2026-04-07
     - **cmdTestDo.sh 기본값 수정**: `VERSION="${1:-v1}"` → `VERSION="${1:-v2}"` (기본값 v2로 변경)
     - **루트 래퍼 정합**: `cli/_tool/cmdTestDo.sh` 도 동일 기본값 반영 확인
     - 실패 항목 원인 분석 및 수정
-* 선행: Issue85 완료 후 진행
-
-# 📗 선택
-
-# ✅ 완료
+* 결과:
+    - v2 테스트: 정상 29개 + 에러 3개 = 32개 전체 ✅ (명세 "정상 36"은 과거 v1 포함 추정 — 실측 v2만 29개)
+    - v1 폴더 제거 완료 (`cmdTest/v1/` 26개 스크립트 삭제, `cmdTest_plan_v1.md`는 보존)
+    - `cmdTest/cmdTestDo.sh` + `_tool/cmdTestDo.sh` 기본값 v2 전환 + Usage v2 전용으로 정리
+    - 무인자 호출(`bash cmdTestDo.sh`) → v2 32개 PASS 확인
+    - 리포트: `cli/_doc_work/report/cmdTestReport_20260501_001.md`
 
 ## Issue90: 시스템 예약 단축키 블랙리스트 (등록: 2026-05-01, 종료: 2026-05-01, commit: 1681de8) ✅
 * 목적: `ShortcutMgr.registerAppGlobalShortcuts()` 에 macOS 표준 단축키(⌘S/C/V/X/A/Z/N/O/P/F/Q/W/T/R) 등록을 거부하고, 시도 시 사용자에게 경고하여 시스템 충돌 회귀(Issue87 류) 재발을 차단

@@ -1,13 +1,11 @@
 #!/bin/bash
-# cmdTestDo.sh - CLI 커맨드 테스트 실행기 (v1/v2 분리 지원)
+# cmdTestDo.sh - CLI 커맨드 테스트 실행기 (v2 전용, v1은 deprecated)
 # Usage:
-#   bash cli/_tool/cmdTest/cmdTestDo.sh              # v1 전체 (기본)
-#   bash cli/_tool/cmdTest/cmdTestDo.sh v1           # v1만
+#   bash cli/_tool/cmdTest/cmdTestDo.sh              # v2 전체 (기본)
 #   bash cli/_tool/cmdTest/cmdTestDo.sh v2           # v2만
-#   bash cli/_tool/cmdTest/cmdTestDo.sh all          # v1 + v2 전체
-#   bash cli/_tool/cmdTest/cmdTestDo.sh 5            # v1/05.*.sh 실행
+#   bash cli/_tool/cmdTest/cmdTestDo.sh 5            # v2/05.*.sh 실행
 #   bash cli/_tool/cmdTest/cmdTestDo.sh v2 3         # v2/03.*.sh 실행
-#   bash cli/_tool/cmdTest/cmdTestDo.sh v1 E         # v1 에러 전체
+#   bash cli/_tool/cmdTest/cmdTestDo.sh v2 E         # v2 에러 전체
 #   bash cli/_tool/cmdTest/cmdTestDo.sh v2 E01       # v2/E01.*.sh 실행
 
 # source 호환: BASH_SOURCE 우선, fallback으로 $0
@@ -101,27 +99,23 @@ run_single() {
 }
 
 # 인자 파싱
-VERSION="${1:-v1}"
+VERSION="${1:-v2}"
 TEST_ARG="${2:---all}"
 
-# v1/v2/all 이외 값이 버전으로 넘어온 경우 처리
-if [[ ! "$VERSION" =~ ^(v1|v2|all)$ ]]; then
+# v1 deprecated 처리: v1/all 입력 시 v2로 전환 안내
+if [[ "$VERSION" = "v1" ]]; then
+  echo "⚠️  v1은 deprecated. v2로 전환됨."
+  VERSION="v2"
+elif [[ "$VERSION" = "all" ]]; then
+  echo "⚠️  all 옵션은 v1 deprecated로 v2만 실행됨."
+  VERSION="v2"
+elif [[ ! "$VERSION" =~ ^(v2)$ ]]; then
   TEST_ARG="$VERSION"
-  VERSION="v1"
+  VERSION="v2"
 fi
 
-if [ "$VERSION" = "all" ]; then
-  echo "📋 v1 정상 테스트..."
-  run_normal "$SCRIPT_DIR/v1"
-  echo ""
-  echo "📋 v1 에러 테스트..."
-  run_error "$SCRIPT_DIR/v1"
-  echo ""
-  echo "📋 v2 정상 테스트..."
-  run_normal "$SCRIPT_DIR/v2"
-  echo ""
-  echo "📋 v2 에러 테스트..."
-  run_error "$SCRIPT_DIR/v2"
+if false; then
+  : # v1/all 분기 제거
 else
   BASE="$SCRIPT_DIR/$VERSION"
   if [ ! -d "$BASE" ]; then
