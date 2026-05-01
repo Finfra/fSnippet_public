@@ -36,7 +36,7 @@ date: 2026-04-07
 
 # ✅ 완료
 
-## Issue86: cmdTest v2 전체 검증 및 v1 폴더 제거 (등록: 2026-04-28, 종료: 2026-05-01, commit: PLACEHOLDER86) ✅
+## Issue86: cmdTest v2 전체 검증 및 v1 폴더 제거 (등록: 2026-04-28, 종료: 2026-05-01, commit: c3a0a77) ✅
 * 목적: `cli/_tool/cmdTest/v2/` 스크립트 전체 실행으로 fsc 커맨드 v2 동작 검증 + v1 테스트 폴더 및 cmdTestDo.sh 기본값 정리
 * 상세:
     - **사전 확인**: CLI 커맨드 코드가 전부 `/api/v2/` 사용 확인됨 (선수 이슈 없음)
