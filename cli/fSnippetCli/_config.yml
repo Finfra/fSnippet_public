@@ -26,7 +26,6 @@ preferences:
   history.pause.showNotification: true
   history.preview.hotkey: ""
   history.preview.width: 400
-  history.registerSnippet.hotkey: "{⌘S}"
   history.retentionDays.fileLists: 30
   history.retentionDays.images: 7
   history.retentionDays.plainText: 90

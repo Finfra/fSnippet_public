@@ -532,7 +532,6 @@ class PreferencesManager: PreferencesManagerProtocol {
 
             "history.showPreview": true,
             "history.preview.hotkey": "",
-            "history.registerSnippet.hotkey": "⌘S",
 
             // CL076: 구성 가능한 너비
             "history.viewer.width": 350.0,
