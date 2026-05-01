@@ -91,6 +91,7 @@
 		9289846540F9BFFEBE9736F9 /* HistoryRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8100E61E829F9AA71C2B44 /* HistoryRowView.swift */; };
 		9354F37D96B884A8FFAD9697 /* SnippetUsageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1AD497AEF407B47F49E9374 /* SnippetUsageManager.swift */; };
 		96433CDDE9286BC69608DB86 /* ImageDetailManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C79CAF04EEB2F6F13AC88A07 /* ImageDetailManager.swift */; };
+		9DB1E6E02CF13A65FCB02146 /* ConfigMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38563EA46F747FEAF69E823C /* ConfigMigrationTests.swift */; };
 		9FDB6BCE518AD9CC30BF8F04 /* SnippetFileManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9B34A717829BD00FFC0E011 /* SnippetFileManager.swift */; };
 		A01E927B7B2B6E63E7B8B86A /* KeyRenderingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7F9E20F9DB4BC1F2B7AED6D /* KeyRenderingManager.swift */; };
 		A4A4F533C32F8A6F74D31057 /* _config.yml in Resources */ = {isa = PBXBuildFile; fileRef = E32E556FF721C982939671CB /* _config.yml */; };
@@ -147,6 +148,7 @@
 		F906327C9348F6FA44E1DDCB /* HistoryPreviewManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 191F41B83FE93946E1786015 /* HistoryPreviewManager.swift */; };
 		FA57CF2BBCAB6FFA829563CE /* APIRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7804F97D92EF402565B92E1D /* APIRouter.swift */; };
 		FAF8E7FBEDD46BDA3C214F9C /* PaidAppStateLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DD21578E571498DB78C391E /* PaidAppStateLogger.swift */; };
+		FF2C857F3ADB2BF0913E3C1D /* ConfigMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EE416F390E2173BE6834EC7 /* ConfigMigration.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -190,6 +192,7 @@
 		2CDF1BD625BF3C22D8C3529B /* SnippetExpansionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetExpansionManager.swift; sourceTree = "<group>"; };
 		2F0C7F8A5EE3D59B6EC584E8 /* SnippetEditorWindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetEditorWindowManager.swift; sourceTree = "<group>"; };
 		3301FA64D4284B1A13A6744C /* PaidAppPhaseATests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaidAppPhaseATests.swift; sourceTree = "<group>"; };
+		38563EA46F747FEAF69E823C /* ConfigMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigMigrationTests.swift; sourceTree = "<group>"; };
 		3CA31356553F2DC8BEEB8204 /* HelpCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpCommand.swift; sourceTree = "<group>"; };
 		3DBDAB2FD89E71FA46B0B08E /* SingleShortcutMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingleShortcutMapper.swift; sourceTree = "<group>"; };
 		3DD21578E571498DB78C391E /* PaidAppStateLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaidAppStateLogger.swift; sourceTree = "<group>"; };
@@ -204,6 +207,7 @@
 		48B4EB102AC686165B86F8ED /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		49DA528D5DDE1AFED377ABAF /* InputSourceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputSourceManager.swift; sourceTree = "<group>"; };
 		4DCF3675A37461AA68327380 /* AboutWindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutWindowManager.swift; sourceTree = "<group>"; };
+		4EE416F390E2173BE6834EC7 /* ConfigMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigMigration.swift; sourceTree = "<group>"; };
 		500A0EF818F5124B25AE4C09 /* SnippetItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetItem.swift; sourceTree = "<group>"; };
 		5303BD02B2CA398B18A7FE15 /* ErrorRecoveryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorRecoveryManager.swift; sourceTree = "<group>"; };
 		5892C7920135BCD6DCB68E53 /* DeleteLengthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteLengthManager.swift; sourceTree = "<group>"; };
@@ -465,6 +469,7 @@
 		A386083C66261D54D4C33940 /* fSnippetCliTests */ = {
 			isa = PBXGroup;
 			children = (
+				38563EA46F747FEAF69E823C /* ConfigMigrationTests.swift */,
 				0E11E364DF75BF61564E4276 /* fSnippetCliTests.swift */,
 				89361B623C03873D96A98FB3 /* PaidAppAPIRouterTests.swift */,
 				3301FA64D4284B1A13A6744C /* PaidAppPhaseATests.swift */,
@@ -573,6 +578,7 @@
 				BC31B6FFEA528B10B99384FB /* ChangeTracker.swift */,
 				96DA9C992DD456AF681A4DC8 /* CIDRFilter.swift */,
 				CBB3B206501109A2A167AD12 /* ClipboardDB.swift */,
+				4EE416F390E2173BE6834EC7 /* ConfigMigration.swift */,
 				EEE8D6EDB8B6EEDA4A9ED62C /* CursorTracker.swift */,
 				C443D1734188729E5173FF81 /* EnhancedTriggerKey.swift */,
 				5303BD02B2CA398B18A7FE15 /* ErrorRecoveryManager.swift */,
@@ -693,6 +699,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9DB1E6E02CF13A65FCB02146 /* ConfigMigrationTests.swift in Sources */,
 				DAC8D6BE43049FD7476E44F5 /* PaidAppAPIRouterTests.swift in Sources */,
 				881EEBCED923ED41D91ABFE2 /* PaidAppPhaseATests.swift in Sources */,
 				151CA373FC191BEB3BD1C08E /* PaidAppStateLoggerTests.swift in Sources */,
@@ -734,6 +741,7 @@
 				ABA436970D6214002F3BDBC5 /* CommandHandlingWindow.swift in Sources */,
 				25569EC9FDE18045F4AE4221 /* CommandParser.swift in Sources */,
 				DB908306F9EA5DB4F10CBE92 /* ConfigCommand.swift in Sources */,
+				FF2C857F3ADB2BF0913E3C1D /* ConfigMigration.swift in Sources */,
 				7195ED491D8259C77DA86F63 /* CursorTracker.swift in Sources */,
 				4188CCAC283F0DEE411226D3 /* DIProtocols.swift in Sources */,
 				AD475CD7F27CEE5A59B7CDF5 /* DeleteLengthManager.swift in Sources */,

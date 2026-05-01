@@ -258,6 +258,16 @@ class PreferencesManager: PreferencesManagerProtocol {
         let fileManager = FileManager.default
         let path = self.configURL.path
 
+        // Issue89: 박제된 hotkey 자동 정리 마이그레이션 (파일 파싱 전 1회 수행, idempotent)
+        if fileManager.fileExists(atPath: path) {
+            let result = ConfigMigration.migrate(at: self.configURL)
+            if result.hasChanges {
+                logI(
+                    "⚙️ [Preference] Issue89 hotkey 마이그레이션: 정리 \(result.totalCleaned)건 (예약 \(result.blacklisted.count) + 폐기 \(result.obsolete.count))"
+                )
+            }
+        }
+
         var configToLoad: [String: Any] = [:]
 
         // 1. YAML 파일 로드
