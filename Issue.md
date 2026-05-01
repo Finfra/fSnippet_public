@@ -53,17 +53,21 @@ date: 2026-04-07
     - 실패 항목 원인 분석 및 수정
 * 선행: Issue85 완료 후 진행
 
-## Issue85: API v2 테스트 진행 (등록: 2026-04-28)
+# 📗 선택
+
+# ✅ 완료
+
+## Issue85: API v2 테스트 진행 (등록: 2026-04-28, 종료: 2026-05-01, commit: N/A — 검증 전용, 코드 변경 없음) ✅
 * 목적: `cli/_tool/apiTest/v2/` 스크립트 전체를 실행하여 v2 엔드포인트 동작 검증 및 결과 리포트 생성
 * 상세:
     - `/api-test all` 실행 (내부: `apiTestDo.sh v2` 기본)
     - 정상 스크립트 28개 + 에러 시나리오 7개 검증
     - 결과를 `cli/_doc_work/report/apiTestReport_{날짜}_{일련번호}.md`로 저장
     - 실패 항목 원인 분석 및 수정
-
-# 📗 선택
-
-# ✅ 완료
+* 결과:
+    - 정상 28개 ✅ + 에러 6개 ✅ — Run2 기준 전체 통과 (Run1은 burst HTTP=000 10건 → Run2 정상)
+    - 리포트: `cli/_doc_work/report/apiTestReport_20260501_001.md`
+    - 후속 권고: E00.v2-404.sh 갱신(`/settings/advanced/debug` 구현 후 200 응답), `/api/v2/status` 헬스체크 엔드포인트 추가 검토
 
 ## Issue88: 글로벌 단축키 SSOT 정책 강제 — `_config.yml` 외 default 등록 차단 (등록: 2026-05-01, 종료: 2026-05-01, commit: 9d33a23) ✅
 * 목적: 코드에 하드코딩된 hotkey default 8곳이 `PreferencesManager.loadConfigInternal()` L269 `getDefaults().merging(parsed)` 경로로 cachedConfig에 머지되어 사용자 `_config.yml`에 키가 없어도 글로벌 단축키로 등록되는 회귀 차단
