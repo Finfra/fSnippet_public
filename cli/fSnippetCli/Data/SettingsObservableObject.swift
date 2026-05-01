@@ -109,9 +109,9 @@ class SettingsObservableObject: ObservableObject {
         }
     }
 
-    // MARK: - Issue727: 설정창 열기 단축키
+    // MARK: - 설정창 열기 단축키 (Issue88: SSOT는 _config.yml)
     @Published var settingsHotkey: PopupKeyShortcut = PopupKeyShortcut.from(
-        hotkeyString: "^⇧⌘;")
+        hotkeyString: "")
     {
         didSet {
             if !isInitializing {
@@ -216,10 +216,10 @@ class SettingsObservableObject: ObservableObject {
     @Published var historyIgnoreFileLists: Bool = true { didSet { syncHistorySetting() } }
     @Published var historyMoveDuplicatesToTop: Bool = true { didSet { syncHistorySetting() } }
     @Published var historyViewerHotkey: PopupKeyShortcut = PopupKeyShortcut.from(
-        hotkeyString: "^⌥⌘;")
+        hotkeyString: "")  // Issue88: SSOT는 _config.yml
     { didSet { syncHistorySetting() } }
     @Published var historyPauseHotkey: PopupKeyShortcut = PopupKeyShortcut.from(
-        hotkeyString: "^⌥⌘P")
+        hotkeyString: "")  // Issue88: SSOT는 _config.yml
     { didSet { syncHistorySetting() } }
     @Published var historyShowStatusBar: Bool = true { didSet { syncHistorySetting() } }  // CL035
     @Published var historyForceInputSource: String = "keep" { didSet { syncHistorySetting() } }  // CL038
@@ -227,8 +227,8 @@ class SettingsObservableObject: ObservableObject {
     @Published var historyPreviewHotkey: PopupKeyShortcut = PopupKeyShortcut.from(hotkeyString: "")
     { didSet { syncHistorySetting() } }  // CL042
     @Published var historyRegisterSnippetHotkey: PopupKeyShortcut = PopupKeyShortcut.from(
-        hotkeyString: "⌘S")
-    { didSet { syncHistorySetting() } }  // CL042
+        hotkeyString: "")
+    { didSet { syncHistorySetting() } }  // Issue87: default unset (was ⌘S — conflicts with macOS standard save)
     @Published var historyImageDetailIsFloating: Bool = false { didSet { syncHistorySetting() } }  // CL067
     // CL076
     @Published var historyViewerWidth: CGFloat = 350.0 { didSet { saveHistoryWidths() } }

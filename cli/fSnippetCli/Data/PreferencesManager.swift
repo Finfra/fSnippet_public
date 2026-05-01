@@ -501,7 +501,7 @@ class PreferencesManager: PreferencesManagerProtocol {
             // 팝업
             "snippet_popup_modifier_flags": 1_048_576,  // Command
             "snippet_popup_key_code": 49,  // Space
-            "snippet_popup_hotkey": "⌘Space",
+            "snippet_popup_hotkey": "",  // Issue88: SSOT는 _config.yml. default 빈 값(미설정 시 등록 안 함)
             "snippet_popup_search_scope": "abbreviation",  // Issue184 기본값
             "snippet_popup_height": 300.0,  // Issue184 기본값 (Legacy)
             "snippet_popup_rows": 10,  // Issue245 기본값
@@ -517,15 +517,15 @@ class PreferencesManager: PreferencesManagerProtocol {
             "history.retentionDays.images": 7,
             "history.enable.fileLists": true,
             "history.retentionDays.fileLists": 30,
-            "history.viewer.hotkey": "^⌥⌘;",
+            "history.viewer.hotkey": "",  // Issue88: SSOT는 _config.yml
             "history.ignore.images": false,
             "history.ignore.fileLists": true,
             "history.integrate.snippetsHeader": false,
             "history.integrate.showSnippetsInSearch": false,
             "history.moveDuplicatesToTop": true,
             "history.isPaused": false,
-            "history.pause.hotkey": "^⌥⌘P",  // 기본값: Control+Option+Command+P
-            "settings.hotkey": "^⇧⌘;",  // Issue727: 설정창 열기 글로벌 단축키 (Control+Shift+Command+;)
+            "history.pause.hotkey": "",  // Issue88: SSOT는 _config.yml
+            "settings.hotkey": "",  // Issue88: SSOT는 _config.yml
             "history.pause.showNotification": true,
             "history.showStatusBar": true,  // CL035 기본값
             "history.forceInputSource": "keep",  // CL038 기본값

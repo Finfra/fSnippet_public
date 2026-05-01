@@ -297,7 +297,7 @@ struct SnippetSettings: Codable, Equatable {
             popupQuickSelectModifierFlags: Int(NSEvent.ModifierFlags.command.rawValue),  // 기본값 Command
             statsRetentionUsageDays: 30,  // Issue 376: 기본값 30일
             appearanceMode: "system",  // Issue 386: 기본값 system
-            settingsHotkey: PopupKeyShortcut.from(hotkeyString: "^⇧⌘;"),  // Issue727: 기본값 Control+Shift+Command+;
+            settingsHotkey: PopupKeyShortcut.from(hotkeyString: ""),  // Issue88: SSOT는 _config.yml (default 빈 값)
 
             // 히스토리 기본값
             historyEnabledPlainText: true,
@@ -306,8 +306,8 @@ struct SnippetSettings: Codable, Equatable {
             historyRetentionDaysImages: 7,
             historyEnabledFileLists: true,
             historyRetentionDaysFileLists: 30,
-            historyViewerHotkey: PopupKeyShortcut.from(hotkeyString: "^⌥⌘;"),
-            historyPauseHotkey: PopupKeyShortcut.from(hotkeyString: "^⌥⌘P"),
+            historyViewerHotkey: PopupKeyShortcut.from(hotkeyString: ""),  // Issue88: SSOT는 _config.yml
+            historyPauseHotkey: PopupKeyShortcut.from(hotkeyString: ""),  // Issue88: SSOT는 _config.yml
             historyIgnoreImages: false,
             historyIgnoreFileLists: true,
             historyMoveDuplicatesToTop: true,
@@ -315,7 +315,7 @@ struct SnippetSettings: Codable, Equatable {
             historyForceInputSource: "keep",  // CL038 기본값
             historyShowPreview: true,  // CL042 기본값
             historyPreviewHotkey: PopupKeyShortcut.from(hotkeyString: ""),  // CL042 기본값 (비어 있음)
-            historyRegisterSnippetHotkey: PopupKeyShortcut.from(hotkeyString: "⌘S"),  // CL042 기본값 (Cmd+S)
+            historyRegisterSnippetHotkey: PopupKeyShortcut.from(hotkeyString: ""),  // Issue87: default unset (was ⌘S — conflicts with macOS standard save)
             historyViewerWidth: 350.0,
             historyPreviewWidth: 400.0,
             popupPreviewWidth: 400.0,  // Issue 595 기본값
