@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 90
+* Issue HWM: 96
 * Save Point :
       - 2026.04.27: 0cacd11 (Feat(Cli): Issue84 — registerSnippet 단축키 메뉴 노출 + 등록 로직)
 
@@ -15,12 +15,6 @@ date: 2026-04-07
 * _doc_design/menuBar_enhance.md 기준 진행(메뉴바)
 
 # 🌱 이슈후보
-* `E00.v2-404.sh` 갱신 — `/settings/advanced/debug` 가 200 응답으로 구현됨에 따라 "404 미구현" 검증 의도가 어긋남. 다른 미구현 엔드포인트로 교체하거나 200 검증으로 전환 (Issue85 후속)
-* `/api/v2/status` 엔드포인트 추가 — v1 deprecated 후 헬스체크용 v2 status 부재. 운영 모니터링 일관성 위해 추가 (Issue85 후속)
-* `apiTestDo.sh` burst 안정성 — Run1 일시 HTTP=000 회귀 발생, `--retry 1 --retry-delay 1` 또는 테스트 간 sleep 0.05 삽입으로 회피 (Issue85 후속)
-* 시스템 예약 단축키 차단 시 NSAlert 모달 — 현재 logW만 적용. 사용자 가시성 향상을 위해 일괄 NSAlert 1회 노출 헬퍼 추가 (Issue90 후속)
-* `_config.yml.backup_*` 누적 정리 정책 — 마이그레이션 백업 파일이 시간 경과에 따라 누적될 수 있음. 보존 기간(N일) 또는 N개 제한 정책 결정 (Issue89 후속)
-* 시스템 단축키 블랙리스트 확장 — `⌘⇧S`(Save As), `⌘D`(Duplicate), `⌘E`, `⌘G` 등 명세 14건 외 표준 단축키 추가 검토 (Issue90 후속)
 
 # 🚧 진행중
 
@@ -28,7 +22,52 @@ date: 2026-04-07
 
 # 📙 일반
 
+## Issue91: `E00.v2-404.sh` 검증 의도 갱신 (등록: 2026-05-01)
+* 목적: `/settings/advanced/debug`가 200 응답으로 구현됨에 따라 "404 미구현" 검증 의도가 어긋난 E00.v2-404.sh 정정
+* 상세:
+    - 다른 미구현 엔드포인트로 교체하거나 200 검증으로 전환
+    - apiTest 결과 정합성 회복
+    - Issue85 후속
+
+## Issue92: `/api/v2/status` 헬스체크 엔드포인트 추가 (등록: 2026-05-01)
+* 목적: v1 deprecated(410 Gone) 이후 헬스체크용 v2 status 부재 → 운영 모니터링 일관성을 위해 추가
+* 상세:
+    - `APIRouter.swift`에 `/api/v2/status` 라우트 추가
+    - 응답 스펙: 버전/uptime/active hotkey 수 등 운영 지표
+    - `api/openapi_v2.yaml` 동기 업데이트
+    - Issue85 후속
+
+## Issue93: `apiTestDo.sh` burst 안정성 개선 (등록: 2026-05-01)
+* 목적: Run1 일시 HTTP=000 회귀 발생을 회피하여 테스트 신뢰도 확보
+* 상세:
+    - `--retry 1 --retry-delay 1` 옵션 추가 또는 테스트 간 sleep 0.05 삽입
+    - Run1/Run2 일관성 확보
+    - Issue85 후속
+
 # 📗 선택
+
+## Issue94: 시스템 예약 단축키 차단 시 NSAlert 모달 (등록: 2026-05-01)
+* 목적: 현재 logW만 적용된 차단 알림을 NSAlert 모달로 승격하여 사용자 가시성 향상
+* 상세:
+    - 일괄 NSAlert 1회 노출 헬퍼 신설 (다중 차단 시 한 번에 표시)
+    - 메시지에 충돌 액션 + 시스템 단축키 + 사유 명시
+    - Issue90 후속
+
+## Issue95: `_config.yml.backup_*` 누적 정리 정책 (등록: 2026-05-01)
+* 목적: 마이그레이션 백업 파일 누적 방지를 위한 보존 정책 수립
+* 상세:
+    - 보존 기간(N일) 또는 N개 제한 정책 결정
+    - `ConfigMigration` 또는 별도 모듈에서 앱 시작 시 자동 정리
+    - 정리 대상 logI 기록
+    - Issue89 후속
+
+## Issue96: 시스템 단축키 블랙리스트 확장 (등록: 2026-05-01)
+* 목적: 명세 14건 외 추가 표준 단축키를 블랙리스트에 포함하여 충돌 예방 강화
+* 상세:
+    - 추가 검토 대상: `⌘⇧S`(Save As), `⌘D`(Duplicate), `⌘E`, `⌘G` 등
+    - `ShortcutBlacklist.swift` 셋 확장 + 사유 매핑
+    - 단위 테스트 추가 케이스
+    - Issue90 후속
 
 # ✅ 완료
 
