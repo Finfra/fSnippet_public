@@ -22,7 +22,11 @@ date: 2026-04-07
 
 # 📙 일반
 
-## Issue89: 박제된 잘못된 hotkey 자동 정리 마이그레이션 (등록: 2026-05-01)
+# 📗 선택
+
+# ✅ 완료
+
+## Issue89: 박제된 잘못된 hotkey 자동 정리 마이그레이션 (등록: 2026-05-01, 종료: 2026-05-01, commit: 24320e9) ✅
 * 목적: 앱 시작 시 사용자 `_config.yml` 의 비활성/구버전/시스템 충돌 hotkey 라인을 자동 정리하여, Issue88 이전 사용자가 박제된 잘못된 단축키(예: ⌘S 등록)로 인해 시스템 동작이 차단되는 문제를 해결
 * 상세:
     - **진단 로직**: `PreferencesManager` 또는 별도 마이그레이션 모듈에서 `_config.yml` 로드 시 hotkey 섹션 검사
@@ -30,11 +34,17 @@ date: 2026-04-07
     - **백업·로깅**: 정리 전 `_config.yml.backup_{date}` 백업 + logI 기록
     - **idempotent**: 재실행 시 무동작 보장 (이미 정리된 경우 패스)
     - **단위 테스트**: 마이그레이션 입력→출력 케이스 unit 테스트
-* 선행: Issue88 완료됨, Issue90 블랙리스트 정의 우선 권장 (병렬 가능 시 분리 가능)
-
-# 📗 선택
-
-# ✅ 완료
+* 결과:
+    - `cli/fSnippetCli/Data/ConfigMigration.swift` 신설 — `migrate(at:)` 정리 3종 카테고리 처리
+        - (1) **시스템 예약 매칭**: `ShortcutBlacklist.isReserved()` 검사 → 빈 값으로 정정 (라인 보존, 사용자 가시성 유지)
+        - (2) **폐기된 액션 키**: `knownHotkeyKeys` 화이트리스트 6건 (viewer/pause/preview/registerSnippet/settings.hotkey + snippet_popup_hotkey) 외 → 라인 제거
+        - (3) Issue88 default 빈 값 정정 케이스는 (1) 검사로 자동 흡수
+    - **백업 패턴**: `_config.yml.backup_YYYYMMDD-HHMMSS` — 변경 발생 시에만 1회 생성, 같은 초까지 포함하여 충돌 회피
+    - **idempotent**: 정리 0건이면 백업도 생성 안 함 (테스트로 검증)
+    - `PreferencesManager.loadConfigInternal()`: 파일 파싱 전 1회 호출 (앱 시작 시점)
+    - `cli/fSnippetCliTests/ConfigMigrationTests.swift` 11개 테스트 — parse/idempotent/blacklist/obsolete/backup/missing-file/sanity 전부 커버
+    - `xcodebuild -scheme fSnippetCli -configuration Release build` → **BUILD SUCCEEDED**
+    - 후속 한계: 백업 누적 정리 정책 미구현 (사용자가 수동 삭제) — 향후 별도 이슈로 정책 결정 필요
 
 ## Issue86: cmdTest v2 전체 검증 및 v1 폴더 제거 (등록: 2026-04-28, 종료: 2026-05-01, commit: c3a0a77) ✅
 * 목적: `cli/_tool/cmdTest/v2/` 스크립트 전체 실행으로 fsc 커맨드 v2 동작 검증 + v1 테스트 폴더 및 cmdTestDo.sh 기본값 정리
