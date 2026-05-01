@@ -25,33 +25,6 @@ date: 2026-04-07
 
 # 📕 중요
 
-## Issue87: [Bug] VSCode ⌘S 차단 — 글로벌 단축키 충돌 의심 (등록: 2026-05-01)
-* 목적: VSCode에서 `⌘S`(저장) 입력이 fSnippetCli daemon 실행 중에 호스트 앱(VSCode)으로 전달되지 않는 치명적 회귀 해결. CGEventTap 통합 단축키 체크 경로의 오탐(false positive) 또는 등록된 hotkey의 ⌘S 매핑 가능성 분석 후 수정
-* 상세:
-    - **재현 조건**: fSnippetCli daemon 실행 중 + VSCode 활성 상태에서 `⌘S` → 저장 동작 미실행 (다른 앱에서도 영향 여부 확인 필요)
-    - **분석 가설** (우선순위 순):
-        1. **`isAnyShortcut()` 오탐**: [`CGEventTapManager.swift:216`](cli/fSnippetCli/Core/CGEventTapManager.swift#L216) 통합 체크에서 `⌘S`(keyCode 1 + maskCommand)가 어떤 등록된 단축키와 매칭되어 L260 `return nil`(Strong Block) 도달 가능성
-        2. **`isAppActive()` 오판**: [`CGEventTapManager.swift:201`](cli/fSnippetCli/Core/CGEventTapManager.swift#L201) — fSnippetCli가 LSUIElement(메뉴바 앱)인데 `isAppActive`가 잘못 true 반환 시 모든 단축키 흡수 가능
-        3. **사용자 단축키 충돌**: `_config.yml`의 4종 hotkey(`history.viewer`/`history.pause`/`settings`/`snippet.popup`/`history.registerSnippet`) 중 누군가가 `⌘S` 또는 keyCode 1 포함하는지 점검
-    - **분석 단계**:
-        * `~/Documents/finfra/fSnippetData/_config.yml` 의 hotkey 5종 실측 확인
-        * fSnippetCli 실행 후 VSCode에서 `⌘S` 입력 → flog.log/fkey.log 에서 `Registered Shortcut Detected (Blocking)` 또는 `keyCode: 1` 추적
-        * `delegate.isAnyShortcut(keyCode:1, modifiers:.maskCommand, ...)` 결과 로깅 추가
-    - **수정 방향** (분석 결과에 따라 분기):
-        * 가설 1 적중 → `isAnyShortcut` 매칭 로직 정정 + 정규 회귀 테스트(VSCode/Xcode/일반 텍스트 에디터에서 ⌘S 보존)
-        * 가설 2 적중 → LSUIElement 앱은 `isAppActive` 항상 false 강제
-        * 가설 3 적중 → 충돌 hotkey 재할당 + 검증
-* 구현 명세:
-    - **변경 가능 파일**: `cli/fSnippetCli/Core/CGEventTapManager.swift`, `cli/fSnippetCli/Managers/ShortcutMgr.swift`, `cli/fSnippetCli/Managers/PreferencesManager.swift`
-    - **검증**:
-        * VSCode에서 `⌘S` → 저장 동작 정상
-        * Finder/Safari/Xcode/Notes 등 5종 앱에서 `⌘S` 보존 확인
-        * `/run` → `/api-test all` 회귀 통과
-        * fSnippetCli 자체 단축키 4종(snippet popup ⌃⇧Space, history ⌘;, pause ⌃⌥⌘P, settings ⌃⇧⌘;) 정상 동작 유지
-    - **로직**: 분석 단계에서 가설 확정 후 plan 문서로 분리 (`_doc_work/plan/vscode-cmdS-blocked_plan.md`)
-* 복잡도: **복잡** — 설계 결정(LSUIElement passthrough 정책 등)이 후속 단축키 처리에 영향. plan + report 필수
-* 우선순위: 📕 중요 (치명적 회귀, 일상 작업 차단)
-
 # 📙 일반
 
 ## Issue86: cmdTest v2 전체 검증 및 v1 폴더 제거 (등록: 2026-04-28)
@@ -76,6 +49,24 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue87: [Bug] VSCode ⌘S 차단 — registerSnippet hotkey default 제거 (등록: 2026-05-01, 종료: 2026-05-01, commit: 825042a) ✅
+* 목적: VSCode에서 `⌘S`(저장) 입력이 fSnippetCli daemon 실행 중에 호스트 앱(VSCode)으로 전달되지 않는 치명적 회귀 해결
+* 근본 원인: **가설 3 적중** — Issue84(commit `0cacd11`)에서 [`PreferencesManager.swift:535`](cli/fSnippetCli/Data/PreferencesManager.swift#L535)에 `"history.registerSnippet.hotkey": "⌘S"` default를 하드코딩하여 등록함. 사용자 `_config.yml`에 명시 매핑이 없어도 default가 [`ShortcutMgr.swift:407-419`](cli/fSnippetCli/Managers/ShortcutMgr.swift#L407-L419)에서 `.appShortcut`으로 등록됨 → CGEventTap [L260](cli/fSnippetCli/Core/CGEventTapManager.swift#L260) `return nil`(Strong Block)로 모든 앱의 ⌘S 흡수
+* 정책 결정: **`_config.yml`만이 글로벌 단축키 SSOT**. 코드 default에 hotkey 값 하드코딩 금지 — 사용자가 `_config.yml`에 명시한 단축키만 등록
+* 구현 명세 (단일 파일, 1줄 삭제):
+    - **변경 파일**: `cli/fSnippetCli/Data/PreferencesManager.swift` (L535 1줄 삭제)
+    - **변경 내용**: `"history.registerSnippet.hotkey": "⌘S"` default 항목 제거 → `prefs.string(forKey:)` 빈 문자열 반환 → `ShortcutMgr.swift:410` `if !registerKey.isEmpty` 조건이 false → 등록 안 됨 → ⌘S OS로 정상 전달
+    - **번들 `_config.yml` 정리**: 사용자가 직접 `cli/fSnippetCli/_config.yml`과 `~/Documents/finfra/fSnippetData/_config.yml`에서 `history.registerSnippet.hotkey: "{⌘S}"` 라인 제거 완료
+    - **검증**:
+        * `xcodebuild -scheme fSnippetCli -configuration Release` → BUILD SUCCEEDED
+        * `/run` (brew local 재배포) → REST API `200 OK`, snippet 1963개 정상 로드
+        * VSCode/Finder/Safari/Xcode 등에서 `⌘S` 보존 (사용자 검증)
+        * fSnippetCli 자체 단축키 4종(snippet popup ⌃⇧Space, history ⌘;, pause ⌃⌥⌘P, settings ⌃⇧⌘;) 정상 동작 유지
+* 후속 이슈 후보:
+    - 🌱 시스템 예약 단축키 블랙리스트 — `ShortcutMgr.registerAppGlobalShortcuts()`에 macOS 표준(⌘S/C/V/X/A/Z/N/O/P/F/Q/W/T/R) 등록 거부 검증 + 사용자 알림
+    - 🌱 paidApp Settings UI에 `history.registerSnippet.hotkey` 단축키 노출 (현재 `_config.yml` 직접 편집만 가능, Issue84 후속)
+    - 🌱 Register Snippet 백엔드 구현 (Issue84 Out of Scope §1, 클립보드 → 새 스니펫 파일)
 
 ## Issue84: `{registerSnippet}` 단축키 메뉴 노출 + 등록 로직 (등록: 2026-04-27, 종료: 2026-04-27, commit: 0cacd11) ✅
 * 목적: `_doc_design/menuBar_enhance.md` 액션 표에 `{registerSnippet}` 신설하고, cliApp 메뉴 트리·단축키 등록 로직·dispatcher 동작을 일관 반영. 백엔드(클립보드 → 새 스니펫 파일 생성)는 후속 이슈로 분리
