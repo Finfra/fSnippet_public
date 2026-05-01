@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 85
+* Issue HWM: 87
 * Save Point :
       - 2026.04.27: 0cacd11 (Feat(Cli): Issue84 — registerSnippet 단축키 메뉴 노출 + 등록 로직)
       - 2026.04.27: 7956918 (Feat(Cli): Issue83 — Restart Daemon backend brew services restart)
@@ -25,7 +25,45 @@ date: 2026-04-07
 
 # 📕 중요
 
+## Issue87: [Bug] VSCode ⌘S 차단 — 글로벌 단축키 충돌 의심 (등록: 2026-05-01)
+* 목적: VSCode에서 `⌘S`(저장) 입력이 fSnippetCli daemon 실행 중에 호스트 앱(VSCode)으로 전달되지 않는 치명적 회귀 해결. CGEventTap 통합 단축키 체크 경로의 오탐(false positive) 또는 등록된 hotkey의 ⌘S 매핑 가능성 분석 후 수정
+* 상세:
+    - **재현 조건**: fSnippetCli daemon 실행 중 + VSCode 활성 상태에서 `⌘S` → 저장 동작 미실행 (다른 앱에서도 영향 여부 확인 필요)
+    - **분석 가설** (우선순위 순):
+        1. **`isAnyShortcut()` 오탐**: [`CGEventTapManager.swift:216`](cli/fSnippetCli/Core/CGEventTapManager.swift#L216) 통합 체크에서 `⌘S`(keyCode 1 + maskCommand)가 어떤 등록된 단축키와 매칭되어 L260 `return nil`(Strong Block) 도달 가능성
+        2. **`isAppActive()` 오판**: [`CGEventTapManager.swift:201`](cli/fSnippetCli/Core/CGEventTapManager.swift#L201) — fSnippetCli가 LSUIElement(메뉴바 앱)인데 `isAppActive`가 잘못 true 반환 시 모든 단축키 흡수 가능
+        3. **사용자 단축키 충돌**: `_config.yml`의 4종 hotkey(`history.viewer`/`history.pause`/`settings`/`snippet.popup`/`history.registerSnippet`) 중 누군가가 `⌘S` 또는 keyCode 1 포함하는지 점검
+    - **분석 단계**:
+        * `~/Documents/finfra/fSnippetData/_config.yml` 의 hotkey 5종 실측 확인
+        * fSnippetCli 실행 후 VSCode에서 `⌘S` 입력 → flog.log/fkey.log 에서 `Registered Shortcut Detected (Blocking)` 또는 `keyCode: 1` 추적
+        * `delegate.isAnyShortcut(keyCode:1, modifiers:.maskCommand, ...)` 결과 로깅 추가
+    - **수정 방향** (분석 결과에 따라 분기):
+        * 가설 1 적중 → `isAnyShortcut` 매칭 로직 정정 + 정규 회귀 테스트(VSCode/Xcode/일반 텍스트 에디터에서 ⌘S 보존)
+        * 가설 2 적중 → LSUIElement 앱은 `isAppActive` 항상 false 강제
+        * 가설 3 적중 → 충돌 hotkey 재할당 + 검증
+* 구현 명세:
+    - **변경 가능 파일**: `cli/fSnippetCli/Core/CGEventTapManager.swift`, `cli/fSnippetCli/Managers/ShortcutMgr.swift`, `cli/fSnippetCli/Managers/PreferencesManager.swift`
+    - **검증**:
+        * VSCode에서 `⌘S` → 저장 동작 정상
+        * Finder/Safari/Xcode/Notes 등 5종 앱에서 `⌘S` 보존 확인
+        * `/run` → `/api-test all` 회귀 통과
+        * fSnippetCli 자체 단축키 4종(snippet popup ⌃⇧Space, history ⌘;, pause ⌃⌥⌘P, settings ⌃⇧⌘;) 정상 동작 유지
+    - **로직**: 분석 단계에서 가설 확정 후 plan 문서로 분리 (`_doc_work/plan/vscode-cmdS-blocked_plan.md`)
+* 복잡도: **복잡** — 설계 결정(LSUIElement passthrough 정책 등)이 후속 단축키 처리에 영향. plan + report 필수
+* 우선순위: 📕 중요 (치명적 회귀, 일상 작업 차단)
+
 # 📙 일반
+
+## Issue86: cmdTest v2 전체 검증 및 v1 폴더 제거 (등록: 2026-04-28)
+* 목적: `cli/_tool/cmdTest/v2/` 스크립트 전체 실행으로 fsc 커맨드 v2 동작 검증 + v1 테스트 폴더 및 cmdTestDo.sh 기본값 정리
+* 상세:
+    - **사전 확인**: CLI 커맨드 코드가 전부 `/api/v2/` 사용 확인됨 (선수 이슈 없음)
+    - **v2 테스트 실행**: `bash cli/_tool/cmdTest/cmdTestDo.sh v2` — 정상 36개 + 에러 3개 검증
+    - **v1 폴더 제거**: `cli/_tool/cmdTest/v1/` 디렉토리 삭제 (v1은 APIRouter에서 410 Gone 반환 — 테스트 의미 없음)
+    - **cmdTestDo.sh 기본값 수정**: `VERSION="${1:-v1}"` → `VERSION="${1:-v2}"` (기본값 v2로 변경)
+    - **루트 래퍼 정합**: `cli/_tool/cmdTestDo.sh` 도 동일 기본값 반영 확인
+    - 실패 항목 원인 분석 및 수정
+* 선행: Issue85 완료 후 진행
 
 ## Issue85: API v2 테스트 진행 (등록: 2026-04-28)
 * 목적: `cli/_tool/apiTest/v2/` 스크립트 전체를 실행하여 v2 엔드포인트 동작 검증 및 결과 리포트 생성
