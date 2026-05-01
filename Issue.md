@@ -20,6 +20,8 @@ date: 2026-04-07
 * _doc_design/menuBar_enhance.md 기준 진행(메뉴바)
 
 # 🌱 이슈후보
+* 박제된 잘못된 hotkey 자동 정리 마이그레이션 — 앱 시작 시 사용자 `_config.yml`의 비활성/구버전 hotkey 라인 자동 제거 (Issue88 후속)
+* 시스템 예약 단축키 블랙리스트 — `ShortcutMgr.registerAppGlobalShortcuts()`에 macOS 표준(⌘S/C/V/X/A/Z/N/O/P/F/Q/W/T/R) 등록 거부 검증 + 사용자 알림 (Issue87/88 후속)
 
 # 🚧 진행중
 
