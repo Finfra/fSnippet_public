@@ -1,4 +1,3 @@
-import Combine
 import SwiftUI
 
 // MARK: - Menu Bar View
@@ -13,11 +12,6 @@ struct MenuBarView: View {
         forKey: "history.isPaused", defaultValue: false)
     @State private var launchAtLoginEnabled: Bool = PreferencesManager.shared.bool(
         forKey: "start_at_login", defaultValue: false)
-    @State private var statusLine: String = "Status: Running · Port 3015"
-
-    private let appLaunchTime: Date = Date()
-    private let statusTimer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
-
     var body: some View {
         // ─── About ───
         Button {
@@ -70,21 +64,6 @@ struct MenuBarView: View {
             Button("Reload Snippets") {
                 reloadSnippets()
             }
-
-            Button("Open Main Window") {
-                PaidAppDetector.launch()
-            }
-            .keyboardShortcut("w", modifiers: [.control, .shift, .command])
-
-            Text(statusLine)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .onReceive(statusTimer) { _ in
-                    statusLine = formatStatusLine()
-                }
-                .onAppear {
-                    statusLine = formatStatusLine()
-                }
 
             Button("Restart Daemon") {
                 restartDaemon()
@@ -149,22 +128,6 @@ struct MenuBarView: View {
         SnippetIndexManager.shared.rebuildIndex(basePath: basePath) { count in
             NSLog("[MenuBar] Snippets reloaded: \(count) entries")
         }
-    }
-
-    private func formatStatusLine() -> String {
-        let uptime = Date().timeIntervalSince(appLaunchTime)
-        let formatted = formatUptime(uptime)
-        return "Status: Running · Port 3015 · Uptime \(formatted)"
-    }
-
-    private func formatUptime(_ seconds: TimeInterval) -> String {
-        let s = Int(seconds)
-        let h = s / 3600
-        let m = (s % 3600) / 60
-        let sec = s % 60
-        if h > 0 { return "\(h)h \(m)m" }
-        if m > 0 { return "\(m)m \(sec)s" }
-        return "\(sec)s"
     }
 
     private func restartDaemon() {
