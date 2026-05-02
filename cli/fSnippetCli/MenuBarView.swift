@@ -47,8 +47,8 @@ struct MenuBarView: View {
             }
             .keyboardShortcut("p", modifiers: [.control, .option, .command])
 
-            // Issue84 — Register Snippet (UI wired; backend deferred)
-            Button("Register Snippet") {
+            // Issue84 — Clipboard to Snippet (UI wired; backend deferred)
+            Button("Clipboard to Snippet") {
                 registerSnippetAction()
             }
 
