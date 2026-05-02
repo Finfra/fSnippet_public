@@ -5,7 +5,7 @@
 "settings.advanced.alert.clear_stats.message" = "⚠️ All snippet usage history and statistics will be permanently deleted. Continue?";
 "settings.advanced.alert.clear_stats.title" = "Clear Statistics";
 "settings.advanced.alert.full_reset.message" = "⚠️ WARNING: This action cannot be undone.\n\nAll app settings, snippet files, and logs will be deleted and the app will be reset to initial state.\n\nAre you sure you want to proceed?";
-"settings.advanced.alert.full_reset.title" = "Factory Reset";
+"settings.advanced.alert.full_reset.title" = "Factory Reset...!";
 "settings.advanced.alert.log_level_denied.message" = "Debug logging must be enabled to change the log level.";
 "settings.advanced.alert.log_level_denied.title" = "Cannot Change";
 "settings.advanced.alert.reset_settings_only.message" = "App settings will be reset, but snippet files will be kept.\n\nThe app will restart.";
@@ -14,8 +14,8 @@
 "settings.advanced.alert.reset_snippets_only.title" = "Reset Snippets Data Only";
 "settings.advanced.button.clear_stats" = "Clear Statistics";
 "settings.advanced.button.clear_stats_execute" = "Clear Stats";
-"settings.advanced.button.full_reset_execute" = "Execute Full Reset";
-"settings.advanced.button.hard_reset" = "Full Reset\n(Include Snippets)";
+"settings.advanced.button.full_reset_execute" = "Factory Reset...!";
+"settings.advanced.button.hard_reset" = "Factory Reset...!\n(Include Snippets)";
 "settings.advanced.button.import" = "Import";
 "settings.advanced.button.reset_execute" = "Reset";
 "settings.advanced.button.reset_snippets_only" = "Reset Snippets Data Only";

@@ -49,6 +49,8 @@
 "about.title" = "fSnippet 소개";
 "about.version" = "버전 %@";
 "about.visit_website" = "웹사이트 방문";
+"about.product_page" = "제품 페이지";
+"about.github_repo" = "공개 GitHub 저장소";
 "alert.clear_complete.message" = "모든 데이터가 성공적으로 삭제되었습니다.";
 "alert.clear_complete.title" = "삭제 완료";
 "alert.clear_data.button" = "삭제";
@@ -143,6 +145,7 @@
 "menu.select_all" = "전체 선택";
 "menu.settings" = "설정...";
 "menu.show_clipboard" = "클립보드 히스토리 열기";
+"menu.new_snippet" = "새 스니펫 만들기";
 "menu.show_popup" = "스니펫 팝업 열기";
 "menu.status_info" = "상태 정보";
 "menu.undo" = "실행 취소";
@@ -238,6 +241,8 @@
 "statusbar.clipboard_history" = "클립보드 히스토리...";
 "statusbar.pause_clipboard" = "클립보드 수집 일시정지";
 "statusbar.quit" = "종료";
+"statusbar.quit_only" = "fSnippet 종료";
+"statusbar.quit_all" = "모두 종료 (fSnippet + fSnippetCli)";
 "statusbar.resume_clipboard" = "클립보드 수집 재개";
 "toast.clipboard_paused" = "클립보드 일시정지";
 "toast.clipboard_resumed" = "클립보드 재개";
@@ -339,3 +344,117 @@
 "활성: %lld개" = "활성: %lld개";
 "💡 특수문자나 조합키를 눌러서 KeyLogger 데이터를 확인하세요" = "💡 특수문자나 조합키를 눌러서 KeyLogger 데이터를 확인하세요";
 "📋 실제 트리거: '%@' 문자 입력 → KeyLogger 값으로 정확한 매칭" = "📋 실제 트리거: '%@' 문자 입력 → KeyLogger 값으로 정확한 매칭";
+
+/* Alfred Import */
+"alfred.import.panel.title" = "Alfred snippets.alfdb 선택";
+"alfred.import.panel.message" = "Alfred의 snippets.alfdb 파일을 선택하세요. 일반적으로 ~/Library/Application Support/Alfred/Databases/snippets.alfdb 경로에 있습니다.";
+"alfred.import.error.cancelled" = "가져오기가 취소되었습니다.";
+"alfred.import.error.db_not_found" = "데이터베이스를 찾을 수 없습니다: %@";
+"alfred.import.error.db_open_failed" = "데이터베이스 열기 실패: %@";
+"alfred.import.error.query_failed" = "쿼리 준비 실패";
+"alfred.import.error.folder_creation_failed" = "출력 폴더 생성 실패: %@";
+
+/* AppInitializer - 단축키 충돌 메시지 */
+"alert.shortcut_conflict.message" = "팝업 단축키와 히스토리 뷰어 단축키(%@)가 동일합니다. 설정에서 하나를 변경해주세요.";
+
+/* PaidAppLifecycleNotifier */
+"alert.upgrade_required.title" = "fSnippet 업그레이드 필요";
+"alert.upgrade_required.message" = "fSnippetCli는 fSnippet %@ 이상이 필요합니다. App Store에서 업그레이드하세요.";
+
+/* SettingsObservableObject */
+"alert.trigger_key_changed.message" = "트리거 키가 '%@'에서 '%@'로 변경되었습니다.\n\n새 트리거 키를 적용하려면 앱을 재시작하세요.\n지금 재시작하시겠습니까?";
+"alert.trigger_key_saved.title" = "설정이 저장되었습니다";
+"alert.trigger_key_saved.message" = "트리거 키 설정이 저장되었습니다.\n새 트리거 키 '%@'는 다음 앱 실행 시 적용됩니다.";
+"btn.later" = "나중에";
+
+/* GeneralSettingsView */
+"alert.folder_select_failed.title" = "폴더 선택 실패";
+
+/* AppDelegate.swift - showCliLaunchGuide NSTextField/NSButton */
+"cli_guide.section_install" = "【설치】";
+"cli_guide.homebrew_install_label" = "▸ Homebrew를 통한 설치 (미설치 시만):";
+"cli_guide.section_launch" = "【시작】";
+"cli_guide.method1_label" = "▸ 방법 1: Homebrew 서비스 (권장)";
+"cli_guide.copy" = "복사";
+"cli_guide.method2_label" = "▸ 방법 2: Spotlight에서 실행";
+"cli_guide.method2_cmd" = "\"fSnippetCli\"를 입력하고 Enter를 누르세요";
+"cli_guide.method3_label" = "▸ 방법 3: Finder에서 앱 직접 실행";
+"cli_guide.method3_cmd" = "  /opt/homebrew/Cellar/fsnippet-cli/ 경로에서 fSnippetCli.app을 더블클릭하세요";
+
+/* CliConnectionView */
+"cli.connection.section.title" = "fSnippetCli 연결";
+"cli.connection.status.label" = "상태:";
+"cli.connection.status.connected" = "연결됨";
+"cli.connection.status.connected.detail" = "연결됨 (v%@, 가동시간 %@)";
+"cli.connection.status.disconnected" = "연결 안 됨";
+"cli.connection.port.label" = "포트:";
+"cli.connection.port.restart_note" = "(변경하려면 재시작 필요)";
+"cli.connection.install.required" = "fSnippetCli가 필요합니다";
+"cli.connection.copy" = "복사";
+"cli.connection.test.label" = "테스트:";
+
+/* SnippetReferencePicker */
+"snippet.picker.title" = "스니펫 참조 삽입";
+"snippet.picker.folder_select" = "폴더 선택";
+"snippet.picker.no_snippets" = "스니펫 없음";
+"snippet.picker.empty_hint" = "왼쪽에서 폴더를 선택하세요";
+
+/* ShortcutInputView */
+"shortcut.remove" = "단축키 제거";
+
+/* SnippetError */
+"error.file_not_found" = "파일을 찾을 수 없습니다: %@";
+"error.file_read_failed" = "파일 읽기 실패: %@ (%@)";
+"error.file_write_failed" = "파일 쓰기 실패: %@ (%@)";
+"error.directory_not_found" = "디렉토리를 찾을 수 없습니다: %@";
+"error.permission_denied" = "권한 거부: %@";
+"error.corrupted_file" = "손상된 파일: %@ (%@)";
+"error.snippet_not_found" = "스니펫을 찾을 수 없습니다: '%@'";
+"error.duplicate_snippet" = "중복 스니펫: '%@'";
+"error.invalid_snippet_format" = "잘못된 스니펫 형식: %@ (%@)";
+"error.snippet_content_empty" = "스니펫 내용이 비어있습니다: %@";
+"error.abbreviation_generation_failed" = "약자 생성 실패: %@";
+"error.text_replacement_failed" = "텍스트 대체 실패: %@";
+"error.clipboard_operation_failed" = "클립보드 작업 실패";
+"error.key_event_generation_failed" = "키 이벤트 생성 실패: %d";
+"error.accessibility_permission_denied" = "접근성 권한 필요";
+"error.cgevent_post_failed" = "CGEvent 전송 실패: %d";
+"error.index_build_failed" = "인덱스 생성 실패: %@";
+"error.search_query_invalid" = "잘못된 검색 쿼리: '%@'";
+"error.search_timed_out" = "검색 시간 초과: %g초";
+"error.cache_corrupted" = "캐시 데이터 손상";
+"error.settings_load_failed" = "설정 로드 실패: %@";
+"error.settings_save_failed" = "설정 저장 실패: %@";
+"error.invalid_settings_format" = "잘못된 설정 형식: %@";
+"error.settings_validation_failed" = "설정 검증 실패: %@ = %@";
+"error.network_unavailable" = "네트워크 사용 불가";
+"error.resource_download_failed" = "리소스 다운로드 실패: %@";
+"error.api_request_failed" = "API 요청 실패: %@ (상태: %d)";
+"error.timeout_exceeded" = "시간 초과: %@";
+"error.popup_display_failed" = "팝업 표시 실패: %@";
+"error.keyboard_intercept_failed" = "키보드 이벤트 인터셉트 실패";
+"error.window_management_failed" = "윈도우 관리 실패: %@";
+"error.focus_management_failed" = "포커스 관리 실패";
+"error.memory_allocation_failed" = "메모리 할당 실패";
+"error.thread_creation_failed" = "스레드 생성 실패";
+"error.operation_cancelled" = "작업 취소됨: %@";
+"error.system_resource_unavailable" = "시스템 리소스 사용 불가: %@";
+"error.invalid_input" = "잘못된 입력: %@ (%@)";
+"error.configuration_error" = "설정 오류: %@ (%@)";
+"error.dependency_not_available" = "의존성 사용 불가: %@";
+"error.operation_not_supported" = "지원하지 않는 작업: %@";
+"error.unknown" = "알 수 없는 오류: %@";
+
+/* RESTBaseClient */
+"error.rest.invalid_url" = "잘못된 URL: %@";
+"error.rest.invalid_response" = "잘못된 응답";
+"error.rest.http_error" = "HTTP 오류: %d";
+"error.rest.connection_failed" = "fSnippetCli 연결 실패";
+
+/* EngineStubs */
+"error.prefix_buffer_clear_key" = "접두사에 버퍼 초기화 문자('%@')가 포함될 수 없습니다.";
+"error.prefix_space" = "공백";
+"error.prefix_enter" = "입력";
+"error.prefix_tab" = "탭";
+"error.folder_name_invalid" = "폴더명은 최소 하나 이상의 대문자가 포함되거나 _(언더바)로 시작해야 합니다.";
+"error.folder_abbreviation_conflict" = "폴더 약자가 기존 폴더 '%@'와 중복됩니다.";

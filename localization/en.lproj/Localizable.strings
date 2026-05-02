@@ -46,6 +46,8 @@
 "about.title" = "About fSnippet";
 "about.version" = "Version %@";
 "about.visit_website" = "Visit Website";
+"about.product_page" = "Product Page";
+"about.github_repo" = "Public GitHub Repository";
 "alert.clear_complete.message" = "All data has been successfully deleted.";
 "alert.clear_complete.title" = "Deletion Complete";
 "alert.clear_data.button" = "Delete";
@@ -138,6 +140,7 @@
 "menu.select_all" = "Select All";
 "menu.settings" = "Settings...";
 "menu.show_clipboard" = "Open Clipboard History";
+"menu.new_snippet" = "New Snippet";
 "menu.show_popup" = "Open Snippet Popup";
 "menu.status_info" = "Status Info";
 "menu.undo" = "Undo";
@@ -164,6 +167,8 @@
 "statusbar.clipboard_history" = "Clipboard History...";
 "statusbar.pause_clipboard" = "Pause Clipboard Collection";
 "statusbar.quit" = "Quit";
+"statusbar.quit_only" = "Quit fSnippet";
+"statusbar.quit_all" = "Quit All (fSnippet + fSnippetCli)";
 "statusbar.resume_clipboard" = "Resume Clipboard Collection";
 "toast.clipboard_paused" = "Clipboard Paused";
 "toast.clipboard_resumed" = "Clipboard Resumed";
@@ -262,3 +267,117 @@
 "활성: %lld개" = "Active: %lld";
 "💡 특수문자나 조합키를 눌러서 KeyLogger 데이터를 확인하세요" = "💡 Press special characters or modifier keys to check KeyLogger data";
 "📋 실제 트리거: '%@' 문자 입력 → KeyLogger 값으로 정확한 매칭" = "📋 Actual trigger: Input '%@' → Exact match with KeyLogger value";
+
+/* Alfred Import */
+"alfred.import.panel.title" = "Select Alfred snippets.alfdb";
+"alfred.import.panel.message" = "Select the Alfred snippets.alfdb file. It is usually located at ~/Library/Application Support/Alfred/Databases/snippets.alfdb.";
+"alfred.import.error.cancelled" = "Import was cancelled.";
+"alfred.import.error.db_not_found" = "Database not found: %@";
+"alfred.import.error.db_open_failed" = "Failed to open database: %@";
+"alfred.import.error.query_failed" = "Query preparation failed.";
+"alfred.import.error.folder_creation_failed" = "Failed to create output folder: %@";
+
+/* AppInitializer - 단축키 충돌 메시지 */
+"alert.shortcut_conflict.message" = "The Popup hotkey and History Viewer hotkey (%@) are the same. Please change one in Settings.";
+
+/* PaidAppLifecycleNotifier */
+"alert.upgrade_required.title" = "fSnippet Upgrade Required";
+"alert.upgrade_required.message" = "fSnippetCli requires fSnippet %@ or later. Please upgrade from the App Store.";
+
+/* SettingsObservableObject */
+"alert.trigger_key_changed.message" = "The trigger key has been changed from '%@' to '%@'.\n\nRestart the app to apply the new trigger key.\nWould you like to restart now?";
+"alert.trigger_key_saved.title" = "Settings Saved";
+"alert.trigger_key_saved.message" = "The trigger key setting has been saved.\nThe new trigger key '%@' will be applied on the next app launch.";
+"btn.later" = "Later";
+
+/* GeneralSettingsView */
+"alert.folder_select_failed.title" = "Folder Selection Failed";
+
+/* AppDelegate.swift - showCliLaunchGuide NSTextField/NSButton */
+"cli_guide.section_install" = "【Install】";
+"cli_guide.homebrew_install_label" = "▸ Install via Homebrew (if not installed):";
+"cli_guide.section_launch" = "【Launch】";
+"cli_guide.method1_label" = "▸ Method 1: Homebrew Service (Recommended)";
+"cli_guide.copy" = "Copy";
+"cli_guide.method2_label" = "▸ Method 2: Launch from Spotlight";
+"cli_guide.method2_cmd" = "Type \"fSnippetCli\" and press Enter";
+"cli_guide.method3_label" = "▸ Method 3: Open from Finder";
+"cli_guide.method3_cmd" = "  Double-click fSnippetCli.app in /opt/homebrew/Cellar/fsnippet-cli/";
+
+/* CliConnectionView */
+"cli.connection.section.title" = "fSnippetCli Connection";
+"cli.connection.status.label" = "Status:";
+"cli.connection.status.connected" = "Connected";
+"cli.connection.status.connected.detail" = "Connected (v%@, uptime %@)";
+"cli.connection.status.disconnected" = "Not Connected";
+"cli.connection.port.label" = "Port:";
+"cli.connection.port.restart_note" = "(Restart required to change)";
+"cli.connection.install.required" = "fSnippetCli is required";
+"cli.connection.copy" = "Copy";
+"cli.connection.test.label" = "Test:";
+
+/* SnippetReferencePicker */
+"snippet.picker.title" = "Insert Snippet Reference";
+"snippet.picker.folder_select" = "Select Folder";
+"snippet.picker.no_snippets" = "No Snippets";
+"snippet.picker.empty_hint" = "Select a folder on the left";
+
+/* ShortcutInputView */
+"shortcut.remove" = "Remove Shortcut";
+
+/* SnippetError */
+"error.file_not_found" = "File not found: %@";
+"error.file_read_failed" = "File read failed: %@ (%@)";
+"error.file_write_failed" = "File write failed: %@ (%@)";
+"error.directory_not_found" = "Directory not found: %@";
+"error.permission_denied" = "Permission denied: %@";
+"error.corrupted_file" = "Corrupted file: %@ (%@)";
+"error.snippet_not_found" = "Snippet not found: '%@'";
+"error.duplicate_snippet" = "Duplicate snippet: '%@'";
+"error.invalid_snippet_format" = "Invalid snippet format: %@ (%@)";
+"error.snippet_content_empty" = "Snippet content is empty: %@";
+"error.abbreviation_generation_failed" = "Abbreviation generation failed: %@";
+"error.text_replacement_failed" = "Text replacement failed: %@";
+"error.clipboard_operation_failed" = "Clipboard operation failed";
+"error.key_event_generation_failed" = "Key event generation failed: %d";
+"error.accessibility_permission_denied" = "Accessibility permission required";
+"error.cgevent_post_failed" = "CGEvent post failed: %d";
+"error.index_build_failed" = "Index build failed: %@";
+"error.search_query_invalid" = "Invalid search query: '%@'";
+"error.search_timed_out" = "Search timed out: %g seconds";
+"error.cache_corrupted" = "Cache data is corrupted";
+"error.settings_load_failed" = "Settings load failed: %@";
+"error.settings_save_failed" = "Settings save failed: %@";
+"error.invalid_settings_format" = "Invalid settings format: %@";
+"error.settings_validation_failed" = "Settings validation failed: %@ = %@";
+"error.network_unavailable" = "Network unavailable";
+"error.resource_download_failed" = "Resource download failed: %@";
+"error.api_request_failed" = "API request failed: %@ (status: %d)";
+"error.timeout_exceeded" = "Timeout exceeded: %@";
+"error.popup_display_failed" = "Popup display failed: %@";
+"error.keyboard_intercept_failed" = "Keyboard event interception failed";
+"error.window_management_failed" = "Window management failed: %@";
+"error.focus_management_failed" = "Focus management failed";
+"error.memory_allocation_failed" = "Memory allocation failed";
+"error.thread_creation_failed" = "Thread creation failed";
+"error.operation_cancelled" = "Operation cancelled: %@";
+"error.system_resource_unavailable" = "System resource unavailable: %@";
+"error.invalid_input" = "Invalid input: %@ (%@)";
+"error.configuration_error" = "Configuration error: %@ (%@)";
+"error.dependency_not_available" = "Dependency not available: %@";
+"error.operation_not_supported" = "Operation not supported: %@";
+"error.unknown" = "Unknown error: %@";
+
+/* RESTBaseClient */
+"error.rest.invalid_url" = "Invalid URL: %@";
+"error.rest.invalid_response" = "Invalid response";
+"error.rest.http_error" = "HTTP error: %d";
+"error.rest.connection_failed" = "fSnippetCli connection failed";
+
+/* EngineStubs */
+"error.prefix_buffer_clear_key" = "Prefix cannot contain buffer clear character ('%@').";
+"error.prefix_space" = "space";
+"error.prefix_enter" = "enter";
+"error.prefix_tab" = "tab";
+"error.folder_name_invalid" = "Folder name must contain at least one uppercase letter or start with an underscore (_).";
+"error.folder_abbreviation_conflict" = "Folder abbreviation conflicts with existing folder '%@'.";

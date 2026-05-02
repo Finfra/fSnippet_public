@@ -5,7 +5,7 @@
 "settings.advanced.alert.clear_stats.message" = "⚠️ सारा मقتद्र व्यय इतिहास और सांख्यिकीय डेटा स्थायी रूप से हटा दिया जाएगा। क्या आप जारी रखना चाहते हैं?";
 "settings.advanced.alert.clear_stats.title" = "सांख्यिकीय डेटा साफ़ करें";
 "settings.advanced.alert.full_reset.message" = "⚠️ चेतावनी: इस क्रिया को पूर्ववत नहीं किया जा सकता है।\n\nसभी ऐप सेटिंग्स, स्निपेट फ़ाइलें और लॉग हटा दिए जाएंगे और ऐप को प्रारंभिक स्थिति में रीसेट कर दिया जाएगा।\n\n- App Root: %1$@\n- Snippets: %2$@\n\nक्या आप वास्तव में आगे बढ़ना चाहते हैं?";
-"settings.advanced.alert.full_reset.title" = "पूर्ण डेटा रीसेट";
+"settings.advanced.alert.full_reset.title" = "Factory Reset...!";
 "settings.advanced.alert.log_level_denied.message" = "लॉग स्तर बदलने के लिए डिबग लॉगिंग सक्षम होनी चाहिए।";
 "settings.advanced.alert.log_level_denied.title" = "परिवर्तनीय नहीं";
 "settings.advanced.alert.reset_settings_only.message" = "ऐप सेटिंग्स रीसेट हो जाएंगी, लेकिन स्निपेट फ़ाइलें रखी जाएंगी। (%1$@)\n\nऐप पुनरारंभ होगा।";
@@ -14,8 +14,8 @@
 "settings.advanced.alert.reset_snippets_only.title" = "स्निपेट डेटा रीसेट करें";
 "settings.advanced.button.clear_stats" = "सांख्यिकीय डेटा रीसेट करें";
 "settings.advanced.button.clear_stats_execute" = "सांख्यिकी साफ़ करें";
-"settings.advanced.button.full_reset_execute" = "पूर्ण रीसेट निष्पादित करें";
-"settings.advanced.button.hard_reset" = "संपूर्ण रीसेट\n(स्निपेट सहित)";
+"settings.advanced.button.full_reset_execute" = "Factory Reset...!";
+"settings.advanced.button.hard_reset" = "Factory Reset...!\n(स्निपेट सहित)";
 "settings.advanced.button.import" = "आयात";
 "settings.advanced.button.reset_execute" = "रीसेट";
 "settings.advanced.button.reset_snippets_only" = "केवल स्निपेट डेटा रीसेट करें";

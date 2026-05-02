@@ -5,7 +5,7 @@
 "settings.advanced.alert.clear_stats.message" = "⚠️ سيتم حذف جميع سجل استهلاك المقتطفات والبيانات الإحصائية بشكل دائم. هل تريد الاستمرار؟";
 "settings.advanced.alert.clear_stats.title" = "مسح البيانات الإحصائية";
 "settings.advanced.alert.full_reset.message" = "⚠️ تحذير: لا يمكن التراجع عن هذا الإجراء.\n\nسيتم حذف جميع إعدادات التطبيق، ملفات المقتطفات، والسجلات، وسيتم إعادة تعيين التطبيق إلى حالته الأصلية.\n\n- App Root: %1$@\n- Snippets: %2$@\n\nهل تريد الاستمرار حقاً؟";
-"settings.advanced.alert.full_reset.title" = "إعادة التعيين الكامل للبيانات";
+"settings.advanced.alert.full_reset.title" = "Factory Reset...!";
 "settings.advanced.alert.log_level_denied.message" = "يجب تفعيل سجل التصحيح (Debug Log) لتغيير مستوى السجل.";
 "settings.advanced.alert.log_level_denied.title" = "غير قابل للتغيير";
 "settings.advanced.alert.reset_settings_only.message" = "سيتم إعادة تعيين إعدادات التطبيق، ولكن سيتم الاحتفاظ بملفات المقتطفات. (%1$@)\n\nسيعاد تشغيل التطبيق.";
@@ -14,8 +14,8 @@
 "settings.advanced.alert.reset_snippets_only.title" = "إعادة تعيين بيانات المقتطفات";
 "settings.advanced.button.clear_stats" = "إعادة تعيين البيانات الإحصائية";
 "settings.advanced.button.clear_stats_execute" = "حذف الإحصائيات";
-"settings.advanced.button.full_reset_execute" = "تنفيذ إعادة التعيين الكامل";
-"settings.advanced.button.hard_reset" = "إعادة تعيين كامل\n(بما في ذلك المقتطفات)";
+"settings.advanced.button.full_reset_execute" = "Factory Reset...!";
+"settings.advanced.button.hard_reset" = "Factory Reset...!\n(بما في ذلك المقتطفات)";
 "settings.advanced.button.import" = "استيراد";
 "settings.advanced.button.reset_execute" = "إعادة تعيين";
 "settings.advanced.button.reset_snippets_only" = "إعادة تعيين بيانات المقتطفات فقط";
