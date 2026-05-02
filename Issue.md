@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 96
+* Issue HWM: 97
 * Save Point :
       - 2026.04.27: 0cacd11 (Feat(Cli): Issue84 — registerSnippet 단축키 메뉴 노출 + 등록 로직)
 
@@ -70,6 +70,27 @@ date: 2026-04-07
     - Issue90 후속
 
 # ✅ 완료
+
+## Issue97: [Bug] 한글 입력 차단 — `SnippetSettings.default.popupKeyShortcut` Issue88 정책 위반 (등록: 2026-05-02, 종료: 2026-05-02, commit: 99ccaf1) ✅
+* 목적: cliApp(fsnippet-cli) 데몬이 시작되면 다른 앱에서 **한글 등 입력이 차단**되는 회귀를 해결. Issue88(SSOT 정책: `_config.yml`에 명시한 hotkey만 글로벌 등록, 그 외 default 등록 금지)이 `SettingsManager.swift:285`에서 미적용되어 잔존 — `popupKeyShortcut: PopupKeyShortcut.default` (= `⌃` `, keyCode 50) 박제 위반
+* 정책: **`_config.yml`만이 글로벌 단축키 SSOT**. 코드 default에 hotkey 값 하드코딩 금지 — 사용자가 `_config.yml`에 명시한 단축키만 등록 (Issue87/88 정책 일관 적용)
+* 배경:
+    - 사용자 보고: 데몬 시작 후 다른 앱(VSCode/Terminal/메모장 등)에서 한글 입력이 안 됨
+    - 사용자 단서: "현재 앱은 글로벌 단축키를 yml에서 등록한 것만 쓴다. 설정이 비어 있으면 해당 단축키는 작동안하는 것이다." → Issue88 정책이 부분적으로만 적용되어 있어 default 박제 위반이 남아있음을 의심
+    - Issue88(commit `9d33a23`)에서 `getDefaults()`의 hotkey 4종(snippet_popup/viewer/pause/settings)은 빈 값으로 전환했으나, `SnippetSettings.default`(L276+)의 `popupKeyShortcut: PopupKeyShortcut.default,` (L285)는 누락
+    - `PopupKeyShortcut.default` = `⌃` `(keyCode 50, modifierFlags 262144) — `SettingsManager.load()` 진입 시 초기값으로 박제
+    - `_config.yml`에 `snippet_popup_hotkey: "⌃⇧Space"`가 있으면 L636-644에서 정상 덮어쓰지만, **빈 값/누락 시 ⌃` 박제 → ShortcutMgr가 `.appShortcut`으로 등록 → CGEventTap이 `return nil` Strong Block (CGEventTapManager:228)**
+    - keyCode 50(`)은 한글 IME 활성 상태에서 한글 자모 매핑과 우연히 일치 가능 → IME가 받기 전 차단
+* 결과:
+    - `cli/fSnippetCli/Managers/SettingsManager.swift` L285 — `popupKeyShortcut: PopupKeyShortcut.default,` → `popupKeyShortcut: PopupKeyShortcut.from(hotkeyString: ""),  // Issue97: SSOT는 _config.yml (Issue88 정책 일관 적용 — was PopupKeyShortcut.default ⌃` which conflicts with Korean IME on keyCode 50)`
+    - **메커니즘**: `PopupKeyShortcut.from(hotkeyString: "")` → keyCode 0 + modifiers 0 + displayString `""` 반환 → `ShortcutMgr.registerAppGlobalShortcuts()` L412 `if !popupKey.toHotkeyString.isEmpty` 가드가 빈 값 reject → 등록 안 됨 → 한글 입력 keyCode 50(`) 보존
+    - `xcodebuild -scheme fSnippetCli -configuration Release` → **BUILD SUCCEEDED**
+    - `bash _tool/fsc-deploy-brew.sh local` → 9 PASS / 0 FAIL (서명·tap 갱신·brew install·services start·REST 200)
+    - 데몬 재시작 후 `🚀총 등록된 단축키: 11개 "App Shortcuts (4) + Trigger Keys (4) + Buffer Clear Keys (0) + Folder Shortcuts (3)"` — 사용자 _config.yml에 4 hotkey 명시되어 등록 수 변동 없음, **정책 일관성 확보가 본 이슈 산물**
+    - 후속 한계: 사용자 측 한글 IME 입력 회복 검증은 별도 진행 (Issue87 동일 패턴 — 사용자 검증 의존). 추가 default 박제 잔존(`PreferencesManager.swift:507` `snippet_trigger_key: "="`, TriggerKeyManager systemKeys, AppSettingManager bufferClear default 등) 감사는 후속 이슈 후보로 분리
+* 후속 이슈 후보:
+    - 🌱 Issue88 정책 전수 감사 — `SettingsManager.swift`/`PreferencesManager.swift`/`AppSettingManager.swift`/`TriggerKeyManager.swift` 추가 default hotkey 박제 잔존 여부 점검
+    - 🌱 한글 입력 회귀 통합 테스트 — macOS 한글 IME 활성 상태에서 cliApp 단축키 등록이 IME 키를 차단하지 않는지 자동 검증 (CI 불가 시 수동 체크리스트)
 
 ## Issue89: 박제된 잘못된 hotkey 자동 정리 마이그레이션 (등록: 2026-05-01, 종료: 2026-05-01, commit: 24320e9) ✅
 * 목적: 앱 시작 시 사용자 `_config.yml` 의 비활성/구버전/시스템 충돌 hotkey 라인을 자동 정리하여, Issue88 이전 사용자가 박제된 잘못된 단축키(예: ⌘S 등록)로 인해 시스템 동작이 차단되는 문제를 해결
