@@ -5,6 +5,15 @@
 #   bash apiTestDo.sh v2      # v2만
 #   bash apiTestDo.sh 5       # v2/05.*.sh 실행
 #   bash apiTestDo.sh v2 5    # v2/05.*.sh 실행
+#
+# Issue93 — burst stability:
+#   * Each test in --all mode is followed by APITEST_BURST_DELAY (default 0.05s)
+#     to avoid HTTP=000 spikes seen on rapid consecutive requests.
+#   * Override via env: APITEST_BURST_DELAY=0.1 bash apiTestDo.sh
+#   * Set 0 to disable: APITEST_BURST_DELAY=0 bash apiTestDo.sh
+
+# Burst delay between tests in --all mode (seconds). Default: 0.05
+APITEST_BURST_DELAY="${APITEST_BURST_DELAY:-0.05}"
 
 # source 호환
 if [ -n "${BASH_SOURCE[0]}" ]; then
@@ -58,6 +67,10 @@ run_version() {
       echo "=== [$ver] $(basename "$f") ==="
       bash "$f"
       echo
+      # Issue93: burst sleep — avoid HTTP=000 from rapid consecutive APIServer hits
+      if [ "$APITEST_BURST_DELAY" != "0" ]; then
+        sleep "$APITEST_BURST_DELAY"
+      fi
     done
 
     # 17.cli-quit은 v1 전용이므로 v2에서는 생략
