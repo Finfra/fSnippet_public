@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 98
+* Issue HWM: 99
 * Save Point :
       - 2026.04.27: 0cacd11 (Feat(Cli): Issue84 — registerSnippet 단축키 메뉴 노출 + 등록 로직)
 
@@ -25,6 +25,19 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue99: menuBar_enhance.md 반영 — 메뉴바 UI 정제 (등록: 2026-05-02, 종료: 2026-05-02, commit: 5daf710, 3ba331e, 265d7bc, 67fd81f, 01f70fe) ✅
+* 목적: `_doc_design/menuBar_enhance.md` 설계 기준으로 MenuBarView.swift UI 전체 정제
+* 상세:
+    - 단축키 표시 방식 교체: `shortcutRow()` HStack+Spacer → `.keyboardShortcut()` (MenuBarExtra Spacer 붕괴 문제 해결)
+    - 메뉴명 교정: "Show History" → "Show Clipboard History", "Settings..." → "Open Settings Window"
+    - 이모지 추가: ⚡ Snippet Popup, 📋 Show Clipboard History, 🔧 Open Settings Window
+    - 구조 변경: 🔧 Open Settings Window를 📜 Clipboard 서브메뉴 바로 뒤로 이동 + Divider 추가
+    - 메뉴명 변경: "Register Snippet" → "Clipboard to Snippet"
+    - 👻 Daemon 서브메뉴 정리: Open Main Window(⌃⇧⌘W) + Status 텍스트 행 제거 (🔧 Open Settings Window가 역할 대체)
+    - 미사용 코드 제거: `statusLine`, `appLaunchTime`, `statusTimer`, `formatStatusLine()`, `formatUptime()`, `import Combine`
+* 구현 명세:
+    - 참조 설계: `_doc_design/menuBar_enhance.md`
 
 ## Issue98: paid_cli_protocol v1.1 cliApp 구현 (등록: 2026-05-02, 종료: 2026-05-02, commit: a089007, d6f2095) ✅
 * 목적: `_doc_design/paid_cli_protocol.md` v1.1 설계 기반으로 cliApp 코드 갭 5개 구현
