@@ -28,15 +28,6 @@ struct MenuBarView: View {
 
         Divider()
 
-        // ─── Launch fSnippet (conditional: installed → launch / missing → product page) ───
-        Button {
-            launchOrOpenPaidAppPage()
-        } label: {
-            shortcutRow(label: "Launch fSnippet", shortcut: "⌃⇧⌘W")
-        }
-
-        Divider()
-
         // ─── Top-level core actions ───
         Button {
             NotificationCenter.default.post(
@@ -147,15 +138,7 @@ struct MenuBarView: View {
 
     // MARK: - Actions
 
-    private func launchOrOpenPaidAppPage() {
-        if PaidAppDetector.installedURL() != nil {
-            PaidAppDetector.launch()
-        } else {
-            if let url = URL(string: "https://finfra.kr/fSnippet") {
-                NSWorkspace.shared.open(url)
-            }
-        }
-    }
+
 
     private func togglePauseAction() {
         let prefs = PreferencesManager.shared
