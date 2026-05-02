@@ -29,13 +29,13 @@ struct MenuBarView: View {
         Divider()
 
         // ─── Top-level core actions ───
-        Button("Snippet Popup") {
+        Button("⚡ Snippet Popup") {
             NotificationCenter.default.post(
                 name: NSNotification.Name("fSnippetShowPopup"), object: nil)
         }
         .keyboardShortcut(KeyEquivalent(" "), modifiers: [.control, .shift])
 
-        Button("Show Clipboard History") {
+        Button("📋 Show Clipboard History") {
             HistoryViewerManager.shared.show()
         }
         .keyboardShortcut(";", modifiers: .command)
@@ -84,7 +84,7 @@ struct MenuBarView: View {
         }
 
         // ─── Settings ───
-        Button("Settings...") {
+        Button("🔧 Settings...") {
             PaidAppManager.shared.handlePaidFeature()
         }
         .keyboardShortcut(";", modifiers: [.control, .shift, .command])
