@@ -22,14 +22,6 @@ date: 2026-04-07
 
 # 📙 일반
 
-## Issue92: `/api/v2/status` 헬스체크 엔드포인트 추가 (등록: 2026-05-01)
-* 목적: v1 deprecated(410 Gone) 이후 헬스체크용 v2 status 부재 → 운영 모니터링 일관성을 위해 추가
-* 상세:
-    - `APIRouter.swift`에 `/api/v2/status` 라우트 추가
-    - 응답 스펙: 버전/uptime/active hotkey 수 등 운영 지표
-    - `api/openapi_v2.yaml` 동기 업데이트
-    - Issue85 후속
-
 ## Issue93: `apiTestDo.sh` burst 안정성 개선 (등록: 2026-05-01)
 * 목적: Run1 일시 HTTP=000 회귀 발생을 회피하여 테스트 신뢰도 확보
 * 상세:
@@ -63,6 +55,26 @@ date: 2026-04-07
     - Issue90 후속
 
 # ✅ 완료
+
+## Issue92: `/api/v2/status` 헬스체크 엔드포인트 추가 (등록: 2026-05-01, 종료: 2026-05-02, commit: 343a992) ✅
+* 목적: v1 deprecated(410 Gone) 이후 헬스체크용 v2 status 부재 → 운영 모니터링 일관성을 위해 추가
+* 상세:
+    - `APIRouter.swift`에 `/api/v2/status` 라우트 추가
+    - 응답 스펙: 버전/uptime/active hotkey 수 등 운영 지표
+    - `api/openapi_v2.yaml` 동기 업데이트
+    - Issue85 후속
+* 구현 명세:
+    - `cli/fSnippetCli/Managers/APIRouter.swift`:
+        + 라우트 등록: `case ("GET", "/api/v2/status"): return handleV2Status(server: server)` (Triggers 직후, CLI 섹션 직전)
+        + `handleV2Status(server:)` 핸들러 신설 — 응답 필드: `status`, `app`, `version`(CFBundleShortVersionString), `build`(CFBundleVersion), `uptime_seconds`(server.uptimeSeconds), `active_hotkey_count`(`ShortcutMgr.shared.registeredShortcuts.count`), `snippet_count`(`SnippetIndexManager.shared.entries.count`), `timestamp`(ISO8601)
+        + 응답 포맷: `{"ok": true, "data": {...}}` (v2 표준)
+    - `api/openapi_v2.yaml`:
+        + paths에 `/status` GET 추가 (Health 태그)
+        + components/schemas에 `V2StatusResponse` 정의 (8 필드 + 예시)
+    - `cli/_tool/apiTest/v2/70.v2-status.sh` 신규 (`curl ... /api/v2/status | jq`)
+    - `cli/_tool/apiTest/apiTest_plan_v2.md` 인덱스에 Health(70) 섹션 추가, 정상 케이스 범위 갱신 (`~ 70.v2-status.sh`)
+    - 검증: `xcodebuild -scheme fSnippetCli -configuration Release build` → **BUILD SUCCEEDED**
+* 비고: 루트 `/` 헬스체크는 paidApp/cliApp 서버 일반 식별용으로 유지하고, 본 엔드포인트는 v2 prefix 일관 모니터링 진입점. cli/status와 차별 — cli/status는 PID/메모리 등 OS 지표 포함, v2/status는 운영 지표(active_hotkey_count 등)에 집중
 
 ## Issue91: `E00.v2-404.sh` 검증 의도 갱신 (등록: 2026-05-01, 종료: 2026-05-02, commit: 48e2054) ✅
 * 목적: `/settings/advanced/debug`가 200 응답으로 구현됨에 따라 "404 미구현" 검증 의도가 어긋난 E00.v2-404.sh 정정
