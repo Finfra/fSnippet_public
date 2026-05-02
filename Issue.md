@@ -24,15 +24,30 @@ date: 2026-04-07
 
 # 📗 선택
 
-## Issue96: 시스템 단축키 블랙리스트 확장 (등록: 2026-05-01)
-* 목적: 명세 14건 외 추가 표준 단축키를 블랙리스트에 포함하여 충돌 예방 강화
-* 상세:
-    - 추가 검토 대상: `⌘⇧S`(Save As), `⌘D`(Duplicate), `⌘E`, `⌘G` 등
-    - `ShortcutBlacklist.swift` 셋 확장 + 사유 매핑
-    - 단위 테스트 추가 케이스
-    - Issue90 후속
-
 # ✅ 완료
+
+## Issue96: 시스템 단축키 블랙리스트 확장 (등록: 2026-05-01, 종료: 2026-05-02, commit: ca68221) ✅
+* 목적: 명세 14건 외 추가 표준 단축키를 블랙리스트에 포함하여 충돌 예방 강화 (umbrella)
+* 상세:
+    - Issue90(블랙리스트 인프라) + Issue94(NSAlert 알림 채널) 후속 — 사용자 알림 경로는 이미 확보됨
+    - 추가 단축키 셋 확장은 서브 이슈에서 점진적 진행
+    - 본 이슈는 모든 서브 이슈 종결 후 함께 종결
+
+### Issue96_2: ShortcutBlacklist 셋 확장 (⌘⇧S/⌘D/⌘E/⌘G) (등록: 2026-05-02, 종료: 2026-05-02, commit: ca68221) ✅
+* 목적: macOS HIG 표준 단축키 4건을 블랙리스트에 추가하여 사용자 충돌 예방
+* 상세:
+    - `ShortcutBlacklist.swift` `reservedSet`/`reasonMap`에 4건 추가:
+        + `⌘⇧S` — Save As (다른 이름으로 저장)
+        + `⌘D` — Duplicate (복제) / Don't Save (저장 안 함)
+        + `⌘E` — Use Selection for Find (찾기에 사용)
+        + `⌘G` — Find Next (다음 찾기)
+    - `ShortcutBlacklistTests.swift` 테스트 갱신:
+        + 기존 `testNotReservedCmdShiftS` 의도 반전 → 예약 검증 케이스로 전환
+        + `testReservedAllStandard` 명세 리스트 업데이트 (15 → 19)
+        + `testBlacklistCount` 카운트 업데이트 (15 → 19)
+        + 4건 reason 매핑 검증 추가
+    - 사용자 알림: Issue94 NSAlert가 자동 노출 (변경 불필요)
+* 검증: Release 빌드 통과 (단위 테스트는 별건 PaidAppAPIRouterTests 빌드 에러로 실행 보류)
 
 ## Issue94: 시스템 예약 단축키 차단 시 NSAlert 모달 (등록: 2026-05-01, 종료: 2026-05-02, commit: 0521008) ✅
 * 목적: 현재 logW만 적용된 차단 알림을 NSAlert 모달로 승격하여 사용자 가시성 향상
