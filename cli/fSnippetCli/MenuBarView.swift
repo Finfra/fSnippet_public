@@ -57,6 +57,14 @@ struct MenuBarView: View {
             }
         }
 
+        // ─── 🔧 Open Settings Window ───
+        Button("🔧 Open Settings Window") {
+            PaidAppManager.shared.handlePaidFeature()
+        }
+        .keyboardShortcut(";", modifiers: [.control, .shift, .command])
+
+        Divider()
+
         // ─── 👻 Daemon submenu ───
         Menu("👻 Daemon") {
             Button("Reload Snippets") {
@@ -82,12 +90,6 @@ struct MenuBarView: View {
                 restartDaemon()
             }
         }
-
-        // ─── Settings ───
-        Button("🔧 Settings...") {
-            PaidAppManager.shared.handlePaidFeature()
-        }
-        .keyboardShortcut(";", modifiers: [.control, .shift, .command])
 
         // ─── ⚙️ Configuration submenu ───
         Menu("⚙️ Configuration") {
