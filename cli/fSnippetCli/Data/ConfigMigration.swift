@@ -24,6 +24,10 @@ enum ConfigMigration {
         "snippet_popup_hotkey",
     ]
 
+    /// Issue95: 백업 파일 보존 개수 (가장 최근 N개만 유지)
+    /// 새 백업이 생성된 직후 cleanup이 실행되므로, N=5면 새 1개 + 직전 4개가 보존됨
+    static let backupKeepCount = 5
+
     /// 마이그레이션 결과
     struct Result {
         /// 시스템 예약(블랙리스트) 매칭으로 빈 값 처리된 키
@@ -32,6 +36,8 @@ enum ConfigMigration {
         var obsolete: [String] = []
         /// 백업 파일 경로 (변경 발생 시에만)
         var backupPath: String?
+        /// Issue95: cleanup으로 삭제된 오래된 백업 파일 경로
+        var removedBackups: [String] = []
 
         var totalCleaned: Int { blacklisted.count + obsolete.count }
         var hasChanges: Bool { totalCleaned > 0 }
@@ -95,9 +101,10 @@ enum ConfigMigration {
             newLines.append(line)
         }
 
-        // 변경 없으면 idempotent — 종료
+        // 변경 없으면 idempotent — 종료 (단, 누적된 오래된 백업 정리는 항상 실행)
         guard result.hasChanges else {
             logV("⚙️ [ConfigMigration] 정리 대상 없음 (idempotent)")
+            result.removedBackups = cleanupOldBackups(near: configURL, keep: backupKeepCount)
             return result
         }
 
@@ -126,7 +133,56 @@ enum ConfigMigration {
             logE("⚙️ ❌ [ConfigMigration] 쓰기 실패: \(error)")
         }
 
+        // Issue95: 새 백업이 생성된 직후 누적된 오래된 백업 정리
+        result.removedBackups = cleanupOldBackups(near: configURL, keep: backupKeepCount)
+
         return result
+    }
+
+    /// Issue95: `_config.yml.backup_*` 누적 정리
+    ///
+    /// 정책: **최근 N개 보존, 그 외 삭제** (단순 개수 기반 — 시간 기반 추가 정책은 향후 이슈에서 확장 가능)
+    /// 호출 시점: `migrate()` 종료 직전 (변경 유무 무관)
+    /// idempotent: N개 이하면 no-op
+    ///
+    /// - Parameters:
+    ///   - configURL: `_config.yml` 파일 URL (백업은 같은 디렉토리 내 `<name>.backup_<stamp>` 패턴)
+    ///   - keep: 보존할 백업 개수 (기본 `backupKeepCount`)
+    /// - Returns: 삭제된 백업 파일 절대경로 목록
+    @discardableResult
+    static func cleanupOldBackups(near configURL: URL, keep: Int = backupKeepCount) -> [String] {
+        let fm = FileManager.default
+        let dir = configURL.deletingLastPathComponent()
+        let baseName = configURL.lastPathComponent
+        let prefix = "\(baseName).backup_"
+
+        var removed: [String] = []
+
+        guard let entries = try? fm.contentsOfDirectory(atPath: dir.path) else {
+            return removed
+        }
+
+        let backups = entries
+            .filter { $0.hasPrefix(prefix) }
+            .sorted()  // stamp가 yyyyMMdd-HHmmss 이므로 사전순 = 시간순
+
+        guard backups.count > keep else {
+            return removed
+        }
+
+        let toRemove = backups.prefix(backups.count - keep)
+        for name in toRemove {
+            let fileURL = dir.appendingPathComponent(name)
+            do {
+                try fm.removeItem(at: fileURL)
+                removed.append(fileURL.path)
+                logI("⚙️ [ConfigMigration] 오래된 백업 삭제: \(name) (정책: 최근 \(keep)개만 보존)")
+            } catch {
+                logW("⚙️ [ConfigMigration] 백업 삭제 실패 \(name): \(error)")
+            }
+        }
+
+        return removed
     }
 
     // MARK: - Helpers
