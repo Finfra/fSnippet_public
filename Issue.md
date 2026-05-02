@@ -22,13 +22,6 @@ date: 2026-04-07
 
 # 📙 일반
 
-## Issue93: `apiTestDo.sh` burst 안정성 개선 (등록: 2026-05-01)
-* 목적: Run1 일시 HTTP=000 회귀 발생을 회피하여 테스트 신뢰도 확보
-* 상세:
-    - `--retry 1 --retry-delay 1` 옵션 추가 또는 테스트 간 sleep 0.05 삽입
-    - Run1/Run2 일관성 확보
-    - Issue85 후속
-
 # 📗 선택
 
 ## Issue94: 시스템 예약 단축키 차단 시 NSAlert 모달 (등록: 2026-05-01)
@@ -55,6 +48,21 @@ date: 2026-04-07
     - Issue90 후속
 
 # ✅ 완료
+
+## Issue93: `apiTestDo.sh` burst 안정성 개선 (등록: 2026-05-01, 종료: 2026-05-02, commit: be763da) ✅
+* 목적: Run1 일시 HTTP=000 회귀 발생을 회피하여 테스트 신뢰도 확보
+* 상세:
+    - `--retry 1 --retry-delay 1` 옵션 추가 또는 테스트 간 sleep 0.05 삽입
+    - Run1/Run2 일관성 확보
+    - Issue85 후속
+* 구현 명세:
+    - `cli/_tool/apiTest/apiTestDo.sh`:
+        + `APITEST_BURST_DELAY` 환경변수 도입 (기본 0.05초, env로 오버라이드 가능, `0` 설정 시 비활성)
+        + `--all` 모드 루프에서 각 테스트 실행 후 `sleep "$APITEST_BURST_DELAY"` 삽입 (단일 테스트 모드는 영향 없음)
+        + Usage 주석에 동작·오버라이드·비활성 방법 명시
+    - 결정 근거: 51개 개별 sh에 `--retry 1`을 일괄 추가하는 대안은 (1) 변경 범위 과다, (2) 에러 케이스 검증 의도와 충돌(retry로 일시적 실패가 가려질 수 있음). runner 레벨 sleep으로 burst 패턴만 완화하는 것이 최소 침습 + 의도 보존
+    - 검증: `bash -n apiTestDo.sh` syntax OK
+* 비고: Run1 HTTP=000 회귀 재현은 서버 가동 + 실 측정 필요 → 사용자 측 후속 검증으로 위임. APITEST_BURST_DELAY=0 으로 회귀 시 기존 동작 복원 가능
 
 ## Issue92: `/api/v2/status` 헬스체크 엔드포인트 추가 (등록: 2026-05-01, 종료: 2026-05-02, commit: 343a992) ✅
 * 목적: v1 deprecated(410 Gone) 이후 헬스체크용 v2 status 부재 → 운영 모니터링 일관성을 위해 추가
