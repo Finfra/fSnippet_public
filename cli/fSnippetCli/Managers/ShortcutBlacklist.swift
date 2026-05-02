@@ -1,6 +1,6 @@
 import Foundation
 
-/// Issue90: macOS 시스템 표준 단축키 블랙리스트
+/// Issue90 + Issue96_2: macOS 시스템 표준 단축키 블랙리스트
 ///
 /// `ShortcutMgr.registerAppGlobalShortcuts()` 진입 시 사용자 `_config.yml` 의
 /// hotkey 토큰을 검사하여 macOS 표준 단축키와 충돌할 경우 등록을 거부함.
@@ -10,11 +10,12 @@ import Foundation
 /// - ⌘N (New), ⌘O (Open), ⌘P (Print), ⌘F (Find)
 /// - ⌘Q (Quit), ⌘W (Close Window), ⌘T (New Tab), ⌘R (Reload)
 /// - ⌘⇧Z (Redo) — 명세 외 추가 (사용자 충돌 빈도 높음)
+/// - Issue96_2 추가: ⌘⇧S (Save As), ⌘D (Duplicate), ⌘E (Use Selection for Find), ⌘G (Find Next)
 ///
 /// 비차단 (사용자 임의):
 /// - ⌃⇧⌘; (settings.hotkey 기존 사용)
 /// - ⌃⇧Space (snippet popup 기존 사용)
-/// - ⌘; / ⌘P 등 단일 ⌘+키 조합 중 위 14건만 명시적으로 차단
+/// - ⌘; / 그 외 단일 ⌘+키 조합 중 위 명시 항목만 차단
 enum ShortcutBlacklist {
 
     /// macOS 표준 예약 단축키 (정규화된 keySpec 기준)
@@ -38,6 +39,10 @@ enum ShortcutBlacklist {
         "⌘T",   // New Tab
         "⌘R",   // Reload
         "⌘⇧Z",  // Redo (추가)
+        "⌘⇧S",  // Save As (Issue96_2)
+        "⌘D",   // Duplicate / Don't Save (Issue96_2)
+        "⌘E",   // Use Selection for Find (Issue96_2)
+        "⌘G",   // Find Next (Issue96_2)
     ]
 
     /// 사용자 친화 설명 (logW + 알림 메시지용)
@@ -57,6 +62,10 @@ enum ShortcutBlacklist {
         "⌘T": "New Tab (새 탭)",
         "⌘R": "Reload (새로 고침)",
         "⌘⇧Z": "Redo (다시 실행)",
+        "⌘⇧S": "Save As (다른 이름으로 저장)",
+        "⌘D": "Duplicate (복제) / Don't Save (저장 안 함)",
+        "⌘E": "Use Selection for Find (찾기에 사용)",
+        "⌘G": "Find Next (다음 찾기)",
     ]
 
     /// 단축키 토큰을 정규화된 형태로 변환
