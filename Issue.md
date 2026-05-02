@@ -31,13 +31,6 @@ date: 2026-04-07
     - 메시지에 충돌 액션 + 시스템 단축키 + 사유 명시
     - Issue90 후속
 
-## Issue95: `_config.yml.backup_*` 누적 정리 정책 (등록: 2026-05-01)
-* 목적: 마이그레이션 백업 파일 누적 방지를 위한 보존 정책 수립
-* 상세:
-    - 보존 기간(N일) 또는 N개 제한 정책 결정
-    - `ConfigMigration` 또는 별도 모듈에서 앱 시작 시 자동 정리
-    - 정리 대상 logI 기록
-    - Issue89 후속
 
 ## Issue96: 시스템 단축키 블랙리스트 확장 (등록: 2026-05-01)
 * 목적: 명세 14건 외 추가 표준 단축키를 블랙리스트에 포함하여 충돌 예방 강화
@@ -48,6 +41,30 @@ date: 2026-04-07
     - Issue90 후속
 
 # ✅ 완료
+
+## Issue95: `_config.yml.backup_*` 누적 정리 정책 (등록: 2026-05-01, 종료: 2026-05-02, commit: a304199) ✅
+* 목적: 마이그레이션 백업 파일 누적 방지를 위한 보존 정책 수립
+* 상세:
+    - 보존 기간(N일) 또는 N개 제한 정책 결정
+    - `ConfigMigration` 또는 별도 모듈에서 앱 시작 시 자동 정리
+    - 정리 대상 logI 기록
+    - Issue89 후속
+* 정책 결정: **최근 N개 보존 (기본 N=5)** — 단순 개수 기반. 시간 기반(N일) 정책은 향후 이슈에서 확장 가능. 새 백업이 생성된 직후 cleanup이 실행되므로 N=5면 새 1개 + 직전 4개가 보존되어 안전 마진 확보
+* 구현 명세:
+    - `cli/fSnippetCli/Data/ConfigMigration.swift`:
+        + `static let backupKeepCount = 5` 상수 추가
+        + `Result.removedBackups: [String]` 필드 추가 (cleanup 결과 추적)
+        + `cleanupOldBackups(near:keep:) -> [String]` static 메서드 신설
+            - 디렉토리 스캔: `_config.yml.backup_` prefix 매칭
+            - 파일명 사전순 정렬 (stamp `yyyyMMdd-HHmmss` 이므로 시간순 = 사전순)
+            - `count > keep`이면 가장 오래된 `count - keep` 개 삭제
+            - 각 삭제마다 `logI` 기록 (정책 명시: "최근 N개만 보존")
+            - 실패 시 `logW`로 기록 + 다음 항목 계속 처리 (best-effort)
+        + `migrate()` 호출 위치 2곳:
+            1. 변경 없음 분기 — idempotent path에서도 누적 정리 수행
+            2. 정상 종료 직전 — 새 백업 생성 직후 정리
+* 비고: 시간 기반 정책(예: 30일 초과 삭제)은 운영 데이터 축적 후 검토 — 사용자가 자주 마이그레이션 발생 시 N=5가 좁을 수 있음. 향후 이슈로 분리 가능
+* 검증: `xcodebuild -scheme fSnippetCli -configuration Release build` → **BUILD SUCCEEDED**
 
 ## Issue93: `apiTestDo.sh` burst 안정성 개선 (등록: 2026-05-01, 종료: 2026-05-02, commit: be763da) ✅
 * 목적: Run1 일시 HTTP=000 회귀 발생을 회피하여 테스트 신뢰도 확보
