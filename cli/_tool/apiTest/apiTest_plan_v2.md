@@ -18,7 +18,7 @@ cli/_tool/apiTest/
 ├── apiTest_plan_v2.md              ← 본 문서 (v2 계획)
 ├── v1/                             ← v1 스크립트
 └── v2/                             ← v2 스크립트
-    ├── 00.v2-general-get.sh ~ 60.v2-snapshot-put.sh  ← 정상 케이스
+    ├── 00.v2-general-get.sh ~ 70.v2-status.sh        ← 정상 케이스
     └── E00.v2-404.sh ~ E06.v2-popup-invalid.sh       ← 에러 케이스
 ```
 
@@ -115,6 +115,12 @@ BASE="http://localhost:3015/api/v2"
 | 번호 | 파일명                    | Method | Endpoint                  | 설명                         |
 | ---: | :------------------------ | :----- | :------------------------ | :--------------------------- |
 |   60 | `60.v2-snapshot-put.sh`   | PUT    | `/settings/snapshot`      | 스냅샷 Import (복원)         |
+
+### Health (70)
+
+| 번호 | 파일명               | Method | Endpoint   | 설명                                         |
+| ---: | :------------------- | :----- | :--------- | :------------------------------------------- |
+|   70 | `70.v2-status.sh`    | GET    | `/status`  | v2 헬스체크 (Issue92, 운영 모니터링용)       |
 
 ## 에러 케이스 (7개)
 

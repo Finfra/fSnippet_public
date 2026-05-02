@@ -263,6 +263,10 @@ class APIRouter {
     case ("GET", "/api/v2/triggers"):
       return handleGetTriggers()
 
+    // Health (Issue92): v2-prefixed health check for ops monitoring
+    case ("GET", "/api/v2/status"):
+      return handleV2Status(server: server)
+
     // CLI
     case ("GET", "/api/v2/cli/status"):
       return handleCliStatus(server: server)
@@ -1671,6 +1675,35 @@ class APIRouter {
   }
 
   // MARK: - fSnippetCli 전용 엔드포인트
+
+  /// GET /api/v2/status — v2 health check (ops monitoring entry, Issue92)
+  /// Lightweight version-agnostic health endpoint complementing the root `/` endpoint.
+  /// Returns ops indicators: version/build/uptime/active hotkey count.
+  private func handleV2Status(server: APIServer) -> APIServer.HTTPResponse {
+    let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+    let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "unknown"
+    let activeHotkeyCount = ShortcutMgr.shared.registeredShortcuts.count
+    let snippetCount = SnippetIndexManager.shared.entries.count
+    let timestamp = ISO8601DateFormatter().string(from: Date())
+    let payload: [String: Any] = [
+      "ok": true,
+      "data": [
+        "status": "ok",
+        "app": "fSnippetCli",
+        "version": version,
+        "build": build,
+        "uptime_seconds": server.uptimeSeconds,
+        "active_hotkey_count": activeHotkeyCount,
+        "snippet_count": snippetCount,
+        "timestamp": timestamp
+      ] as [String: Any]
+    ]
+    if let data = try? JSONSerialization.data(withJSONObject: payload),
+       let json = String(data: data, encoding: .utf8) {
+      return APIServer.HTTPResponse(statusCode: 200, body: json, headers: ["Content-Type": "application/json"])
+    }
+    return errorResponse(code: "INTERNAL_ERROR", message: "직렬화 실패", statusCode: 500)
+  }
 
   /// GET /api/cli/status — fSnippetCli 상태 정보
   private func handleCliStatus(server: APIServer) -> APIServer.HTTPResponse {
