@@ -24,14 +24,6 @@ date: 2026-04-07
 
 # 📗 선택
 
-## Issue94: 시스템 예약 단축키 차단 시 NSAlert 모달 (등록: 2026-05-01)
-* 목적: 현재 logW만 적용된 차단 알림을 NSAlert 모달로 승격하여 사용자 가시성 향상
-* 상세:
-    - 일괄 NSAlert 1회 노출 헬퍼 신설 (다중 차단 시 한 번에 표시)
-    - 메시지에 충돌 액션 + 시스템 단축키 + 사유 명시
-    - Issue90 후속
-
-
 ## Issue96: 시스템 단축키 블랙리스트 확장 (등록: 2026-05-01)
 * 목적: 명세 14건 외 추가 표준 단축키를 블랙리스트에 포함하여 충돌 예방 강화
 * 상세:
@@ -41,6 +33,27 @@ date: 2026-04-07
     - Issue90 후속
 
 # ✅ 완료
+
+## Issue94: 시스템 예약 단축키 차단 시 NSAlert 모달 (등록: 2026-05-01, 종료: 2026-05-02, commit: 0521008) ✅
+* 목적: 현재 logW만 적용된 차단 알림을 NSAlert 모달로 승격하여 사용자 가시성 향상
+* 상세:
+    - 일괄 NSAlert 1회 노출 헬퍼 신설 (다중 차단 시 한 번에 표시)
+    - 메시지에 충돌 액션 + 시스템 단축키 + 사유 명시
+    - Issue90 후속
+* 구현 명세:
+    - `cli/fSnippetCli/Managers/ShortcutMgr.swift`:
+        + `blockedShortcutsBuffer: [(id, keySpec, reason)]` instance 필드 추가 — 등록 사이클 동안 차단 항목 누적
+        + `lastShownBlockedSignature: String?` — 동일 차단 셋 재알림 방지 (id:keySpec 정렬 join)
+        + `tryRegister` 내부 차단 분기에 `blockedShortcutsBuffer.append(...)` 추가 (logW 유지)
+        + `registerAppGlobalShortcuts()` 시작 시 버퍼 reset, 종료 시 `presentBlockedShortcutsAlertIfNeeded()` 호출
+        + `presentBlockedShortcutsAlertIfNeeded()` 신설:
+            - 빈 버퍼면 no-op
+            - signature 비교 — 동일 셋이면 알림 스킵 (사용자가 `_config.yml`을 안 고치면 매 사이클 떠서 노이즈)
+            - `DispatchQueue.main.async`로 NSAlert 표시 (등록 흐름 비차단)
+            - 메시지: `"시스템 예약 단축키 N건 차단됨"` + 항목별 `"• <id>: <keySpec> (<reason>)"` 본문 + `_config.yml` 수정 가이드
+            - alertStyle `.warning`, "확인" 버튼
+* 검증: `xcodebuild -scheme fSnippetCli -configuration Release build` → **BUILD SUCCEEDED**
+* 비고: 동일 차단 셋의 재알림은 세션 내에서만 억제됨 (lastShownBlockedSignature는 인스턴스 변수). 앱 재시작 시 1회 다시 표시되므로 사용자가 인지 못 한 채 누락되지 않음. UI 테스트는 차단 단축키가 설정되어야 재현 가능 → 사용자 측 후속 검증으로 위임
 
 ## Issue95: `_config.yml.backup_*` 누적 정리 정책 (등록: 2026-05-01, 종료: 2026-05-02, commit: a304199) ✅
 * 목적: 마이그레이션 백업 파일 누적 방지를 위한 보존 정책 수립
