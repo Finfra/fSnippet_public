@@ -6,8 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 99
+* Issue HWM: 100
 * Save Point :
+      - 2026.05.02: 2804aaa (Docs: Close Issue99 — menuBar_enhance.md 반영)
       - 2026.04.27: 0cacd11 (Feat(Cli): Issue84 — registerSnippet 단축키 메뉴 노출 + 등록 로직)
 
 # 🤔 결정사항
@@ -25,6 +26,13 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue100: Daemon 서브메뉴 Pause/Resume REST API 구현 (등록: 2026-05-02, 종료: 2026-05-02, commit: 02c06a5) ✅
+* 목적: `menuBar_enhance.md` L45 — Daemon 서브메뉴에 REST API 일시정지/재개 버튼 추가
+* 상세:
+    - `APIServer`: `isApiPaused`, `pauseAPI()`, `resumeAPI()` + pause guard (cli/* 만 bypass, 나머지 503)
+    - `APIRouter`: `POST /api/v2/cli/pause`, `POST /api/v2/cli/resume` + `handleCliStatus`에 `is_api_paused` 포함
+    - `MenuBarView`: Daemon 서브메뉴 세 번째 항목으로 Pause/Resume REST API 버튼 추가
 
 ## Issue99: menuBar_enhance.md 반영 — 메뉴바 UI 정제 (등록: 2026-05-02, 종료: 2026-05-02, commit: 5daf710, 3ba331e, 265d7bc, 67fd81f, 01f70fe) ✅
 * 목적: `_doc_design/menuBar_enhance.md` 설계 기준으로 MenuBarView.swift UI 전체 정제
