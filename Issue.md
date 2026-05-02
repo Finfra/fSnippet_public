@@ -22,27 +22,25 @@ date: 2026-04-07
 
 # 📙 일반
 
-## Issue98: paid_cli_protocol v1.1 cliApp 구현 (등록: 2026-05-02)
+# 📗 선택
+
+# ✅ 완료
+
+## Issue98: paid_cli_protocol v1.1 cliApp 구현 (등록: 2026-05-02, 종료: 2026-05-02, commit: a089007) ✅
 * 목적: `_doc_design/paid_cli_protocol.md` v1.1 설계 기반으로 cliApp 코드 갭 5개 구현
 * 상세:
     - **①** `fSnippetCliApp.swift` — `MenuBarExtra(isInserted: !isPaidAppRunning)` 제거 → 항상 표시 (paidApp 실행 중에도 cliApp 메뉴바 유지)
     - **②** 아이콘 동적 전환 — paidApp `started` 시 전체 bolt 아이콘, `notInstall/stopped` 시 잘린 아이콘 (§7.1)
     - **③** `AppStateManager.swift` 신규 — `PaidAppStatus: notInstall/stopped/started` 3-state enum 추가. 현재 binary `isPaidAppRunning: Bool` → 3-state 전환
-    - **④** cliApp → paidApp 자동 기동 (§4.2) — `applicationDidFinishLaunching` 시 paidApp 설치됨+미실행이면 `NSWorkspace.openApplication()` 호출
-    - **⑤** `PaidFeatureHandler` — 유료 기능 클릭 시 `paidAppStatus` 기반 분기: `started` → URL Scheme 위임, `notInstall/stopped` → App Store 안내. 현재 `PaidAppDetector.openSettings()` 직접 호출 대체 (§7.2)
+    - **④** cliApp → paidApp 자동 기동 (§4.2) — `applicationDidFinishLaunching` 내 `PaidAppManager.shared.launchPaidApp()` (기존 구현 확인)
+    - **⑤** `MenuBarView.swift` — `PaidAppDetector.openSettings()` → `PaidAppManager.shared.handlePaidFeature()` 교체 (notInstall→App Store알림/stopped→실행요청/started→URL Scheme)
 * 구현 명세:
     - 참조 설계: `_doc_design/paid_cli_protocol.md` §3.5, §4.2, §7.1, §7.2
     - 참조 설계: `_doc_design/menuBar_enhance.md` 아이콘 변경 규칙
     - ①②③: `fSnippetCliApp.swift` — `PaidAppIconState.isPaidAppRunning: Bool` → `status: PaidAppStatus` 3-state 전환, `MenuBarExtra(isInserted:)` 제거 → 항상 표시, 아이콘 `.started` → full bolt / else → trimmed bolt. 신규 `AppStateManager.swift` — `PaidAppStatus` enum + `AppStateManager` ObservableObject
-    - ④: 이미 구현됨 (`applicationDidFinishLaunching` 내 `PaidAppManager.shared.launchPaidApp()` 호출)
-    - ⑤: `MenuBarView.swift` — `PaidAppDetector.openSettings()` → `PaidAppManager.shared.handlePaidFeature()` 교체 (notInstall→App Store알림/stopped→실행요청/started→URL Scheme)
+    - ⑤: `MenuBarView.swift` — Settings 버튼 `handlePaidFeature()` 교체
     - 부수 변경: paidApp 종료 시 cliApp도 종료하는 v1.0 연동 로직 제거 (v1.1: cliApp 독립 실행 유지)
     - 기존 `PaidAppStateStore` (register/unregister/status REST) 및 `ChangeTracker` 유지
-    - `xcodegen generate` 실행하여 신규 파일 프로젝트 포함
-
-# 📗 선택
-
-# ✅ 완료
 
 ## Issue96: 시스템 단축키 블랙리스트 확장 (등록: 2026-05-01, 종료: 2026-05-02, commit: ca68221) ✅
 * 목적: 명세 14건 외 추가 표준 단축키를 블랙리스트에 포함하여 충돌 예방 강화 (umbrella)
