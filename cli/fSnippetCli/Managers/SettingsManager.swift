@@ -282,7 +282,7 @@ struct SnippetSettings: Codable, Equatable {
             basePath: basePath,
             basePathBookmark: nil,  // 기본값: 북마크 없음
             appRootPath: appRootPath,
-            popupKeyShortcut: PopupKeyShortcut.default,
+            popupKeyShortcut: PopupKeyShortcut.from(hotkeyString: ""),  // Issue97: SSOT는 _config.yml (Issue88 정책 일관 적용 — was PopupKeyShortcut.default ⌃` which conflicts with Korean IME on keyCode 50)
             defaultSymbol: "◊",  // 트리거 키
             triggerBias: 0,
             // triggerBiasAux: 0, // Deprecated
