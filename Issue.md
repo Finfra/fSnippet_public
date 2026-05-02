@@ -33,10 +33,12 @@ date: 2026-04-07
 * 구현 명세:
     - 참조 설계: `_doc_design/paid_cli_protocol.md` §3.5, §4.2, §7.1, §7.2
     - 참조 설계: `_doc_design/menuBar_enhance.md` 아이콘 변경 규칙
-    - ①②③: `fSnippetCliApp.swift` + 신규 `AppStateManager.swift` 수정
-    - ④: `AppDelegate.swift` 또는 `fSnippetCliApp.swift`의 `applicationDidFinishLaunching` 훅 추가
-    - ⑤: 신규 `PaidFeatureHandler.swift` + `MenuBarView.swift` 호출 교체
+    - ①②③: `fSnippetCliApp.swift` — `PaidAppIconState.isPaidAppRunning: Bool` → `status: PaidAppStatus` 3-state 전환, `MenuBarExtra(isInserted:)` 제거 → 항상 표시, 아이콘 `.started` → full bolt / else → trimmed bolt. 신규 `AppStateManager.swift` — `PaidAppStatus` enum + `AppStateManager` ObservableObject
+    - ④: 이미 구현됨 (`applicationDidFinishLaunching` 내 `PaidAppManager.shared.launchPaidApp()` 호출)
+    - ⑤: `MenuBarView.swift` — `PaidAppDetector.openSettings()` → `PaidAppManager.shared.handlePaidFeature()` 교체 (notInstall→App Store알림/stopped→실행요청/started→URL Scheme)
+    - 부수 변경: paidApp 종료 시 cliApp도 종료하는 v1.0 연동 로직 제거 (v1.1: cliApp 독립 실행 유지)
     - 기존 `PaidAppStateStore` (register/unregister/status REST) 및 `ChangeTracker` 유지
+    - `xcodegen generate` 실행하여 신규 파일 프로젝트 포함
 
 # 📗 선택
 

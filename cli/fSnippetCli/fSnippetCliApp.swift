@@ -3,16 +3,22 @@ import Cocoa
 
 // MARK: - App 진입점
 
-// paidApp 실행 상태를 구독하여 cliApp 메뉴바 숨김/표시를 제어하는 ObservableObject
+// paidApp 상태를 구독하여 cliApp 메뉴바 아이콘 전환을 제어하는 ObservableObject
+// v1.1: 항상 메뉴바 표시, paidApp started 시 full bolt / notInstall·stopped 시 trimmed bolt
 private final class PaidAppIconState: ObservableObject {
-    @Published var isPaidAppRunning: Bool
+    @Published var status: PaidAppStatus
 
     init() {
         // REST 채널(등록 여부) + NSWorkspace(시작 시 이미 실행 중인 경우) 양쪽 체크
-        let hasRESTReg = PaidAppStateStore.shared.status() != nil
-        let isWorkspaceRunning = !NSRunningApplication.runningApplications(
-            withBundleIdentifier: "kr.finfra.fSnippet").isEmpty
-        isPaidAppRunning = hasRESTReg || isWorkspaceRunning
+        let isRunning = PaidAppStateStore.shared.status() != nil
+            || !NSRunningApplication.runningApplications(withBundleIdentifier: "kr.finfra.fSnippet").isEmpty
+        if isRunning {
+            status = .started
+        } else if PaidAppManager.shared.isInstalled() {
+            status = .stopped
+        } else {
+            status = .notInstall
+        }
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(onStateChanged(_:)),
@@ -22,30 +28,45 @@ private final class PaidAppIconState: ObservableObject {
     }
 
     @objc private func onStateChanged(_ notification: Notification) {
-        isPaidAppRunning = notification.userInfo?["isRunning"] as? Bool ?? false
+        let isRunning = notification.userInfo?["isRunning"] as? Bool ?? false
+        if isRunning {
+            status = .started
+        } else if PaidAppManager.shared.isInstalled() {
+            status = .stopped
+        } else {
+            status = .notInstall
+        }
     }
 }
 
-// Issue55: paidApp 실행 시 cliApp MenuBarExtra 숨김 — isInserted 바인딩 복원
-// paidApp 실행 중에는 paidApp이 자체 MenuBarExtra를 표시하므로 cliApp 아이콘 숨김
+// v1.1: cliApp 메뉴바 항상 표시 (paidApp 실행 중에도 유지)
+// paidApp started → full bolt 아이콘, notInstall/stopped → trimmed bolt 아이콘 (paid_cli_protocol §7.1)
 struct fSnippetCliApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var iconState = PaidAppIconState()
 
     var body: some Scene {
-        // paidApp 미실행 시만 cliApp 메뉴바 표시 (isInserted 바인딩)
-        MenuBarExtra(isInserted: Binding(
-            get: { !iconState.isPaidAppRunning },
-            set: { _ in }
-        )) {
+        // v1.1: isInserted 바인딩 제거 — cliApp 메뉴바 항상 표시
+        MenuBarExtra {
             MenuBarView()
         } label: {
-            // cliApp 단독 실행 상태: 아래 30% 잘린 bolt (paidApp 미연결 표시)
-            Image(nsImage: Self.diagonalCutBoltImage())
+            Image(nsImage: iconState.status == .started
+                  ? Self.fullBoltImage()
+                  : Self.diagonalCutBoltImage())
         }
     }
 
-    /// bolt.fill을 대각선으로 잘라 아래 부분을 투명하게 만든 메뉴바 아이콘
+    /// paidApp started 상태 아이콘 — 완전한 bolt (paid_cli_protocol §7.1 MenuBarIconFull)
+    private static func fullBoltImage() -> NSImage {
+        let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .semibold)
+        let img = (NSImage(systemSymbolName: "bolt.fill", accessibilityDescription: "fSnippetCli (connected)")?
+            .withSymbolConfiguration(config))
+            ?? NSImage(systemSymbolName: "bolt.fill", accessibilityDescription: "fSnippetCli (connected)")!
+        img.isTemplate = true
+        return img
+    }
+
+    /// notInstall / stopped 상태 아이콘 — 아래 30% 잘린 bolt (paid_cli_protocol §7.1 MenuBarIconTrimmed)
     private static func diagonalCutBoltImage() -> NSImage {
         let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .semibold)
         guard let boltImage = NSImage(
@@ -57,10 +78,8 @@ struct fSnippetCliApp: App {
 
         let size = boltImage.size
         let result = NSImage(size: size, flipped: false) { rect in
-            // 아래 30%를 수평으로 잘라냄 (위 70%만 표시)
             let clipRect = NSRect(x: 0, y: rect.height * 0.3, width: rect.width, height: rect.height * 0.7)
             NSBezierPath(rect: clipRect).setClip()
-
             boltImage.draw(in: rect)
             return true
         }
@@ -128,7 +147,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // 4. API 서버 시작 (forceEnabled: api_enabled 설정 무시하고 항상 시작)
         APIServer.shared.start(forceEnabled: true)
 
-        // 5. paid 앱 설치됐지만 미실행 시 자동 실행 (실행되면 NSWorkspace가 메뉴바 숨김 트리거)
+        // 5. paidApp 설치됨 + 미실행 시 자동 기동 (paid_cli_protocol §4.2)
         if PaidAppManager.shared.isInstalled(), !PaidAppManager.shared.isRunning() {
             PaidAppManager.shared.launchPaidApp()
         }
@@ -162,17 +181,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - 메뉴바 복원 신호 처리
 
     /// 중복 인스턴스가 직접 실행되었을 때 DistributedNotificationCenter 를 통해 수신
-    /// paidApp 종료 후 메뉴바 아이콘이 숨겨진 상태에서 직접 실행 시 복원 트리거
+    /// paidApp 미실행 상태로 아이콘 전환 (v1.1: 메뉴바는 항상 표시되므로 아이콘 상태만 갱신)
     @objc private func onRestoreMenuBarSignal() {
-        logI("메뉴바 복원 신호 수신 — paidApp 미실행 상태로 강제 전환")
+        logI("메뉴바 복원 신호 수신 — paidApp 미실행 상태로 아이콘 전환")
         NotificationCenter.default.post(name: .paidAppStateChanged, object: nil, userInfo: ["isRunning": false])
     }
 
     // MARK: - 유료 앱 실행/종료 감시
 
-    /// fSnippet(유료) 앱 실행/종료를 감시하여 PaidAppStateStore + 메뉴바 표시 상태 갱신
-    /// 실행 감지 → paidAppStateChanged(isRunning:true) → isInserted=false(cliApp 메뉴바 숨김)
-    /// 종료 감지 → markStaleFromWorkspace → paidAppStateChanged(isRunning:false) → isInserted=true(복원)
+    /// paidApp 실행/종료를 감시하여 PaidAppStateStore + 아이콘 상태 갱신
+    /// 실행 감지 → paidAppStateChanged(isRunning:true) → 아이콘 full bolt 전환
+    /// 종료 감지 → markStaleFromWorkspace → paidAppStateChanged(isRunning:false) → 아이콘 trimmed bolt 전환
     private func setupPaidAppMonitoring() {
         let workspace = NSWorkspace.shared
         let paidBundleID = "kr.finfra.fSnippet"
@@ -202,12 +221,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // markStaleFromWorkspace 는 pid 일치 시에만 발송하므로,
             // REST register 없이 실행된 paidApp 종료 시 누락될 수 있음 → 직접 발송으로 보장
             NotificationCenter.default.post(name: .paidAppStateChanged, object: nil, userInfo: ["isRunning": false])
-            // paidApp 종료 시 cliApp도 함께 종료 (brew service 포함)
-            // applicationWillTerminate 에서 BrewServiceSync.onAppStop() 자동 호출됨
-            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(200)) {
-                logI("🛑 paidApp 종료 연동 — cliApp 종료")
-                NSApplication.shared.terminate(nil)
-            }
+            // v1.1: cliApp은 paidApp과 독립적으로 계속 실행 (메뉴바 항상 유지, 아이콘만 trimmed bolt로 전환)
         }
     }
 

@@ -104,7 +104,7 @@ struct MenuBarView: View {
 
         // ─── Settings ───
         Button {
-            PaidAppDetector.openSettings()
+            PaidAppManager.shared.handlePaidFeature()
         } label: {
             shortcutRow(label: "Settings...", shortcut: "⌃⇧⌘;")
         }
