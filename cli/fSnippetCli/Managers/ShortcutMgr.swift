@@ -78,6 +78,12 @@ class ShortcutMgr: ObservableObject {
     private var globalMonitor: Any?
     private var localMonitor: Any?
 
+    // Issue94: 시스템 예약 단축키 차단 시 일괄 NSAlert를 위한 수집기
+    /// 현재 등록 사이클에서 차단된 단축키 (id, keySpec, reason)
+    private var blockedShortcutsBuffer: [(id: String, keySpec: String, reason: String)] = []
+    /// 마지막으로 NSAlert을 표시한 차단 셋의 시그니처 — 동일 셋 재알림 방지
+    private var lastShownBlockedSignature: String?
+
     private init() {
         logV("🚀 [ShortcutMgr] 초기화됨 (Phase 2: Active Registry Mode)")
 
@@ -349,16 +355,19 @@ class ShortcutMgr: ObservableObject {
     /// `ShortcutBlacklist.isReserved()` 검사로 등록 거부 + logW 경고
     private func registerAppGlobalShortcuts() {
         clear(type: .appShortcut)
+        // Issue94: 새 등록 사이클 시작 — 이전 차단 버퍼 비움
+        blockedShortcutsBuffer.removeAll()
 
         let prefs = PreferencesManager.shared
 
-        /// Issue90: 시스템 예약 단축키 검사 헬퍼 — 예약 시 false 반환 + 경고 로그
+        /// Issue90/94: 시스템 예약 단축키 검사 헬퍼 — 예약 시 등록 거부 + logW + Issue94 수집기에 추가
         func tryRegister(id: String, keySpec: String, description: String, source: String) {
             if ShortcutBlacklist.isReserved(keySpec) {
                 let reason = ShortcutBlacklist.reason(for: keySpec) ?? "System Reserved"
                 logW(
                     "🚀 [ShortcutMgr] Issue90 차단: \(id) 단축키 '\(keySpec)' 는 macOS 표준 예약 (\(reason)) — 등록 거부"
                 )
+                self.blockedShortcutsBuffer.append((id: id, keySpec: keySpec, reason: reason))
                 return
             }
             register(
@@ -428,6 +437,46 @@ class ShortcutMgr: ObservableObject {
                 description: "Register Snippet from Clipboard",
                 source: "Preferences"
             )
+        }
+
+        // Issue94: 차단된 단축키가 있으면 일괄 NSAlert 1회 표시
+        presentBlockedShortcutsAlertIfNeeded()
+    }
+
+    /// Issue94: 시스템 예약 단축키 차단 알림 — 1회 일괄 NSAlert
+    ///
+    /// - 동일 차단 셋이면 세션 내 재알림 방지 (`lastShownBlockedSignature`)
+    /// - main thread async로 디스패치하여 등록 사이클 흐름을 막지 않음
+    /// - 메시지: 충돌한 액션 ID, 단축키 스펙, 사유 명시 + 해결 가이드(_config.yml 수정)
+    private func presentBlockedShortcutsAlertIfNeeded() {
+        guard !blockedShortcutsBuffer.isEmpty else { return }
+
+        let signature = blockedShortcutsBuffer
+            .map { "\($0.id):\($0.keySpec)" }
+            .sorted()
+            .joined(separator: "|")
+
+        // 같은 차단 셋이면 재알림 생략 (사용자가 _config.yml을 안 고치면 매 등록 사이클마다 떠서 노이즈)
+        guard signature != lastShownBlockedSignature else {
+            return
+        }
+        lastShownBlockedSignature = signature
+
+        let blocked = blockedShortcutsBuffer  // 캡처
+
+        DispatchQueue.main.async {
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = "시스템 예약 단축키 \(blocked.count)건 차단됨"
+            let body = blocked.map { "• \($0.id): \($0.keySpec) (\($0.reason))" }.joined(separator: "\n")
+            alert.informativeText = """
+                다음 단축키는 macOS 표준 예약과 충돌하여 등록되지 않았습니다.
+                _config.yml 에서 다른 키로 변경하세요.
+
+                \(body)
+                """
+            alert.addButton(withTitle: "확인")
+            alert.runModal()
         }
     }
 
