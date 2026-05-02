@@ -10,8 +10,9 @@ import SwiftUI
 struct MenuBarView: View {
     @State private var isPaused: Bool = PreferencesManager.shared.bool(
         forKey: "history.isPaused", defaultValue: false)
-    @State private var launchAtLoginEnabled: Bool = PreferencesManager.shared.bool(
-        forKey: "start_at_login", defaultValue: false)
+    @State private var isApiPaused: Bool = false
+    @State private var launchAtLoginEnabled: Bool = FileManager.default.fileExists(
+        atPath: NSHomeDirectory() + "/Library/LaunchAgents/homebrew.mxcl.fsnippet-cli.plist")
     var body: some View {
         // ─── About ───
         Button {
@@ -23,67 +24,107 @@ struct MenuBarView: View {
         Divider()
 
         // ─── Top-level core actions ───
-        Button("⚡ Snippet Popup") {
+        Button {
             NotificationCenter.default.post(
                 name: NSNotification.Name("fSnippetShowPopup"), object: nil)
+        } label: {
+            Label("⚡ Snippet Popup", systemImage: "bolt.fill")
         }
         .keyboardShortcut(KeyEquivalent(" "), modifiers: [.control, .shift])
 
-        Button("📋 Show Clipboard History") {
+        Button {
             HistoryViewerManager.shared.show()
+        } label: {
+            Label("📋 Show Clipboard History", systemImage: "clock.arrow.circlepath")
         }
         .keyboardShortcut(";", modifiers: .command)
 
         // ─── 📜 Clipboard submenu ───
-        Menu("📜 Clipboard") {
-            Button(isPaused ? "Resume" : "Pause") {
+        Menu {
+            Button {
                 togglePauseAction()
+            } label: {
+                Label(
+                    isPaused ? "Resume" : "Pause",
+                    systemImage: isPaused ? "play.fill" : "pause.fill")
             }
             .keyboardShortcut("p", modifiers: [.control, .option, .command])
 
             // Issue84 — Clipboard to Snippet (UI wired; backend deferred)
-            Button("Clipboard to Snippet") {
+            Button {
                 registerSnippetAction()
+            } label: {
+                Label("Clipboard to Snippet", systemImage: "text.badge.plus")
             }
 
-            Button("Clear Clipboard History") {
+            Button {
                 clearClipboardHistory()
+            } label: {
+                Label("Clear Clipboard History", systemImage: "trash")
             }
+        } label: {
+            Label("📜 Clipboard", systemImage: "doc.on.clipboard")
         }
 
         // ─── 🔧 Open Settings Window ───
-        Button("🔧 Open Settings Window") {
+        Button {
             PaidAppManager.shared.handlePaidFeature()
+        } label: {
+            Label("🔧 Open Settings Window", systemImage: "gear")
         }
         .keyboardShortcut(";", modifiers: [.control, .shift, .command])
 
         Divider()
 
         // ─── 👻 Daemon submenu ───
-        Menu("👻 Daemon") {
-            Button("Reload Snippets") {
+        Menu {
+            Button {
                 reloadSnippets()
+            } label: {
+                Label("Reload Snippets", systemImage: "arrow.clockwise")
             }
 
-            Button("Restart Daemon") {
+            Button {
                 restartDaemon()
+            } label: {
+                Label("Restart Daemon", systemImage: "arrow.triangle.2.circlepath")
             }
+
+            Button {
+                pauseResumeAPIAction()
+            } label: {
+                Label(
+                    isApiPaused ? "Resume REST API" : "Pause REST API",
+                    systemImage: isApiPaused ? "play.circle" : "pause.circle")
+            }
+        } label: {
+            Label("👻 Daemon", systemImage: "terminal")
         }
 
         // ─── ⚙️ Configuration submenu ───
-        Menu("⚙️ Configuration") {
-            Button("Open Config File") { openConfigFile() }
-            Button("Open Data Folder") { openDataFolder() }
-            Button("Open Log Folder") { openLogDirectory() }
+        Menu {
+            Button { openConfigFile() } label: {
+                Label("Open Config File", systemImage: "doc.text")
+            }
+            Button { openDataFolder() } label: {
+                Label("Open Data Folder", systemImage: "folder")
+            }
+            Button { openLogDirectory() } label: {
+                Label("Open Log Folder", systemImage: "doc.text.magnifyingglass")
+            }
+        } label: {
+            Label("⚙️ Configuration", systemImage: "slider.horizontal.3")
         }
 
         Divider()
 
-        // ─── Launch at Login (Phase 6 stub — brew services binding to be added) ───
-        Toggle("Launch at Login", isOn: $launchAtLoginEnabled)
-            .onChange(of: launchAtLoginEnabled) { _, newValue in
-                handleLaunchAtLoginToggle(newValue)
-            }
+        // ─── Launch at Login ───
+        Toggle(isOn: $launchAtLoginEnabled) {
+            Label("Launch at Login", systemImage: "rocket")
+        }
+        .onChange(of: launchAtLoginEnabled) { _, newValue in
+            handleLaunchAtLoginToggle(newValue)
+        }
 
         // ─── Quit ───
         Button {
@@ -96,7 +137,14 @@ struct MenuBarView: View {
 
     // MARK: - Actions
 
-
+    private func pauseResumeAPIAction() {
+        if APIServer.shared.isApiPaused {
+            APIServer.shared.resumeAPI()
+        } else {
+            APIServer.shared.pauseAPI()
+        }
+        isApiPaused = APIServer.shared.isApiPaused
+    }
 
     private func togglePauseAction() {
         let prefs = PreferencesManager.shared

@@ -274,6 +274,10 @@ class APIRouter {
       return handleCliVersion()
     case ("POST", "/api/v2/cli/quit"):
       return handleCliQuit(request: request)
+    case ("POST", "/api/v2/cli/pause"):
+      return handleCliPause(server: server)
+    case ("POST", "/api/v2/cli/resume"):
+      return handleCliResume(server: server)
 
     // Shutdown (Issue52 Phase1)
     case ("POST", "/api/v2/shutdown"):
@@ -1716,10 +1720,33 @@ class APIRouter {
         "uptime_seconds": server.uptimeSeconds,
         "snippet_count": snippetCount,
         "pid": ProcessInfo.processInfo.processIdentifier,
-        "memory_usage_mb": ProcessInfo.processInfo.physicalMemory / (1024 * 1024)
+        "memory_usage_mb": ProcessInfo.processInfo.physicalMemory / (1024 * 1024),
+        "is_api_paused": server.isApiPaused
       ] as [String: Any]
     ]
     if let data = try? JSONSerialization.data(withJSONObject: status),
+       let json = String(data: data, encoding: .utf8) {
+      return APIServer.HTTPResponse(statusCode: 200, body: json, headers: ["Content-Type": "application/json"])
+    }
+    return errorResponse(code: "INTERNAL_ERROR", message: "직렬화 실패", statusCode: 500)
+  }
+
+  /// POST /api/v2/cli/pause — API 일시정지 (Issue100)
+  private func handleCliPause(server: APIServer) -> APIServer.HTTPResponse {
+    server.pauseAPI()
+    let body: [String: Any] = ["success": true, "data": ["isApiPaused": true, "message": "API paused. cli/* endpoints remain available."]]
+    if let data = try? JSONSerialization.data(withJSONObject: body),
+       let json = String(data: data, encoding: .utf8) {
+      return APIServer.HTTPResponse(statusCode: 200, body: json, headers: ["Content-Type": "application/json"])
+    }
+    return errorResponse(code: "INTERNAL_ERROR", message: "직렬화 실패", statusCode: 500)
+  }
+
+  /// POST /api/v2/cli/resume — API 일시정지 해제 (Issue100)
+  private func handleCliResume(server: APIServer) -> APIServer.HTTPResponse {
+    server.resumeAPI()
+    let body: [String: Any] = ["success": true, "data": ["isApiPaused": false, "message": "API resumed."]]
+    if let data = try? JSONSerialization.data(withJSONObject: body),
        let json = String(data: data, encoding: .utf8) {
       return APIServer.HTTPResponse(statusCode: 200, body: json, headers: ["Content-Type": "application/json"])
     }

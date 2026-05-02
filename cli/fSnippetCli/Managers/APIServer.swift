@@ -12,6 +12,21 @@ class APIServer {
   private(set) var isRunning = false
   private(set) var currentPort: UInt16 = 3015
 
+  // MARK: - Pause / Resume (Issue100)
+
+  /// API pause 상태. true 시 health/cli/* 외 모든 요청은 503 반환.
+  private(set) var isApiPaused: Bool = false
+
+  func pauseAPI() {
+    isApiPaused = true
+    logI("🌐 API paused (via menu)")
+  }
+
+  func resumeAPI() {
+    isApiPaused = false
+    logI("🌐 API resumed (via menu)")
+  }
+
   private init() {}
 
   // MARK: - 서버 제어
@@ -160,6 +175,14 @@ class APIServer {
       }
 
       let request = self.parseHTTPRequest(requestString, remoteIP: remoteIP)
+
+      // Pause guard (Issue100): only /api/v2/cli/* bypasses pause; all others return 503
+      if self.isApiPaused && !request.path.hasPrefix("/api/v2/cli/") {
+        let body = "{\"success\":false,\"error\":{\"code\":\"SERVICE_UNAVAILABLE\",\"message\":\"API is paused. Use POST /api/v2/cli/resume to resume.\"}}"
+        self.sendAndClose(connection: connection, data: self.buildHTTPResponse(statusCode: 503, body: body))
+        return
+      }
+
       let response = APIRouter.shared.route(request: request, server: self)
       self.sendAndClose(connection: connection, data: self.buildHTTPResponse(statusCode: response.statusCode, body: response.body, headers: response.headers, rawBodyData: response.rawBodyData))
     }
@@ -230,6 +253,7 @@ class APIServer {
     case 404: statusText = "Not Found"
     case 405: statusText = "Method Not Allowed"
     case 500: statusText = "Internal Server Error"
+    case 503: statusText = "Service Unavailable"
     default: statusText = "Unknown"
     }
 
