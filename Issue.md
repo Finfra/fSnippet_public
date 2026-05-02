@@ -22,13 +22,6 @@ date: 2026-04-07
 
 # 📙 일반
 
-## Issue91: `E00.v2-404.sh` 검증 의도 갱신 (등록: 2026-05-01)
-* 목적: `/settings/advanced/debug`가 200 응답으로 구현됨에 따라 "404 미구현" 검증 의도가 어긋난 E00.v2-404.sh 정정
-* 상세:
-    - 다른 미구현 엔드포인트로 교체하거나 200 검증으로 전환
-    - apiTest 결과 정합성 회복
-    - Issue85 후속
-
 ## Issue92: `/api/v2/status` 헬스체크 엔드포인트 추가 (등록: 2026-05-01)
 * 목적: v1 deprecated(410 Gone) 이후 헬스체크용 v2 status 부재 → 운영 모니터링 일관성을 위해 추가
 * 상세:
@@ -70,6 +63,20 @@ date: 2026-04-07
     - Issue90 후속
 
 # ✅ 완료
+
+## Issue91: `E00.v2-404.sh` 검증 의도 갱신 (등록: 2026-05-01, 종료: 2026-05-02, commit: 48e2054) ✅
+* 목적: `/settings/advanced/debug`가 200 응답으로 구현됨에 따라 "404 미구현" 검증 의도가 어긋난 E00.v2-404.sh 정정
+* 상세:
+    - 다른 미구현 엔드포인트로 교체하거나 200 검증으로 전환
+    - apiTest 결과 정합성 회복
+    - Issue85 후속
+* 구현 명세:
+    - `cli/_tool/apiTest/v2/E00.v2-404.sh` 검증 대상 경로 변경:
+        + 기존: `/api/v2/settings/advanced/debug` (Phase 4에서 구현되어 200 반환)
+        + 변경: `/api/v2/nonexistent-endpoint` (정의되지 않은 경로 → APIRouter default → notFound() 404)
+    - 주석 갱신: 변경 사유와 issue 번호 명시
+    - 12.v2-debug-patch.sh가 advanced/debug GET/PATCH 200 검증을 이미 담당하므로 중복 없음
+    - apiTest_plan_v2.md L123 "존재하지 않는 v2 엔드포인트" 의도와 일치 회복
 
 ## Issue97: [Bug] 한글 입력 차단 — `SnippetSettings.default.popupKeyShortcut` Issue88 정책 위반 (등록: 2026-05-02, 종료: 2026-05-02, commit: 99ccaf1) ✅
 * 목적: cliApp(fsnippet-cli) 데몬이 시작되면 다른 앱에서 **한글 등 입력이 차단**되는 회귀를 해결. Issue88(SSOT 정책: `_config.yml`에 명시한 hotkey만 글로벌 등록, 그 외 default 등록 금지)이 `SettingsManager.swift:285`에서 미적용되어 잔존 — `popupKeyShortcut: PopupKeyShortcut.default` (= `⌃` `, keyCode 50) 박제 위반
