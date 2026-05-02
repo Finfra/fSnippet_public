@@ -29,7 +29,7 @@ cliApp과 paidApp의 기능 경계를 정의함. paidApp 미설치 시 cliApp �
 | 텍스트 대체     | 트리거 입력 → 스니펫 자동 확장           | `Core/TextReplacer`, `KeyEventProcessor` |
 | 스니펫 팝업     | 팝업 UI로 스니펫 검색·선택 (읽기 전용)   | `UI/SnippetPopupView`                  |
 | 클립보드 히스토리 | 히스토리 뷰어로 과거 항목 붙여넣기      | `UI/History/HistoryViewer`             |
-| REST API        | `localhost:3015/api/v1`, `/api/v2` 제공  | `Managers/APIServer`, `APIRouter`      |
+| REST API        | `localhost:3015/api/v2` 제공 (v1 deprecated, 410 Gone) | `Managers/APIServer`, `APIRouter`      |
 | 글로벌 단축키   | 팝업/히스토리 호출 HotKey                | `Managers/ShortcutMgr`                 |
 | 메뉴바 에이전트 | LSUIElement 에이전트, 기본 메뉴         | `MenuBarExtra`, `MenuBarView`          |
 | 규칙 파싱       | `_rule.yml` 기반 폴더별 prefix/suffix   | `Data/RuleManager`                     |

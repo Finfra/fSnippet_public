@@ -1,10 +1,9 @@
 # agent
 .claude/
 CLAUDE.md
+_doc_design
+_doc_work
 
-# wiki
-wiki/
-.wiki-compiler.json
 
 # 작업 문서 (로컬 전용)
 cli/_doc_work/
@@ -49,3 +48,7 @@ xcuserdata/
 
 # Issue40: fsc-run-xcode.sh TARGET_BUILD_DIR 캐시
 cli/_tool/.last_build_path
+
+# Python
+__pycache__/
+*.pyc
