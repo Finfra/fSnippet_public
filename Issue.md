@@ -26,7 +26,7 @@ date: 2026-04-07
 
 # ✅ 완료
 
-## Issue98: paid_cli_protocol v1.1 cliApp 구현 (등록: 2026-05-02, 종료: 2026-05-02, commit: a089007) ✅
+## Issue98: paid_cli_protocol v1.1 cliApp 구현 (등록: 2026-05-02, 종료: 2026-05-02, commit: a089007, d6f2095) ✅
 * 목적: `_doc_design/paid_cli_protocol.md` v1.1 설계 기반으로 cliApp 코드 갭 5개 구현
 * 상세:
     - **①** `fSnippetCliApp.swift` — `MenuBarExtra(isInserted: !isPaidAppRunning)` 제거 → 항상 표시 (paidApp 실행 중에도 cliApp 메뉴바 유지)
