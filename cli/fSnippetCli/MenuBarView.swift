@@ -29,36 +29,27 @@ struct MenuBarView: View {
         Divider()
 
         // ─── Top-level core actions ───
-        Button {
+        Button("Snippet Popup") {
             NotificationCenter.default.post(
                 name: NSNotification.Name("fSnippetShowPopup"), object: nil)
-        } label: {
-            shortcutRow(label: "Snippet Popup", shortcut: "⌃⇧Space")
         }
+        .keyboardShortcut(KeyEquivalent(" "), modifiers: [.control, .shift])
 
-        Button {
+        Button("Show Clipboard History") {
             HistoryViewerManager.shared.show()
-        } label: {
-            shortcutRow(label: "Show History", shortcut: "⌘;")
         }
+        .keyboardShortcut(";", modifiers: .command)
 
         // ─── 📜 Clipboard submenu ───
         Menu("📜 Clipboard") {
-            Button {
+            Button(isPaused ? "Resume" : "Pause") {
                 togglePauseAction()
-            } label: {
-                shortcutRow(
-                    label: isPaused ? "Resume" : "Pause",
-                    shortcut: "⌃⌥⌘P")
             }
+            .keyboardShortcut("p", modifiers: [.control, .option, .command])
 
             // Issue84 — Register Snippet (UI wired; backend deferred)
-            Button {
+            Button("Register Snippet") {
                 registerSnippetAction()
-            } label: {
-                shortcutRow(
-                    label: "Register Snippet",
-                    shortcut: registerSnippetShortcutLabel())
             }
 
             Button("Clear Clipboard History") {
@@ -72,11 +63,10 @@ struct MenuBarView: View {
                 reloadSnippets()
             }
 
-            Button {
+            Button("Open Main Window") {
                 PaidAppDetector.launch()
-            } label: {
-                shortcutRow(label: "Open Main Window", shortcut: "⌃⇧⌘W")
             }
+            .keyboardShortcut("w", modifiers: [.control, .shift, .command])
 
             Text(statusLine)
                 .font(.caption)
@@ -94,11 +84,10 @@ struct MenuBarView: View {
         }
 
         // ─── Settings ───
-        Button {
+        Button("Settings...") {
             PaidAppManager.shared.handlePaidFeature()
-        } label: {
-            shortcutRow(label: "Settings...", shortcut: "⌃⇧⌘;")
         }
+        .keyboardShortcut(";", modifiers: [.control, .shift, .command])
 
         // ─── ⚙️ Configuration submenu ───
         Menu("⚙️ Configuration") {
@@ -122,18 +111,6 @@ struct MenuBarView: View {
             Label("Quit", systemImage: "power")
         }
         .keyboardShortcut("q")
-    }
-
-    // MARK: - Shortcut Label Helper
-
-    /// Renders a label-only shortcut (no SwiftUI keyboardShortcut binding).
-    /// Global hotkey registration is owned solely by `ShortcutMgr` (Issue82 Phase1 SSOT).
-    private func shortcutRow(label: String, shortcut: String) -> some View {
-        HStack {
-            Text(label)
-            Spacer()
-            Text(shortcut).foregroundStyle(.secondary)
-        }
     }
 
     // MARK: - Actions
@@ -161,11 +138,6 @@ struct MenuBarView: View {
         ToastManager.shared.showToast(
             message: "Register Snippet — pending implementation",
             iconName: "hammer")
-    }
-
-    private func registerSnippetShortcutLabel() -> String {
-        let key = PreferencesManager.shared.string(forKey: "history.registerSnippet.hotkey")
-        return key
     }
 
     private func reloadSnippets() {
