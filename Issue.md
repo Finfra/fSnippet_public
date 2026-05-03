@@ -6,8 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 101
+* Issue HWM: 102
 * Save Point :
+      - 2026.05.03: 24f2a1b (Fix(Issue101): NSWorkspace bundleIdentifier 매칭으로 zombie process 제거)
       - 2026.05.02: 2804aaa (Docs: Close Issue99 — menuBar_enhance.md 반영)
       - 2026.04.27: 0cacd11 (Feat(Cli): Issue84 — registerSnippet 단축키 메뉴 노출 + 등록 로직)
 
@@ -17,21 +18,7 @@ date: 2026-04-07
 
 # 🌱 이슈후보
 
-* Issue102 — [Verify] Issue101/paidApp Issue849 검증 — paidApp/cliApp 종료 시 zombie process 제거 확인 (등록: 2026-05-03)
-
 # 🚧 진행중
-
-## Issue101: [Cleanup] 앱 종료 시 쓰레기 프로세스 남음 — cliApp ↔ paidApp 양방향 종료 신호 구현 (등록: 2026-05-03) 🔄 재검증 대기
-* 목적: cliApp 측 양방향 종료 신호 구현. paidApp/cliApp 종료 시 잔여 프로세스(좀비·고아 프로세스)가 남는 문제 해결. cliApp이 메뉴바에서 Quit될 때 paidApp이 함께 종료되도록 신호 전송.
-* 근본 원인 분석:
-    - pgrep 검색 실패: Bundle ID(`kr.finfra.fSnippet`)를 검색했으나, pgrep -f는 프로세스 이름 기반이므로 매칭 실패 → paidApp을 찾을 수 없음
-    - 모든 프로세스 정리 불완전: SIGTERM → SIGKILL 로직이 있어도, 검색이 실패하면 프로세스를 찾을 수 없음
-* 구현 결과 (commit: 04be96a):
-    - pgrep -f "kr.finfra.fSnippet" → pgrep "fSnippet" (프로세스 이름으로 검색)
-    - 동일 로직 적용: SIGTERM → 1초 동기 대기 → SIGKILL
-    - Release 빌드 성공 (2026-05-03)
-* 다음 단계:
-    - Issue102(검증 이슈)으로 실제 zombie process 제거 확인 필요
 
 # 📕 중요
 
@@ -42,6 +29,25 @@ date: 2026-04-07
 # ✅ 완료
 
 > 누적된 완료 이슈는 [z_old/old_issue.md](z_old/old_issue.md)로 아카이브됨 (2026-05-03 1.0.1 release 시점 분리).
+
+## Issue102: [Verify] Issue101/paidApp Issue849 검증 — paidApp/cliApp 종료 시 zombie process 제거 확인 (등록: 2026-05-03, 완료: 2026-05-03) (Hash: 24f2a1b)
+* 목적: Issue101 수정 후 실제 zombie process가 제거되는지 검증
+* 검증 결과:
+    - paidApp + cliApp 동시 실행 후 cliApp SIGTERM
+    - flog.log: `paidApp 종료 신호 전송 (PID: 76791)` → `paidApp graceful 실패 — forceTerminate (PID: 76791)`
+    - 종료 후 잔여 프로세스 0개 확인 ✅
+    - NSWorkspace bundleIdentifier 정확 매칭으로 self-match 버그 해소
+
+## Issue101: [Cleanup] 앱 종료 시 쓰레기 프로세스 남음 — cliApp ↔ paidApp 양방향 종료 신호 구현 (등록: 2026-05-03, 완료: 2026-05-03) (Hash: 24f2a1b)
+* 목적: paidApp/cliApp 종료 시 잔여 프로세스(좀비) 제거. cliApp 메뉴바 Quit 시 paidApp 동반 종료
+* 근본 원인:
+    - pgrep substring 매칭 → cliApp(`fSnippetCli`)이 자기 자신도 매칭하여 자살 (`pgrep -f kr.finfra.fSnippet`도 `kr.finfra.fSnippetCli` 매칭)
+    - 다중 PID 출력 시 `pid_t(pidStr)` 파싱 실패 → silent return → paidApp 미종료
+* 해결:
+    - `terminatePaidApp()` 재구현 — `NSWorkspace.shared.runningApplications` + `bundleIdentifier == "kr.finfra.fSnippet"` 정확 매칭
+    - `app.terminate()` (graceful) → 1초 대기 → `app.forceTerminate()` (SIGKILL) fallback
+* 수정 파일: `cli/fSnippetCli/fSnippetCliApp.swift`
+* 검증: Issue102에서 실측 통과
 
 # ⏸️ 보류
 
