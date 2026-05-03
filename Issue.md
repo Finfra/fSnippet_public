@@ -103,24 +103,6 @@ date: 2026-04-07
 
 # 🚫 취소
 
-## Issue44: Login Item 자동 등록 (obsolete — Issue45 `brew services` 경로로 대체) (등록: 2026-04-19, 취소: 2026-04-19, commit: 1d01e68 → 후속 커밋에서 산출물 삭제)
-* 취소 사유: 오픈소스 배포 관점에서 사용자 표준 인터페이스는 `brew services start/stop/info`. Login Item(osascript) 경로는:
-    - 외부 에이전트 도구로 비가시적 (배포 Formula만 읽어서는 자동 시작 흐름 이해 불가)
-    - osascript → `System Events` 자동화 권한 요구 (TCC Automation 별도 승인)
-    - `brew services`와 **배타적** (§7-5-C) — 오픈소스 배포 표준을 우선하므로 Login Item 폐기
-* 완성되었던 산출물 (커밋 1d01e68에 포함, Issue45 구현 커밋에서 삭제):
-    - `cli/_tool/fsc-loginitem.sh` (283줄, register/unregister/status + 강제 재등록 + stale 탐지) — **삭제 예정**
-    - `fsc-deploy-brew.sh` Step 8: `FSC_AUTOSTART=1` 옵트인 Login Item 등록 → Issue45에서 `brew services start` 로 대체
-    - `fsc-deploy-brew.sh` cmd_uninstall의 Login Item 자동 해제 훅 → Issue45에서 `brew services stop` 으로 대체
-    - `fsc-deploy-brew.sh` cmd_status의 Login Item 섹션 → Issue45에서 `brew services info` 로 대체
-* 유지된 부분 (Login Item과 무관한 개발 편의 인프라):
-    - `/Applications/_nowage_app/fSnippetCli.app` 심링크 전략 (§7-4) — `brew services` 경로와 병행 호환
-    - Step 7의 심링크 생성 로직
-* 기술적 발견 (재활용 가능 지식):
-    - AppleScript `System Events` + `make login item` 은 심링크를 자동 resolve하여 bundle alias(FSRef)로 저장
-    - Homebrew Cellar 버전 폴더 경로가 Login Item에 inode-bound → 업그레이드 시 stale alias 발생
-    - 해결 전략: register를 항상 강제 재등록(unregister → register) 패턴으로 구현 — 일반 Login Item 자동화 시 참고 가능
-    - whose절 + 역순 repeat 일괄 삭제 패턴 (중복 등록 잔재 정리)
-* 원본 이슈 기록 참조: Issue.md 1d01e68 커밋 버전 (git history)
+> 취소된 이슈는 [z_old/old_issue.md](z_old/old_issue.md)로 아카이브됨.
 
 # 📜 참고

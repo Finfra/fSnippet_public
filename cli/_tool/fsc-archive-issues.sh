@@ -1,16 +1,15 @@
 #!/bin/bash
-# fsc-archive-issues.sh — Move completed issues from Issue.md to z_old/old_issue.md
+# fsc-archive-issues.sh — Move completed and canceled issues from Issue.md to z_old/old_issue.md
 #
 # Usage: bash cli/_tool/fsc-archive-issues.sh [version]
 #   version: optional release tag for the archive header (default: VERSION file)
 #
 # Behavior:
-#   - Reads `_public/Issue.md` `# ✅ 완료` section body (between `# ✅ 완료` and the
-#     next top-level header).
-#   - Appends body to `_public/z_old/old_issue.md` under a release-tagged subsection.
-#   - Strips the body from Issue.md, leaving the `# ✅ 완료` header + a pointer line.
-#   - Idempotent: if the completed section is empty (only whitespace + pointer),
-#     exits 0 without changes.
+#   - Reads two sections from Issue.md: `# ✅ 완료` and `# 🚫 취소`.
+#   - Each section's body (## headers + their bodies) is appended to
+#     `_public/z_old/old_issue.md` under a release-tagged subsection.
+#   - Source body is stripped from Issue.md, leaving the section header + pointer line.
+#   - Idempotent per section: if a section has no `## ` items, it is skipped.
 
 set -euo pipefail
 
@@ -25,37 +24,12 @@ VERSION="${1:-$(cat "$PUBLIC_DIR/VERSION" 2>/dev/null | tr -d '[:space:]')}"
 [ -n "$VERSION" ] || VERSION="unversioned"
 TODAY=$(date +%Y-%m-%d)
 
-# Locate the `# ✅ 완료` line and the next top-level header line.
-COMPLETE_LINE=$(grep -n "^# ✅ 완료" "$ISSUE_FILE" | head -1 | cut -d: -f1)
-[ -n "$COMPLETE_LINE" ] || { echo "❌ '# ✅ 완료' header not found"; exit 1; }
-
-NEXT_HEADER_LINE=$(awk -v start="$COMPLETE_LINE" 'NR>start && /^# / {print NR; exit}' "$ISSUE_FILE")
-[ -n "$NEXT_HEADER_LINE" ] || NEXT_HEADER_LINE=$(($(wc -l < "$ISSUE_FILE") + 1))
-
-BODY_START=$((COMPLETE_LINE + 1))
-BODY_END=$((NEXT_HEADER_LINE - 1))
-
-if [ "$BODY_END" -lt "$BODY_START" ]; then
-    echo "ℹ️  완료 섹션 비어있음 — 아카이브 생략"
-    exit 0
-fi
-
-BODY_CONTENT=$(sed -n "${BODY_START},${BODY_END}p" "$ISSUE_FILE")
-
-# Determine if body has any actual issue content (## headers).
-if ! echo "$BODY_CONTENT" | grep -q "^## "; then
-    echo "ℹ️  완료 섹션에 이슈 항목 없음 — 아카이브 생략"
-    exit 0
-fi
-
 mkdir -p "$ARCHIVE_DIR"
-
-# Initialize archive file if absent.
 if [ ! -f "$ARCHIVE_FILE" ]; then
     cat > "$ARCHIVE_FILE" <<'HEADER'
 ---
 name: old_issue
-description: fSnippetCli Issue.md 완료 섹션 아카이브 (릴리스별 이동)
+description: fSnippetCli Issue.md 완료/취소 섹션 아카이브 (릴리스별 이동)
 date: 2026-05-03
 ---
 
@@ -64,23 +38,60 @@ date: 2026-05-03
 HEADER
 fi
 
-# Append release-tagged section.
-{
-    echo ""
-    echo "## Release ${VERSION} — ${TODAY}"
-    echo ""
-    echo "$BODY_CONTENT"
-} >> "$ARCHIVE_FILE"
+# archive_section <header> <label> <pointer-text>
+archive_section() {
+    local header="$1"
+    local label="$2"
+    local pointer="$3"
 
-# Rewrite Issue.md: keep through `# ✅ 완료`, insert pointer, then remainder.
-{
-    sed -n "1,${COMPLETE_LINE}p" "$ISSUE_FILE"
-    echo ""
-    echo "> 누적된 완료 이슈는 [z_old/old_issue.md](z_old/old_issue.md)로 아카이브됨 (Release ${VERSION}, ${TODAY})."
-    echo ""
-    sed -n "${NEXT_HEADER_LINE},\$p" "$ISSUE_FILE"
-} > "${ISSUE_FILE}.tmp"
-mv "${ISSUE_FILE}.tmp" "$ISSUE_FILE"
+    local header_line
+    header_line=$(grep -n "^${header}\$" "$ISSUE_FILE" | head -1 | cut -d: -f1 || true)
+    if [ -z "$header_line" ]; then
+        echo "ℹ️  '${header}' 섹션 없음 — skip"
+        return 0
+    fi
 
-ARCHIVED_COUNT=$(echo "$BODY_CONTENT" | grep -c "^## " || true)
-echo "✅ ${ARCHIVED_COUNT}개 이슈 아카이브: $ARCHIVE_FILE (Release ${VERSION})"
+    local next_header
+    next_header=$(awk -v start="$header_line" 'NR>start && /^# / {print NR; exit}' "$ISSUE_FILE")
+    [ -n "$next_header" ] || next_header=$(($(wc -l < "$ISSUE_FILE") + 1))
+
+    local body_start=$((header_line + 1))
+    local body_end=$((next_header - 1))
+    if [ "$body_end" -lt "$body_start" ]; then
+        echo "ℹ️  ${label} 섹션 비어있음 — skip"
+        return 0
+    fi
+
+    local body
+    body=$(sed -n "${body_start},${body_end}p" "$ISSUE_FILE")
+    if ! echo "$body" | grep -q "^## "; then
+        echo "ℹ️  ${label} 섹션에 이슈 항목 없음 — skip"
+        return 0
+    fi
+
+    {
+        echo ""
+        echo "## Release ${VERSION} — ${TODAY} (${label})"
+        echo ""
+        echo "$body"
+    } >> "$ARCHIVE_FILE"
+
+    {
+        sed -n "1,${header_line}p" "$ISSUE_FILE"
+        echo ""
+        echo "> ${pointer}"
+        echo ""
+        sed -n "${next_header},\$p" "$ISSUE_FILE"
+    } > "${ISSUE_FILE}.tmp"
+    mv "${ISSUE_FILE}.tmp" "$ISSUE_FILE"
+
+    local count
+    count=$(echo "$body" | grep -c "^## " || true)
+    echo "✅ ${count}개 ${label} 이슈 아카이브 (Release ${VERSION})"
+}
+
+archive_section "# ✅ 완료" "완료" \
+    "누적된 완료 이슈는 [z_old/old_issue.md](z_old/old_issue.md)로 아카이브됨 (Release ${VERSION}, ${TODAY})."
+
+archive_section "# 🚫 취소" "취소" \
+    "취소된 이슈는 [z_old/old_issue.md](z_old/old_issue.md)로 아카이브됨 (Release ${VERSION}, ${TODAY})."
