@@ -760,8 +760,9 @@ class SettingsObservableObject: ObservableObject {
         apiAllowExternal = prefs.bool(forKey: "api_allow_external", defaultValue: false)
         apiAllowedCIDR = prefs.string(forKey: "api_allowed_cidr", defaultValue: "127.0.0.1/32")
 
-        // 4.7 Launch at Login 설정 (Issue 61)
-        launchAtLogin = prefs.bool(forKey: "launch_at_login", defaultValue: false)
+        // 4.7 Launch at Login 설정 — plist 존재 여부가 실제 등록 상태 (PreferencesManager는 fallback)
+        launchAtLogin = FileManager.default.fileExists(
+            atPath: NSHomeDirectory() + "/Library/LaunchAgents/homebrew.mxcl.fsnippet-cli.plist")
 
         // 5. Appearance Mode (Issue 386)
         // PreferencesManager -> SnippetSettings via SettingsManager.load()
@@ -1047,95 +1048,68 @@ class SettingsObservableObject: ObservableObject {
         logI("📡 [Settings] 통계 데이터 삭제 요청됨")
     }
 
-    // MARK: - Issue 61: launchAtLogin ↔ brew services plist 연동
+    // MARK: - Issue 61: launchAtLogin ↔ LaunchAgent plist 연동
 
-    /// launchAtLogin 설정 변경 — brew services plist 연동
-    /// - enabled: true → brew services start, false → brew services stop
-    /// - 호출 전제: 반드시 background 스레드에서 호출 (process.waitUntilExit 사용)
+    // brew services stop은 현재 실행 중인 프로세스(자기 자신)에 SIGTERM을 보내 앱을 종료시킴.
+    // 따라서 LaunchAgent plist를 직접 조작해 앱을 종료하지 않고 자동 시작 등록만 변경함.
     func setLaunchAtLogin(_ enabled: Bool) {
         logI("📡 [Settings] launchAtLogin 변경 요청: \(enabled)")
 
-        // 1. _config.yml 저장
-        let prefs = PreferencesManager.shared
-        prefs.set(enabled, forKey: "launch_at_login")
+        PreferencesManager.shared.set(enabled, forKey: "launch_at_login")
 
-        // 2. brew services 동기화 (현재 스레드에서 블로킹 — background 스레드에서 호출 가정)
         if enabled {
-            startBrewService()
+            registerLaunchAgent()
         } else {
-            stopBrewService()
+            unregisterLaunchAgentWithoutStopping()
         }
 
-        // 3. @Published 상태 갱신 — 반드시 메인 스레드에서 실행
         DispatchQueue.main.async {
             self.launchAtLogin = enabled
             logI("📡 [Settings] launchAtLogin 설정 완료: \(enabled)")
         }
     }
 
-    /// brew services start 실행 (헬퍼 메서드)
-    private func startBrewService() {
-        // brew 경로 찾기 (Apple Silicon: /opt/homebrew/bin/brew)
-        let brewCandidates = [
-            "/opt/homebrew/bin/brew",
-            "/usr/local/bin/brew"
-        ]
+    private static let launchAgentLabel = "homebrew.mxcl.fsnippet-cli"
+    private static var launchAgentDestPath: String {
+        NSHomeDirectory() + "/Library/LaunchAgents/\(launchAgentLabel).plist"
+    }
+    private static let plistSourcePaths = [
+        "/opt/homebrew/opt/fsnippet-cli/homebrew.mxcl.fsnippet-cli.plist",
+        "/usr/local/opt/fsnippet-cli/homebrew.mxcl.fsnippet-cli.plist",
+    ]
 
-        for brewPath in brewCandidates {
-            if FileManager.default.fileExists(atPath: brewPath) {
-                let process = Process()
-                process.executableURL = URL(fileURLWithPath: brewPath)
-                process.arguments = ["services", "start", "fsnippet-cli"]
-
-                do {
-                    try process.run()
-                    process.waitUntilExit()
-                    let rc = process.terminationStatus
-                    if rc == 0 {
-                        logI("📡 [Settings] ✅ brew services start 성공")
-                    } else {
-                        logW("📡 [Settings] ⚠️ brew services start 실패 (rc=\(rc))")
-                    }
-                    return
-                } catch {
-                    logE("📡 [Settings] ❌ brew 실행 실패: \(error.localizedDescription)")
-                }
-            }
+    private func registerLaunchAgent() {
+        let dest = Self.launchAgentDestPath
+        let fm = FileManager.default
+        guard !fm.fileExists(atPath: dest) else {
+            logI("📡 [Settings] LaunchAgent 이미 등록됨")
+            return
         }
-
-        logW("📡 [Settings] ⚠️ brew 바이너리를 찾을 수 없음")
+        guard let src = Self.plistSourcePaths.first(where: { fm.fileExists(atPath: $0) }) else {
+            logW("📡 [Settings] ⚠️ LaunchAgent plist 소스를 찾을 수 없음")
+            return
+        }
+        do {
+            try fm.copyItem(atPath: src, toPath: dest)
+            logI("📡 [Settings] ✅ LaunchAgent 등록 완료")
+        } catch {
+            logE("📡 [Settings] ❌ LaunchAgent 복사 실패: \(error.localizedDescription)")
+        }
     }
 
-    /// brew services stop 실행 (헬퍼 메서드)
-    private func stopBrewService() {
-        let brewCandidates = [
-            "/opt/homebrew/bin/brew",
-            "/usr/local/bin/brew"
-        ]
-
-        for brewPath in brewCandidates {
-            if FileManager.default.fileExists(atPath: brewPath) {
-                let process = Process()
-                process.executableURL = URL(fileURLWithPath: brewPath)
-                process.arguments = ["services", "stop", "fsnippet-cli"]
-
-                do {
-                    try process.run()
-                    process.waitUntilExit()
-                    let rc = process.terminationStatus
-                    if rc == 0 {
-                        logI("📡 [Settings] ✅ brew services stop 성공")
-                    } else {
-                        logW("📡 [Settings] ⚠️ brew services stop 실패 (rc=\(rc))")
-                    }
-                    return
-                } catch {
-                    logE("📡 [Settings] ❌ brew 실행 실패: \(error.localizedDescription)")
-                }
-            }
+    // plist 파일만 삭제 — launchctl unload 없음 → 현재 실행 중인 앱 유지
+    private func unregisterLaunchAgentWithoutStopping() {
+        let dest = Self.launchAgentDestPath
+        guard FileManager.default.fileExists(atPath: dest) else {
+            logI("📡 [Settings] LaunchAgent 이미 없음")
+            return
         }
-
-        logW("📡 [Settings] ⚠️ brew 바이너리를 찾을 수 없음")
+        do {
+            try FileManager.default.removeItem(atPath: dest)
+            logI("📡 [Settings] ✅ LaunchAgent 등록 해제 완료 (앱 계속 실행)")
+        } catch {
+            logE("📡 [Settings] ❌ LaunchAgent 삭제 실패: \(error.localizedDescription)")
+        }
     }
 }
 

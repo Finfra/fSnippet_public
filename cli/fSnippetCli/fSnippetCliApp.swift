@@ -1,5 +1,6 @@
 import SwiftUI
 import Cocoa
+import Darwin
 
 // MARK: - App 진입점
 
@@ -132,6 +133,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // 중복 인스턴스로 판정된 경우 정리 로직 불필요 (초기화 자체를 건너뜀)
         guard !isDuplicateInstance else { return }
 
+        // Issue849 — cliApp이 종료될 때 paidApp에 종료 신호 전송 (역방향 신호)
+        // cliApp이 메뉴바에서 Quit 되었을 때, paidApp도 함께 종료되어야 함
+        terminatePaidApp()
+
+        // Issue849 — KeyEventMonitor 정리 (CGEventTap 해제 + NotificationCenter 옵저버 제거)
+        keyEventMonitor?.stopMonitoring()
+        keyEventMonitor?.cleanup()
+
         // Issue52 Phase0: 모든 종료 경로(메뉴바·API·SettingsVM·Relauncher 등)의 공통 수렴점.
         // brew 가 started 상태면 여기서 stop 하여 브루 상태 일관성 보장.
         // timeout 3.0s: macOS 종료 허용 시간(5~20s) 내 충분한 여유.
@@ -142,6 +151,64 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         APIServer.shared.stop()
         logI("fSnippetCli 종료")
         logger.flush()  // async 로그 큐 완료 대기 (종료 전 파일 기록 보장)
+    }
+
+    // MARK: - PaidApp 역방향 종료 신호 (Issue849)
+
+    /// cliApp 종료 시 paidApp에 종료 신호를 전송하여 좀비 프로세스 방지
+    /// 메뉴바에서 cliApp Quit 시 paidApp도 함께 종료되도록 함
+    private func terminatePaidApp() {
+        let paidBundleID = "kr.finfra.fSnippet"
+
+        // 1. paidApp 프로세스 ID 조회 (pgrep -f 사용)
+        let findProcess = Process()
+        findProcess.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+        findProcess.arguments = ["-f", paidBundleID]
+
+        let pipe = Pipe()
+        findProcess.standardOutput = pipe
+
+        do {
+            try findProcess.run()
+            findProcess.waitUntilExit()
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            guard let pidStr = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  let pid = pid_t(pidStr) else {
+                // paidApp이 실행 중이 아님
+                return
+            }
+
+            logI("paidApp 프로세스 종료 신호 전송 (PID: \(pid))")
+
+            // 2. SIGTERM 전송 (graceful shutdown)
+            kill(pid, SIGTERM)
+
+            // 3. 최대 1초 대기하며 프로세스 종료 확인
+            var remainingTime: useconds_t = 1_000_000  // 1초 = 1,000,000 microseconds
+            let checkInterval: useconds_t = 50_000     // 50ms 간격
+
+            while remainingTime > 0 {
+                // SIGTERM 후 프로세스가 살아있는지 확인
+                let checkPid = kill(pid, 0)
+                if checkPid != 0 {
+                    // ESRCH: 프로세스가 존재하지 않음 (정상 종료)
+                    logI("paidApp 정상 종료 확인")
+                    return
+                }
+
+                usleep(checkInterval)
+                remainingTime -= checkInterval
+            }
+
+            // 4. 1초 후에도 살아있으면 SIGKILL
+            logW("paidApp SIGTERM 후에도 응답 없음 — SIGKILL 전송")
+            kill(pid, SIGKILL)
+            sleep(1)  // SIGKILL 처리 대기
+
+        } catch {
+            logW("paidApp 종료 신호 전송 실패: \(error.localizedDescription)")
+        }
     }
 
     // MARK: - 메뉴바 복원 신호 처리
