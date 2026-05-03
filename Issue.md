@@ -21,18 +21,17 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue101: [Cleanup] 앱 종료 시 쓰레기 프로세스 남음 — cliApp ↔ paidApp 양방향 종료 신호 구현 (등록: 2026-05-03) 🔄 재시작
+## Issue101: [Cleanup] 앱 종료 시 쓰레기 프로세스 남음 — cliApp ↔ paidApp 양방향 종료 신호 구현 (등록: 2026-05-03) 🔄 재검증 대기
 * 목적: cliApp 측 양방향 종료 신호 구현. paidApp/cliApp 종료 시 잔여 프로세스(좀비·고아 프로세스)가 남는 문제 해결. cliApp이 메뉴바에서 Quit될 때 paidApp이 함께 종료되도록 신호 전송.
-* 동기: paidApp Issue849와 동일 이슈. paidApp는 이미 구현 시도했으나 검증 결과 zombie process가 여전히 남음. cliApp 측 구현도 동일 상태 확인 필요.
-* 상세:
-    - cliApp 측 구현: fSnippetCliApp.applicationWillTerminate()에서 paidApp에 SIGTERM 전송
-    - terminatePaidApp() 헬퍼: pgrep으로 paidApp 프로세스 ID 조회 → SIGTERM 신호 전송 → 1초 동기 대기(50ms 간격) → 필요시 SIGKILL
-    - 관련 파일: `_public/cli/fSnippetCli/fSnippetCliApp.swift`
-* 현황: 코드 수정 진행 상태. 구현 완료되었으나 검증 미흡. killall 이후 여전히 zombie process 남는 상황 발생.
+* 근본 원인 분석:
+    - pgrep 검색 실패: Bundle ID(`kr.finfra.fSnippet`)를 검색했으나, pgrep -f는 프로세스 이름 기반이므로 매칭 실패 → paidApp을 찾을 수 없음
+    - 모든 프로세스 정리 불완전: SIGTERM → SIGKILL 로직이 있어도, 검색이 실패하면 프로세스를 찾을 수 없음
+* 구현 결과 (commit: 04be96a):
+    - pgrep -f "kr.finfra.fSnippet" → pgrep "fSnippet" (프로세스 이름으로 검색)
+    - 동일 로직 적용: SIGTERM → 1초 동기 대기 → SIGKILL
+    - Release 빌드 성공 (2026-05-03)
 * 다음 단계:
-    - 현재 코드 검토: terminatePaidApp() 로직이 실제로 paidApp을 정리하는지 확인
-    - paidApp 측 AppInitializer.cleanupOnTerminate() 재검토 (KeyLogger 정리 불완전 가능성)
-    - Issue102 검증을 통해 실제로 zombie process가 제거되는지 확인
+    - Issue102(검증 이슈)으로 실제 zombie process 제거 확인 필요
 
 # 📕 중요
 
