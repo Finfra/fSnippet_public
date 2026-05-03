@@ -157,55 +157,35 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// cliApp 종료 시 paidApp에 종료 신호를 전송하여 좀비 프로세스 방지
     /// 메뉴바에서 cliApp Quit 시 paidApp도 함께 종료되도록 함
+    ///
+    /// Issue101: NSWorkspace.runningApplications + bundleIdentifier 정확 일치 방식.
+    /// 이전 pgrep 방식은 substring 매칭으로 cliApp(자기 자신)도 매칭하는 버그가 있었음.
     private func terminatePaidApp() {
-        // 1. paidApp 프로세스 ID 조회 (프로세스 이름으로 검색)
-        let findProcess = Process()
-        findProcess.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        findProcess.arguments = ["fSnippet"]  // 실행 파일 이름으로 검색
+        let paidBundleID = "kr.finfra.fSnippet"
+        let paidApps = NSWorkspace.shared.runningApplications.filter {
+            $0.bundleIdentifier == paidBundleID
+        }
+        guard !paidApps.isEmpty else { return }
 
-        let pipe = Pipe()
-        findProcess.standardOutput = pipe
+        for app in paidApps {
+            logI("paidApp 종료 신호 전송 (PID: \(app.processIdentifier))")
+            app.terminate()  // graceful (SIGTERM equivalent)
+        }
 
-        do {
-            try findProcess.run()
-            findProcess.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            guard let pidStr = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
-                  let pid = pid_t(pidStr) else {
-                // paidApp이 실행 중이 아님
+        // 최대 1초 대기 (50ms 간격)
+        let deadline = Date().addingTimeInterval(1.0)
+        while Date() < deadline {
+            if paidApps.allSatisfy({ $0.isTerminated }) {
+                logI("paidApp 정상 종료 확인")
                 return
             }
+            usleep(50_000)
+        }
 
-            logI("paidApp 프로세스 종료 신호 전송 (PID: \(pid))")
-
-            // 2. SIGTERM 전송 (graceful shutdown)
-            kill(pid, SIGTERM)
-
-            // 3. 최대 1초 대기하며 프로세스 종료 확인
-            var remainingTime: useconds_t = 1_000_000  // 1초 = 1,000,000 microseconds
-            let checkInterval: useconds_t = 50_000     // 50ms 간격
-
-            while remainingTime > 0 {
-                // SIGTERM 후 프로세스가 살아있는지 확인
-                let checkPid = kill(pid, 0)
-                if checkPid != 0 {
-                    // ESRCH: 프로세스가 존재하지 않음 (정상 종료)
-                    logI("paidApp 정상 종료 확인")
-                    return
-                }
-
-                usleep(checkInterval)
-                remainingTime -= checkInterval
-            }
-
-            // 4. 1초 후에도 살아있으면 SIGKILL
-            logW("paidApp SIGTERM 후에도 응답 없음 — SIGKILL 전송")
-            kill(pid, SIGKILL)
-            sleep(1)  // SIGKILL 처리 대기
-
-        } catch {
-            logW("paidApp 종료 신호 전송 실패: \(error.localizedDescription)")
+        // 강제 종료
+        for app in paidApps where !app.isTerminated {
+            logW("paidApp graceful 실패 — forceTerminate (PID: \(app.processIdentifier))")
+            app.forceTerminate()  // SIGKILL equivalent
         }
     }
 
