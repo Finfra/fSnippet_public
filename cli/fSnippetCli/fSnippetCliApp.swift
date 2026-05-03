@@ -158,12 +158,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// cliApp 종료 시 paidApp에 종료 신호를 전송하여 좀비 프로세스 방지
     /// 메뉴바에서 cliApp Quit 시 paidApp도 함께 종료되도록 함
     private func terminatePaidApp() {
-        let paidBundleID = "kr.finfra.fSnippet"
-
-        // 1. paidApp 프로세스 ID 조회 (pgrep -f 사용)
+        // 1. paidApp 프로세스 ID 조회 (프로세스 이름으로 검색)
         let findProcess = Process()
         findProcess.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        findProcess.arguments = ["-f", paidBundleID]
+        findProcess.arguments = ["fSnippet"]  // 실행 파일 이름으로 검색
 
         let pipe = Pipe()
         findProcess.standardOutput = pipe
