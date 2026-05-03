@@ -106,6 +106,9 @@ struct MenuBarView: View {
             Button { openConfigFile() } label: {
                 Label("Open Config File", systemImage: "doc.text")
             }
+            Button { openSnippetFolder() } label: {
+                Label("Open Snippet Folder", systemImage: "folder.badge.gearshape")
+            }
             Button { openDataFolder() } label: {
                 Label("Open Data Folder", systemImage: "folder")
             }
@@ -238,6 +241,29 @@ struct MenuBarView: View {
         } else {
             NSLog("Config file not found: \(url.path)")
         }
+    }
+
+    private func openSnippetFolder() {
+        let basePath = PreferencesManager.shared.string(
+            forKey: "snippet_base_path",
+            defaultValue: "~/Documents/finfra/fSnippetData/snippets")
+        let url = Self.resolveSnippetURL(basePath)
+        if FileManager.default.fileExists(atPath: url.path) {
+            NSWorkspace.shared.open(url)
+        } else {
+            NSLog("Snippet folder not found: \(url.path)")
+        }
+    }
+
+    // Resolves snippet_base_path against the data root directory when the path
+    // is relative (e.g. "./snippets"). Tilde paths and absolute paths pass through.
+    static func resolveSnippetURL(_ basePath: String) -> URL {
+        let dataRoot = PreferencesManager.shared.configURL.deletingLastPathComponent()
+        let expanded = (basePath as NSString).expandingTildeInPath
+        if expanded.hasPrefix("/") {
+            return URL(fileURLWithPath: expanded)
+        }
+        return URL(fileURLWithPath: expanded, relativeTo: dataRoot).standardizedFileURL
     }
 
     private func openDataFolder() {
