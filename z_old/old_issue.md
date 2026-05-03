@@ -1,0 +1,1487 @@
+---
+name: old_issue
+description: fSnippetCli Issue.md 완료 섹션 아카이브 (릴리스별 이동)
+date: 2026-05-03
+---
+
+# ✅ 완료 (아카이브)
+
+> **출처**: `_public/Issue.md` `# ✅ 완료` 섹션
+> **이동 일자**: 2026-05-03 (1.0.1 release 시점)
+> **누적된 완료 이슈를 본 파일로 분리하여 Issue.md 가독성 확보**
+
+
+## Issue100: Daemon 서브메뉴 Pause/Resume REST API 구현 (등록: 2026-05-02, 종료: 2026-05-02, commit: 02c06a5) ✅
+* 목적: `menuBar_enhance.md` L45 — Daemon 서브메뉴에 REST API 일시정지/재개 버튼 추가
+* 상세:
+    - `APIServer`: `isApiPaused`, `pauseAPI()`, `resumeAPI()` + pause guard (cli/* 만 bypass, 나머지 503)
+    - `APIRouter`: `POST /api/v2/cli/pause`, `POST /api/v2/cli/resume` + `handleCliStatus`에 `is_api_paused` 포함
+    - `MenuBarView`: Daemon 서브메뉴 세 번째 항목으로 Pause/Resume REST API 버튼 추가
+
+## Issue99: menuBar_enhance.md 반영 — 메뉴바 UI 정제 (등록: 2026-05-02, 종료: 2026-05-02, commit: 5daf710, 3ba331e, 265d7bc, 67fd81f, 01f70fe) ✅
+* 목적: `_doc_design/menuBar_enhance.md` 설계 기준으로 MenuBarView.swift UI 전체 정제
+* 상세:
+    - 단축키 표시 방식 교체: `shortcutRow()` HStack+Spacer → `.keyboardShortcut()` (MenuBarExtra Spacer 붕괴 문제 해결)
+    - 메뉴명 교정: "Show History" → "Show Clipboard History", "Settings..." → "Open Settings Window"
+    - 이모지 추가: ⚡ Snippet Popup, 📋 Show Clipboard History, 🔧 Open Settings Window
+    - 구조 변경: 🔧 Open Settings Window를 📜 Clipboard 서브메뉴 바로 뒤로 이동 + Divider 추가
+    - 메뉴명 변경: "Register Snippet" → "Clipboard to Snippet"
+    - 👻 Daemon 서브메뉴 정리: Open Main Window(⌃⇧⌘W) + Status 텍스트 행 제거 (🔧 Open Settings Window가 역할 대체)
+    - 미사용 코드 제거: `statusLine`, `appLaunchTime`, `statusTimer`, `formatStatusLine()`, `formatUptime()`, `import Combine`
+* 구현 명세:
+    - 참조 설계: `_doc_design/menuBar_enhance.md`
+
+## Issue98: paid_cli_protocol v1.1 cliApp 구현 (등록: 2026-05-02, 종료: 2026-05-02, commit: a089007, d6f2095) ✅
+* 목적: `_doc_design/paid_cli_protocol.md` v1.1 설계 기반으로 cliApp 코드 갭 5개 구현
+* 상세:
+    - **①** `fSnippetCliApp.swift` — `MenuBarExtra(isInserted: !isPaidAppRunning)` 제거 → 항상 표시 (paidApp 실행 중에도 cliApp 메뉴바 유지)
+    - **②** 아이콘 동적 전환 — paidApp `started` 시 전체 bolt 아이콘, `notInstall/stopped` 시 잘린 아이콘 (§7.1)
+    - **③** `AppStateManager.swift` 신규 — `PaidAppStatus: notInstall/stopped/started` 3-state enum 추가. 현재 binary `isPaidAppRunning: Bool` → 3-state 전환
+    - **④** cliApp → paidApp 자동 기동 (§4.2) — `applicationDidFinishLaunching` 내 `PaidAppManager.shared.launchPaidApp()` (기존 구현 확인)
+    - **⑤** `MenuBarView.swift` — `PaidAppDetector.openSettings()` → `PaidAppManager.shared.handlePaidFeature()` 교체 (notInstall→App Store알림/stopped→실행요청/started→URL Scheme)
+* 구현 명세:
+    - 참조 설계: `_doc_design/paid_cli_protocol.md` §3.5, §4.2, §7.1, §7.2
+    - 참조 설계: `_doc_design/menuBar_enhance.md` 아이콘 변경 규칙
+    - ①②③: `fSnippetCliApp.swift` — `PaidAppIconState.isPaidAppRunning: Bool` → `status: PaidAppStatus` 3-state 전환, `MenuBarExtra(isInserted:)` 제거 → 항상 표시, 아이콘 `.started` → full bolt / else → trimmed bolt. 신규 `AppStateManager.swift` — `PaidAppStatus` enum + `AppStateManager` ObservableObject
+    - ⑤: `MenuBarView.swift` — Settings 버튼 `handlePaidFeature()` 교체
+    - 부수 변경: paidApp 종료 시 cliApp도 종료하는 v1.0 연동 로직 제거 (v1.1: cliApp 독립 실행 유지)
+    - 기존 `PaidAppStateStore` (register/unregister/status REST) 및 `ChangeTracker` 유지
+
+## Issue96: 시스템 단축키 블랙리스트 확장 (등록: 2026-05-01, 종료: 2026-05-02, commit: ca68221) ✅
+* 목적: 명세 14건 외 추가 표준 단축키를 블랙리스트에 포함하여 충돌 예방 강화 (umbrella)
+* 상세:
+    - Issue90(블랙리스트 인프라) + Issue94(NSAlert 알림 채널) 후속 — 사용자 알림 경로는 이미 확보됨
+    - 추가 단축키 셋 확장은 서브 이슈에서 점진적 진행
+    - 본 이슈는 모든 서브 이슈 종결 후 함께 종결
+
+### Issue96_2: ShortcutBlacklist 셋 확장 (⌘⇧S/⌘D/⌘E/⌘G) (등록: 2026-05-02, 종료: 2026-05-02, commit: ca68221) ✅
+* 목적: macOS HIG 표준 단축키 4건을 블랙리스트에 추가하여 사용자 충돌 예방
+* 상세:
+    - `ShortcutBlacklist.swift` `reservedSet`/`reasonMap`에 4건 추가:
+        + `⌘⇧S` — Save As (다른 이름으로 저장)
+        + `⌘D` — Duplicate (복제) / Don't Save (저장 안 함)
+        + `⌘E` — Use Selection for Find (찾기에 사용)
+        + `⌘G` — Find Next (다음 찾기)
+    - `ShortcutBlacklistTests.swift` 테스트 갱신:
+        + 기존 `testNotReservedCmdShiftS` 의도 반전 → 예약 검증 케이스로 전환
+        + `testReservedAllStandard` 명세 리스트 업데이트 (15 → 19)
+        + `testBlacklistCount` 카운트 업데이트 (15 → 19)
+        + 4건 reason 매핑 검증 추가
+    - 사용자 알림: Issue94 NSAlert가 자동 노출 (변경 불필요)
+* 검증: Release 빌드 통과 (단위 테스트는 별건 PaidAppAPIRouterTests 빌드 에러로 실행 보류)
+
+## Issue94: 시스템 예약 단축키 차단 시 NSAlert 모달 (등록: 2026-05-01, 종료: 2026-05-02, commit: 0521008) ✅
+* 목적: 현재 logW만 적용된 차단 알림을 NSAlert 모달로 승격하여 사용자 가시성 향상
+* 상세:
+    - 일괄 NSAlert 1회 노출 헬퍼 신설 (다중 차단 시 한 번에 표시)
+    - 메시지에 충돌 액션 + 시스템 단축키 + 사유 명시
+    - Issue90 후속
+* 구현 명세:
+    - `cli/fSnippetCli/Managers/ShortcutMgr.swift`:
+        + `blockedShortcutsBuffer: [(id, keySpec, reason)]` instance 필드 추가 — 등록 사이클 동안 차단 항목 누적
+        + `lastShownBlockedSignature: String?` — 동일 차단 셋 재알림 방지 (id:keySpec 정렬 join)
+        + `tryRegister` 내부 차단 분기에 `blockedShortcutsBuffer.append(...)` 추가 (logW 유지)
+        + `registerAppGlobalShortcuts()` 시작 시 버퍼 reset, 종료 시 `presentBlockedShortcutsAlertIfNeeded()` 호출
+        + `presentBlockedShortcutsAlertIfNeeded()` 신설:
+            - 빈 버퍼면 no-op
+            - signature 비교 — 동일 셋이면 알림 스킵 (사용자가 `_config.yml`을 안 고치면 매 사이클 떠서 노이즈)
+            - `DispatchQueue.main.async`로 NSAlert 표시 (등록 흐름 비차단)
+            - 메시지: `"시스템 예약 단축키 N건 차단됨"` + 항목별 `"• <id>: <keySpec> (<reason>)"` 본문 + `_config.yml` 수정 가이드
+            - alertStyle `.warning`, "확인" 버튼
+* 검증: `xcodebuild -scheme fSnippetCli -configuration Release build` → **BUILD SUCCEEDED**
+* 비고: 동일 차단 셋의 재알림은 세션 내에서만 억제됨 (lastShownBlockedSignature는 인스턴스 변수). 앱 재시작 시 1회 다시 표시되므로 사용자가 인지 못 한 채 누락되지 않음. UI 테스트는 차단 단축키가 설정되어야 재현 가능 → 사용자 측 후속 검증으로 위임
+
+## Issue95: `_config.yml.backup_*` 누적 정리 정책 (등록: 2026-05-01, 종료: 2026-05-02, commit: a304199) ✅
+* 목적: 마이그레이션 백업 파일 누적 방지를 위한 보존 정책 수립
+* 상세:
+    - 보존 기간(N일) 또는 N개 제한 정책 결정
+    - `ConfigMigration` 또는 별도 모듈에서 앱 시작 시 자동 정리
+    - 정리 대상 logI 기록
+    - Issue89 후속
+* 정책 결정: **최근 N개 보존 (기본 N=5)** — 단순 개수 기반. 시간 기반(N일) 정책은 향후 이슈에서 확장 가능. 새 백업이 생성된 직후 cleanup이 실행되므로 N=5면 새 1개 + 직전 4개가 보존되어 안전 마진 확보
+* 구현 명세:
+    - `cli/fSnippetCli/Data/ConfigMigration.swift`:
+        + `static let backupKeepCount = 5` 상수 추가
+        + `Result.removedBackups: [String]` 필드 추가 (cleanup 결과 추적)
+        + `cleanupOldBackups(near:keep:) -> [String]` static 메서드 신설
+            - 디렉토리 스캔: `_config.yml.backup_` prefix 매칭
+            - 파일명 사전순 정렬 (stamp `yyyyMMdd-HHmmss` 이므로 시간순 = 사전순)
+            - `count > keep`이면 가장 오래된 `count - keep` 개 삭제
+            - 각 삭제마다 `logI` 기록 (정책 명시: "최근 N개만 보존")
+            - 실패 시 `logW`로 기록 + 다음 항목 계속 처리 (best-effort)
+        + `migrate()` 호출 위치 2곳:
+            1. 변경 없음 분기 — idempotent path에서도 누적 정리 수행
+            2. 정상 종료 직전 — 새 백업 생성 직후 정리
+* 비고: 시간 기반 정책(예: 30일 초과 삭제)은 운영 데이터 축적 후 검토 — 사용자가 자주 마이그레이션 발생 시 N=5가 좁을 수 있음. 향후 이슈로 분리 가능
+* 검증: `xcodebuild -scheme fSnippetCli -configuration Release build` → **BUILD SUCCEEDED**
+
+## Issue93: `apiTestDo.sh` burst 안정성 개선 (등록: 2026-05-01, 종료: 2026-05-02, commit: be763da) ✅
+* 목적: Run1 일시 HTTP=000 회귀 발생을 회피하여 테스트 신뢰도 확보
+* 상세:
+    - `--retry 1 --retry-delay 1` 옵션 추가 또는 테스트 간 sleep 0.05 삽입
+    - Run1/Run2 일관성 확보
+    - Issue85 후속
+* 구현 명세:
+    - `cli/_tool/apiTest/apiTestDo.sh`:
+        + `APITEST_BURST_DELAY` 환경변수 도입 (기본 0.05초, env로 오버라이드 가능, `0` 설정 시 비활성)
+        + `--all` 모드 루프에서 각 테스트 실행 후 `sleep "$APITEST_BURST_DELAY"` 삽입 (단일 테스트 모드는 영향 없음)
+        + Usage 주석에 동작·오버라이드·비활성 방법 명시
+    - 결정 근거: 51개 개별 sh에 `--retry 1`을 일괄 추가하는 대안은 (1) 변경 범위 과다, (2) 에러 케이스 검증 의도와 충돌(retry로 일시적 실패가 가려질 수 있음). runner 레벨 sleep으로 burst 패턴만 완화하는 것이 최소 침습 + 의도 보존
+    - 검증: `bash -n apiTestDo.sh` syntax OK
+* 비고: Run1 HTTP=000 회귀 재현은 서버 가동 + 실 측정 필요 → 사용자 측 후속 검증으로 위임. APITEST_BURST_DELAY=0 으로 회귀 시 기존 동작 복원 가능
+
+## Issue92: `/api/v2/status` 헬스체크 엔드포인트 추가 (등록: 2026-05-01, 종료: 2026-05-02, commit: 343a992) ✅
+* 목적: v1 deprecated(410 Gone) 이후 헬스체크용 v2 status 부재 → 운영 모니터링 일관성을 위해 추가
+* 상세:
+    - `APIRouter.swift`에 `/api/v2/status` 라우트 추가
+    - 응답 스펙: 버전/uptime/active hotkey 수 등 운영 지표
+    - `api/openapi_v2.yaml` 동기 업데이트
+    - Issue85 후속
+* 구현 명세:
+    - `cli/fSnippetCli/Managers/APIRouter.swift`:
+        + 라우트 등록: `case ("GET", "/api/v2/status"): return handleV2Status(server: server)` (Triggers 직후, CLI 섹션 직전)
+        + `handleV2Status(server:)` 핸들러 신설 — 응답 필드: `status`, `app`, `version`(CFBundleShortVersionString), `build`(CFBundleVersion), `uptime_seconds`(server.uptimeSeconds), `active_hotkey_count`(`ShortcutMgr.shared.registeredShortcuts.count`), `snippet_count`(`SnippetIndexManager.shared.entries.count`), `timestamp`(ISO8601)
+        + 응답 포맷: `{"ok": true, "data": {...}}` (v2 표준)
+    - `api/openapi_v2.yaml`:
+        + paths에 `/status` GET 추가 (Health 태그)
+        + components/schemas에 `V2StatusResponse` 정의 (8 필드 + 예시)
+    - `cli/_tool/apiTest/v2/70.v2-status.sh` 신규 (`curl ... /api/v2/status | jq`)
+    - `cli/_tool/apiTest/apiTest_plan_v2.md` 인덱스에 Health(70) 섹션 추가, 정상 케이스 범위 갱신 (`~ 70.v2-status.sh`)
+    - 검증: `xcodebuild -scheme fSnippetCli -configuration Release build` → **BUILD SUCCEEDED**
+* 비고: 루트 `/` 헬스체크는 paidApp/cliApp 서버 일반 식별용으로 유지하고, 본 엔드포인트는 v2 prefix 일관 모니터링 진입점. cli/status와 차별 — cli/status는 PID/메모리 등 OS 지표 포함, v2/status는 운영 지표(active_hotkey_count 등)에 집중
+
+## Issue91: `E00.v2-404.sh` 검증 의도 갱신 (등록: 2026-05-01, 종료: 2026-05-02, commit: 48e2054) ✅
+* 목적: `/settings/advanced/debug`가 200 응답으로 구현됨에 따라 "404 미구현" 검증 의도가 어긋난 E00.v2-404.sh 정정
+* 상세:
+    - 다른 미구현 엔드포인트로 교체하거나 200 검증으로 전환
+    - apiTest 결과 정합성 회복
+    - Issue85 후속
+* 구현 명세:
+    - `cli/_tool/apiTest/v2/E00.v2-404.sh` 검증 대상 경로 변경:
+        + 기존: `/api/v2/settings/advanced/debug` (Phase 4에서 구현되어 200 반환)
+        + 변경: `/api/v2/nonexistent-endpoint` (정의되지 않은 경로 → APIRouter default → notFound() 404)
+    - 주석 갱신: 변경 사유와 issue 번호 명시
+    - 12.v2-debug-patch.sh가 advanced/debug GET/PATCH 200 검증을 이미 담당하므로 중복 없음
+    - apiTest_plan_v2.md L123 "존재하지 않는 v2 엔드포인트" 의도와 일치 회복
+
+## Issue97: [Bug] 한글 입력 차단 — `SnippetSettings.default.popupKeyShortcut` Issue88 정책 위반 (등록: 2026-05-02, 종료: 2026-05-02, commit: 99ccaf1) ✅
+* 목적: cliApp(fsnippet-cli) 데몬이 시작되면 다른 앱에서 **한글 등 입력이 차단**되는 회귀를 해결. Issue88(SSOT 정책: `_config.yml`에 명시한 hotkey만 글로벌 등록, 그 외 default 등록 금지)이 `SettingsManager.swift:285`에서 미적용되어 잔존 — `popupKeyShortcut: PopupKeyShortcut.default` (= `⌃` `, keyCode 50) 박제 위반
+* 정책: **`_config.yml`만이 글로벌 단축키 SSOT**. 코드 default에 hotkey 값 하드코딩 금지 — 사용자가 `_config.yml`에 명시한 단축키만 등록 (Issue87/88 정책 일관 적용)
+* 배경:
+    - 사용자 보고: 데몬 시작 후 다른 앱(VSCode/Terminal/메모장 등)에서 한글 입력이 안 됨
+    - 사용자 단서: "현재 앱은 글로벌 단축키를 yml에서 등록한 것만 쓴다. 설정이 비어 있으면 해당 단축키는 작동안하는 것이다." → Issue88 정책이 부분적으로만 적용되어 있어 default 박제 위반이 남아있음을 의심
+    - Issue88(commit `9d33a23`)에서 `getDefaults()`의 hotkey 4종(snippet_popup/viewer/pause/settings)은 빈 값으로 전환했으나, `SnippetSettings.default`(L276+)의 `popupKeyShortcut: PopupKeyShortcut.default,` (L285)는 누락
+    - `PopupKeyShortcut.default` = `⌃` `(keyCode 50, modifierFlags 262144) — `SettingsManager.load()` 진입 시 초기값으로 박제
+    - `_config.yml`에 `snippet_popup_hotkey: "⌃⇧Space"`가 있으면 L636-644에서 정상 덮어쓰지만, **빈 값/누락 시 ⌃` 박제 → ShortcutMgr가 `.appShortcut`으로 등록 → CGEventTap이 `return nil` Strong Block (CGEventTapManager:228)**
+    - keyCode 50(`)은 한글 IME 활성 상태에서 한글 자모 매핑과 우연히 일치 가능 → IME가 받기 전 차단
+* 결과:
+    - `cli/fSnippetCli/Managers/SettingsManager.swift` L285 — `popupKeyShortcut: PopupKeyShortcut.default,` → `popupKeyShortcut: PopupKeyShortcut.from(hotkeyString: ""),  // Issue97: SSOT는 _config.yml (Issue88 정책 일관 적용 — was PopupKeyShortcut.default ⌃` which conflicts with Korean IME on keyCode 50)`
+    - **메커니즘**: `PopupKeyShortcut.from(hotkeyString: "")` → keyCode 0 + modifiers 0 + displayString `""` 반환 → `ShortcutMgr.registerAppGlobalShortcuts()` L412 `if !popupKey.toHotkeyString.isEmpty` 가드가 빈 값 reject → 등록 안 됨 → 한글 입력 keyCode 50(`) 보존
+    - `xcodebuild -scheme fSnippetCli -configuration Release` → **BUILD SUCCEEDED**
+    - `bash _tool/fsc-deploy-brew.sh local` → 9 PASS / 0 FAIL (서명·tap 갱신·brew install·services start·REST 200)
+    - 데몬 재시작 후 `🚀총 등록된 단축키: 11개 "App Shortcuts (4) + Trigger Keys (4) + Buffer Clear Keys (0) + Folder Shortcuts (3)"` — 사용자 _config.yml에 4 hotkey 명시되어 등록 수 변동 없음, **정책 일관성 확보가 본 이슈 산물**
+    - 후속 한계: 사용자 측 한글 IME 입력 회복 검증은 별도 진행 (Issue87 동일 패턴 — 사용자 검증 의존). 추가 default 박제 잔존(`PreferencesManager.swift:507` `snippet_trigger_key: "="`, TriggerKeyManager systemKeys, AppSettingManager bufferClear default 등) 감사는 후속 이슈 후보로 분리
+* 후속 이슈 후보:
+    - 🌱 Issue88 정책 전수 감사 — `SettingsManager.swift`/`PreferencesManager.swift`/`AppSettingManager.swift`/`TriggerKeyManager.swift` 추가 default hotkey 박제 잔존 여부 점검
+    - 🌱 한글 입력 회귀 통합 테스트 — macOS 한글 IME 활성 상태에서 cliApp 단축키 등록이 IME 키를 차단하지 않는지 자동 검증 (CI 불가 시 수동 체크리스트)
+
+## Issue89: 박제된 잘못된 hotkey 자동 정리 마이그레이션 (등록: 2026-05-01, 종료: 2026-05-01, commit: 24320e9) ✅
+* 목적: 앱 시작 시 사용자 `_config.yml` 의 비활성/구버전/시스템 충돌 hotkey 라인을 자동 정리하여, Issue88 이전 사용자가 박제된 잘못된 단축키(예: ⌘S 등록)로 인해 시스템 동작이 차단되는 문제를 해결
+* 상세:
+    - **진단 로직**: `PreferencesManager` 또는 별도 마이그레이션 모듈에서 `_config.yml` 로드 시 hotkey 섹션 검사
+    - **정리 대상**: (1) Issue88 에서 빈 값으로 정정된 default 액션 8건의 사용자 박제 값, (2) Issue90 블랙리스트(시스템 예약) 매칭 항목, (3) 폐기된 액션 키
+    - **백업·로깅**: 정리 전 `_config.yml.backup_{date}` 백업 + logI 기록
+    - **idempotent**: 재실행 시 무동작 보장 (이미 정리된 경우 패스)
+    - **단위 테스트**: 마이그레이션 입력→출력 케이스 unit 테스트
+* 결과:
+    - `cli/fSnippetCli/Data/ConfigMigration.swift` 신설 — `migrate(at:)` 정리 3종 카테고리 처리
+        - (1) **시스템 예약 매칭**: `ShortcutBlacklist.isReserved()` 검사 → 빈 값으로 정정 (라인 보존, 사용자 가시성 유지)
+        - (2) **폐기된 액션 키**: `knownHotkeyKeys` 화이트리스트 6건 (viewer/pause/preview/registerSnippet/settings.hotkey + snippet_popup_hotkey) 외 → 라인 제거
+        - (3) Issue88 default 빈 값 정정 케이스는 (1) 검사로 자동 흡수
+    - **백업 패턴**: `_config.yml.backup_YYYYMMDD-HHMMSS` — 변경 발생 시에만 1회 생성, 같은 초까지 포함하여 충돌 회피
+    - **idempotent**: 정리 0건이면 백업도 생성 안 함 (테스트로 검증)
+    - `PreferencesManager.loadConfigInternal()`: 파일 파싱 전 1회 호출 (앱 시작 시점)
+    - `cli/fSnippetCliTests/ConfigMigrationTests.swift` 11개 테스트 — parse/idempotent/blacklist/obsolete/backup/missing-file/sanity 전부 커버
+    - `xcodebuild -scheme fSnippetCli -configuration Release build` → **BUILD SUCCEEDED**
+    - 후속 한계: 백업 누적 정리 정책 미구현 (사용자가 수동 삭제) — 향후 별도 이슈로 정책 결정 필요
+
+## Issue86: cmdTest v2 전체 검증 및 v1 폴더 제거 (등록: 2026-04-28, 종료: 2026-05-01, commit: c3a0a77) ✅
+* 목적: `cli/_tool/cmdTest/v2/` 스크립트 전체 실행으로 fsc 커맨드 v2 동작 검증 + v1 테스트 폴더 및 cmdTestDo.sh 기본값 정리
+* 상세:
+    - **사전 확인**: CLI 커맨드 코드가 전부 `/api/v2/` 사용 확인됨 (선수 이슈 없음)
+    - **v2 테스트 실행**: `bash cli/_tool/cmdTest/cmdTestDo.sh v2` — 정상 36개 + 에러 3개 검증
+    - **v1 폴더 제거**: `cli/_tool/cmdTest/v1/` 디렉토리 삭제 (v1은 APIRouter에서 410 Gone 반환 — 테스트 의미 없음)
+    - **cmdTestDo.sh 기본값 수정**: `VERSION="${1:-v1}"` → `VERSION="${1:-v2}"` (기본값 v2로 변경)
+    - **루트 래퍼 정합**: `cli/_tool/cmdTestDo.sh` 도 동일 기본값 반영 확인
+    - 실패 항목 원인 분석 및 수정
+* 결과:
+    - v2 테스트: 정상 29개 + 에러 3개 = 32개 전체 ✅ (명세 "정상 36"은 과거 v1 포함 추정 — 실측 v2만 29개)
+    - v1 폴더 제거 완료 (`cmdTest/v1/` 26개 스크립트 삭제, `cmdTest_plan_v1.md`는 보존)
+    - `cmdTest/cmdTestDo.sh` + `_tool/cmdTestDo.sh` 기본값 v2 전환 + Usage v2 전용으로 정리
+    - 무인자 호출(`bash cmdTestDo.sh`) → v2 32개 PASS 확인
+    - 리포트: `cli/_doc_work/report/cmdTestReport_20260501_001.md`
+
+## Issue90: 시스템 예약 단축키 블랙리스트 (등록: 2026-05-01, 종료: 2026-05-01, commit: 1681de8) ✅
+* 목적: `ShortcutMgr.registerAppGlobalShortcuts()` 에 macOS 표준 단축키(⌘S/C/V/X/A/Z/N/O/P/F/Q/W/T/R) 등록을 거부하고, 시도 시 사용자에게 경고하여 시스템 충돌 회귀(Issue87 류) 재발을 차단
+* 상세:
+    - **블랙리스트 정의**: `ShortcutMgr` 또는 별도 상수에 macOS 표준 modifier+key 조합 셋 정의 (⌘S, ⌘C, ⌘V, ⌘X, ⌘A, ⌘Z, ⌘N, ⌘O, ⌘P, ⌘F, ⌘Q, ⌘W, ⌘T, ⌘R 외 적정 범위)
+    - **등록 검증**: `registerAppGlobalShortcuts()` 진입 시 각 hotkey 토큰을 파싱하여 블랙리스트 매칭 — 매칭 시 `Carbon RegisterEventHotKey` 호출 차단
+    - **사용자 알림**: 차단된 항목은 logW + 사용자 알림(메뉴바 경고 또는 NSAlert) — 어떤 액션이 어떤 시스템 단축키와 충돌했는지 명시
+    - **단위 테스트**: 블랙리스트 셋 검증 + 차단 케이스 + 정상 케이스 unit 테스트
+    - **회귀 보호**: Issue87(VSCode ⌘S 차단)·Issue88(SSOT 위반) 류 재발 방지
+* 결과:
+    - `cli/fSnippetCli/Managers/ShortcutBlacklist.swift` 신설 — 15건 (명세 14 + ⌘⇧Z Redo 추가)
+    - `normalize()` 함수: 중괄호 `{}` 제거 + 알파벳 키 대문자화 + `⌃→^` 정규화 — 사용자 토큰 형식(`"{⌘S}"`, `"⌘s"`, `"⌘S"`) 모두 일관 처리
+    - `ShortcutMgr.registerAppGlobalShortcuts()`: 5개 액션(viewer/pause/settings/popup/registerSnippet)에 `tryRegister` 헬퍼 적용 — 예약 시 `logW("🚀 [ShortcutMgr] Issue90 차단: {id} 단축키 '{token}' 는 macOS 표준 예약 ({사유}) — 등록 거부")`
+    - `cli/fSnippetCliTests/ShortcutBlacklistTests.swift` 16개 케이스 — 예약/비예약/normalize/reason 검증
+    - `xcodebuild -scheme fSnippetCli -configuration Release build` → **BUILD SUCCEEDED**
+    - 후속 한계: 사용자 알림은 logW 만 적용 (NSAlert 모달은 추후 별도 이슈) — Issue89 마이그레이션과 결합되면 사실상 사용자 노출 빈도 매우 낮음
+
+## Issue85: API v2 테스트 진행 (등록: 2026-04-28, 종료: 2026-05-01, commit: N/A — 검증 전용, 코드 변경 없음) ✅
+* 목적: `cli/_tool/apiTest/v2/` 스크립트 전체를 실행하여 v2 엔드포인트 동작 검증 및 결과 리포트 생성
+* 상세:
+    - `/api-test all` 실행 (내부: `apiTestDo.sh v2` 기본)
+    - 정상 스크립트 28개 + 에러 시나리오 7개 검증
+    - 결과를 `cli/_doc_work/report/apiTestReport_{날짜}_{일련번호}.md`로 저장
+    - 실패 항목 원인 분석 및 수정
+* 결과:
+    - 정상 28개 ✅ + 에러 6개 ✅ — Run2 기준 전체 통과 (Run1은 burst HTTP=000 10건 → Run2 정상)
+    - 리포트: `cli/_doc_work/report/apiTestReport_20260501_001.md`
+    - 후속 권고: E00.v2-404.sh 갱신(`/settings/advanced/debug` 구현 후 200 응답), `/api/v2/status` 헬스체크 엔드포인트 추가 검토
+
+## Issue88: 글로벌 단축키 SSOT 정책 강제 — `_config.yml` 외 default 등록 차단 (등록: 2026-05-01, 종료: 2026-05-01, commit: 9d33a23) ✅
+* 목적: 코드에 하드코딩된 hotkey default 8곳이 `PreferencesManager.loadConfigInternal()` L269 `getDefaults().merging(parsed)` 경로로 cachedConfig에 머지되어 사용자 `_config.yml`에 키가 없어도 글로벌 단축키로 등록되는 회귀 차단
+* 정책: **`_config.yml`에 명시한 hotkey만 글로벌 등록, 그 외 절대 금지**
+* 배경: Issue87 종결 후 사용자 _config.yml에 `history.registerSnippet.hotkey: "⌘S"`가 다시 박혀있음 발견 — `saveConfigInternal()`이 옛 default ⌘S를 사용자 파일에 써넣은 2차 효과. registerSnippet뿐 아니라 viewer/pause/settings/popup도 동일 회귀 위험
+* 구현 명세 (3개 파일, 8 default → 빈 문자열):
+    - **PreferencesManager.swift** (`getDefaults()` 4개): `snippet_popup_hotkey` / `history.viewer.hotkey` / `history.pause.hotkey` / `settings.hotkey` — 모두 `""`
+    - **SettingsManager.swift** (`SnippetSettings.default` 3개): `settingsHotkey` / `historyViewerHotkey` / `historyPauseHotkey` — 모두 `PopupKeyShortcut.from(hotkeyString: "")`
+    - **SettingsObservableObject.swift** (`@Published` 3개): 동일 3종 초기값 `""`
+    - **메커니즘**: `ShortcutMgr.registerAppGlobalShortcuts()` L354/367/380/396/410의 `if !key.isEmpty` 조건이 빈 값을 reject → 등록 안 됨 → OS 표준 단축키(⌘S/⌘C/⌘V 등) 보존
+* 검증:
+    - `xcodebuild -scheme fSnippetCli -configuration Release` → BUILD SUCCEEDED
+    - `/run` 재배포 후 `🚀총 등록된 단축키: 11개 "App Shortcuts (4) + Trigger Keys (4) + Buffer Clear Keys (0) + Folder Shortcuts (3)"`
+    - **App Shortcuts 4개 = 사용자 _config.yml의 비-빈 hotkey 4종**(pause/viewer/settings/popup)과 정확 일치. preview(빈 값)·registerSnippet(라인 없음) 모두 등록 안 됨
+* 후속 권장:
+    - 🌱 사용자 _config.yml의 박제된 잘못된 default값(있다면) 일괄 정리 마이그레이션 — 앱 시작 시 비활성 hotkey 라인 자동 제거
+    - 🌱 시스템 예약 단축키 블랙리스트 (Issue87 후속) — 사용자가 _config.yml에 ⌘S/⌘C/⌘V 등을 직접 매핑할 때 경고/거부
+
+## Issue87: [Bug] VSCode ⌘S 차단 — registerSnippet hotkey default 제거 (등록: 2026-05-01, 종료: 2026-05-01, commit: 825042a) ✅
+* 목적: VSCode에서 `⌘S`(저장) 입력이 fSnippetCli daemon 실행 중에 호스트 앱(VSCode)으로 전달되지 않는 치명적 회귀 해결
+* 근본 원인: **가설 3 적중** — Issue84(commit `0cacd11`)에서 [`PreferencesManager.swift:535`](cli/fSnippetCli/Data/PreferencesManager.swift#L535)에 `"history.registerSnippet.hotkey": "⌘S"` default를 하드코딩하여 등록함. 사용자 `_config.yml`에 명시 매핑이 없어도 default가 [`ShortcutMgr.swift:407-419`](cli/fSnippetCli/Managers/ShortcutMgr.swift#L407-L419)에서 `.appShortcut`으로 등록됨 → CGEventTap [L260](cli/fSnippetCli/Core/CGEventTapManager.swift#L260) `return nil`(Strong Block)로 모든 앱의 ⌘S 흡수
+* 정책 결정: **`_config.yml`만이 글로벌 단축키 SSOT**. 코드 default에 hotkey 값 하드코딩 금지 — 사용자가 `_config.yml`에 명시한 단축키만 등록
+* 구현 명세 (단일 파일, 1줄 삭제):
+    - **변경 파일**: `cli/fSnippetCli/Data/PreferencesManager.swift` (L535 1줄 삭제)
+    - **변경 내용**: `"history.registerSnippet.hotkey": "⌘S"` default 항목 제거 → `prefs.string(forKey:)` 빈 문자열 반환 → `ShortcutMgr.swift:410` `if !registerKey.isEmpty` 조건이 false → 등록 안 됨 → ⌘S OS로 정상 전달
+    - **번들 `_config.yml` 정리**: 사용자가 직접 `cli/fSnippetCli/_config.yml`과 `~/Documents/finfra/fSnippetData/_config.yml`에서 `history.registerSnippet.hotkey: "{⌘S}"` 라인 제거 완료
+    - **검증**:
+        * `xcodebuild -scheme fSnippetCli -configuration Release` → BUILD SUCCEEDED
+        * `/run` (brew local 재배포) → REST API `200 OK`, snippet 1963개 정상 로드
+        * VSCode/Finder/Safari/Xcode 등에서 `⌘S` 보존 (사용자 검증)
+        * fSnippetCli 자체 단축키 4종(snippet popup ⌃⇧Space, history ⌘;, pause ⌃⌥⌘P, settings ⌃⇧⌘;) 정상 동작 유지
+* 후속 이슈 후보:
+    - 🌱 시스템 예약 단축키 블랙리스트 — `ShortcutMgr.registerAppGlobalShortcuts()`에 macOS 표준(⌘S/C/V/X/A/Z/N/O/P/F/Q/W/T/R) 등록 거부 검증 + 사용자 알림
+    - 🌱 paidApp Settings UI에 `history.registerSnippet.hotkey` 단축키 노출 (현재 `_config.yml` 직접 편집만 가능, Issue84 후속)
+    - 🌱 Register Snippet 백엔드 구현 (Issue84 Out of Scope §1, 클립보드 → 새 스니펫 파일)
+
+## Issue84: `{registerSnippet}` 단축키 메뉴 노출 + 등록 로직 (등록: 2026-04-27, 종료: 2026-04-27, commit: 0cacd11) ✅
+* 목적: `_doc_design/menuBar_enhance.md` 액션 표에 `{registerSnippet}` 신설하고, cliApp 메뉴 트리·단축키 등록 로직·dispatcher 동작을 일관 반영. 백엔드(클립보드 → 새 스니펫 파일 생성)는 후속 이슈로 분리
+* plan: `_doc_work/plan/menuBar_register-snippet_plan.md` (gitignored)
+* 커밋: 0cacd11
+* 구현 명세 (5단계):
+    - **Phase 1 — 설계서**: `_public/_doc_design/menuBar_enhance.md` (gitignored)
+        * 액션 토큰 표에 `{registerSnippet} — Register Snippet from Clipboard | (unset)` 행 추가 (paidApp ✅ / cliApp ✅ 스텁)
+        * paidApp 메뉴 트리 `📜 Clipboard ▶`에 `Register Snippet` 항목 추가 (Pause/Resume과 Clear Clipboard History 사이)
+        * cliApp 메뉴 트리 동일 위치에 추가
+    - **Phase 2 — `ShortcutMgr.swift`** `registerAppGlobalShortcuts()` (L407 부근): 5번째 등록 추가
+        * `history.registerSnippet.hotkey` 키를 `PreferencesManager`에서 읽어 비어있지 않을 때만 `register(ShortcutItem(...))` 호출 — 사용자 설정 시에만 활성화
+    - **Phase 3 — dispatcher case** (L598-603): `Future Implementation` 주석 → `ToastManager.shared.showToast(message: "Register Snippet — pending implementation", iconName: "hammer")` 토스트로 교체. 사용자에게 단축키 인식 확인 신호 제공
+    - **Phase 4 — `MenuBarView.swift`** (L55-80): `📜 Clipboard ▶` 서브메뉴에 `Button { registerSnippetAction() } label: { shortcutRow(label: "Register Snippet", shortcut: registerSnippetShortcutLabel()) }` 추가
+        * `registerSnippetAction()`: dispatcher와 동일 토스트 (UI/단축키 동작 일관성)
+        * `registerSnippetShortcutLabel()`: `_config.yml`의 `history.registerSnippet.hotkey` 값을 동적 표시 (미설정 시 빈 문자열)
+    - **Phase 5 — 검증**: `xcodebuild -scheme fSnippetCli -configuration Release` BUILD SUCCEEDED
+* 후속 이슈 후보:
+    - 🌱 Register Snippet 백엔드 구현 — 클립보드 내용을 새 스니펫 파일로 저장 (UI 입력 폼·RuleManager 갱신·파일 감시 통합)
+    - 🌱 메인 레포 paidApp `MenuBarManager.swift` 동기화 (별도 메인 레포 이슈)
+    - 🌱 paidApp Settings UI에 `register.snippet.hotkey` 단축키 노출 (현재 `_config.yml` 직접 편집만 가능)
+
+## Issue83: Restart Daemon backend 구현 — `brew services restart fsnippet-cli` 호출 (등록: 2026-04-27, 종료: 2026-04-27, commit: 7956918) ✅
+* 목적: `MenuBarView.swift` `showRestartDaemonStub()` NSAlert 스텁을 실제 `brew services restart fsnippet-cli` 호출로 대체. Issue82 Out of Scope §1 후속
+* 커밋: 7956918
+* 구현 명세:
+    - **변경 파일**: `cli/fSnippetCli/MenuBarView.swift` (단일, 40 ins / 6 del)
+    - **`restartDaemon()`** 신설: `Process` API로 `brew services restart fsnippet-cli` 비동기 호출
+        * brew 경로 탐색: `/opt/homebrew/bin/brew` (Apple Silicon) → `/usr/local/bin/brew` (Intel) 폴백, 둘 다 부재 시 NSAlert
+        * `DispatchQueue.global(qos: .userInitiated)`에서 실행하여 메뉴 응답성 확보
+        * stderr Pipe 캡처 → 실행 실패 시 메인 스레드 NSAlert로 사유 표시
+    - **`showRestartFailure(reason:)`** 신설: 정적 메서드, NSAlert `.warning` 스타일로 실패 메시지 표시
+    - **자기 종료 특성**: brew restart는 현재 daemon에 SIGTERM 발송 → 호출 후 결과 관찰 불가, 사전 실패만 보고
+    - **호출부**: `Button("Restart Daemon") { restartDaemon() }` (기존 `showRestartDaemonStub()` 교체)
+    - **검증**: `xcodebuild -scheme fSnippetCli -configuration Release` BUILD SUCCEEDED
+
+## Issue82: cliApp 메뉴바 개선 — 그룹화 서브메뉴 + 단축키 토큰 공유 + 시간적 배타성 (등록: 2026-04-27, 종료: 2026-04-27, commits: 588e178, 72f4dfd) ✅
+* 목적: `_doc_design/menuBar_enhance.md` 설계 SSOT를 cliApp(`MenuBarView.swift`)에 1:1 반영. paidApp과 동일 단축키 토큰을 동일 표기로 노출하여 시간적 배타성에도 사용자 학습 비용 0 달성
+* plan: `_doc_work/plan/menuBar_enhance_plan.md`
+* 커밋:
+    - **588e178** Phase 2: MenuBarView 그룹화 재구성 + 단축키 토큰 표기 (153 ins / 66 del)
+    - **72f4dfd** Phase 3+6: Daemon Status 라이브 표기 + Launch at Login 연동 (37 ins / 6 del)
+* 구현 명세:
+    - **변경 파일**: `cli/fSnippetCli/MenuBarView.swift` (단일 파일, 250줄, 184 ins / 66 del)
+    - **메뉴 트리** (설계서 L82-105 1:1):
+        * 평면 7종: `About fSnippetCli` · `Launch fSnippet` (⌃⇧⌘W 라벨) · `Snippet Popup` (⌃⇧Space) · `Show History` (⌘;) · `Settings…` (⌃⇧⌘;) · `Launch at Login` 토글 · `Quit` (⌘Q)
+        * 서브메뉴 3종: `📜 Clipboard ▶` (Pause/Resume ⌃⌥⌘P + Clear) · `👻 Daemon ▶` (Reload + Open Main Window ⌃⇧⌘W + Status + Restart 스텁) · `⚙️ Configuration ▶` (Config File + Data Folder + Log Folder)
+    - **단축키 SSOT 검증** (Phase 1 — 변경 없음, 이미 정합): [`ShortcutMgr.swift:347-405`](cli/fSnippetCli/Managers/ShortcutMgr.swift#L347-L405) `registerAppGlobalShortcuts()`가 4종(`history.viewer.hotkey`/`history.pause.hotkey`/`settings.hotkey`/`snippet.popup.hotkey`) 단일 진입점 등록. `_config.yml`의 `snippet_popup_hotkey: ⌃⇧Space`가 SSOT, `PreferencesManager.swift:504`의 `⌘Space`는 fallback (충돌 없음)
+    - **⌃⇧⌘W 중복 처리**: `Launch fSnippet`·`Daemon ▶ Open Main Window` 둘 다 라벨만 표기. `shortcutRow(label:shortcut:)` 헬퍼로 SwiftUI `keyboardShortcut` 미바인딩 (paidApp 측 핫키와 충돌 방지)
+    - **Daemon Status 라이브 표기**: `Timer.publish(every: 5)` 자동연결 + `appLaunchTime`으로 Uptime 계산. 형식: `Status: Running · Port 3015 · Uptime Xh Ym`
+    - **Reload Snippets**: `SnippetIndexManager.shared.rebuildIndex(basePath:completion:)` 직접 호출 (notification 우회)
+    - **Launch at Login 토글**: 초기값을 `PreferencesManager.shared.bool("start_at_login")`에서 읽고, `onChange`에서 `SettingsObservableObject.shared.setLaunchAtLogin(enabled)` 호출. Issue61에서 도입된 brew services 동기화 진입점 재사용 ([APIRouter.swift:1032](cli/fSnippetCli/Managers/APIRouter.swift#L1032)와 동일)
+    - **시간적 배타성**: 기존 [`fSnippetCliApp.swift:37-46`](cli/fSnippetCli/fSnippetCliApp.swift#L37-L46) `MenuBarExtra(isInserted: !isPaidAppRunning)` 바인딩 그대로 활용. 변경 없음
+    - **Restart Daemon**: NSAlert 스텁 ("Pending implementation. Run `brew services restart fsnippet-cli` manually for now.") — 후속 이슈 후보로 분리
+    - **검증**: Debug + Release 모두 BUILD SUCCEEDED. SwiftUI MenuBarExtra 트리 설계서 L82-105와 1:1 일치
+* 후속 이슈 후보:
+    - 🌱 `Restart Daemon` backend 구현 (NSAlert 스텁 → 실제 brew restart 호출)
+    - 🌱 메인 레포 paidApp `MenuBarManager.swift` 동기화 (별도 메인 레포 이슈)
+    - 🌱 `{registerSnippet}` 단축키 메뉴 노출 (설계 결정)
+
+## Issue81: `cli/_doc_design/paidApp_version.md` v1 표기 정정 (등록: 2026-04-26, 종료: 2026-04-27, commit: 9f60322) ✅
+* 목적: 설계 문서가 "REST API: `localhost:3015/api/v1`, `/api/v2` 제공"으로 기술되어 v1 obsolete(410 Gone) 사실과 충돌
+* 커밋: 9f60322 (`cli/_doc_design/`는 `.gitignore` 처리되어 git 미추적 — Issue.md 커밋 해시로 기록)
+* 구현 명세:
+    - **변경 파일**: `cli/_doc_design/paidApp_version.md` L32
+    - **변경 전**: `` `localhost:3015/api/v1`, `/api/v2` 제공 ``
+    - **변경 후**: `` `localhost:3015/api/v2` 제공 (v1 deprecated, 410 Gone) ``
+    - **추가 검색**: `grep -in "api/v1\|backward\|호환"` — 동일 문서 내 다른 v1 언급 없음 확인
+
+## Issue80: v2 응답 모델 `success` → `ok` 필드 표준화 (등록: 2026-04-26, 종료: 2026-04-27, commit: 69a8e96, 옵션 A 채택) ✅
+* 목적: yaml SSOT 및 RestAPI_v2.md 공통 응답 규칙 `{ ok: true, data: ... }`에 정합화. v1 deprecated(410 Gone) 이후 호환 명분 사라짐
+* 커밋: 69a8e96
+* 결정: **옵션 A 채택** (일괄 교체) — 사용자 승인. 옵션 B(둘 다 출력)는 응답 크기·복잡도, 옵션 C(yaml을 success로)는 다른 SSOT 문서 동시 변경 필요로 기각
+* 구현 명세:
+    - **APIModels.swift** (15곳): `let success: Bool` → `let ok: Bool` (APIErrorResponse, APISnippetSearchResponse, APIExpandResponse, APIClipboardDetailResponse, APIFolderMutationResponse, APISnippetMutationResponse, APIReloadResponse 등)
+    - **APIRouter.swift** (22곳): 호출 인자 17곳 (`success: true/false` → `ok: true/false`) + 인라인 JSON 4곳 + APIReloadResponse 1곳
+    - **StatusCommand.swift** (2곳): CLI JSON 출력 정합화
+    - **api/README.md, README_ko.md** (8곳): 응답 예제 정합화
+    - **api/test-api.sh** (7곳): 매처 `'"success"'` → `'"ok"'`
+    - **cli/_tool/apiTest/v1/*.sh** (4곳): success 추출/리터럴 일관화
+    - **검증**: Release 빌드 BUILD SUCCEEDED. 모든 success 잔존 검사 통과 (Result enum의 `.success` case는 유지)
+
+## Issue79: `RestAPI_v2.md` 설계서에 shutdown·PaidApp Lifecycle 섹션 보강 (등록: 2026-04-26, 종료: 2026-04-27, commit: c36f672) ✅
+* 목적: 설계 SSOT 문서 `cli/_doc_design/api/RestAPI_v2.md`가 `openapi_v2.yaml` 및 코드보다 뒤처져 있던 부분을 동기화
+* 커밋: c36f672 (`cli/_doc_design/`는 `.gitignore` 처리되어 git 미추적 — Issue.md 커밋 해시로 기록)
+* 구현 명세:
+    - **변경 파일**: `cli/_doc_design/api/RestAPI_v2.md`
+    - **L11 v1 표기 정합화**: "유지(Backward Compatible)" → "**deprecated** — 모든 요청 `HTTP 410 Gone` 반환" (Issue77 정책 정합)
+    - **주요 추가 영역 표**: `PaidApp Lifecycle` + `CLI Shutdown` 2개 행 추가
+    - **Data Endpoints 표**: `POST /shutdown` 행 추가 (delayMs/reason 포함)
+    - **사용 예제 #13** 신설: paidApp register/status/unregister 3단계 cURL 시퀀스 + 응답 예 + 보안 검증·에러 코드 안내
+    - **사용 예제 #14** 신설: cliApp 동반 종료 `/shutdown` cURL — `reason`/`delayMs` 동작 명시
+    - **신규 H2 섹션 "PaidApp Lifecycle"**: 전체 엔드포인트 목록 영역에 신설 — 3개 라우트 표 + 3단계 발신자 검증(kill/bundlePath/Team ID) + sessionId 흐름 + paid_cli_protocol §3 참조
+    - **검증**: `grep -nE "PaidApp|paidapp|/shutdown"` 12개 매치 확인
+
+## Issue78: v2 미구현 라우트 11종 구현 — General 세부/Advanced API/History clear (등록: 2026-04-26, 종료: 2026-04-27, commit: b52bd69) ✅
+* 목적: `openapi_v2.yaml` SSOT에 정의되어 있으나 [APIRouter.swift](cli/fSnippetCli/Managers/APIRouter.swift) 에 라우트가 없어 호출 시 404가 발생하던 엔드포인트 11종 일괄 구현
+* 커밋: b52bd69
+* 구현 명세:
+    - **변경 파일**: [APIRouter.swift](cli/fSnippetCli/Managers/APIRouter.swift) (+303), [ClipboardDB.swift](cli/fSnippetCli/Data/ClipboardDB.swift) (+15)
+    - **General 9종 (yaml L163-347)**: `GET/PUT /settings/general/{language,appearance,trigger-key,trigger-bias,quick-select-modifier}` (5×2=10) + `GET/PATCH /paths` + `GET /permissions` + `POST /snippet-folder/{rebuild-index,open}`
+    - **History 1종**: `POST /settings/history/clear` — `ClipboardDB.totalCount()` 신설로 `removedEntries` 정확도 확보
+    - **Advanced 1종**: `GET/PATCH /settings/advanced/api` — 자기참조 안전 정책: PATCH는 prefs만 저장, 서버 재바인딩 미수행 (잘못된 port/cidr로 영구 다운 방지). 다음 cliApp 재시작에 적용
+    - **검증 규칙 적용**: language/appearance/quickSelectModifier enum, triggerBias `-10..10`, port `1024..65535`, allowedCidr/token 비빈 검증
+    - **응답 모델**: 9개 fileprivate Encodable struct (V2LanguageResponse 등) — 인라인 dict 대신 Codable 보장
+    - **검증**: Release 빌드 BUILD SUCCEEDED
+* 후속 (선택):
+    - cli/_tool/apiTest 에 11개 케이스 추가 (이슈 명세 마지막 줄 — 실 동작 검증)
+
+## Issue70: 클립보드 히스토리 고급 기능 — Paid 앱 활성화 의존성 처리 (등록: 2026-04-25, 종료: 2026-04-27, commit: d874895) ✅
+* 목적: 클립보드 히스토리 고급 기능 실행 시 paidApp(fSnippet) 미활성화 상태 감지 → 활성화 유도 창 표시
+* 커밋: d874895
+* 구현 명세:
+    - **변경 파일**: [cli/fSnippetCli/Managers/PaidAppManager.swift](cli/fSnippetCli/Managers/PaidAppManager.swift) `handlePaidFeature()` 재구성 + `showRequirePaidAlert()` 신설
+    - **§4.2 준수**: 기존 자동 `launchPaidApp()` 호출 제거 — paid_cli_protocol §4.2 "cliApp은 사용자 명시 요청 시에만 paidApp을 띄움. 자동 기동 금지" 위반 해소
+    - **분기**: 미설치 → 기존 `showPaidOnlyAlert` (App Store/Locate/Show Config/Cancel) 유지 / 설치됨 → `showRequirePaidAlert` ("fSnippet이 필요합니다" + [열기]/[취소])
+    - **사용자 동의 후 활성화**: [열기] 클릭 시에만 `PaidAppDetector.openSettings()` 호출 → URL Scheme(`fsnippet://command?action=settings`) 경유로 paidApp 활성화 또는 기동+설정창 열기 (§1.2)
+    - **Korean wording**: 안내문구 "이 기능은 fSnippet 앱(유료 버전)에서 사용할 수 있습니다" — _public/.claude/rules/language-rules.md 사용자 알림 한국어 정책 준수
+    - **호출처 영향 범위**: SnippetPopupView(3), HistoryViewer, HistoryPreviewView, KeyEventHandler, SettingsWindowManager — 모두 동일 진입점 `PaidAppManager.shared.handlePaidFeature()` 사용하므로 자동 적용
+    - **검증**: `xcodebuild -scheme fSnippetCli -configuration Release build` BUILD SUCCEEDED
+* 후속:
+    - pairApp(fWarrangeCli) 동일 문제는 별도 이슈로 분리 필요 (참조 항목 유지)
+
+## Issue77: `.claude/rules/api-rules.md` v1-obsolete 반영 (등록: 2026-04-26, 종료: 2026-04-26, commit: dbf1bfb) ✅
+* 목적: API 룰이 "v1 유지(Backward Compatible)"로 기술되어 있어 실제 코드(v1=410 Gone) 및 메모리(`project_api-v1-obsolete.md`)와 충돌. 룰을 현 상태에 맞게 갱신
+* 커밋: dbf1bfb (`.claude/`는 `.gitignore` 처리되어 git 미추적 — Issue.md 커밋 해시로 기록)
+* 구현 명세:
+    - **변경 파일**: [.claude/rules/api-rules.md](.claude/rules/api-rules.md) (구조 단순화 + 표현 갱신)
+    - **frontmatter**: description "v2 단독 SSOT 및 v1 deprecated 정책"으로 명확화, date 2026-04-26
+    - **API 명세 (SSOT)**: v2를 **단독 SSOT**로 격상, v1을 **아카이브 (deprecated, 신규 변경 금지)**로 명시
+    - **API 버전**: v1 = `HTTP 410 Gone` 반환 명시 + APIRouter.swift L50-51 참조 / v2 = "활성 버전, 모든 신규/수정은 v2"
+    - **동기화 규칙**: "openapi_v2.yaml 단독 갱신 대상" 표현, "openapi_v1.yaml은 수정 대상 아님" 추가
+    - **관련 파일 표**: APIRouter.swift 비고에 "v1 → 410 Gone" 추가
+    - **검증**: `.claude/`가 `.gitignore` 처리되어 git status에 안 잡힘 (정상). 파일 직접 Read로 변경 확인
+* 후속:
+    - 메인 레포 `fSnippet/.claude/rules/api-rules.md`도 동일 문제 보유 → 별도 세션에서 처리 필요
+
+## Issue76: `api/README.md` 전체를 v2 prefix로 갱신 (외부 공개 문서) (등록: 2026-04-26, 종료: 2026-04-26, commit: 0d472cf) ✅
+* 목적: 외부 공개 레포의 1차 진입 문서가 v1 prefix-less 경로(`/api/snippets/...` 등)를 그대로 안내. 사용자가 README 따라 호출 시 모두 410 Gone 응답
+* 커밋: 0d472cf
+* 구현 명세:
+    - **변경 파일**: [api/README.md](api/README.md) (+28 / -28)
+    - **prefix 갱신**: `/api/{snippets,clipboard,folders,stats,triggers}` 26곳 → `/api/v2/...` (Endpoints 섹션 1~13 + cURL/Python 예제 전체)
+    - **OpenAPI 안내(L18-20)**: v1 항목을 `deprecated (HTTP 410)`로 명시, v2를 'full API — read + settings CRUD'로 표기
+    - **유지**: Health check `/`(prefix 없음), 응답 예제 `success` 필드(Issue80에서 일괄 정합화 예정)
+    - **검증**: `grep -nE 'localhost:3015/api/(snippets|clipboard|folders|stats|triggers)'` → 0건. 잔존 v1 prefix-less 경로 없음
+
+## Issue75: [Bug] 첫 스니펫 확장 시 줄 전체 삭제 — CGEventPool 첫 실행 modifier 잔류 (등록: 2026-04-26, 종료: 2026-04-26) ✅
+* 목적: 앱 기동 후 첫 번째 스니펫 확장에서 줄 전체가 삭제되는 버그 해결
+* 커밋: 360b181
+* 구현 명세:
+    - **원인**: `CGEventPool.getBackspaceEvent` / `getCmdEvent` 에서 풀이 빈 상태(첫 실행)일 때 `CGEvent(keyboardEventSource: nil, ...)` 로 새 이벤트를 생성하면 `keyboardEventSource: nil` 이 HID 시스템의 현재 modifier 상태를 상속받음. `{right_command}` 트리거가 눌린 직후라면 `.maskCommand` 플래그가 잔류하여 `Cmd+Backspace` 로 해석되고 줄 전체 삭제 발생. 두 번째 이후는 풀에서 재사용 이벤트를 꺼내고 `configureBackspaceEvent` 에서 `flags = []` 를 명시하므로 정상 동작.
+    - **수정**: `Core/TextReplacer.swift` `CGEventPool` — 새 이벤트 생성 경로(`getBackspaceEvent`, `getCmdEvent`)에 `event?.flags = []` 추가
+    - **검증**: Release 빌드 성공 (`BUILD SUCCEEDED`)
+
+## Issue71: SingleInstanceGuard 심볼명 동기화 — 오분석으로 종결 (등록: 2026-04-25, 종료: 2026-04-25) ✅
+* 목적: SingleInstanceGuard 심볼명을 pairApp(Issue41) 패턴으로 동기화한다는 취지로 등록됨
+* 검증 결과 (2026-04-25, 코드 변경 없이 종결):
+    - **이슈 후보의 파일 혼동 확인**: `performHandoffStart`, `handoffInProgress`, `isLaunchedViaLaunchServices`는 `SingleInstanceGuard.swift`가 아닌 `BrewServiceSync.swift` 소속 심볼
+    - **fSnippetCli `SingleInstanceGuard.swift` 심볼**: `shouldTerminateAsDuplicate()`, `isLaunchedByLaunchd()`, `waitForOthersToExit()` — pairApp `fWarrangeCli/Services/SingleInstanceGuard.swift`와 **완전 동일**
+    - **fSnippetCli `BrewServiceSync.swift` 심볼**: `performHandoffStart()` (L86), `handoffInProgress` (L25), `isLaunchedViaLaunchServices()` (L170) — pairApp `BrewServiceSync.swift`와 **완전 동일**
+    - 즉, pairApp과 이미 심볼명·구조가 일치함. 동기화 대상 없음.
+* 결론: 이슈 후보 등록 당시 파일 경계(SingleInstanceGuard vs BrewServiceSync)를 혼동. 실제 명세 불일치 없음. **오분석으로 종결**
+* 커밋: ea6c621 (문서 종결만, 코드 변경 없음)
+
+## Issue69: CLI Commands — `/api/v1/` → `/api/v2/` 전환 (등록: 2026-04-24, 종료: 2026-04-24) ✅
+* 목적: `CLI/Commands/*.swift` 8개 파일, 16개 v1 경로 참조를 v2로 전환 (Issue63 v1 차단 → CLI 기능 broken 상태 해소)
+* 상세:
+    - `FolderCommand`, `StatusCommand`, `TriggerCommand`, `VersionCommand`, `SnippetCommand`, `ClipboardCommand`, `ImportCommand`, `StatsCommand`: `/api/v1/` → `/api/v2/` 단순 치환
+    - `ConfigCommand`: `/api/v1/settings` → `/api/v2/settings/general` + 응답 파싱 v2 포맷 적용 (`settingsFolder`, `snippetFolder`, `language`, `appearance`, `triggerKey.token`)
+    - `APIRouter.swift` docstring 잔존 v1 참조 v2로 정리
+    - 잔존 v1: `APIRouter.swift:L50` 차단 로직만 — 의도된 항목
+    - 빌드: BUILD SUCCEEDED ✅
+* 커밋: b37b026
+
+## Issue68: `APIRouter.swift` v1 라우트 핸들러 dead code 제거 (등록: 2026-04-24, 종료: 2026-04-24) ✅
+* 목적: Issue63에서 v1 엔드포인트를 HTTP 410으로 차단한 이후, `switch` 내 v1 case 핸들러 125줄이 도달 불가 dead code로 남아있던 것을 제거
+* 상세:
+    - 제거 대상: `/api/v1/snippets`, `/api/v1/snippets/search`, `/api/v1/snippets/by-abbreviation/`, `/api/v1/snippets/expand`, `/api/v1/clipboard/*`, `/api/v1/folders/*` 등 v1 case 전체
+    - v1 요청은 Issue63 early return 분기에서 410 처리됨 — switch 진입 자체가 없으므로 안전한 제거
+    - `Harness.md` 최신화도 동일 커밋에 포함
+* 커밋: 9bb35e4
+
+## Issue67: `launchAtLogin=false` 시 `brew services run`으로 전환 (등록: 2026-04-24, 종료: 2026-04-24) ✅
+* 목적: `brew services list`에서 fsnippet-cli plist 경로가 `~/Library/LaunchAgents/`가 아닌 `/opt/homebrew/opt/...`에 위치하도록 수정 — fWarrangeCli 패턴 적용
+* 상세:
+    - 현상: `launchAtLogin=false` 시 `brew services stop`으로 완전 중지 → plist `none` 상태
+    - 수정: fWarrangeCli처럼 `brew services run` 사용 → `/opt/homebrew/opt/fsnippet-cli/` keg plist 직접 사용, 재부팅 미지속
+    - 수정 위치: `cli/_tool/fsc-deploy-brew.sh` Step 8 `launchAtLogin=false` 분기
+    - 확인: `brew services list` → `fsnippet-cli started /opt/homebrew/opt/fsnippet-cli/homebrew.mxcl.fsnippet-cli.plist` ✅
+    - 확인: `/deploy brew local` 9 PASS / 0 FAIL ✅
+* 커밋: bac440b
+
+## Issue66: `openapi_v2.yaml` `/shutdown` 스키마 `nullable` 누락 수정 (등록: 2026-04-24, 종료: 2026-04-24) ✅
+* 목적: `POST /api/v2/shutdown` 요청 스키마에서 `reason`, `delayMs` 필드의 `nullable: true` 누락 수정 — pairApp fWarrangeCli 명세와 동기화
+* 상세:
+    - `ShutdownRequest`·`ShutdownResponse` 컴포넌트 스키마 추가
+    - `reason`, `delayMs`에 `nullable: true` 추가
+    - `/shutdown` 엔드포인트 inline → `$ref` 방식으로 교체
+    - 구현 로직은 이미 동일 — yaml 명세만 불일치였음
+* 커밋: afe03b9
+
+## Issue65: `GET /` 응답에 `isMenuBarVisible` · CLIStatus 포맷 필드 추가 (등록: 2026-04-24, 종료: 2026-04-24) ✅
+* 목적: `curl http://localhost:3015/` 응답에 `isMenuBarVisible`, `isRunning`, `uptime`, `uptimeSeconds` 추가 — pairApp fWarrangeCli Issue52+53 Full Mirror
+* 상세:
+    - paidApp 실행 여부(`PaidAppManager.shared.isRunning() || PaidAppStateStore.shared.status() != nil`)를 기반으로 `isMenuBarVisible` 산출
+    - `uptime` 필드 추가 (`HH:mm:ss` 포맷 문자열, fWarrangeCli 동일)
+    - `isRunning` 필드 추가 (`server.isRunning` 직접 반영)
+    - `HealthResponse` 구조체에 4개 필드 추가 (`uptime`, `uptimeSeconds` camelCase, `isRunning`, `isMenuBarVisible`)
+    - `openapi_v1.yaml` HealthResponse 스키마 동기화
+    - 확인: `curl http://localhost:3015/` → `"isMenuBarVisible": true` ✅
+* 커밋: 9b84332
+
+## Issue64: `GET /` health check 응답을 CLIStatus 포맷으로 통일 (등록: 2026-04-24, 종료: 2026-04-24) ✅
+* 목적: pairApp fWarrangeCli Issue53 Mirror — `GET /` 가 `uptime`, `uptimeSeconds`, `isRunning`, `isMenuBarVisible` 포함한 통일 포맷 반환
+* 상세: Issue65와 함께 단일 커밋으로 구현
+* 커밋: 9b84332
+
+## Issue63: API v1 비활성화 — `/api/v1/*` 호출 시 HTTP 410 반환 (등록: 2026-04-22, 종료: 2026-04-22) ✅
+* 목적: fSnippetCli가 v2 기반으로 운영되므로 v1 엔드포인트 직접 호출을 차단
+* 상세:
+    - pairApp fWarrangeCli(#26) 동일 정책 Mirror (Feat(REST): v1 API 비활성화)
+    - `/api/v1/*` 직접 호출 → HTTP 410 Gone + `{"success":false,"error":{"code":"GONE","message":"..."}}`
+    - `GET /` (health check)는 영향 없음
+    - `APIRouter.routeInternal` 상단에 v1 차단 분기 추가 (switch 진입 전)
+    - fSnippetCli는 v2 폴백→v1 구조 없음 — early return으로 충분
+    - 확인: `curl http://localhost:3015/api/v1/cli/status` → 410 GONE ✅
+* 커밋: dabfbc4
+
+## Issue62: Homebrew Formula 동기화 — tap 최종 테스트 버전 + caveats 영어화 (등록: 2026-04-22, 해결: 2026-04-22, commit: 311c4dd) ✅
+* 목적: fSnippetCli Homebrew Formula를 pairApp fWarrangeCli와 동기화. caveats를 English로 통일하고 `run_at_load true` 옵션 추가하여 Homebrew 설치 후 자동 시작(auto-launch at boot) 지원
+* plan: `cli/_doc_work/plan/homebrew-formula-sync_plan.md`
+* 참조 원본: pairApp fWarrangeCli Formula (cli/Formula/fwarrange-cli.rb)
+* 구현 명세:
+    - **파일 1** `cli/Formula/fsnippet-cli.rb`:
+        - caveats: "fSnippetCli requires Accessibility permissions." (Korean 제거)
+        - install method 주석: English only ("Pre-built fSnippetCli.app is included in tarball...")
+        - service block에 `run_at_load true` 추가 → brew 설치 후 자동 시작 활성화
+    - **파일 2** `cli/_tool/fsc-deploy-brew.sh` (Step 5 로컬 tap Formula 갱신):
+        - 동적 생성 Formula에도 동일한 English caveats 적용
+        - service block에 `run_at_load true` 추가
+        - Step 8 (launchAtLogin 연동): Issue61 구현된 로직 활용하여 brew services 제어 동기화
+    - **검증**: OpenAPI v1/v2 specification 파일 없음 (API 명세와 무관한 배포 설정 변경)
+* 기술 참고:
+    - Homebrew service 자동 시작: `run_at_load true` (macOS launchd KeepAlive 동치)
+    - Caveats 영어화: 공개 레포(fSnippet_public) 컨벤션에 따른 다국어 표준화
+    - Formula parity: fWarrangeCli Issue51과 동일 패턴 적용
+* 검증: `brew install finfra/tap/fsnippet-cli` → `brew services list` 에서 `started` 상태 표시 + 재부팅 후 자동 시작 확인
+
+## Issue61: launchAtLogin ↔ brew services plist 연동 (A+C 방식) (등록: 2026-04-22, 해결: 2026-04-22) ✅
+* 목적: `_config.yml`의 `launchAtLogin` 설정이 실제 LaunchAgent plist 설치 여부와 연동되도록 구현 (pairApp fWarrangeCli Issue51 동기화)
+* plan: `cli/_doc_work/plan/launchAtLogin-plist-sync_plan.md`
+* 현상/원인:
+    - `brew services stop` 후 상태가 `none`(plist 제거)이 되어 재부팅 시 자동 시작 불가
+    - `launchAtLogin` 설정은 저장만 될 뿐 plist 설치/제거에 미연동 (Issue36 obsolete 처리)
+* 구현 방식:
+    - **방식 A**: `SettingsObservableObject.setLaunchAtLogin()` — `true`면 `brew services start`, `false`면 plist 직접 rm
+    - **방식 C**: `fsc-deploy-brew.sh` — 배포 시 `_config.yml`의 `launchAtLogin` 읽어 start/run 분기
+* 기술 주의:
+    - brew 경로: `/opt/homebrew/bin/brew` (Apple Silicon 전용, Intel 미지원)
+    - plist 경로: `~/Library/LaunchAgents/kr.finfra.fSnippetCli.plist`
+* 검증: fWarrangeCli Issue51과 동일 메커니즘 구현, 앱 종료 시 brew services 제어 동작 확인
+
+## Issue60: 언어 설정 코드 통일 (kr → ko) (등록: 2026-04-22, 완료: 2026-04-22, commit: ba112954) ✅
+* 목적: set_kr.sh 파일명과 capture.sh 언어 모드를 ISO 639-1 표준 "ko"(한국어)로 통일. 현재 파일명 "set_kr.sh"(지역 코드)와 내부 구현 `LANG_CODE="ko"`(언어 코드) 간 불일치 해소.
+* 상세:
+    - `set_kr.sh` → `set_ko.sh` 파일명 변경
+    - `capture.sh`: 언어 모드 "kr" → "ko" 변경 (명령어, 변수, 주석 10곳)
+    - `capture-rules.md`: 언어 suffix "_kr" → "_ko" 업데이트
+    - `set_ko.sh`: 주석의 파일명 참조 "set_kr.sh" → "set_ko.sh"
+    - `README_kr.md` → `README_ko.md` (5개 파일: 루트 + agents/claude + mcp + cli + api)
+    - wiki 문서: README_kr → README_ko 참조 통일 (mcp-server, agents, rest-api)
+    - `_config.yml`: language 기본값 "en" → "ko" 설정
+## Issue59: 용어 통일 (paidApp/cliApp) — CLAUDE.md 및 규칙 파일 정리 (등록: 2026-04-22, 해결: 2026-04-22) ✅
+* 목적: 프로젝트 전반 용어를 `paidApp`(fSnippet GUI) / `cliApp`(fSnippetCli Helper)으로 통일 (fWarrange Issue203 동기화)
+* 수정 파일 (.gitignore 대상, 별도 커밋 없음):
+    - `CLAUDE.md`: 3곳 치환 — "fSnippetCli는 fSnippet App Store 앱의 비샌드박스 헬퍼" → cliApp/paidApp 병기, 데이터 경로 헤더, 다국어 설명
+    - `.claude/rules/coding-rules.md`: 앱 개요 서술 + 로그 시스템 참조
+    - `.claude/rules/path-rules.md`: 데이터 경로 헤더
+    - `cli/_doc_design/`: 치환 대상 없음 (이미 paidApp/cliApp 미사용 문서)
+## Issue56: cliApp 메뉴 다국어 지원 — 시스템 언어에 따라 영어/한국어 자동 전환 (등록: 2026-04-21, 해결: 2026-04-21, commit: 80e9a90) ✅
+* 목적: MenuBarView.swift · fSnippetCliApp.swift 의 하드코딩된 한국어 문자열을 LocalizedStringKey 기반으로 전환. 시스템 언어에 따라 영어/한국어 메뉴가 자동 표시되도록 함.
+* 상세:
+    - `ko.lproj/Localizable.strings` 신규 생성 — 한국어 번역 매핑 (12개 문자열)
+    - `MenuBarView.swift`: 한국어 하드코딩 → 영어 LocalizedStringKey 전환 (SwiftUI 자동 적용)
+    - `fSnippetCliApp.swift`: NSAlert 문자열 → NSLocalizedString 전환
+    - `project.yml`: `developmentLanguage: en` 추가 + xcodegen 재생성
+## Issue58: paidApp 종료 시 cliApp 자동 종료 — brew service 포함 (등록: 2026-04-21, 해결: 2026-04-21, commit: 3810e40) ✅
+* 목적: paidApp(fSnippet) 종료 감지 시 cliApp(fSnippetCli)도 함께 종료하여 brew service까지 정리. `/api/v2/shutdown` REST 호출과 동일한 효과.
+* 상세:
+    - `fSnippetCliApp.swift`: `setupPaidAppMonitoring()` `didTerminateApplicationNotification` 핸들러에 200ms 딜레이 후 `NSApplication.shared.terminate(nil)` 추가
+    - `applicationWillTerminate` 에서 `BrewServiceSync.onAppStop(timeout: 3.0)` 자동 실행 → brew service 종료
+* 검증: paidApp 종료 → 로그 "🛑 paidApp 종료 연동 — cliApp 종료" + `brew services list` 상태 stopped 확인
+
+## Issue57: paidApp 종료 후 직접 실행 시 LaunchServices 오류 방어 + 메뉴바 복원 자동화 (등록: 2026-04-21, 해결: 2026-04-21, commit: 3810e40) ✅
+* 목적: paidApp 종료 후 cliApp 메뉴바가 없는 상태에서 `/Applications/_nowage_app/fSnippetCli.app`을 직접 실행 시 "The application is not open anymore." 오류 다이얼로그 방지 + 메뉴바 복원.
+* 원인: AppKit 초기화 전 `exit(0)` 호출 → LaunchServices 가 비정상 종료로 인식하여 오류 표시
+* 해결:
+    - `main.swift`: GUI 분기의 `SingleInstanceGuard.shouldTerminateAsDuplicate() + exit(0)` 블록 제거
+    - `fSnippetCliApp.swift`: `applicationDidFinishLaunching` 초반에 중복 감지 → `terminate(nil)` graceful 종료
+    - `fSnippetCliApp.swift`: `isDuplicateInstance` 플래그 — `applicationWillTerminate` 정리 로직 건너뜀
+    - 중복 인스턴스 실행 시 `DistributedNotificationCenter` 로 `fSnippetCliRestoreMenuBar` 신호 전송 → 기존 인스턴스가 수신하여 메뉴바 복원 트리거
+    - `PaidAppStateStore.swift`: `fSnippetCliRestoreMenuBar` Notification.Name 추가
+* 검증: paidApp 종료 후 직접 실행 → 오류 다이얼로그 미표시 + 기존 인스턴스 메뉴바 복원 확인
+
+## Issue55: cliApp 메뉴바 숨김 복원 — paidApp 실행 시 isInserted=false (등록: 2026-04-20) (✅ 완료, b7551cb) ✅
+* 목적: Issue828 Phase C에서 제거된 cliApp 메뉴바 숨김 로직 복원. paidApp 실행 중에는 paidApp이 자체 메뉴바 이벤트(설정·About 등)를 처리하므로 cliApp 메뉴바가 표시되면 안 됨.
+* 연관 이슈: paidApp Issue834 (MenuBarManager 복원)
+* 상세:
+    - `fSnippetCliApp.swift`: `PaidAppIconState.init()` — REST 채널 + NSWorkspace 양쪽 체크
+    - `fSnippetCliApp.swift`: `MenuBarExtra(isInserted:)` 바인딩 복원 — paidApp 실행 시 `isInserted=false`
+    - `fSnippetCliApp.swift`: `fullBoltImage()` 제거 — 아이콘은 항상 cut bolt (paidApp 실행 시 메뉴바 자체가 숨겨짐)
+    - 종료 복원: NSWorkspace `didTerminate` → `markStaleFromWorkspace` → `paidAppStateChanged(isRunning:false)` → `isInserted=true` (REST 호출 불필요)
+
+
+## Issue54: `/paidapp/register` 위조 PID 검증 — 400 대신 403 반환 (등록: 2026-04-20, 해결: 2026-04-20, commit: 02a7832) ✅
+* 목적: `startTime` 누락 요청 시 JSON 디코딩 실패(400)로 보안 검증 우회 가능 — `startTime` 선택 필드화로 PID 검증 경로까지 도달하게 하여 403 반환
+* 해결:
+    - `APIModels.swift`: `PaidAppRegistrationRequest.startTime Int64` → `Int64?`
+    - `PaidAppStateStore.swift`: `Registration` 생성 시 `startTime ?? 0` 기본값 적용
+    - `openapi_v2.yaml`: `required` 목록에서 `startTime` 제거
+* 검증: `curl -X POST .../paidapp/register -d '{"pid":99999,...}'` (startTime 누락) → HTTP 403 확인
+
+## Issue52: 메뉴바 아이콘 cliApp 단일 소유화 — paidApp 종료 시 REST kill 연동 (등록: 2026-04-20, 해결: 2026-04-20, commit: 815e496, 5af2721, d0abfd6, 1ea8878) ✅
+* 목적: cliApp(fSnippetCli, #25)과 paidApp(fSnippet, #15)이 메뉴바 아이콘을 각각 관리하여 종료 시 2회 클릭이 필요한 UX 문제 해소. 메뉴바 소유권을 cliApp 단일로 이전하고 paidApp 종료 시 `POST /api/v2/shutdown` REST 호출로 cliApp 동시 종료. paidApp 메뉴 기능은 cliApp 메뉴에 통합하고 paidApp 감지 로직(`PaidAppDetector`) 추가.
+* plan: `_doc_work/z_done/plan/menubar-cli-ownership_plan.md`
+* 해결 (cliApp 측):
+    - **Phase 0** (commit 815e496): 종료 경로 단일화 — `applicationWillTerminate`가 brew stop 단일 수렴점
+    - **Phase 1** (commit 5af2721): `POST /api/v2/shutdown` REST 엔드포인트 추가 (APIRouter, APIModels, openapi_v2.yaml)
+    - **Phase 2** (commit d0abfd6): `PaidAppDetector` 유틸 신규 — 설치 경로 탐지 + 실행 상태 감지 + 실행 트리거
+    - **Phase 3** (commit 1ea8878): MenuBarView에 fSnippet 섹션 통합 (열기·설정·상태 표시)
+* 검증: `POST /api/v2/shutdown` → `{"accepted":true,"message":"cliApp 종료 예약됨 (delay=300ms)"}` 응답 + 프로세스 종료 확인
+* 후속: paidApp 측 메뉴바 제거·REST 호출 훅은 별도 이슈 (#15 레포), pairApp fWarrangeCli 미러는 후속 이슈
+
+## Issue53: 메뉴바 종료 후 /Applications 심링크 실행 시 SingleInstanceGuard 연쇄 terminate — 앱 기동 실패 (등록: 2026-04-20, 해결: 2026-04-20, commit: 17623e5, 1b59c6c, b3f598d) ✅
+* 원인: `open /Applications/_nowage_app/fSnippetCli.app` 기동 시 LaunchServices 가 `XPC_SERVICE_NAME=application.*` 로 wrap → `BrewServiceSync.isLaunchedByLaunchd=false` → `onAppStart` 가 brew start 호출 → launchd 가 별도 프로세스(`XPC=homebrew.mxcl.*`) spawn → SingleInstanceGuard 승자 경로 → 원본(open) 인스턴스 terminate → 연쇄적으로 앱·brew 모두 stopped.
+* 실측 env diff:
+    - launchd-bootstrap: `XPC_SERVICE_NAME=homebrew.mxcl.fsnippet-cli`
+    - open 심링크:       `XPC_SERVICE_NAME=application.kr.finfra.fSnippetCli.<sid>.<pid>`
+* 해결 (2-phase):
+    - **v1 (commit 17623e5)**: `SingleInstanceGuard.myPID` 를 `NSRunningApplication.current` (AppKit 미초기화 시 -1 반환) → `getpid()` 로 교체. 진단용 `xpcServiceName()` 헬퍼 + 로그에 XPC 값. `isLaunchedViaLaunchServices()` 판정 추가. (초기 수정은 trade-off: open 경로 skip 으로 brew service 자동 start 포기)
+    - **v2 (commit 1b59c6c)**: open 경로에서 `performHandoffStart()` 로 전환 — brew services start 동기 호출 + `Foundation.exit(0)` 로 self-terminate → launchd-bootstrap(B) 가 primary 승계. `handoffInProgress` 플래그로 race (applicationWillTerminate 진입 시 brew stop 호출) 차단. Trade-off 완전 제거.
+* 수정 파일: `cli/fSnippetCli/Services/BrewServiceSync.swift`, `cli/fSnippetCli/Services/SingleInstanceGuard.swift`
+* 검증:
+    - 심링크 open → <2s 전환 후 launchd-bootstrap(B) 프로세스 primary + brew=started + REST /api ok
+    - 로그에 `[brew-sync] onAppStop skip — handoff in progress (brew stop 억제)` 확인 — race 제거 명시
+    - Phase 0 B/C/D regression 전부 통과 유지 (handoff 플래그는 open 경로에서만 set)
+
+## Issue51: brew services ↔ 메뉴바 앱 상태 동기화 재설계 — 4-quadrant 상태 매트릭스 기반 (pairApp fWarrangeCli#26 Issue39 Full Mirror) (등록: 2026-04-20, 해결: 2026-04-20, commit: e810353) ✅
+* 목적: pairApp fWarrangeCli(#26) Issue39 에서 설계·검증 완료된 **4-quadrant 상태 매트릭스** 를 fSnippetCli 에 Full Mirror 이식. `brew services` (launchd) 와 메뉴바 GUI 앱의 4개 트리거(brew start / brew stop / app start / app stop) 에서 상대 상태를 양방향 동기화. `/opt/homebrew/var/fSnippetCli/` 경로 원천 차단 + Bundle ID 기반 단일 인스턴스 가드(launchd-bootstrap 우선권) 로 no-double-start / no-ghost-state 로 수렴.
+* 참조 원본: pairApp fWarrangeCli#26 `3867459` — Feat(Issue39): brew services ↔ menubar 4-quadrant 상태 매트릭스 동기화
+* 참조 리포트: fWarrangeCli `_public/cli/_doc_work/report/brew-service-menubar-sync_issue39_report.md`
+* 배경:
+    - Issue46(d4749f6) `keep_alive: successful_exit: false` 적용으로 launchd 재기동은 차단했으나, **메뉴바 종료 × `brew services start` 후속** / **`open` × `brew services` state 괴리** / **경로 다른 2개 인스턴스 공존** 문제는 미해결
+    - fWarrangeCli Issue39 가 해당 3개 증상을 Phase 1~4 로 일괄 해결하며 4-quadrant 매트릭스 + launchd 우선권 규칙으로 수렴 — 본 이슈는 해당 구조 동일 이식
+    - 현재 fSnippetCli 는 실측상 증상이 약함 (`brew services list` 에서 `started` 정상 표시) — 이는 주로 launchd-bootstrap 만 사용하는 사용 패턴 덕분. `open` 경로 병용 / Debug 빌드 경로 병존 시 동일 재현 가능성 존재 → 사전 방지 차원 Full Mirror
+* 재설계 상태 매트릭스 (pairApp Issue39 동일):
+
+    | Trigger        | 상대 상태      | 기대 동작                                             |
+    | :------------- | :------------- | :---------------------------------------------------- |
+    | **brew start** | 앱 실행 중     | brew state 만 `started` 로 이동 (앱 재기동 없음)      |
+    | **brew start** | 앱 정지        | 앱 시작 + brew state `started`                        |
+    | **brew stop**  | 앱 정지        | brew state `stopped`                                  |
+    | **brew stop**  | 앱 실행 중     | brew state `stopped` (launchctl unload, 앱 종료 동반) |
+    | **app start**  | brew `started` | 앱만 시작, brew 호출 skip                             |
+    | **app start**  | brew `stopped` | 앱 시작 + `brew services start` 호출 (state 동기화)   |
+    | **app stop**   | brew `started` | `brew services stop` 호출 + `NSApplication.terminate` |
+    | **app stop**   | brew `stopped` | `terminate` 만 (brew 호출 skip)                       |
+
+* 해결 방법 (실적용):
+    - **앱 구조 차이 어댑테이션** (pairApp → fSnippetCli 매핑):
+        - pairApp: `fWarrangeCliApp.swift` 단일 파일 `AppEntry.main` + `@State AppState` + `state.initialize()`
+        - fSnippetCli: `main.swift` (CLI/GUI 분기) + `fSnippetCliApp.swift` + `AppDelegate.applicationDidFinishLaunching`
+        - Guard 호출 위치: `main.swift` GUI 분기 / `onAppStart` 호출 위치: `AppDelegate.applicationDidFinishLaunching` 말미
+    - **Phase 1** (`cli/_tool/fsc-config.sh`, `fsc-deploy-debug.sh`, `fsc-run-xcode.sh`): DerivedData 직접 실행, `/opt/homebrew/var/fSnippetCli/` 미생성. `DEPLOY_DIR/APP_PATH` → `LEGACY_VAR_DIR` + `resolve_app_path()` 치환. `_nowage_app` 심링크 DerivedData 지향
+    - **Phase 2** (`MenuBarView.swift` 종료 버튼): `NSApplication.shared.terminate(nil)` 앞에 `BrewServiceSync.onAppStop(timeout: 2.0)` 선행
+    - **Phase 3** (`fSnippetCliApp.swift` AppDelegate `applicationDidFinishLaunching` 말미): `BrewServiceSync.onAppStart()` 호출. skip 4종 (UserDefaults `fsc.autoStartBrewService=false` / `XPC_SERVICE_NAME` 매칭 / launchctl 이미 로드됨 / brew 미존재)
+    - **Phase 4** (신규 `Services/SingleInstanceGuard.swift` + `main.swift` GUI 분기): `fSnippetCliApp.main()` 호출 직전 `SingleInstanceGuard.shouldTerminateAsDuplicate()` 체크. launchd-bootstrap 우선권 규칙 pairApp 동일. REST 포트 3015 bind 경합 방지 3초 폴링
+    - **xcodeproj 갱신**: 신규 2개 파일을 PBXFileReference + PBXBuildFile + PBXGroup `Services` 에 수동 등록 (DEVELOPMENT_TEAM/DEAD_CODE_STRIPPING 보존)
+* 수정 파일:
+    - 신규: `cli/fSnippetCli/Services/BrewServiceSync.swift` (159줄), `cli/fSnippetCli/Services/SingleInstanceGuard.swift` (78줄)
+    - 수정: `cli/_tool/fsc-config.sh`, `fsc-deploy-debug.sh`, `fsc-run-xcode.sh`, `cli/fSnippetCli/main.swift`, `fSnippetCliApp.swift`, `MenuBarView.swift`, `fSnippetCli.xcodeproj/project.pbxproj`
+* 치환 규칙 (pairApp → fSnippetCli): 포트 `3016→3015` / Formula `fwarrange-cli→fsnippet-cli` / 서비스 label / Bundle ID / 스크립트 prefix `fwc-→fsc-` / UserDefaults key `fwc.autoStartBrewService→fsc.autoStartBrewService`
+* 실측 버그 회피 (pairApp Issue39 선행 해결 패턴 그대로 반영):
+    1. `getParentPID() == 1` 으로 launchd 기동 판정 시 macOS 모든 GUI 앱 PPID=1 특성상 상시 true → `XPC_SERVICE_NAME` 매칭만으로 판정
+    2. `SingleInstanceGuard` 가 신규 프로세스 무조건 exit → launchd-bootstrap 우선권(내가 launchd면 terminate others + survive, 아니면 exit)
+* 검증 결과:
+    - **G3** (`open` × brew=stopped): 앱 시작 + `brew services start` 자동 호출 → brew `started` + launchd load ✅
+    - **G2** (메뉴바 종료 × brew=started): `BrewServiceSync.onAppStop()` 선행 → brew `none` + 전 프로세스 정리 ✅
+* 후속 과제 (본 이슈 스코프 외):
+    - Homebrew Formula 재배포 필요 — `/opt/homebrew/opt/fsnippet-cli/` 경로의 brew-installed 바이너리는 Issue51 이전 버전이라 Guard 미탑재. `/deploy brew local` 또는 `/deploy brew publish` 로 새 바이너리 반영 시 launchd-spawned 인스턴스도 Guard 적용
+    - 레거시 var 경로 수동 삭제 권장: `rm -rf /opt/homebrew/var/fSnippetCli` (Phase1 이전 배포 흔적)
+
+## Issue50: fsc-test.sh에 fWarrangeCli(pairApp) 테스트 패턴 역이식 — apiTestDo.sh + cmdTestDo.sh 통합 구조 (등록: 2026-04-19, 해결: 2026-04-19, commit: 8b88964) ✅
+* 목적: pairApp fWarrangeCli의 `fwc-test.sh`(245줄) 가 보유한 `apiTestDo.sh` + `cmdTestDo.sh` 분리 호출 + 구조화된 리포팅 패턴을 fSnippetCli의 `fsc-test.sh`(228줄) 에 역이식. 기존 ZTest 9단계 커버리지를 유지하면서 API / CMD 통합 테스트를 슈퍼셋 구조로 확장
+* 배경:
+    - fWarrangeCli(#26) Issue37 "Full Mirror 이식" 분석 중 `fwc-test.sh` 의 리포팅 패턴 (단계별 성공/실패 카운트, 실행 시간, 실패 상세 덤프) 이 `fsc-test.sh` 대비 우수함을 발견
+    - `fsc-test.sh` 는 현재 ZTest 스니펫 확장 중심이고 REST API 및 CLI 명령 통합 테스트 오케스트레이션이 부재
+    - pairApp 쪽은 `fwc-test.sh` → `apiTestDo.sh` + `cmdTestDo.sh` 로 책임 분리 후 상위 오케스트레이터가 `all` 호출
+* 원인 분석:
+    - `fsc-test.sh` 9단계는 ZTest 특화 (testBoard.txt / TextEdit 자동화 / flog.log) 뿐이라 API/CMD 통합 실행 경로가 없음
+    - 실패 시 단계별 요약이 record_result 로 집계되지만 API/CMD 범위가 빠져 있어 파악에 별도 실행 필요
+* 해결 방법 (실적용):
+    - Phase 1 (갭 분석): `cli/_tool/{apiTestDo.sh,cmdTestDo.sh}` 는 이미 wrapper 구조(298B/694B)로 존재하고 실체는 `{apiTest,cmdTest}/Do.sh` 에 있음을 확인. fWarrange 는 단일 파일(6941B/6903B) 구조. wrapper 구조는 그대로 유지
+    - Phase 2 (핵심): `fsc-test.sh` 를 9단계 → 12단계로 확장
+        - Step 9 (신규): `apiTestDo.sh all` 호출 — v1/17.cli-quit 자동 skip 위해 stdin 에 `N` 주입
+        - Step 10 (신규): `cmdTestDo.sh all` 호출 — 실패 라인(`실패=[1-9]`) grep 집계
+        - Step 11 (신규): `flog.log` ERROR/CRITICAL 자동 카운트 (기존 Step 8 `🚦 트리거 확장` 검사와 별개)
+        - Step 12: 기존 Step 9 (launchctl unsetenv) 재번호
+    - Phase 3 (리포팅 통일): 기존 `record_result` + 최종 박스가 fwc 와 동일 구조라 추가 변경 없음
+    - Phase 4 (Do wrapper 구조): fSnippet 기존 wrapper 구조 유지 결정. `--run/--log/--report` 옵션은 "구조만 맞추는 선" 방침에 따라 별도 PM 프로세스 몫으로 유지
+* 수정 파일:
+    - `cli/_tool/fsc-test.sh` — 헤더 주석 12단계 확장 + Step 9/10/11 신규 + Step 12 재번호 (71+/13-)
+* 구현 명세:
+    - API 집계: `grep -c '^==='` 로 실행 수, `grep -cE '"status": *"error"|❌'` 로 실패 건 카운트
+    - CMD 집계: `grep -c '^==='` 로 실행 수, `grep -cE '실패=[1-9]'` 로 실패 라인 카운트
+    - 로그 검사: `grep -cE "ERROR|CRITICAL" "$LOG_FILE"` + 실패 시 최근 5건 tail 출력
+    - 문법 검증: `bash -n cli/_tool/fsc-test.sh` 통과
+* 사용자 확정 범위: Phase 순차 진행, config 기본값 검증은 구조만 맞추는 선 (별도 PM 프로세스), plan/task 파일 생성 생략 (마감 차원)
+* 관련 이슈: fWarrangeCli(#26) Issue37 plan `cli/_doc_work/plan/deploy-run-sync-from-pairapp_plan.md` Phase 5 "리스크 및 완화" 표 마지막 항목
+* pairApp 이식 방향: 이번에는 fWarrange → fSnippet **역이식**. 향후 fWarrange 쪽 개선 사항 발생 시 동일 경로로 다시 역이식 가능
+
+## Issue49: `/run` 계열 전 경로에 brew service 존재 기반 분기 로직 도입 (등록: 2026-04-19, 해결: 2026-04-19, commit: 2d4ec67) ✅
+* 목적: `/deploy brew local` 로 설치된 LaunchAgent 가 실행 중인 상태에서 `/run` 계열(`build-deploy`, `deploy-run`, `tcc`, `run-only`)을 호출할 때 발생하는 launchd respawn 경합 / 포트 단일 인스턴스 충돌을 제거. brew service 실행 여부에 따라 Debug 오버라이드 경로를 명시적으로 분기.
+* 배경:
+    - Issue46 완료 후 Formula `keep_alive { successful_exit: false }` 설정 — 정상 종료는 유지, crash는 launchd가 즉시 복구하는 UX 정착
+    - 사용자 실측: `/run run-only` 호출 시 `pkill` 은 launchd 입장에서 crash 로 분류 → Cellar/Release 바이너리가 즉시 respawn → `open` 으로 요청한 Debug 바이너리와 포트 3015 단일 인스턴스 가드 경합 발생
+    - 동일 원인이 `build-deploy` / `deploy-run` / `tcc` 경로에도 존재함을 후속 검토로 확인 — 단, 이들은 `cp -R` 로 덮어쓰기까지 진행하므로 Release 바이너리가 먼저 포트를 잡으면 Debug 기동 자체가 실패
+* 원인 분석:
+    - **원인 1 — `pkill` 의 launchd 해석**: SIGTERM/SIGKILL 로 프로세스를 죽여도 `successful_exit: false` 규칙상 launchd 는 비정상 종료로 간주. `brew services stop` 로 명시적으로 unload 해야만 재기동하지 않음
+    - **원인 2 — plist 존재 기반 판정의 한계**: `~/Library/LaunchAgents/homebrew.mxcl.fsnippet-cli.plist` 는 `brew services stop` 후에도 남음. plist 존재를 기준으로 "service 있음 → restart" 분기를 하면, Debug 세션 중 `/run run-only` 가 의도치 않게 Release 바이너리를 복원시키는 오작동 발생
+    - **원인 3 — Launch Services `-600`**: `pkill` 직후 같은 경로로 `open` 을 호출하면 macOS Launch Services 내부 정리 전이어서 `-600 (procNotFound)` 반환 — 앱이 기동되지 않음
+* 해결 방법:
+    - `fsc-config.sh` 에 공통 헬퍼 `brew_service_running()` 추가 — `launchctl list` 에 `homebrew.mxcl.fsnippet-cli` 라벨이 로드되어 있는지로 판정 (plist 존재 기반이 아님)
+    - `fsc-run-xcode.sh`:
+        - `brew_service_stop_for_debug()` 신규 — 실행 중이면 `brew services stop` 선행
+        - `build-deploy` / `deploy-run` / `tcc` 분기 상단에서 호출 → `pkill` 이전에 launchd 로부터 서비스 분리
+        - `run_app_only` 재작성 — 실행 중이면 `brew services restart` (launchd 단일 경로), 정지/미등록이면 `kill + sleep 0.5 + open` (Debug 오버라이드 존중). `-600` 회피용 3회 retry 포함
+* 수정 파일:
+    - `cli/_tool/fsc-config.sh` — `BREW_SERVICE_LABEL` 추가, `brew_service_running()` 헬퍼
+    - `cli/_tool/fsc-run-xcode.sh` — `brew_service_stop_for_debug()`, `run_app_only` 분기, 3개 CMD 분기 상단 호출
+* 테스트 결과:
+    - `brew services start` 상태에서 `/run build-deploy` → stop 메시지 출력 후 Debug 빌드/기동 정상
+    - `brew services stop` 상태(정지됨)에서 `/run run-only` → 직접 `open` 분기 진입, REST API (port 3015) 응답 확인
+    - `brew services start` 상태에서 `/run run-only` → `brew services restart` 분기 진입, uptime 리셋 확인
+* 관련 이슈: Issue46 (keep_alive `successful_exit: false` 도입)
+* pairApp 이식: fWarrangeCli(#26) 이슈후보 2번 — 동일 구조 Full Mirror 대기 (포트 3016, Formula `fwarrange-cli`)
+
+## Issue46: `brew services` 기동 시 메뉴바 "종료"로 앱 제거 불가 — launchd keep_alive 무조건 재시작 (등록: 2026-04-19, 해결: 2026-04-19, commit: d4749f6) ✅
+* 목적: `brew services start fsnippet-cli` 로 기동된 상태에서 메뉴바 "종료"를 눌러도 launchd가 프로세스를 즉시 재기동하여 앱을 종료할 수 없는 문제를 해결. 메뉴바 "종료" = 서비스 완전 중지, 앱 재실행 = 서비스 재개의 UX를 확립
+* 배경:
+    - Issue45 완료 시 `brew services` 경로로 복원하면서 `cli/Formula/fsnippet-cli.rb`에 `keep_alive true` 설정 (서비스 안정성 목적)
+    - Issue45 검증 항목 [`brew services stop fsnippet-cli` → 정상 중지]은 통과했으나, **메뉴바 GUI "종료" 조작 경로는 검증 항목에 없었음** → 본 이슈에서 후행 발견
+    - 사용자 실측: 메뉴바 "종료" 클릭 → 아이콘 사라짐 → 5~10초 내 자동 재등장 (launchd relaunch)
+    - 사용자 실측 추가(2026-04-19): `brew services stop fsnippet-cli` 실행 전까지는 메뉴바 "종료"를 아무리 반복해도 launchd가 계속 재기동함. 즉 **launchd 서비스를 명시적으로 stop 시키기 전에는 앱 종료 자체가 불가능** → launchd `keep_alive true` 가 단일 원인임을 확증
+* 원인 분석:
+    - **원인 1 — launchd `keep_alive true` 의미**: `true`는 "종료 사유 무관 무조건 재시작". `NSApp.terminate(nil)` 이 발생시키는 정상 종료(exit code 0)도 재시작 대상이 됨
+    - **원인 2 — 메뉴바 종료 로직 단순**: `cli/fSnippetCli/MenuBarView.swift:70`의 `NSApplication.shared.terminate(nil)` 만 호출. launchd 서비스 레벨 제어 없음 → 앱 프로세스 ≠ 서비스 분리 인지 안 됨
+    - **구조적 배경**: Homebrew LaunchAgent는 **서비스 수명**을 관리하고, macOS 앱은 **프로세스 수명**을 관리함. 둘이 서로를 인지하지 못하면 메뉴바 종료가 서비스에 전달되지 않음
+* 설계 근거: `~/_doc/3.Resource/_ICT/_OS/MacOS/homebrew_tap_deploy.md` §7-5-A 및 launchd.plist `KeepAlive` 딕셔너리 스펙
+    - Homebrew `service` DSL의 `keep_alive` 는 `true`/`false`/해시 세 형태 지원
+    - `keep_alive successful_exit: false` → exit 0 정상 종료 시 재시작 안 함, 비정상 종료(crash)만 재시작
+    - `keep_alive crashed: true` → 크래시 발생 시에만 재시작 (명시적)
+* 해결 전략:
+    - **전략 A (Formula 설정 변경, 최소 침습)**: `keep_alive true` → `keep_alive successful_exit: false` 로 변경. 메뉴바 정상 종료(exit 0) 시 재시작 안 함, 크래시 시에만 재시작되어 데몬 안정성 유지
+    - **전략 B (메뉴바 로직에 brew services stop 호출)**: brew 의존성 + 비 brew 설치 환경 분기 필요 + PATH 이슈 → 복잡도 증가
+    - **채택**: 전략 A + MenuBarManager `launchctl bootout` 보강 (d4749f6)
+* 구현 명세 (d4749f6 반영):
+    - `cli/Formula/fsnippet-cli.rb` `service do` 블록: `keep_alive successful_exit: false` 적용
+    - `cli/_tool/fsc-deploy-brew.sh` Step 5 로컬 tap Formula heredoc 내 동일 수정 (Formula SSOT 동기화)
+    - `cli/_tool/fsc-deploy-brew.sh` Step 7 `open "$STABLE_APP"` 호출 제거 — 심링크만 생성. LaunchAgent 단일 경로(`opt_prefix`) 로 TCC 승인 경로 일원화
+    - `cli/_tool/fsc-deploy-brew.sh` Step 9 REST 헬스 체크는 `FSC_AUTOSTART=1` 일 때만 수행
+    - `cli/fSnippetCli/Managers/MenuBarManager.swift` 종료 시 `launchctl bootout` 호출 추가 → launchd 재등록 허용
+    - Formula: xcode 재빌드 제거 → 사전 빌드 app tarball 복사 (brew sandbox 키체인 제약 회피)
+* 설계 원칙:
+    - **크래시 복구 vs 사용자 종료 구분**: launchd `keep_alive` 를 조건부로 구성하여 서비스 안정성(크래시 자동 복구)과 사용자 제어권(메뉴바 종료)을 동시 확보
+    - **배타 원칙 유지**: Issue45의 brew services ↔ SMAppService 배타 원칙은 그대로 유지
+    - **TCC 단일 경로**: `open` 호출 경로 제거로 LaunchAgent 단일 경로만 TCC 승인 요구 → 1회 승인
+* 검증:
+    - [x] `cli/Formula/fsnippet-cli.rb` 에서 `keep_alive successful_exit: false` 로 수정됨
+    - [x] `fsc-deploy-brew.sh` Step 5 로컬 Formula heredoc 에 동일 수정 반영
+    - [x] `fsc-deploy-brew.sh` Step 7 에서 `open` 호출 제거 — 심링크만 생성
+    - [x] `fsc-deploy-brew.sh` Step 9 가 `FSC_AUTOSTART=1` 일 때만 수행되도록 조건부 분기
+    - [x] `MenuBarManager` 종료 시 `launchctl bootout` 호출 추가 (d4749f6)
+    - [ ] `FSC_AUTOSTART=1 /deploy brew local` 실행 시 **TCC 승인 요청이 1회만 발생** — 사용자 실측 검증
+    - [ ] 메뉴바 "종료" 클릭 → 5~10초 대기 후에도 아이콘 재등장 안 함 — 사용자 실측 검증
+    - [ ] 의도적 crash 유발(kill -9) → launchd가 자동 재시작 — 사용자 실측 검증
+    - [ ] 로그아웃 → 재로그인 시 LaunchAgent 자동 기동 — 사용자 실측 검증
+* 관련 파일:
+    - `cli/Formula/fsnippet-cli.rb` (service 블록 `keep_alive` 조건 변경)
+    - `cli/_tool/fsc-deploy-brew.sh` (Step 5/7/9 재구성)
+    - `cli/_tool/fsc-deploy-debug.sh` (TCC 꼬임·심링크 경로 일원화)
+    - `cli/fSnippetCli/Managers/MenuBarManager.swift` (launchctl bootout 추가)
+* 참조:
+    - Issue45 (`brew services` 경로 재도입) — 본 이슈의 선행 이슈
+    - Issue47 (SMAppService 배타 원칙 완전 이행) — 후속 이슈
+    - launchd.plist KeepAlive 딕셔너리 스펙: https://www.launchd.info/
+    - Homebrew Formula service DSL: https://docs.brew.sh/Formula-Cookbook#using-formulaservice
+
+## Issue48: `/run tcc` — brew 서비스 경로 전용 TCC 재설정 서브커맨드 분리 (등록: 2026-04-19, 해결: 2026-04-19, commit: d4749f6) ✅
+* 목적: `/deploy brew local` 이후 TCC 이슈 발생 시 Xcode Debug 빌드 없이 TCC reset + brew services restart 만 수행하는 경량 경로 제공
+* 상세:
+    - 현재 `/run tcc` 동작: `kill + tccutil reset Accessibility kr.finfra.fSnippetCli + fsc-run-xcode.sh build-deploy` → Xcode Debug 빌드까지 수행
+    - brew 서비스 경로(Release 앱)만 사용하는 경우 Xcode 빌드는 불필요한 오버헤드
+    - `tcc-brew` 서브커맨드 신설: `tccutil reset Accessibility kr.finfra.fSnippetCli + brew services restart fsnippet-cli` 로 brew 전용 TCC 재설정
+    - `deploy.md`의 TCC 안내도 `/run tcc-brew` 로 경로 분기 추가
+* 구현 명세:
+    - `fsc-run-xcode.sh` 에 `tcc-brew` 케이스 추가 또는 별도 `fsc-tcc-brew.sh` 스크립트 신설
+    - `/run` 커맨드 라우팅 테이블에 `tcc-brew` 항목 추가
+    - 기존 `tcc` 옵션 유지 (Xcode Debug 경로 사용자용)
+* 종결 사유 (2026-04-19):
+    - Save point 커밋 `d4749f6` 에서 `fsc-deploy-brew/debug 스크립트 TCC 꼬임·심링크 경로 일원화` 완료
+    - LaunchAgent 단일 경로(opt_prefix) + 심링크 경로 통합으로 TCC 승인 경로가 1회로 수렴 (Issue46 해결 경로에 포함)
+    - brew 서비스 경로 전용 분리 서브커맨드의 필요성 자체가 해소됨 → obsolete 처리
+
+## Issue47: 앱 내부 SMAppService 기반 Login Item 등록 차단 — brew services 배타 원칙 준수 (등록: 2026-04-19, 해결: 2026-04-19, commit: 12023c1) ✅
+* 목적: 앱 기동 및 설정 변경 시 `AutoStartManager`(SMAppService.mainApp.register()) 가 Login Item 을 자동 추가하는 동작을 제거하여 Issue45 의 `brew services` ↔ SMAppService 배타 원칙을 앱 내부까지 완전 준수
+* 배경:
+    - Issue44(commit 1d01e68) — `fsc-deploy-brew.sh` 의 osascript 기반 Login Item 등록 인프라 구축
+    - Issue45(commit 2418363) — 오픈소스 배포 표준 `brew services` 경로 재도입 + Login Item osascript 인프라 전면 제거
+    - Issue45 구현 명세에 **"`brew services` 와 SMAppService 는 배타적 — 동시 등록 금지"** 명문화
+    - 그러나 Issue45 커밋 범위는 **배포 스크립트 레벨**에만 적용됨 → 앱 내부 `AutoStartManager` (SMAppService 기반) 는 잔존
+    - 사용자 실측(2026-04-19): brew services 기반으로 설치 후에도 시스템 설정 > 로그인 항목에 fSnippetCli 가 자동 추가되는 현상 관찰 → 이슈후보 2번으로 등록됨
+* 원인 분석:
+    - **원인 1 — `AutoStartManager.setAutoStart(true)` 호출**: `cli/fSnippetCli/Managers/AutoStartManager.swift` 가 `SMAppService.mainApp.register()` 호출 → macOS 가 "Login Item Added" 시스템 알림 표시 + 로그인 항목 목록에 추가
+    - **원인 2 — SettingsObservableObject 진입점 3곳**: `applyInitialSettings()`, 프로퍼티 `didSet`, `init()` 말미 모두 `AutoStartManager.shared.setAutoStart(autoStart)` 호출 → autoStart 가 `true` 이면 기동 시마다 재등록
+    - **원인 3 — legacy 기본값 누적**: `start_at_login` prefs 에 `true` 가 한 번이라도 기록된 사용자는 Issue45 배포 후에도 앱 내부에서 자동 재등록됨
+    - **구조적 배경**: Issue44 이전에는 앱 내부 `AutoStartManager` 와 배포 스크립트 Login Item 이 동일 목적(로그인 시 자동 기동)을 이중 관리함. Issue45 에서 배포 스크립트 경로만 제거 → 앱 내부 경로는 배타 원칙 위배 상태로 방치
+* 설계 근거: `~/_doc/3.Resource/_ICT/_OS/MacOS/homebrew_tap_deploy.md` §7-5-C "배타 원칙"
+    - LaunchAgent(brew services) 와 SMAppService 는 **동일 바이너리 이중 등록** 형태가 되어 launchd 가 예측 불가능한 타이밍으로 프로세스 2회 기동 시도
+    - 오픈소스 배포 표준은 `brew services` 이므로 SMAppService 경로는 제거가 원칙
+* 해결 전략:
+    - **전략 A (no-op + 유지)**: `AutoStartManager.setAutoStart()` 내부를 no-op 로 변경 + `SettingsObservableObject` 호출부 제거. API v2 `launchAtLogin` / `start_at_login` prefs 는 backward compat 유지 (읽기/쓰기는 prefs 값만 단순 저장, 실 등록은 안 함)
+    - **전략 B (전면 제거)**: `AutoStartManager.swift` 파일 삭제 + pbxproj 정리 + 호출부 제거
+    - **채택**: 전략 A (최소 침습 + backward compat + 이력 보존). 전략 B 는 pbxproj 편집 리스크 있음
+* 구현 명세:
+    - `cli/fSnippetCli/Managers/AutoStartManager.swift`:
+        - `setAutoStart(_:)` 내부 SMAppService 호출 전부 제거 → no-op + 경고 로그 "Issue47: brew services 배타 원칙, SMAppService 경로 obsolete"
+        - `isAutoStartEnabled()` 는 `false` 고정 반환 (prefs 와 분리)
+        - 파일 상단에 obsolete 주석 추가
+    - `cli/fSnippetCli/Data/SettingsObservableObject.swift`:
+        - L37 `didSet` 내 `AutoStartManager.shared.setAutoStart(autoStart)` 호출 제거
+        - L316 `applyInitialSettings()` 내 호출 제거
+        - L873 `init()` 말미 호출 제거
+        - `autoStart` 프로퍼티 자체는 유지 (API v2 backward compat + legacy prefs 마이그레이션)
+    - `start_at_login` prefs 키 및 API v2 `launchAtLogin` 필드는 유지 (backward compat) 하되 설정값 변경해도 실제 Login Item 등록/해제 안 됨
+* 설계 원칙:
+    - **배타 원칙 완전 이행**: 앱 내부까지 `brew services` 일원화
+    - **최소 침습**: API/SettingsModel 시그니처 변경 없음 → v2 클라이언트 호환
+    - **이력 보존**: AutoStartManager 파일 유지 + obsolete 사유 주석
+* 검증:
+    - [x] Release 빌드 성공
+    - [x] Debug 빌드 + `/Applications/_nowage_app/fSnippetCli.app` 배포 + 실행 성공 (REST API 정상, uptime 6s)
+    - [x] API `GET /api/v2/settings/behavior` 응답에 `launchAtLogin` 필드 존재 (backward compat)
+    - [x] `AutoStartManager.shared.setAutoStart` 호출부 전역 제거 확인 (grep 검색 결과 0건)
+    - [ ] `/deploy brew local` 재설치 후 `brew services start fsnippet-cli` 기동 (사용자 필요 시 별도 진행)
+    - [ ] 시스템 설정 > 일반 > 로그인 항목에 **fSnippetCli 가 추가되지 않음** 확인 (기존 항목은 사용자가 수동 제거) — 사용자 실측 검증
+    - [ ] macOS "Login Item Added" 시스템 알림 미노출 확인 — 사용자 실측 검증
+* 관련 파일:
+    - `cli/fSnippetCli/Managers/AutoStartManager.swift` (no-op + 이력 주석)
+    - `cli/fSnippetCli/Data/SettingsObservableObject.swift` (호출부 3곳 제거)
+    - `cli/fSnippetCli/Managers/APIRouter.swift` (수정 없음, 참고)
+    - `cli/fSnippetCli/Data/APIModels.swift` (수정 없음, 참고)
+* 참조:
+    - Issue44 (Login Item osascript 경로 — obsolete)
+    - Issue45 (brew services 재도입 + 배타 원칙 선언)
+    - Issue46 (brew services launchd keep_alive 조정)
+    - homebrew_tap_deploy.md §7-5-C 배타 원칙
+
+## Issue45: `brew services` 경로 재도입 + Formula 명명 `fsnippet-cli` 로 복원 — 오픈소스 배포 표준 (등록: 2026-04-19, 해결: 2026-04-19, commit: 2418363, 5294c6b) ✅
+* 목적: 오픈소스 배포 관점에서 사용자가 기대하는 표준 인터페이스 `brew services start/stop/info` 로 fSnippetCli 자동 기동을 관리 가능하도록 Formula `service do` 블록 재도입 + Formula 명명을 `fsnippet-cli` (하이픈 포함)로 복원 (Issue4의 "Homebrew 소문자 정규화" 번복)
+* 🔄 Formula 명명 복원 (2026-04-19 사용자 결정):
+    - 과거 Issue4(2026-04-08)에서 `fsnippet-cli.rb` → `fsnippetcli.rb` 로 "소문자 정규화" 명분으로 변경
+    - 실제 Homebrew 공식 관행은 하이픈 포함 허용 (`node-cli`, `aws-cli` 등 다수 사례) → 정규화 명분은 부정확
+    - 오픈소스 배포 시 가독성 + 단어 경계 명확성 우선 → **`fsnippet-cli`** 로 복원
+    - Formula 파일: `cli/Formula/fsnippet-cli.rb` (클래스 `FsnippetCli`)
+    - 패키지명: `finfra/tap/fsnippet-cli`
+    - 로그 경로: `/opt/homebrew/var/log/fsnippet-cli.log` / `.err.log`
+    - memory `project_brew-deployment.md` 에 표준으로 명문화 (사용자 직접 작성)
+* 배경:
+    - 과거 Issue4(2026-04-08, commit 92c01c2)에서 `brew services` 경로 구축 → 정상 동작 검증 완료
+    - Issue18(2026-04-08, commit 7879ac2)에서 `service do` 블록 제거 + SMAppService 전담 결정
+    - Issue44(2026-04-19, commit 1d01e68)에서 Login Item(osascript) 경로 구축 — obsolete
+    - 🔄 설계 번복: 오픈소스 배포 시 사용자 기대치는 `brew services` 가 표준. Login Item은 osascript 접근 권한 의존 + 외부 에이전트 도구로 비가시적 → 배포 친화적이지 않음
+    - Issue44의 Login Item 인프라 전면 폐기 후 `brew services` 일원화
+* 설계 근거: `~/_doc/3.Resource/_ICT/_OS/MacOS/homebrew_tap_deploy.md` §7-5-A "`brew services` 경로 (LaunchAgent)"
+* 구현 명세:
+    - `cli/Formula/fsnippet-cli.rb` **복원** (원격 배포 publish용, GitHub URL + SHA256 placeholder) + `service do` 블록 포함
+        ```ruby
+        service do
+          run [opt_prefix/"fSnippetCli.app/Contents/MacOS/fSnippetCli"]
+          keep_alive true
+          log_path var/"log/fsnippet-cli.log"
+          error_log_path var/"log/fsnippet-cli.err.log"
+          process_type :interactive   # GUI 세션 접근 허용 (LSUIElement 메뉴바 렌더링)
+        end
+        ```
+    - `fsc-deploy-brew.sh` Step 5 로컬 tap Formula heredoc도 동일 `service do` 블록 포함
+    - `fsc-deploy-brew.sh` 재구성:
+        - Step 8: Login Item 등록 → `brew services start finfra/tap/fsnippet-cli` (FSC_AUTOSTART=1 옵트인 유지)
+        - `cmd_uninstall`: `fsc-loginitem.sh unregister` → `brew services stop` 선행 호출
+        - `cmd_status`: Login Item 섹션 → `brew services info` 섹션
+    - **Login Item 인프라 완전 제거**:
+        - `cli/_tool/fsc-loginitem.sh` 삭제 (배타 원칙 — 두 경로 병행 금지)
+        - `fsc-deploy-brew.sh` 내 Login Item 관련 코드 제거
+        - `/Applications/_nowage_app` 심링크는 유지 — `brew services`와 무관한 개발자 편의
+    - `.claude/commands/deploy.md` 갱신: Login Item 안내 → `brew services start` 안내
+* 설계 원칙:
+    - **`brew services`와 SMAppService는 배타적** — 동시 등록 금지 (LaunchAgent + 앱 내부 자동 시작 중복)
+    - Homebrew 배포본 표준: `brew services`
+    - App Store/서명 배포본: SMAppService
+    - Login Item 경로 폐기: 오픈소스 CLI 배포에서 osascript 의존은 배포 친화적이지 않음 + 배타 원칙에 따라 `brew services`와 병행 불가
+* 검증:
+    - [ ] `cli/Formula/fsnippet-cli.rb` 복원 + `service do` 블록 존재
+    - [ ] `fsc-deploy-brew.sh` Step 5 로컬 Formula에 `service do` 블록 포함
+    - [ ] `/deploy brew local` 실행 시 Step 1~9 전부 PASS
+    - [ ] `brew services list` 에 `fsnippet-cli` 표시됨
+    - [ ] `brew services start finfra/tap/fsnippet-cli` → 정상 기동
+    - [ ] 메뉴바에 bolt 아이콘 표시 (LSUIElement + LaunchAgent 호환성 확인)
+    - [ ] CGEventTap 정상 동작 (Accessibility TCC 승인 후)
+    - [ ] REST 3015 응답
+    - [ ] `brew services info fsnippet-cli` → started 상태 조회
+    - [ ] `brew services stop fsnippet-cli` → 정상 중지
+    - [ ] `/deploy brew uninstall` → `brew services stop` 선행 호출 확인
+    - [ ] 로그아웃 → 재로그인 시 자동 기동 (LaunchAgent KeepAlive 효과)
+    - [ ] `cli/_tool/fsc-loginitem.sh` 삭제 확인
+* 관련 파일:
+    - `cli/Formula/fsnippet-cli.rb` (복원, `service do` 블록 포함)
+    - `cli/_tool/fsc-deploy-brew.sh` (Step 5/8 재구성, cmd_uninstall/cmd_status 변경)
+    - `cli/_tool/fsc-loginitem.sh` (삭제)
+    - `.claude/commands/deploy.md` (brew services 안내로 재작성)
+    - `~/_doc/3.Resource/_ICT/_OS/MacOS/homebrew_tap_deploy.md` §7-5 결정 트리 수정 (fSnippetCli를 §7-5-A 사례로 이동)
+
+## Issue43: /deploy brew 서브커맨드 확장 (local/publish/status/uninstall + TCC 안내) (등록: 2026-04-19, 해결: 2026-04-19, commit: 1d01e68, 2418363) ✅
+* 목적: `/deploy brew` 단독 호출 금지, 4개 서브커맨드로 분기하고 brew 설치 후 TCC 권한 꼬임 가능성을 `/run tcc` 안내로 유도
+* 선수: **Issue45 (`brew services` 경로 재도입)** — `brew local` 완료 후 사용자 로그인 시 자동 기동 흐름이 완성되려면 Issue45 구현이 필요 (과거 Issue44 Login Item 경로는 설계 번복으로 obsolete)
+* 배경:
+    - 현재 `/deploy brew`는 로컬 tap 재설치만 수행 — 원격 tap 반영/상태 조회/정리 기능이 섞여 있지 않아 확장성 부족
+    - brew 재설치 후 새 서명 바이너리로 TCC Accessibility 권한이 꼬여 키 감지 실패 가능 (이번 세션 실측)
+    - `fsc-run-xcode.sh tcc` 서브커맨드로 `tccutil reset Accessibility` 자동화 완료 (사용자 별도 수정)
+* 설계 근거: `~/_doc/3.Resource/_ICT/_OS/MacOS/homebrew_tap_deploy.md`
+    - Tap 레포 규칙: `homebrew-<name>` 형식 (= `finfra/homebrew-tap`)
+    - 배포 흐름: 태그 → Release → SHA256 → Formula `url`/`sha256` 갱신 → tap 레포 푸시
+    - 자동화: `dawidd6/action-homebrew-bump-formula` GitHub Action
+* 서브커맨드 스펙:
+
+    | 서브커맨드               | 동작                                                                                  | 상태             |
+    | :----------------------- | :------------------------------------------------------------------------------------ | :--------------- |
+    | `/deploy brew local`     | Release 빌드 + 로컬 tap(`finfra/tap`) 재설치 + 앱 실행 (기존 fsc-deploy-brew.sh 로직) | ✅ 구현 예정      |
+    | `/deploy brew publish`   | 원격 `finfra/homebrew-tap` 저장소 생성/푸시, 태그 기반 Formula 업데이트               | 🚧 TODO (Phase B) |
+    | `/deploy brew status`    | brew list, brew --prefix, 프로세스·REST 상태 조회                                     | ✅ 구현 예정      |
+    | `/deploy brew uninstall` | brew uninstall + 로컬 tap Formula 정리                                                | ✅ 구현 예정      |
+* Phase A (local/status/uninstall + Usage 강제): 🚧 진행중
+    - `fsc-deploy-brew.sh`를 서브커맨드 분기 구조로 재작성
+    - `deploy.md`에 `brew <sub>` 서브커맨드 필수 명시, 인자 없으면 Usage
+    - `local`/`publish` 완료 후 TCC 안내 출력 — "`/run tcc`로 권한 재설정 가능" 명시
+* Phase B (publish 구현): 미착수
+    - GitHub 태그 + Release 자동 생성 (`gh release create`)
+    - `cli/Formula/fsnippet-cli.rb` 원격용 Formula 복원 (GitHub URL + SHA256)
+    - 원격 `finfra/homebrew-tap` 레포 푸시 스크립트
+    - 사전 조건: 원격 `finfra/homebrew-tap` 저장소 생성 필요
+* 구현 명세:
+    - Phase A만 먼저 완료·검증·커밋 (단계 분리)
+    - Phase B는 별도 커밋으로 진행
+    - TCC 안내는 로그/출력에 한국어로 표시, `/run tcc` 커맨드를 해결책으로 제시
+* 검증:
+    - [ ] `/deploy brew` 단독 → Usage 출력 + exit 1
+    - [ ] `/deploy brew local` → 기존 8단계 + TCC 안내
+    - [ ] `/deploy brew status` → brew/tap/프로세스/REST 한눈에 조회
+    - [ ] `/deploy brew uninstall` → brew uninstall + 로컬 tap Formula 제거
+    - [ ] `/deploy brew publish` → "🚧 TODO" 메시지 + 향후 구현 가이드 링크
+* 관련 파일:
+    - `cli/_tool/fsc-deploy-brew.sh` (서브커맨드 분기 재작성)
+    - `.claude/commands/deploy.md` (brew 서브커맨드 필수 명시)
+    - 참고: `~/_doc/3.Resource/_ICT/_OS/MacOS/homebrew_tap_deploy.md`
+
+## Issue42: Accessibility 권한 UX 개선 (pairApp 패턴 이식 — 시스템 프롬프트 중복 제거 + 권한 부여 후 자동 재초기화) (등록: 2026-04-19, 해결: 2026-04-19, commit: 353e8fe) ✅
+* 목적: 접근성 권한 다이얼로그가 중첩되어 뜨는 문제와 권한 부여 후 `/run`을 두 번 실행해야 CGEventTap이 정상 작동하는 문제를 pairApp(fWarrangeCli) 패턴 이식으로 해결
+* 배경: 이미지 근거 2건 수집됨 (Issue.md 이슈후보 2번, 2026-04-19)
+    - 시스템 "Accessibility Access" 다이얼로그 + 앱 커스텀 "접근성 권한 필요" NSAlert가 **동시에** 노출됨 (pairApp은 1회만 표시)
+    - 권한 승인 후에도 CGEventTap 핸들이 이미 실패 상태라 앱 재기동 필요
+* 진단 (비교 분석):
+    - pairApp `AppState.initialize()` — `AXIsProcessTrusted()` 사용 (prompt 옵션 없음) + 커스텀 NSAlert만 노출
+    - fSnippetCli `AppDelegate.checkAccessibilityPermission` — `AXIsProcessTrustedWithOptions(prompt: true)` 사용으로 시스템 프롬프트 트리거 + 커스텀 NSAlert 중첩
+    - 두 앱 모두 자동 재시작 로직은 없으나, pairApp은 CGEventTap 의존이 없어 권한 지연에 관대하고, fSnippetCli는 CGEventTap 재초기화 없이는 복구 불가
+* Phase A (시스템 프롬프트 중복 제거): ✅
+    - `cli/fSnippetCli/fSnippetCliApp.swift` `checkAccessibilityPermission` 수정
+    - `AXIsProcessTrustedWithOptions(prompt: true)` → `AXIsProcessTrusted()` 교체
+    - 커스텀 `showAccessibilityAlert()` NSAlert만 유지 (사용자 안내 + 시스템 설정 deep link)
+    - 효과: 시스템 Accessibility Access 창 미노출 → 앱 커스텀 안내만 1회 표시
+* Phase B (권한 부여 후 자동 재초기화): ✅
+    - `AppDelegate`에 `accessibilityPollingTimer` 프로퍼티 추가
+    - `checkAccessibilityPermission()` 미승인 경로에서 `startAccessibilityPolling()` 호출
+    - 5초 주기로 `AXIsProcessTrusted()` 재검사, 최대 10분 (120회) 후 자동 종료
+    - 권한 감지 시 `reinitializeKeyEventMonitor()` 호출 — stopMonitoring + cleanup + 새 인스턴스 + startMonitoring
+    - 프로세스 relaunch 없이 CGEventTap 재등록만으로 키 감지 활성화
+* 구현 명세:
+    - Phase A·B를 하나의 코드 커밋(353e8fe)에 포함
+    - Release 빌드에서도 동일 효과 확인 필요 (추후)
+* 검증:
+    - ✅ Phase A 적용 후 권한 미승인 상태에서 앱 기동 시 시스템 다이얼로그 미노출 확인
+    - ✅ 커스텀 NSAlert "접근성 권한 필요" 1회만 노출 확인
+    - ✅ 폴링 로그 확인 (`⏱️ 접근성 권한 폴링 시작 (5초 주기, 최대 10분)`)
+    - ✅ 권한 부여 후 자동 재초기화 로그 확인 및 키 감지 정상 동작 (사용자 "잘 작동함")
+* 관련 파일:
+    - `cli/fSnippetCli/fSnippetCliApp.swift` (Phase A + B 구현)
+    - 참고: `fWarrange/_public/cli/fWarrangeCli/AppState.swift`, `Services/AccessibilityService.swift`
+
+## Issue41: fsc-run-xcode.sh 구조 정비 — Phase1(DRY) + Phase2(Xcode run→stop TCC 획득 + /deploy debug 신설) (등록: 2026-04-18, 해결: 2026-04-19, commit: 2084147, 3513713) ✅
+* 목적: fsc-run-xcode.sh의 빌드·실행 흐름을 TCC 권한 귀속 관점에서 올바르게 재설계. Xcode AppleScript로 `run ws`까지 시켜 TCC 권한을 앱에 귀속시킨 뒤 `stop`으로 Xcode 세션 분리, 그리고 `/deploy debug`로 Applications 배포·독립 기동
+* 배경: Phase1 완료 후 사용자 피드백 — "AppleScript로 build만 하고 open으로 기동"하는 흐름은 TCC가 Xcode 세션에 귀속된 상태가 아닌, 독립 프로세스로 open되므로 **TCC 권한 문제가 실제로는 해결되지 않음**. 올바른 흐름은 Xcode에서 run→stop으로 최초 1회 TCC 승인을 얻은 뒤 /deploy debug로 독립 실행
+* Phase 1 (commit: 2084147): inline stop 중복 제거
+    - `fsc-run-xcode.sh` `xcode_build()` 진입부 `open_project` + inline AppleScript stop 블록(총 9줄) 제거
+    - 해당 위치에 `xcode_stop` 함수 호출 한 줄로 교체 (xcode_stop 내부에서 `open_project`와 stop 모두 수행)
+    - activate + build 로직은 그대로 유지 — DRY 확보
+* Phase 2 (commit: 3513713): Xcode run→stop TCC 획득 + /deploy debug 신설
+    - `fsc-run-xcode.sh` `xcode_run_stop()` 신규 함수: AppleScript `run ws` → 1초 delay → `stop ws` (TCC 권한 획득)
+    - `build-deploy` 흐름 재구성: build → xcode_run_stop (TCC 획득) → `fsc-deploy-debug.sh` 호출 (Applications 배포 + 독립 open)
+    - `fsc-deploy-debug.sh` 신설: 기존 `deploy()` / `run_app()` / `get_build_dir()` 로직 이관. `/deploy debug` 및 `fsc-run-xcode.sh`에서 공용 호출
+    - `/deploy` 커맨드 `debug` 인자 분기 추가 (Debug 빌드 결과물 → `/Applications/_nowage_app/` 복사 + 실행, `xattr -cr` 포함)
+    - `fsc-run-xcode.sh`에서 기존 `get_build_dir/deploy/run_app` 함수 제거 — 중복 해소
+    - `run-only`는 `kill_app` + `open "$APP_PATH"`로 단순화 (배포 앱 미존재 시 안내)
+* 구현 명세:
+    - stop AppleScript 소스 단일 지점 (`xcode_stop()` 한 곳만 유지)
+    - 기능 동작: stop → activate → build → **run→stop (TCC)** → deploy → run (독립 open)
+    - TCC 다이얼로그 승인은 최초 1회만 필요 (접근성·Automation 권한)
+    - `/deploy debug`는 `fsc-config.sh`의 `APP_NAME/APP_PATH/DEPLOY_DIR` 재사용
+    - `pkill -f xcodebuild` 재도입 금지 (주석으로만 명시)
+    - Release 경로는 기존 `/deploy` 유지 (xcodebuild Release)
+* 검증:
+    - ✅ `/run` (build-deploy) 전체 흐름 정상: stop → open → build → run-stop → deploy → run
+    - ✅ `/run kill` → fSnippetCli만 종료, 타 Xcode 워크스페이스 유지
+    - ✅ `bash cli/_tool/fsc-run-xcode.sh stop` 단독 실행 안전
+    - ✅ `/deploy debug` 단독 실행 시 Debug 빌드 결과물 배포 + 실행 (fsc-deploy-debug.sh)
+    - ✅ `bash cli/_tool/fsc-test.sh` ZTest 9단계 전체 통과 — "✅ 테스트 성공"
+    - ✅ REST 3015 정상 응답 (`"status": "ok"`, snippet_count 확인)
+* 관련 파일:
+    - `cli/_tool/fsc-run-xcode.sh` (수정)
+    - `cli/_tool/fsc-deploy-debug.sh` (신규)
+    - `.claude/commands/deploy.md` (로컬 전용, `release`/`debug` 인자 분기)
+
+## Issue40: Xcode GUI 기반 빌드·테스트 진입점 재설계 (TCC 회피 · 향후 앱 모델) (등록: 2026-04-18, 해결: 2026-04-18, commit: e8bff18) ✅
+
+* 목적: `/run` 계열 개발 흐름에서 TCC 재요청을 제거하고, 래퍼 스크립트 없는 역할 분리 구조를 확립해 향후 모든 앱의 표준 모델로 제시
+* 위상: fSnippetCli(#25)가 향후 신규 앱 전체의 reference model. pairApp fWarrangeCli(#26) Issue31 POC에서 `run.sh` 래퍼 유지 → 래퍼 완전 제거 구조로 진화
+* 설계 경로: office-hours 세션(2026-04-18) — run.sh 완전 제거 + `fsc-test.sh` 독립 + `/run` 커맨드 인자 분기
+* 완료 내용:
+    - 신규 Script: `cli/_tool/fsc-config.sh`, `cli/_tool/fsc-run-xcode.sh`, `cli/_tool/fsc-test.sh`
+    - 이동 Script: `cli/_tool/run.sh` → `cli/_tool/run.sh_old` (git rename 100%, 히스토리 보존)
+    - `kill.sh` workspace 스코프화 — `every workspace document` 전역 stop 제거 + `fsc-config.sh` source
+    - `.claude/commands/run.md` 인자 분기 재작성 (build-run/run-only/kill/full/기타)
+    - `.claude/agents/build.md` Debug 섹션만 `fsc-run-xcode.sh`로 전환 (Release는 xcodebuild 유지)
+    - `.claude/settings.local.json`: `Bash(osascript:*)` + `fsc-*.sh` 권한 추가
+    - `.gitignore`: `cli/_tool/.last_build_path` 캐시 제외
+* 진입점 아키텍처:
+    - `/run` (기본) → `fsc-run-xcode.sh build-deploy` (Xcode GUI Debug 빌드+배포+실행)
+    - `/run run-only` → `fsc-run-xcode.sh run-only`
+    - `/run kill` → `kill.sh`
+    - `/run full` → `fsc-test.sh` (ZTest 9단계)
+    - `/build`·`/verify`·`/deploy`·`/brew-apply` → `xcodebuild` 유지 (Release 또는 빌드만)
+* 핵심 개선 (pairApp 대비 진화):
+    - `pkill -f xcodebuild` 전역 종료 제거 — 다른 Xcode 프로젝트 CLI 빌드 영향 없음
+    - `xcode_build` 내부에서 workspace 한정 stop 흡수 — dispatch 간결화
+    - `xcode_stop` 내부 `open_project` 선행 호출 — workspace 미로드 상태 안정
+* 검증:
+    - ✅ Xcode 미실행 상태에서 `/run` → 자동 오픈 → Debug 빌드+배포+실행 성공
+    - ✅ Xcode 실행 중 상태에서 `/run` 반복 → 중복 오픈 없이 빌드 성공
+    - ✅ 반복 `/run` 실행 시 **TCC 재요청 없음** (핵심 목적 달성)
+    - ✅ `/run run-only` → 재빌드 없이 실행, uptime 갱신 확인
+    - ✅ `/run kill` → 해당 workspace만 stop, 다른 Xcode 프로젝트 영향 없음
+    - ✅ `curl http://localhost:3015/` 정상 응답 (status ok, port 3015, snippet_count 1954)
+    - ✅ mtime skip 배포 캐싱 동작 (`[deploy] 변경 없음 (skip)`)
+    - ✅ pairApp `fwc-*.sh` 구조와 1:1 정합 (접두어·포트 값 차이만) — `run_diff_pairApp.md` 보고서 참조
+* 후속 이슈:
+    - Issue41: `xcode_build` inline stop 중복을 `xcode_stop` 함수 호출로 교체 (DRY)
+    - 별도 이슈: paidApp #15 fSnippet 메인 앱 동일 패턴 이식
+    - 별도 이슈: pairApp #26 — `xcode_build` 내부 stop 흡수 역이식 (Issue40 개선 모델 적용)
+* 참조:
+    - pairApp POC: `~/_git/__all/fWarrange/_public/cli/_doc_work/report/xcode-build-migration_issue31_report.md`
+    - 비교 보고서: `cli/_doc_work/report/run_diff_pairApp.md`
+
+## Issue39: [Doc/Code] paidApp_version.md 문서 현행화 및 PaidAppManager 정리 (등록: 2026-04-18, 해결: 2026-04-18, commit: a7089d3) ✅
+
+* 목적: `cli/_doc_design/paidApp_version.md`를 현재 `PaidAppManager.swift` 구현(NSAlert 4버튼)과 일치시키고, dead parameter·파일명 오류 등 소스 결함 정리
+* 완료 내용:
+    - 📄 문서 갱신: 5.1절 (토스트 → NSAlert 모달), 5.3절 (위치조정 제거), 7절 (향후 고도화 완료 반영), 8.1절 (Issue823 연계 명시), 9절 (메서드명 showPaidOnlyToast → showPaidOnlyAlert), 10절 (NSAlert 패턴 유지)
+    - 🔧 코드 정정:
+        - `PaidAppManager.handlePaidFeature()`: dead parameter `relativeTo frame` 제거
+        - 파일명 정정: `config.yaml` → `_config.yml` (line 159)
+        - 호출부 2곳 인자 제거: HistoryPreviewView (line 197), HistoryViewer (line 282-283)
+* 검증:
+    - ✅ Release 빌드: BUILD SUCCEEDED
+    - ✅ config.yaml 리터럴 제거: PaidAppManager에서만 처리 (마이그레이션 로직은 유지)
+    - ✅ handlePaidFeature 호출부 정정: 인자 완전 제거
+* 연계:
+    - paidApp Issue823: `fsnippet://` URL Scheme 등록 — Issue39 이후 추가 구현 예정
+    - paidApp Issue824: 메인 `_doc_design/` 동기화 (본 이슈 완료 후)
+
+## Issue38: KeyRenderingManager visual_key_definitions.json 번들 누락 — 시작 로그 워닝 제거 (등록: 2026-04-17, 해결: 2026-04-17, commit: 7f8adfd) ✅
+
+* 목적: `visual_key_definitions.json`이 fSnippetCli 번들에 포함되지 않아 앱 시작 시 WARNING 로그(`🎨 [KeyRenderingManager] visual_key_definitions.json not found in Bundle.`)가 항상 출력되는 문제 해결
+* 구현:
+    - `cli/fSnippetCli/visual_key_definitions.json` 추가 (fSnippet 원본 복사, 472B)
+    - `cli/fSnippetCli.xcodeproj/project.pbxproj`에 3개 위치 등록 (PBXBuildFile / FileReference / Resources 빌드 단계)
+    - 기존 `_config.yml`/`_rule.yml` 등록 패턴 준수
+* 검증:
+    - Release 빌드 BUILD SUCCEEDED
+    - 번들 내 `fSnippetCli.app/Contents/Resources/visual_key_definitions.json` 포함 확인
+
+## Issue35: UI 전체 다국어(i18n) 누락 — PlaceholderInputWindow·SnippetPopup·HistoryViewer 문자열 미등록 (등록: 2026-04-17, 해결: 2026-04-17, commit: 0043003) ✅
+
+* 목적: `LocalizedStringManager.strings` 딕셔너리에 토스트 메시지만 등록되어 있고, UI 전반의 문자열 키가 누락되어 key 원문이 그대로 화면에 표시되는 문제 해결
+* 해결:
+    - `LocalizedStringManager.swift`에 전역 `L10n()` 헬퍼 함수 추가
+    - en/ko/ja 3개 언어 50+ UI 키 등록 (placeholder, popup, history, viewer, alert 카테고리)
+    - 7개 UI 파일에서 `Text("key")`/`NSLocalizedString`/하드코딩 영문 → `L10n()` 패턴으로 통일
+    - 수정 파일: `LocalizedStringManager.swift`, `PlaceholderInputWindow.swift`, `HistorySearchBar.swift`, `UnifiedSnippetPopupView.swift`, `SnippetPopupView.swift`, `HistoryViewer.swift`, `UnifiedHistoryViewer.swift`
+* 검증: Release 빌드 성공 (경고 0)
+
+## Issue36: /run 커맨드에 full 옵션 추가 — ZTest 스니펫 확장 통합 테스트 자동화 (등록: 2026-04-14, 해결: 2026-04-17, commit: 8b236b9) ✅
+
+* 목적: `/run full` 실행 시 testForCli 환경에서 ZTest 스니펫 확장까지 자동으로 검증하는 통합 테스트 흐름 구현
+* 해결:
+    - `cli/_tool/run.sh`에 `full` 분기 구현 (Step 0~9: kill → 환경변수 → 빌드·배포·실행 → ZTest 생성 → 키 입력 → 검증 → 알림 → 원복)
+    - `cli/_tool/kill.sh`, `cli/_tool/send_right_cmd.py` 보조 스크립트 추가
+    - `_config.yml`, `_rule.yml`, `_rule_for_import.yml` 번들 리소스 등록 (신규 환경에서 자동 복사)
+    - `_config.yml` 기본 `log_level` "critical" → "info" 수정
+    - `PreferencesManager.getDefaults()` fallback 기본값 "VERBOSE" → "info" 변경
+    - TextEdit 포커스 경쟁 방지 + "Save Anyway" 다이얼로그 자동 처리
+
+## Issue37: nPTiR 환경 정비 — 폴더 구조·SCAR 빈 파일·.gitignore 정비 (등록: 2026-04-14, 해결: 2026-04-14, commit: 6458058, 03c3bbd) ✅
+
+* 목적: nPTiR 체계 원활 작업을 위한 사전 정비 (check-nNPTiR 리포트 기반)
+* plan: `cli/_doc_work/z_done/plan/start-nPTiR_plan.md`
+* task: `cli/_doc_work/z_done/tasks/start-nPTiR_task.md`
+* 구현:
+    - `cli/_doc_work/_rlease/` 오타 폴더 삭제
+    - `cli/_doc_work/` 루트 파일 3개 → `plan/`, `report/` 하위 이동
+    - `Issue.md` Issue29 참조 경로 업데이트
+    - `z_done/` 완료 task 보관소로 활용 결정 (issue33_task.md 이동)
+    - `.claude/commands/dev.md` 개발 주기 상세 내용 추가
+    - `.gitignore` 중복 라인 제거
+
+## Issue34: 스니펫 확장 후 포커스가 이전 앱으로 잘못 이동하는 버그 수정 (등록: 2026-04-14, 해결: 2026-04-14, commit: 8ab4824, 1ba0d59, 3c48133) ✅
+
+* 목적: 스니펫 확장(특히 비팝업 직접 트리거) 후 현재 작업 앱(iTerm2 등)이 아닌 더 이전 앱(Sublime Text 등)으로 포커스가 이탈하는 버그 수정
+* 원인:
+    - 원인1 — stale `inputApp`: `AppActivationMonitor.inputApp`이 팝업 종료 시 초기화되지 않아 이전 앱 참조가 유지됨
+    - 원인2 — `show_in_app_switcher` 미분기: paid 미설치 시에도 stale `inputApp.activate()`가 호출되어 잘못된 앱으로 포커스 이동
+* 구현:
+    - `cli/fSnippetCli/Core/KeyEventMonitor.swift`: `onExpansionSuccess`에서 `hidePopup(hideApp: false)`로 변경 (비팝업 확장 시 불필요한 activation 제거)
+    - `cli/fSnippetCli/Core/PopupController.swift`: `wasVisible` 캡처 + paid/switcher 분기 — paid+switcher=true 시 `NSApp.hide(nil)`, 그 외 `NSWorkspace.shared.frontmostApplication?.activate()`로 stale inputApp 대체
+    - `cli/fSnippetCli/UI/SnippetNonActivatingWindow.swift`: `NSApp.hide(nil)` 호출을 paid+show_in_app_switcher 조건으로 게이팅
+* 검증: Release 빌드 경고 0 (BUILD SUCCEEDED)
+
+## Issue33: v1 제거 대비 v2 슈퍼셋 전환 (스니펫/클립보드/통계/CLI 엔드포인트 v2 편입) (등록: 2026-04-13, 해결: 2026-04-13, commit: 74c2482) ✅
+
+* 태스크 파일: [`cli/_doc_work/tasks/issue33_task.md`](cli/_doc_work/tasks/issue33_task.md)
+* 목적: 향후 v1 API 제거 시 클라이언트가 v2로 마이그레이션 가능하도록, v2를 v1의 슈퍼셋으로 전환
+* 구현 명세:
+    - `api/openapi_v2.yaml`: v1 데이터 엔드포인트 19개 경로 추가 (tags 9개 포함) — 1,089 → 1,887줄
+    - `cli/fSnippetCli/Managers/APIRouter.swift`: `/api/v2/` prefix 데이터 라우트 28개 추가 (기존 핸들러 재사용), var→let 경고 1건 수정
+    - `cli/_tool/cmdTest/v2/`: 테스트 스크립트 17개 추가 (20~36번, snippet/clipboard/folder/stats/trigger/cli/reload)
+* 검증:
+    - Release 빌드 경고 0 (BUILD SUCCEEDED)
+
+## Issue32: _tool 폴더 v1/v2 구조 정비 및 cmdTest v2 스크립트 신규 작성 (등록: 2026-04-13, 해결: 2026-04-13, commit: 47bcd29) ✅
+
+* 목적: `cli/_tool` 폴더를 `cli/_doc_work/plan/api-v2_plan.md` 기준 및 fWarrange 레퍼런스 구조에 맞게 정비
+* 구현 명세:
+    - `apiTest/apiTest_plan_v1.md` (v1/ → 루트 이동), `apiTest_plan_v2.md` 신규 작성
+    - `cmdTest/` flat 구조 → `v1/` (기존 스크립트 이동) + `v2/` (settings 신규) 분리
+    - `cmdTest/cmdTest_plan.md` → `cmdTest_plan_v1.md` rename, `cmdTest_plan_v2.md` 신규
+    - `cmdTest/v2/`: 00~11 정상 케이스 + E01~E03 에러 케이스 (settings 서브커맨드 기반)
+    - `cmdTestDo.sh`: v1|v2|all|단건 인자 지원으로 업데이트 (apiTestDo.sh 동일 패턴)
+* 검증:
+    - 전체 48 files changed, 628 insertions, 103 deletions
+    - git rename 정상 감지 (R 표시)
+
+## Issue31: CLI 바이너리 v2 settings 서브커맨드 구현 (등록: 2026-04-13, 해결: 2026-04-13, commit: fda3595) ✅
+
+* 목적: `fsnippetcli settings` 서브커맨드 추가 — 터미널에서 v2 Settings CRUD 직접 제어
+* 구현 명세:
+    - `CLI/Commands/SettingsCommand.swift` 신규: get/set/reset/snapshot 서브커맨드
+    - `CLIAPIClient.swift`: PATCH, PUT, DELETE 메서드 추가
+    - `CLIRouter.swift`: settings 케이스 분기 추가
+    - `CommandParser.swift`: set/reset/snapshot 서브커맨드 인식 추가
+    - `HelpCommand.swift`: settings 커맨드 설명 추가
+    - `cmdTest/20~23`: settings cmdTest 시나리오 4개 추가
+* 검증:
+    - cmdTest 20~23 전체 PASS
+    - Release 빌드 경고 0
+
+## Issue30: v1/v2 API 테스트 스크립트 전면 재작성 (등록: 2026-04-13, 해결: 2026-04-13, commit: 436951f) ✅
+
+* 목적: flat 구조 apiTest를 v1/v2 디렉터리로 분리, 미커버 v2 엔드포인트 구현 + 테스트 추가
+* 구현 명세:
+    - Phase 1: v1/(37개) + v2/(34개) 디렉터리 분리, 번호 재정렬
+    - Phase 2: PATCH /settings/general, GET/PATCH /settings/history 신규 구현
+    - Phase 2: 신규 테스트 스크립트 05/15/16 + 에러 케이스 E00~E06 재작성
+    - Phase 3: apiTestDo.sh v1|v2|all|NN 인자 지원 추가
+* 검증:
+    - apiTestDo.sh v1 PASS, apiTestDo.sh v2 PASS
+    - Release 빌드 경고 0
+
+## Issue29: v2 API 전체 구현 — openapi_v2.yaml 38 paths / 59 operations (등록: 2026-04-13, 해결: 2026-04-13, commit: 2f015b1, a59926c, f7d4a11, 7b31e2b, 783edb7, d89d9fc, a946e3f, ed3ae75, 436951f) ✅
+
+* 목적: `api/openapi_v2.yaml` 38 paths / 59 operations 구현. Issue30 테스트로 검증 완료.
+* 완료 보고서: [`cli/_doc_work/report/issue29_completion_report.md`](cli/_doc_work/report/issue29_completion_report.md)
+* 구현율: 39/63 endpoints (나머지 24개는 후속 이슈 대상)
+* 검증:
+    - v2 apiTest 스크립트 전체 PASS (v2/ 디렉터리 기준)
+
+## Issue28: expand 응답 제어문자 이스케이프 처리 — jq 호환성 (등록: 2026-04-08, 해결: 2026-04-09, commit: a4556d2) ✅
+
+* 목적: expand API 응답에서 제어문자가 포함될 때 jq 파싱이 실패하는 문제 해결
+* 구현 명세:
+    - `APIRouter.jsonResponse()`: Data→String→Data 왕복 변환 제거, 원본 Data 직접 전달
+    - `APIServer.HTTPResponse`: `bodyData` 프로퍼티 추가
+* 검증:
+    - apiTest 30/30 PASS, jq/python3 JSON 파싱 정상
+## Issue27: CRUD API 엔드포인트 추가 — 폴더/스니펫 생성/삭제 (등록: 2026-04-08, 해결: 2026-04-09, commit: a4556d2) ✅
+
+* 목적: REST API를 통한 폴더 및 스니펫의 CRUD(생성/삭제) 기능 추가
+* 구현 명세:
+    - `POST /api/v1/folders`: 폴더 생성 (`handleCreateFolder`)
+    - `DELETE /api/v1/folders/{name}`: 폴더 삭제 (`handleDeleteFolder`)
+    - `POST /api/v1/snippets`: 스니펫 생성 (`handleCreateSnippet`)
+    - `DELETE /api/v1/snippets/{id}`: 스니펫 삭제 (`handleDeleteSnippet`)
+    - `APIModels.swift`: CRUD 요청/응답 모델 추가
+    - `openapi.yaml`: 5개 엔드포인트 명세 동기화 완료
+* 검증:
+    - CRUD 시나리오 테스트 전체 PASS (폴더 생성→스니펫 생성→삭제→폴더 삭제)
+
+## Issue26: POST /api/v1/reload 엔드포인트 추가 (등록: 2026-04-08, 해결: 2026-04-09, commit: a4556d2) ✅
+
+* 목적: 테스트 자동화 및 설정 변경 반영을 위한 reload API 엔드포인트 추가
+* 구현 명세:
+    - `APIRouter.handleReload()`: settings/rules/snippets/index/triggers 5개 컴포넌트 리로드
+    - `APIModels.swift`: `APIReloadResponse`, `APIReloadData` 모델 추가
+    - `openapi.yaml`: `/reload` 엔드포인트 명세 추가
+* 검증:
+    - reload API 호출 시 5개 컴포넌트 정상 리로드 (2.6ms)
+
+## Issue25: 스니펫 파일 삭제 시 캐시 즉시 무효화 — FSEvents 파일 레벨 감지 (등록: 2026-04-08, 해결: 2026-04-09, commit: a4556d2) ✅
+
+* 목적: 스니펫 파일이 삭제되었을 때 SnippetFileManager 캐시가 즉시 무효화되도록 FSEvents 파일 레벨 감지 구현
+* 구현 명세:
+    - `SnippetFolderWatcher`: `kFSEventStreamCreateFlagFileEvents` 플래그 추가
+    - `FileChangeEvent` 구조체: isRemoved/isFile/isCreated/isModified/isRenamed 프로퍼티
+    - `fileEventCallback`: 파일 레벨 이벤트 즉시 전달 (디바운스 없이)
+* 검증:
+    - reload 후 snippet_count 즉시 반영 확인
+
+## Issue24: paidApp_version.md에 따라 유료 전용 코드 삭제 (등록: 2026-04-08, 해결: 2026-04-09, commit: a4556d2) ✅
+
+* 목적: `cli/_doc_design/paidApp_version.md`에 정의된 유료 전용 기능의 불필요한 코드를 fSnippetCli에서 제거
+* 구현 명세:
+    - `SettingsDraftManager.swift` 제거
+    - 드래프트 모드 관련 코드 제거
+    - 유료 안내 토스트만 유지
+* 검증:
+    - Release 빌드 성공 (error 0)
+
+## Issue14: 다국어 설정(language: "kr") 미적용 (등록: 2026-04-08, 해결: 2026-04-09, commit: a4556d2) ✅
+
+* 목적: `_config.yml`의 `language: "kr"` 설정이 fSnippetCli에 적용되지 않는 문제 해결
+* 구현 명세:
+    - `LocalizedStringManager`: 딕셔너리 기반 다국어 문자열 관리자 구현 (en/ko/ja)
+    - `PreferencesManager.language`: config에서 언어 코드 읽기
+    - 국가 코드 정규화 (kr→ko, jp→ja 등)
+    - 토스트 메시지 4개 파일에서 `LocalizedStringManager.shared.string()` 사용
+* 검증:
+    - `/api/v1/settings` 응답에 config 정상 포함
+
+## Issue13: 설정 저장 시 오른쪽 수식어 키({right_command}) 검증 실패 (등록: 2026-04-07, 해결: 2026-04-09, commit: a4556d2) ✅
+
+* 목적: 오른쪽 수식어 트리거 키 사용 시 설정 저장(Apply)이 실패하는 버그 수정
+* 구현 명세:
+    - `SettingsObservableObject.validateSymbol()`: `{...}` 형식 허용 로직 추가
+    - 에러 메시지 구분: 빈값/길이초과 분리 표시
+* 검증:
+    - Release 빌드 성공, `{right_command}` 검증 통과
+
+## Issue12: [Alfred Import] 폴더 아이콘(icon.png) 임포트 전수 누락 (등록: 2026-04-07, 해결: 2026-04-09, commit: a4556d2) ✅
+
+* 목적: Alfred Import 실행 시 원본 컬렉션의 icon.png가 fSnippet 스니펫 폴더에 복사되지 않는 문제 해결
+* 구현 명세:
+    - `AlfredImporter.importFromDB()`: `importIcons()` 호출을 스니펫 파일 쓰기 후로 이동 (line 358)
+    - 대상 폴더 미존재 시 `createDirectory` 자동 생성
+    - `SnippetIconProvider.shared.clearCache()` 호출로 즉시 반영
+* 검증:
+    - Release 빌드 성공
+
+## Issue11: Alfred Import 기능을 fSnippetCli에서 구현 (등록: 2026-04-07, 해결: 2026-04-09, commit: a4556d2) ✅
+
+* 목적: Alfred 스니펫 데이터베이스(.alfdb) 임포트 기능을 fSnippetCli에서 실행되도록 완성
+* 구현 명세:
+    - `AlfredImporter.swift`: `pickAndImport()`, `importFromDB()` 구현
+    - `AlfredLogic.swift`: 파일명 생성/affix 제거/특수문자 변환 로직
+    - `APIRouter.handleAlfredImport()`: `POST /api/v1/import/alfred` 엔드포인트
+    - `openapi.yaml`: import/alfred 명세 동기화
+* 검증:
+    - apiTest 18.import-alfred PASS
+
+## Issue20: 메뉴바에 설정/About 버튼 추가 및 유료 버전 분기 처리 (등록: 2026-04-08, 해결: 2026-04-09, commit: a4556d2) ✅
+
+* 목적: MenuBarView에 설정(Settings) 버튼과 About 버튼을 추가하여 메뉴바에서 접근 가능하게 함
+* 검증:
+    - 사용자 확인 완료
+
+## Issue23: API/CLI 테스트 체계 구축 — apiTest 30개 + cmdTest 26개 + openapi 교차 검증 (등록: 2026-04-08, 해결: 2026-04-08, commit: 3af08b7) ✅
+
+* 목적: apiTest와 동일한 체계로 CLI 커맨드 테스트 자동화 + openapi.yaml 파라미터 교차 검증
+* 구현 명세:
+    - apiTest: 26 정상 + 4 에러 (curl 기반, optional 파라미터 커버 포함)
+    - cmdTest: 20 정상 + 6 에러 (CLI 바이너리, exit code 검증)
+    - apiTest_plan.md / cmdTest_plan.md: 교차 비교 테이블 포함
+    - CRUD 시나리오 검증 (파일시스템 + API 조합)
+    - _rule.yml prefix/suffix 검증 (`/run run-only`로 앱 재시작 후 확인)
+    - validation_strategy.md: API 업그레이드 시 참조 가이드
+* 검증:
+    - apiTest 전체 PASS, cmdTest 26/26 PASS
+    - openapi.yaml 전 엔드포인트 커버 확인
+
+## Issue22: About 창 hang — MenuBarExtra 바인딩 피드백 루프 (등록: 2026-04-08, 해결: 2026-04-08, commit: 3ed36ff) ✅
+
+* 목적: About 창 열기/닫기/링크 클릭 시 앱이 hang되는 문제 해결
+* 상세:
+    - 원인1: `fSnippetCliApp`에서 `@ObservedObject` + `@Published`의 `$appState.showMenuBar`를 `MenuBarExtra(isInserted:)`에 직접 바인딩 → `MenuBarExtraController` KVO가 setter 호출 → `@Published` 트리거 → SwiftUI 그래프 업데이트 → `makeMainMenu` 무한 루프
+    - 원인2: `MenuBarView`의 `@State` + `onAppear` + `onReceive`가 메뉴 재빌드 시 상태 갱신 루프 유발
+    - 원인3: `AboutWindowManager`에서 `NSLocalizedString` 사용했으나 CLI 번들에 `.lproj` 없어 키 노출
+* 구현 명세:
+    - `fSnippetCliApp.swift`: 커스텀 `Binding`으로 변경하여 KVO 피드백 루프 차단
+    - `MenuBarView.swift`: `@State` + `onAppear` + `onReceive` 제거, 직접 읽기로 변경
+    - `AboutWindowManager.swift`: `NSLocalizedString` → 직접 문자열
+    - `CGEventTapManager.swift`: `RunLoop.main.perform` → `DispatchQueue.main.async`
+* 검증:
+    - About 창 열기/닫기/링크 클릭 정상 동작 확인
+    - `sample` 명령으로 `makeMainMenu` 루프 해소 확인
+
+## Issue21: 앱 검색 시 Xcode DerivedData 빌드 제외 — Release 앱만 탐지 (등록: 2026-04-08, 해결: 2026-04-08, commit: b25067a) ✅
+
+* 목적: NSWorkspace.urlForApplication이 LaunchServices에 등록된 Xcode 디버그 빌드(DerivedData)를 반환하여 잘못된 앱을 실행하는 문제 수정
+* 구현 명세:
+    - PaidAppManager: `isReleaseAppURL()` 헬퍼 추가, `Library/Developer`·`DerivedData` 경로 필터링
+    - SettingsWindowManager: `isPaidVersionInstalled()`, `openPaidAppSettings()` 동일 필터 적용
+* 검증:
+    - DerivedData 경로의 앱 URL은 무시되고 knownPaths 또는 정상 설치 경로만 사용됨
+
+## Issue17: 메뉴바 "활성 스니펫: 0개" 항상 0 표시 버그 수정 (등록: 2026-04-08, 해결: 2026-04-08, commit: 9ffb457) ✅
+
+* 목적: MenuBarView의 activeSnippetCount가 SnippetFileManager와 연동되지 않아 항상 0으로 표시되는 버그 수정
+* 구현 명세:
+    - `.onAppear`에서 `SnippetFileManager.shared.snippetMap.count` 조회
+    - `NotificationCenter` 구독으로 실시간 갱신
+    - 관련 파일: `MenuBarView.swift`
+* 검증:
+    - 사용자 확인 완료
+
+## Issue16: CLI 커맨드라인 인터페이스 구현 — Phase 1~3 전체 (등록: 2026-04-08, 해결: 2026-04-08, commit: 93706f9) ✅
+
+* 목적: 터미널에서 fSnippetCli를 직접 제어할 수 있는 CLI 커맨드 추가
+* 구현 명세:
+    - `main.swift`: CLI 인자 유무로 GUI/CLI 모드 분기 (하위 호환 유지)
+    - `CLI/CLIRouter.swift`: 인자 파싱 및 커맨드 분기
+    - `CLI/CommandParser.swift`: 커맨드/옵션 파싱
+    - `CLI/CLIAPIClient.swift`: 동기식 REST API 호출 클라이언트
+    - `CLI/OutputFormatter.swift`: text/json 출력 (한글 너비 처리 포함)
+    - `CLI/Commands/`: 10개 커맨드 (help, version, status, snippet, clipboard, folder, stats, trigger, config, import)
+* 검증:
+    - Xcode Debug 빌드 성공 (경고 0개)
+    - API 경로 정합성 확인 (모든 커맨드가 `/api/v1/` prefix 사용)
+
+## Issue19: 메뉴바 아이콘을 번개 모양(bolt.fill)으로 변경 (등록: 2026-04-08, 해결: 2026-04-08, commit: a987aae) ✅
+
+* 목적: 메뉴바 아이콘을 기존 text.cursor에서 번개 모양(bolt.fill)으로 변경
+* 구현 명세:
+    - `fSnippetCliApp.swift`의 MenuBarExtra systemImage를 `"text.cursor"` → `"bolt.fill"` 변경
+* 검증:
+    - Debug 빌드 성공, 앱 실행 확인
+
+## Issue18: Homebrew Formula service 블록 제거 — 자동 시작은 앱(SMAppService) 전담 (등록: 2026-04-08, 해결: 2026-04-08, commit: 7879ac2) ✅
+
+* 목적: Homebrew는 설치만 담당하고 자동 시작 관리는 앱 내 AutoStartManager(SMAppService)가 전담하도록 역할 분리
+* 구현 명세:
+    - `cli/Formula/fsnippetcli.rb`: service 블록 전체 제거, caveats를 앱 설정 안내로 변경
+    - AutoStartManager.swift(SMAppService 기반) 유지
+* 검증:
+    - Formula에서 service 블록 제거 확인
+    - AutoStartManager 코드 및 pbxproj 참조 정상 유지
+
+## Issue15: cmd_design.md 업데이트 — Issue7~10 반영 (등록: 2026-04-08, 해결: 2026-04-08, commit: 400e265) ✅
+
+* 목적: `cli/_doc_design/cmd_design.md`가 Issue7 이전에 작성되어 최신 변경사항 미반영
+* 구현 명세:
+    - `config` 커맨드: 설정 GUI 제거 반영, 읽기 전용 명시 (Issue5)
+    - 유료 전용 기능 제한 섹션 추가 (Issue7~9)
+    - `paidApp_version.md` 참조 링크 추가
+* 검증:
+    - 문서 내용 확인 완료
+
+## Issue10: 유료 기능 목록 문서화 (등록: 2026-04-08, 해결: 2026-04-08, commit: 97da9b7) ✅
+
+* 목적: Issue7, Issue8, Issue9를 포함한 유료 버전 전용 기능 목록을 `cli/_doc_design/paidApp_version.md`에 정리
+* 구현 명세:
+    - 유료 전용 기능 3개 (⌘S Save, 설정 단축키, Tab 편집) 목록화
+    - 각 기능별 차단 파일, 안내 방식, 관련 이슈 기록
+    - 유료 버전 연동 설계 (앱 탐지 경로 3개, URL Scheme/CLI Args 전달 방식)
+* 검증:
+    - `paidApp_version.md` 생성 확인, Issue7/8/9 참조 포함
+
+## Issue9: 스니펫 팝업 Tab 키 편집 기능 유료 버전 전용 안내 (등록: 2026-04-08, 해결: 2026-04-08, commit: 1d536c5) ✅
+
+* 목적: 스니펫 팝업창에서 Tab 키 입력 시 스니펫 편집/생성 기능이 유료 버전 전용임을 안내
+* 구현 명세:
+    - `SnippetPopupView.swift`의 `onEdit` 클로저: Tab 키 편집/생성 → 유료 안내 토스트
+    - `handleEdit()` 함수: 행 편집 → 유료 안내 토스트
+    - "Create New Snippet" 버튼 → 유료 안내 토스트
+* 검증:
+    - 사용자 확인 완료
+
+## Issue7: ⌘S Save To Snippet 유료 버전 전용 안내 (등록: 2026-04-08, 해결: 2026-04-08, commit: 3d82f42) ✅
+
+* 목적: 클립보드 히스토리에서 ⌘S 시 유료 버전 전용 기능임을 큰 토스트로 안내
+* 상세:
+    - HistoryViewer (list 모드) 및 HistoryPreviewView (preview 모드)의 ⌘S 핸들러 수정
+    - ToastManager/OnScreenNotificationView에 fontSize 파라미터 추가 (동적 크기 조정)
+    - 하단 shortcut 텍스트에 "(Paid Only)" 표시 추가
+* 검증:
+    - Release 빌드 성공 및 앱 배포 완료
+
+## Issue8: 설정 단축키(^⇧⌘;) 유료 버전 전용 안내 (등록: 2026-04-08, 해결: 2026-04-08, commit: 260083e) ✅
+
+* 목적: 설정 글로벌 단축키 입력 시 유료 버전 전용 기능임을 안내
+* 구현 명세:
+    - `KeyEventHandler.swift`의 `item.id == "settings.hotkey"` 분기에서 `toggleSettings()` → 유료 안내 토스트로 변경
+* 검증:
+    - Release 빌드 성공
+
+## Issue6: 스니펫 팝업창 미동작 수정 (등록: 2026-04-08, 해결: 2026-04-08, commit: f00a4bd) ✅
+
+* 목적: 스니펫 팝업창이 표시되지 않는 문제 해결
+* 상세:
+    - 팝업 호출 흐름: KeyEventMonitor → KeyEventHandler → PopupController.showPopup()
+    - PopupController, UnifiedSnippetPopupView, SnippetPopupView 코드 존재 확인
+
+## Issue5: 설정창 GUI 코드 제거 (등록: 2026-04-08, 해결: 2026-04-08, commit: f00a4bd) ✅
+
+* 목적: 설정창 GUI는 fSnippet 메인 앱 기능이므로 fSnippetCli에서 제거
+* 상세:
+    - fSnippet 메인 앱(`../fSnippet/`)에 이미 동일 설정창 존재 확인됨
+    - 제거 대상 파일: `Views/Settings/` 전체, `SettingsWindowManager.swift`, `SettingsObservableObject.swift`, `SettingsDraftManager.swift`
+    - `PreferencesManager.swift`는 유지 (CLI 설정 로드에 필요)
+    - `MenuBarView.swift`에서 설정 열기 메뉴 항목 제거
+
+## Issue4: Homebrew Formula 서비스 관리 구현 (등록: 2026-04-08, 해결: 2026-04-08, commit: 92c01c2) ✅
+
+* 목적: `brew services start/stop/restart fsnippetcli` 형태로 서비스 관리 가능하게 함
+* 상세:
+    - Formula 파일명 `fsnippet-cli.rb` → `fsnippetcli.rb` (Homebrew 소문자 정규화 규칙 준수)
+    - 클래스명 `Fsnippetcli`, 서비스명 `fsnippetcli`
+    - `service do` 블록: `opt_prefix`, `keep_alive`, `process_type :interactive` 설정
+    - 코드 사이닝 스킵 (`CODE_SIGN_IDENTITY=-`, `CODE_SIGNING_REQUIRED=NO`)
+    - 로컬 tap 생성 후 install/start/stop 전체 검증 완료
+    - 관련 문서 전체 참조 업데이트 (README, CLAUDE.md, rules, agents, commands)
+* 검증:
+    - `brew install fsnippetcli` 성공 (41초, 10.7MB)
+    - `brew services start/info/stop` 전체 정상 동작
+
+## Issue3: GET /settings API 엔드포인트 추가 (등록: 2026-04-08, 해결: 2026-04-08, commit: f000b5c) ✅
+
+* 목적: 설정 경로 및 _config.yml 내용을 API로 조회 가능하게 함
+* 상세:
+    - `GET /api/v1/settings` 엔드포인트 신규 추가
+    - 응답에 appRootPath, configPath, _config.yml 파싱 값 포함
+    - openapi.yaml 명세 동기화
+    - 테스트 스크립트 `02.settings.sh` 추가
+
+## Issue2: openapi.yaml 기반 API 테스트 스크립트 구현 (등록: 2026-04-07, 해결: 2026-04-08, commit: f000b5c) ✅
+
+* 목적: openapi.yaml의 전체 엔드포인트를 curl 기반 shell 스크립트로 테스트 자동화
+* 상세:
+    - `cli/_tool/apiTest/` 디렉토리에 19개 테스트 스크립트 (0.hello.sh ~ 18.import-alfred.sh) 생성
+    - 에러 케이스 4개 (E1 ~ E4) 추가
+    - `apiTestDo.sh` 실행기로 전체/단건 실행 지원
+    - Swift API 구현(APIRouter.swift)과 openapi.yaml 명세 일치 검증
+* 구현 명세:
+    - Shell Programmer 1: Status(0,1), Snippets(2-6), Clipboard(7-9)
+    - Shell Programmer 2: Folders(10,11), Stats(12,13), Triggers(14), CLI(15-17), Import(18), Error(E1-E4)
+    - Swift Programmer 1-3: openapi.yaml ↔ APIRouter.swift 엔드포인트 일치 검증
+
+## Issue1: md-rule-apply 적용 - frontmatter 및 마크다운 규칙 정비 (등록: 2026-04-07, 해결: 2026-04-07, commit: f000b5c) ✅
+
+* 목적: _public 전체 마크다운 파일에 md-rule-apply 규칙 적용
+* 구현 명세:
+    - 64개 파일에 frontmatter 추가 및 Outline/Bullet/Table 규칙 정비
+    - README, API 문서, 매뉴얼, Gemini skills/workflows 등 전반적 정비
+    - openapi.yaml 확장 (285줄 추가)
+* 검증:
+    - 마크다운 규칙 준수 확인
+
