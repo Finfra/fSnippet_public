@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 100
+* Issue HWM: 101
 * Save Point :
       - 2026.05.02: 2804aaa (Docs: Close Issue99 — menuBar_enhance.md 반영)
       - 2026.04.27: 0cacd11 (Feat(Cli): Issue84 — registerSnippet 단축키 메뉴 노출 + 등록 로직)
@@ -17,7 +17,22 @@ date: 2026-04-07
 
 # 🌱 이슈후보
 
+* Issue102 — [Verify] Issue101/paidApp Issue849 검증 — paidApp/cliApp 종료 시 zombie process 제거 확인 (등록: 2026-05-03)
+
 # 🚧 진행중
+
+## Issue101: [Cleanup] 앱 종료 시 쓰레기 프로세스 남음 — cliApp ↔ paidApp 양방향 종료 신호 구현 (등록: 2026-05-03) 🔄 재시작
+* 목적: cliApp 측 양방향 종료 신호 구현. paidApp/cliApp 종료 시 잔여 프로세스(좀비·고아 프로세스)가 남는 문제 해결. cliApp이 메뉴바에서 Quit될 때 paidApp이 함께 종료되도록 신호 전송.
+* 동기: paidApp Issue849와 동일 이슈. paidApp는 이미 구현 시도했으나 검증 결과 zombie process가 여전히 남음. cliApp 측 구현도 동일 상태 확인 필요.
+* 상세:
+    - cliApp 측 구현: fSnippetCliApp.applicationWillTerminate()에서 paidApp에 SIGTERM 전송
+    - terminatePaidApp() 헬퍼: pgrep으로 paidApp 프로세스 ID 조회 → SIGTERM 신호 전송 → 1초 동기 대기(50ms 간격) → 필요시 SIGKILL
+    - 관련 파일: `_public/cli/fSnippetCli/fSnippetCliApp.swift`
+* 현황: 코드 수정 진행 상태. 구현 완료되었으나 검증 미흡. killall 이후 여전히 zombie process 남는 상황 발생.
+* 다음 단계:
+    - 현재 코드 검토: terminatePaidApp() 로직이 실제로 paidApp을 정리하는지 확인
+    - paidApp 측 AppInitializer.cleanupOnTerminate() 재검토 (KeyLogger 정리 불완전 가능성)
+    - Issue102 검증을 통해 실제로 zombie process가 제거되는지 확인
 
 # 📕 중요
 
