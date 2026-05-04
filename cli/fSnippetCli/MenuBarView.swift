@@ -122,8 +122,6 @@ struct MenuBarView: View {
             Label("⚙️ Configuration", systemImage: "slider.horizontal.3")
         }
 
-        Divider()
-
         // ─── Launch at Login ───
         Toggle(isOn: $launchAtLoginEnabled) {
             Label("🚀 Launch at Login", systemImage: "rocket")
@@ -132,13 +130,31 @@ struct MenuBarView: View {
             handleLaunchAtLoginToggle(newValue)
         }
 
-        // ─── Quit ───
-        Button {
-            NSApplication.shared.terminate(nil)
-        } label: {
-            Label("Quit", systemImage: "power")
+        Divider()
+
+        // ─── Quit (Issue106: paidApp 활성 시 분리 노출) ───
+        // - paidApp 활성: `Quit fSnippet ⌘Q` (paidApp 단독) + `Quit All` (단축키 없음)
+        // - paidApp 비활성: `Quit All` 단일, 단축키 없음
+        if isPaidMode {
+            Button {
+                PaidAppManager.shared.terminatePaidApp()
+            } label: {
+                Label("Quit fSnippet", systemImage: "power")
+            }
+            .keyboardShortcut("q")
+
+            Button {
+                NSApplication.shared.terminate(nil)
+            } label: {
+                Label("Quit All", systemImage: "power")
+            }
+        } else {
+            Button {
+                NSApplication.shared.terminate(nil)
+            } label: {
+                Label("Quit All", systemImage: "power")
+            }
         }
-        .keyboardShortcut("q")
     }
 
     // MARK: - Actions
