@@ -20,7 +20,8 @@ struct MenuBarView: View {
         Button {
             AboutWindowManager.shared.showAbout(isPaidAppMode: isPaidMode)
         } label: {
-            Label(isPaidMode ? "About fSnippet" : "About fSnippetCli", systemImage: "info.circle")
+            // Issue108: ternary returns String → wrap LocalizedStringKey for translation
+            Label(LocalizedStringKey(isPaidMode ? "About fSnippet" : "About fSnippetCli"), systemImage: "info.circle")
         }
 
         Divider()
@@ -46,8 +47,9 @@ struct MenuBarView: View {
             Button {
                 togglePauseAction()
             } label: {
+                // Issue108: ternary → LocalizedStringKey wrap
                 Label(
-                    isPaused ? "Resume" : "Pause",
+                    LocalizedStringKey(isPaused ? "Resume" : "Pause"),
                     systemImage: isPaused ? "play.fill" : "pause.fill")
             }
             .keyboardShortcut("p", modifiers: [.control, .option, .command])
@@ -96,8 +98,9 @@ struct MenuBarView: View {
             Button {
                 pauseResumeAPIAction()
             } label: {
+                // Issue108: ternary → LocalizedStringKey wrap
                 Label(
-                    isApiPaused ? "Resume REST API" : "Pause REST API",
+                    LocalizedStringKey(isApiPaused ? "Resume REST API" : "Pause REST API"),
                     systemImage: isApiPaused ? "play.circle" : "pause.circle")
             }
         } label: {
@@ -237,7 +240,8 @@ struct MenuBarView: View {
 
     private static func showRestartFailure(reason: String) {
         let alert = NSAlert()
-        alert.messageText = "Restart Daemon Failed"
+        // Issue108: NSAlert messageText is plain String → use NSLocalizedString
+        alert.messageText = NSLocalizedString("Restart Daemon Failed", comment: "Alert title when brew services restart fails")
         alert.informativeText = reason
         alert.alertStyle = .warning
         alert.runModal()
