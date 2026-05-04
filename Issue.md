@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 102
+* Issue HWM: 103
 * Save Point :
       - 2026.05.03: 24f2a1b (Fix(Issue101): NSWorkspace bundleIdentifier 매칭으로 zombie process 제거)
       - 2026.05.02: 2804aaa (Docs: Close Issue99 — menuBar_enhance.md 반영)
@@ -20,6 +20,18 @@ date: 2026-04-07
 
 # 🚧 진행중
 
+## Issue103: [Menu] paidApp 동작 시 About 메뉴를 fSnippet 모드로 전환 (등록: 2026-05-04)
+* 목적: paidApp 동작 중일 때 cliApp 메뉴바의 "About fSnippetCli" 라벨과 About 창 내용이 fSnippet(paidApp)을 가리키도록 분기. 사용자에게 현재 활성 제품을 일관되게 노출.
+* plan: `cli/_doc_work/plan/about-paidapp-mode_plan.md`
+* 상세:
+    - paidApp 동작 시: 메뉴 라벨 "About fSnippet", 창 제목 "About fSnippet", 본문 제품명 "fSnippet", 버전 = paidApp 버전(`PaidAppStateStore.status().version`)
+    - paidApp 미동작 시: 라벨 "About fSnippetCli", 창 제목 "About fSnippetCli", 제품명 "fSnippetCli", 버전 = cliApp Bundle 버전
+    - 추가 API 불필요 (`AppStateManager.shared.paidAppStatus` + `PaidAppStateStore.shared.status()` 활용)
+* 구현 명세:
+    - `MenuBarView.swift`: `@StateObject AppStateManager` 의존, `paidAppStatus == .started` 분기로 라벨·showAbout 인자 분기
+    - `AboutWindowManager.swift`: `showAbout(isPaidAppMode:)` 시그니처, `AboutView(isPaidAppMode:)` 분기 (제품명·버전·링크)
+    - 검증: 빌드 통과 + 수동 확인 (paidApp 실행/종료 시 라벨·창 토글)
+
 # 📕 중요
 
 # 📙 일반
@@ -28,7 +40,7 @@ date: 2026-04-07
 
 # ✅ 완료
 
-> 누적된 완료 이슈는 [z_old/old_issue.md](z_old/old_issue.md)로 아카이브됨 (2026-05-03 1.0.1 release 시점 분리).
+
 
 ## Issue102: [Verify] Issue101/paidApp Issue849 검증 — paidApp/cliApp 종료 시 zombie process 제거 확인 (등록: 2026-05-03, 완료: 2026-05-03) (Hash: 24f2a1b)
 * 목적: Issue101 수정 후 실제 zombie process가 제거되는지 검증
@@ -48,6 +60,8 @@ date: 2026-04-07
     - `app.terminate()` (graceful) → 1초 대기 → `app.forceTerminate()` (SIGKILL) fallback
 * 수정 파일: `cli/fSnippetCli/fSnippetCliApp.swift`
 * 검증: Issue102에서 실측 통과
+
+> 누적된 완료 이슈는 [z_old/old_issue.md](z_old/old_issue.md)로 아카이브됨 (2026-05-03 1.0.1 release 시점 분리).
 
 # ⏸️ 보류
 

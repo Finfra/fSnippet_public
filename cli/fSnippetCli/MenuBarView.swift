@@ -5,20 +5,22 @@ import SwiftUI
 /// fSnippetCli menu bar (Issue82 — grouped submenus + shared shortcut tokens).
 /// Tree mirrors `_doc_design/menuBar_enhance.md` cliApp section (L82-105).
 ///
-/// Time-based mutual exclusion is enforced by `MenuBarExtra(isInserted:)`
-/// in `fSnippetCliApp.swift` — this view is only instantiated when paidApp is not running.
+/// Issue845/Issue98: Always visible; icon and About entry adapt to paidApp status
+/// via `AppStateManager.shared.paidAppStatus`.
 struct MenuBarView: View {
+    @StateObject private var appState = AppStateManager.shared
     @State private var isPaused: Bool = PreferencesManager.shared.bool(
         forKey: "history.isPaused", defaultValue: false)
     @State private var isApiPaused: Bool = false
     @State private var launchAtLoginEnabled: Bool = FileManager.default.fileExists(
         atPath: NSHomeDirectory() + "/Library/LaunchAgents/homebrew.mxcl.fsnippet-cli.plist")
     var body: some View {
-        // ─── About ───
+        // ─── About (Issue103: paidApp 동작 시 fSnippet 모드로 분기) ───
+        let isPaidMode = appState.paidAppStatus == .started
         Button {
-            AboutWindowManager.shared.showAbout()
+            AboutWindowManager.shared.showAbout(isPaidAppMode: isPaidMode)
         } label: {
-            Label("About fSnippetCli", systemImage: "info.circle")
+            Label(isPaidMode ? "About fSnippet" : "About fSnippetCli", systemImage: "info.circle")
         }
 
         Divider()
@@ -123,7 +125,7 @@ struct MenuBarView: View {
 
         // ─── Launch at Login ───
         Toggle(isOn: $launchAtLoginEnabled) {
-            Label("Launch at Login", systemImage: "rocket")
+            Label("🚀 Launch at Login", systemImage: "rocket")
         }
         .onChange(of: launchAtLoginEnabled) { _, newValue in
             handleLaunchAtLoginToggle(newValue)

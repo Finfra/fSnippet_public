@@ -12,14 +12,15 @@ class AboutWindowManager {
     }
 
     /// About 창 표시
-    func showAbout() {
+    /// - Parameter isPaidAppMode: paidApp 동작 중일 때 true — 제품명/버전을 fSnippet(paidApp) 기준으로 표시
+    func showAbout(isPaidAppMode: Bool = false) {
         if let existingWindow = window, existingWindow.isVisible {
             existingWindow.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
         }
 
-        let aboutView = AboutView()
+        let aboutView = AboutView(isPaidAppMode: isPaidAppMode)
         let hostingController = NSHostingController(rootView: aboutView)
 
         let newWindow = AboutWindow(
@@ -29,7 +30,7 @@ class AboutWindowManager {
             defer: false
         )
         newWindow.contentViewController = hostingController
-        newWindow.title = "About fSnippet"
+        newWindow.title = isPaidAppMode ? "About fSnippet" : "About fSnippetCli"
         newWindow.center()
         newWindow.isReleasedWhenClosed = false
         newWindow.level = .floating
@@ -61,11 +62,21 @@ class AboutWindow: NSWindow {
 // MARK: - About SwiftUI View
 
 struct AboutView: View {
-    private let appVersion: String = {
+    let isPaidAppMode: Bool
+
+    private var productName: String {
+        isPaidAppMode ? "fSnippet" : "fSnippetCli"
+    }
+
+    private var displayVersion: String {
+        if isPaidAppMode {
+            // paidApp 등록 시 PaidAppStateStore 에 저장된 version 사용
+            return PaidAppStateStore.shared.status()?.version ?? "unknown"
+        }
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
         return "\(version) (\(build))"
-    }()
+    }
 
     private let productPageURL = URL(string: "https://finfra.kr/product/fSnippet/en/index.html")!
     private let githubURL = URL(string: "https://github.com/finfra/fSnippet_public")!
@@ -78,10 +89,10 @@ struct AboutView: View {
                         .resizable()
                         .frame(width: 80, height: 80)
                 }
-                Text("fSnippet")
+                Text(productName)
                     .font(.title2)
                     .fontWeight(.bold)
-                Text(appVersion)
+                Text(displayVersion)
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
