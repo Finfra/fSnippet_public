@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 108
+* Issue HWM: 110
 * Save Point :
       - 2026.05.04: fddc8f4 (Feat(Issue106): cliApp 메뉴바 Quit 항목 paidApp 정책 분리)
       - 2026.05.04: e1984f6 (Fix(Issue105): Settings 단축키·메뉴바를 cliApp 자체 설정창으로 라우팅)
@@ -23,6 +23,75 @@ date: 2026-04-07
 # 🌱 이슈후보
 
 # 🚧 진행중
+
+## Issue109: [Bug/Design] Settings 라우팅 정책 불일치 — `SettingsWindowManager`가 stub이라 모든 Settings 진입이 paidApp 위임 (등록: 2026-05-05)
+* 목적: Issue107 v1.2 설계 문서가 "Settings는 항상 cliApp 자체 설정창"으로 명시했으나, 실제 코드는 `SettingsWindowManager.swift:18-21`에서 `showSettings()` → `PaidAppManager.handlePaidFeature()`만 호출하는 stub. cliApp 자체 Settings UI는 존재하지 않음. 설계와 구현 정합성 회복
+* 근본 원인:
+    - `cli/fSnippetCli/Managers/SettingsWindowManager.swift:6-37`: `class SettingsWindowManager`가 stub. `showSettings()`/`toggleSettings()` 모두 `PaidAppManager.shared.handlePaidFeature()` 호출
+    - `handlePaidFeature()`는 paidAppStatus에 따라 분기:
+        - `started` → `PaidAppDetector.openSettings()` (paidApp URL Scheme)
+        - `stopped` → "fSnippet이 필요합니다" alert
+        - `notInstall` → "Only support the paid version" alert
+    - **Issue105 fix는 placebo**였음: KeyEventHandler/MenuBarView 양쪽이 `SettingsWindowManager.toggleSettings()`로 통일됐지만 toggleSettings가 결국 handlePaidFeature를 호출하므로 paidApp 분기 로직이 그대로 작동
+    - paidApp 압축 상태(executable 미존재) → `isInstalled()` false → "Only support paid version" alert이 그대로 표시됨
+* 결정 필요 (택1):
+    - **옵션 A** (대규모): cliApp 자체 Settings UI 신규 구현 — paidApp 의존 없이 _config.yml 기반 단축키·로깅·히스토리 옵션 편집 창 제작. SwiftUI 기반 Settings Scene 또는 NSWindow + SwiftUI hosted view. Issue107 v1.2 설계 그대로 유지
+    - **옵션 B** (저비용): Issue107 v1.2 설계 갱신 — Settings는 paidApp 라우팅(현 코드 반영). 메뉴 라벨도 paidApp 분기에 맞춰 재설계 (예: paidApp 활성 시 "Open fSnippet Settings", 비활성 시 항목 비활성화 또는 안내). Issue105 hash `e1984f6` 회고 메모 추가
+    - **옵션 C** (혼합): cliApp 자체 최소 Settings UI(_config.yml 일부 키만 편집) + paidApp 활성 시 paidApp Settings 위임 메뉴 별도 노출
+* 영향:
+    - 사용자: 현재 paidApp 미설치 사용자는 cliApp 단축키/설정을 변경할 수 없음 (옵션 B 채택 시 명시적 기록 필요)
+    - 유지보수: 설계-코드 갭이 잔존하면 후속 이슈에서 같은 혼선 재발
+    - paidApp Issue851/852 완료 후 paidApp 측 Settings 안정화 — paidApp 활성 시는 paidApp Settings로 위임이 자연스러움
+* 구현 명세 (옵션 결정 후 분리):
+    - 옵션 A 진행 시: `SettingsWindowManager` 실구현 + 단축키/로그/히스토리/일반 탭 SwiftUI View + 변경사항 _config.yml 저장 + 라이브 적용 알림
+    - 옵션 B 진행 시: `_doc_design/menuBar_enhance.md` v1.2 → v1.3 갱신 (Settings 정책 섹션 재작성), Issue105 회고 노트, MenuBarView Settings 항목 paidAppStatus 분기 처리
+
+## Issue110: [Refactor] PaidAppManager.handlePaidFeature를 AppStateManager.paidAppStatus 단일 진입점으로 통합 (등록: 2026-05-05)
+* 목적: Issue107 v1.2 설계가 paidAppStatus 3-state enum을 단일 진입점으로 정의했으나, `handlePaidFeature()`는 여전히 `isInstalled()` + `isRunning()` 2-flag 체크 사용. 추상화 일관성 확보 + 후속 변경 시 단일 진입점 보장
+* 근본 원인:
+    - `cli/fSnippetCli/Managers/PaidAppManager.swift:124-...`: `handlePaidFeature()`가 `guard isInstalled() else {...}` + `if isRunning() {...}` 패턴 사용
+    - `AppStateManager.shared.paidAppStatus`는 동일 정보를 enum으로 보유하나 `handlePaidFeature` 미사용
+    - 동작은 동등하나, 향후 paidAppStatus 전이 정책 변경 시 두 곳을 동시 수정해야 하는 위험
+* 구현 명세:
+    - `handlePaidFeature()` 시그니처 유지, 내부 분기를 `switch AppStateManager.shared.paidAppStatus` 로 재작성
+        - `case .started` → `PaidAppDetector.openSettings()` (또는 옵션 A 채택 시 `SettingsWindowManager` 자체)
+        - `case .stopped` → `showRequirePaidAlert()`
+        - `case .notInstall` → `showPaidOnlyAlert()`
+    - 동작 동등성 단위 테스트 (각 상태에서 적절한 alert/창 노출)
+    - 영향: paidApp 라이프사이클 NotificationCenter 갱신 → AppStateManager → handlePaidFeature 자동 동기화
+* 영향: 기능 변경 없음. 코드 라인 수 감소 + 후속 이슈에서 paidAppStatus 정책 변경 시 단일 위치만 수정
+
+## Issue108: [Feat] cliApp 메뉴바 항목 다국어 지원 — Localizable.strings 정비 (en/ko) (등록: 2026-05-05)
+* 목적: pairApp Issue70(fWarrange) 동일 패턴의 cliApp 측 작업. Issue106에서 Quit 항목 정책 분리(`Quit fSnippet ⌘Q` + `Quit All`)는 완료했으나, 메뉴 라벨이 영어 하드코딩 상태. 시스템 언어 전환 시 메뉴 텍스트가 즉시 반영되도록 다국어 리소스 정비. Issue107 v1.2 §누락 9 (다국어 정책)와 연계.
+* 상세:
+    - 현 상태:
+        - `MenuBarView.swift`: 모든 라벨 영어 하드코딩 — `"About fSnippetCli"`, `"About fSnippet"`, `"⚡ Snippet Popup"`, `"📋 Show Clipboard History"`, `"📜 Clipboard"`/Pause/Resume/`Clipboard to Snippet`/`Clear Clipboard History`, `"🔧 Open Settings Window"`, `"👻 Daemon"`/`Reload Snippets`/`Restart Daemon`/`Pause·Resume REST API`, `"⚙️ Configuration"`/Open Config·Snippet·Data·Log Folder, `"🚀 Launch at Login"`, `"Quit fSnippet"`, `"Quit All"`
+        - `cli/fSnippetCli/ko.lproj/Localizable.strings`: 16줄, 현 메뉴 구조와 불일치 (오래된 키만 존재)
+        - `en.lproj` 미존재 — 영문 키 자체가 SwiftUI 리터럴 fallback
+    - 관련 파일:
+        - `cli/fSnippetCli/MenuBarView.swift`
+        - `cli/fSnippetCli/ko.lproj/Localizable.strings`
+        - `cli/fSnippetCli/en.lproj/Localizable.strings` (신규)
+        - `cli/project.yml` / `cli/fSnippetCli.xcodeproj` (리소스 등록 확인)
+* 구현 명세:
+    - 키 전략: **영어 리터럴-as-key** (기존 `fSnippetCliApp.swift` 패턴 일관성 유지 + 누락 시 영어 fallback). pairApp Issue70의 namespaced 키 대안 대비 (a) 코드 변경 최소화 (b) 정적 SwiftUI Label 자동 LocalizedStringKey 활용 (c) 누락 안전성 확보를 채택
+    - 1단계 — `ko.lproj/Localizable.strings` 전면 정비:
+        - 정적 라벨: `"⚡ Snippet Popup"`, `"📋 Show Clipboard History"`, `"📜 Clipboard"`, `"Pause"`, `"Resume"`, `"Clipboard to Snippet"`, `"Clear Clipboard History"`, `"🔧 Open Settings Window"`, `"👻 Daemon"`, `"Reload Snippets"`, `"Restart Daemon"`, `"Pause REST API"`, `"Resume REST API"`, `"⚙️ Configuration"`, `"Open Config File"`, `"Open Snippet Folder"`, `"Open Data Folder"`, `"Open Log Folder"`, `"🚀 Launch at Login"`, `"Quit fSnippet"`, `"Quit All"`, `"About fSnippetCli"`, `"About fSnippet"`
+        - 알림: `"Restart Daemon Failed"` + 기존 Accessibility Alert 키 유지
+    - 2단계 — `MenuBarView.swift` 동적 분기(ternary)만 `LocalizedStringKey(...)` wrap:
+        - `"About fSnippet" / "About fSnippetCli"` (paidApp 분기)
+        - `"Pause" / "Resume"` (Clipboard pause toggle)
+        - `"Pause REST API" / "Resume REST API"` (API pause toggle)
+        - `"Restart Daemon Failed"` (NSAlert)
+        - 정적 Label은 SwiftUI 자동 LocalizedStringKey 처리에 위임
+    - 3단계 — `en.lproj` 생략(개발언어 en 기본 fallback) — 필요 시 후속 추가
+    - 4단계 — 검증:
+        - 시스템 언어 ko → 메뉴 한글 표시
+        - 시스템 언어 en → 영어 리터럴 그대로 표시
+        - paidApp 활성/비활성 분기 시 About·Quit 라벨 언어별 정확 노출
+        - Pause/Resume 동적 라벨도 다국어 반영
+        - Release 빌드 통과 + brew local 재배포 동작 확인
+* 영향 범위: `MenuBarView.swift`·리소스·xcodeproj 수정만. 동작 로직 변경 없음. paidApp 측 영향 없음.
 
 # 📕 중요
 
