@@ -8,6 +8,7 @@ date: 2026-04-07
 
 * Issue HWM: 110
 * Save Point :
+      - 2026.05.05: cd4577e (Feat(Issue108): cliApp 메뉴바 항목 다국어 지원 — ko 번역 정비)
       - 2026.05.04: fddc8f4 (Feat(Issue106): cliApp 메뉴바 Quit 항목 paidApp 정책 분리)
       - 2026.05.04: e1984f6 (Fix(Issue105): Settings 단축키·메뉴바를 cliApp 자체 설정창으로 라우팅)
       - 2026.05.04: 0f57ebc (Fix(Issue104): Snippet Popup 메뉴/단축키 작동 — fSnippetShowPopup observer 추가)
@@ -61,38 +62,6 @@ date: 2026-04-07
     - 영향: paidApp 라이프사이클 NotificationCenter 갱신 → AppStateManager → handlePaidFeature 자동 동기화
 * 영향: 기능 변경 없음. 코드 라인 수 감소 + 후속 이슈에서 paidAppStatus 정책 변경 시 단일 위치만 수정
 
-## Issue108: [Feat] cliApp 메뉴바 항목 다국어 지원 — Localizable.strings 정비 (en/ko) (등록: 2026-05-05)
-* 목적: pairApp Issue70(fWarrange) 동일 패턴의 cliApp 측 작업. Issue106에서 Quit 항목 정책 분리(`Quit fSnippet ⌘Q` + `Quit All`)는 완료했으나, 메뉴 라벨이 영어 하드코딩 상태. 시스템 언어 전환 시 메뉴 텍스트가 즉시 반영되도록 다국어 리소스 정비. Issue107 v1.2 §누락 9 (다국어 정책)와 연계.
-* 상세:
-    - 현 상태:
-        - `MenuBarView.swift`: 모든 라벨 영어 하드코딩 — `"About fSnippetCli"`, `"About fSnippet"`, `"⚡ Snippet Popup"`, `"📋 Show Clipboard History"`, `"📜 Clipboard"`/Pause/Resume/`Clipboard to Snippet`/`Clear Clipboard History`, `"🔧 Open Settings Window"`, `"👻 Daemon"`/`Reload Snippets`/`Restart Daemon`/`Pause·Resume REST API`, `"⚙️ Configuration"`/Open Config·Snippet·Data·Log Folder, `"🚀 Launch at Login"`, `"Quit fSnippet"`, `"Quit All"`
-        - `cli/fSnippetCli/ko.lproj/Localizable.strings`: 16줄, 현 메뉴 구조와 불일치 (오래된 키만 존재)
-        - `en.lproj` 미존재 — 영문 키 자체가 SwiftUI 리터럴 fallback
-    - 관련 파일:
-        - `cli/fSnippetCli/MenuBarView.swift`
-        - `cli/fSnippetCli/ko.lproj/Localizable.strings`
-        - `cli/fSnippetCli/en.lproj/Localizable.strings` (신규)
-        - `cli/project.yml` / `cli/fSnippetCli.xcodeproj` (리소스 등록 확인)
-* 구현 명세:
-    - 키 전략: **영어 리터럴-as-key** (기존 `fSnippetCliApp.swift` 패턴 일관성 유지 + 누락 시 영어 fallback). pairApp Issue70의 namespaced 키 대안 대비 (a) 코드 변경 최소화 (b) 정적 SwiftUI Label 자동 LocalizedStringKey 활용 (c) 누락 안전성 확보를 채택
-    - 1단계 — `ko.lproj/Localizable.strings` 전면 정비:
-        - 정적 라벨: `"⚡ Snippet Popup"`, `"📋 Show Clipboard History"`, `"📜 Clipboard"`, `"Pause"`, `"Resume"`, `"Clipboard to Snippet"`, `"Clear Clipboard History"`, `"🔧 Open Settings Window"`, `"👻 Daemon"`, `"Reload Snippets"`, `"Restart Daemon"`, `"Pause REST API"`, `"Resume REST API"`, `"⚙️ Configuration"`, `"Open Config File"`, `"Open Snippet Folder"`, `"Open Data Folder"`, `"Open Log Folder"`, `"🚀 Launch at Login"`, `"Quit fSnippet"`, `"Quit All"`, `"About fSnippetCli"`, `"About fSnippet"`
-        - 알림: `"Restart Daemon Failed"` + 기존 Accessibility Alert 키 유지
-    - 2단계 — `MenuBarView.swift` 동적 분기(ternary)만 `LocalizedStringKey(...)` wrap:
-        - `"About fSnippet" / "About fSnippetCli"` (paidApp 분기)
-        - `"Pause" / "Resume"` (Clipboard pause toggle)
-        - `"Pause REST API" / "Resume REST API"` (API pause toggle)
-        - `"Restart Daemon Failed"` (NSAlert)
-        - 정적 Label은 SwiftUI 자동 LocalizedStringKey 처리에 위임
-    - 3단계 — `en.lproj` 생략(개발언어 en 기본 fallback) — 필요 시 후속 추가
-    - 4단계 — 검증:
-        - 시스템 언어 ko → 메뉴 한글 표시
-        - 시스템 언어 en → 영어 리터럴 그대로 표시
-        - paidApp 활성/비활성 분기 시 About·Quit 라벨 언어별 정확 노출
-        - Pause/Resume 동적 라벨도 다국어 반영
-        - Release 빌드 통과 + brew local 재배포 동작 확인
-* 영향 범위: `MenuBarView.swift`·리소스·xcodeproj 수정만. 동작 로직 변경 없음. paidApp 측 영향 없음.
-
 # 📕 중요
 
 # 📙 일반
@@ -100,6 +69,17 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue108: [Feat] cliApp 메뉴바 항목 다국어 지원 — Localizable.strings 정비 (ko) (등록: 2026-05-05, 완료: 2026-05-05) (Hash: cd4577e)
+* 목적: pairApp Issue70(fWarrange) 동일 패턴의 cliApp 측 작업. Issue106 Quit 항목 정책 분리 후 메뉴 라벨이 영어 하드코딩 상태 → 시스템 언어 전환 시 메뉴 텍스트가 즉시 반영되도록 다국어 리소스 정비
+* 키 전략: **영어 리터럴-as-key** 채택 (기존 `fSnippetCliApp.swift` 패턴 일관성 + 누락 시 영어 fallback + 정적 SwiftUI Label 자동 LocalizedStringKey 활용)
+* 해결:
+    - `ko.lproj/Localizable.strings` 전면 재작성 (16줄 → 39줄): About cli/paid, Snippet Popup, Show Clipboard History, Clipboard 서브메뉴(Pause/Resume/Clipboard to Snippet/Clear), Open Settings Window, Daemon 서브메뉴(Reload Snippets/Restart Daemon/Pause·Resume REST API), Configuration 서브메뉴(Open Config·Snippet·Data·Log Folder), Launch at Login, Quit fSnippet/All, Restart Daemon Failed
+    - `MenuBarView.swift` ternary 분기 4곳 `LocalizedStringKey(...)` wrap: About cli/paid, Pause/Resume, Pause/Resume REST API, Restart Daemon Failed NSAlert(`NSLocalizedString`)
+    - 정적 SwiftUI Label은 자동 LocalizedStringKey 처리에 위임 (코드 변경 없음)
+    - `en.lproj` 생략 (개발언어 en 기본 fallback)
+* 검증: Release 빌드 통과 (`** BUILD SUCCEEDED **`) + 번들 `Resources/ko.lproj/Localizable.strings` 포함 확인 + brew local 재배포 + 사용자 수동 검증 (메뉴 한글 표시 정상)
+* 수정 파일: `cli/fSnippetCli/MenuBarView.swift`, `cli/fSnippetCli/ko.lproj/Localizable.strings`
 
 ## Issue107: [Docs] menuBar_enhance.md v1.2 개선 — paidAppStatus 3-상태·시작흐름·종료정책 명세 (등록: 2026-05-05, 완료: 2026-05-05) (코드 변경 없음, 로컬 SSOT 문서)
 * 목적: paidApp Issue851(cliApp API ready 대기), Issue852(설정창 취소 사이드 이펙트) 후속 문서 정비. pairApp(fWarrange) `_doc_design/menuBar_enhance.md` v1.2 수준의 명세 보강
