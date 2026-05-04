@@ -8,6 +8,7 @@ date: 2026-04-07
 
 * Issue HWM: 104
 * Save Point :
+      - 2026.05.04: 0f57ebc (Fix(Issue104): Snippet Popup 메뉴/단축키 작동 — fSnippetShowPopup observer 추가)
       - 2026.05.04: 505e55d (Feat(Issue103): paidApp 동작 시 About 메뉴를 fSnippet 모드로 분기)
       - 2026.05.03: 24f2a1b (Fix(Issue101): NSWorkspace bundleIdentifier 매칭으로 zombie process 제거)
       - 2026.05.02: 2804aaa (Docs: Close Issue99 — menuBar_enhance.md 반영)
@@ -21,17 +22,6 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue104: [Bug] Snippet Popup 메뉴/단축키 작동 안 함 — fSnippetShowPopup 알림 수신자 누락 (등록: 2026-05-04)
-* 목적: 메뉴바 "⚡ Snippet Popup" 클릭과 `^⇧Space` 단축키 모두 무반응. `fSnippetShowPopup` 알림 발행처(`MenuBarView`, `ShortcutMgr`)는 있으나 `KeyEventMonitor`/Handler 측 observer가 등록되어 있지 않아 위임 체인이 끊김 (Issue429 도입 시 수신부 누락)
-* 근본 원인:
-    - `MenuBarView.swift:31`, `ShortcutMgr.swift:671` 가 `NotificationCenter.post(name: "fSnippetShowPopup")` 발행
-    - 그러나 `KeyEventMonitor.setupObservers()` (line 154~168) 에 해당 알림 observer 등록 누락 — 발행만 되고 수신 없음
-    - PopupController는 singleton 아님 (`KeyEventMonitor.init` 에서 인스턴스 생성·주입) → 외부 직접 호출 불가
-* 구현 명세:
-    - `KeyEventHandler.swift`: `showSnippetPopupRequest()` public 메서드 추가 — 빈 candidates + 빈 searchTerm 으로 popupController.showPopup 호출 (line 158 분기 → Top 10 자동 표시), onSelection 에서 expansionCoordinator 통한 expansion
-    - `KeyEventMonitor.swift`: `setupObservers()` 에 `fSnippetShowPopup` observer 등록 + `@objc handleShowPopupRequest` 핸들러 추가, main thread 에서 `keyEventHandler.showSnippetPopupRequest()` 호출
-    - 검증: Release 빌드 통과 + 메뉴 클릭/단축키 둘 다 팝업 표시 확인
-
 # 📕 중요
 
 # 📙 일반
@@ -39,6 +29,15 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue104: [Bug] Snippet Popup 메뉴/단축키 작동 안 함 — fSnippetShowPopup observer 누락 (등록: 2026-05-04, 완료: 2026-05-04) (Hash: 0f57ebc)
+* 목적: 메뉴바 "⚡ Snippet Popup" 클릭과 `^⇧Space` 단축키 모두 무반응 → 정상 작동 복구
+* 근본 원인: `MenuBarView.swift:31` + `ShortcutMgr.swift:671` 가 `fSnippetShowPopup` 알림 발행하나, `KeyEventMonitor.setupObservers()` 에 해당 observer 미등록 (Issue429 위임 도입 시 수신부 누락). PopupController는 singleton 아님 → 외부 직접 호출 불가
+* 해결:
+    - `KeyEventHandler.showSnippetPopupRequest()` 신설 — 빈 candidates+검색어로 popup 호출 (PopupController가 Top 10 자동 표시), `deleteLength: 0` (외부 앱 버퍼 미소비)
+    - `KeyEventMonitor.setupObservers()` 에 `fSnippetShowPopup` observer + `handleShowPopupRequest()` 핸들러 추가, main 스레드에서 KeyEventHandler 호출
+* 수정 파일: `cli/fSnippetCli/Core/KeyEventHandler.swift`, `cli/fSnippetCli/Core/KeyEventMonitor.swift`
+* 검증: Release 빌드 통과 (`** BUILD SUCCEEDED **`) + 사용자 수동 검증 (메뉴 클릭·단축키 두 경로 모두 팝업 표시·expansion 정상)
 
 ## Issue103: [Menu] paidApp 동작 시 About 메뉴를 fSnippet 모드로 전환 (등록: 2026-05-04, 완료: 2026-05-04) (Hash: 505e55d)
 * 목적: paidApp 동작 중일 때 cliApp 메뉴바 About 라벨/창 내용을 fSnippet 제품 기준으로 분기
