@@ -610,8 +610,8 @@ class KeyEventHandler: KeyEventProcessorDelegate {
           self.handlePopupKeyDetected()
         }
       } else if item.id == "settings.hotkey" {
-        // Issue8: 설정창은 유료 버전 전용 기능
-        PaidAppManager.shared.handlePaidFeature()
+        // Issue105: 메뉴와 동일하게 cliApp 자체 설정창 열기 (paidApp 분기 제거)
+        SettingsWindowManager.shared.toggleSettings()
       }
     }
   }

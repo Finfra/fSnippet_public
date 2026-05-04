@@ -70,7 +70,8 @@ struct MenuBarView: View {
 
         // ─── 🔧 Open Settings Window ───
         Button {
-            PaidAppManager.shared.handlePaidFeature()
+            // Issue105: 단축키와 동일하게 cliApp 자체 설정창 열기 (paidApp 분기 제거)
+            SettingsWindowManager.shared.toggleSettings()
         } label: {
             Label("🔧 Open Settings Window", systemImage: "gear")
         }
