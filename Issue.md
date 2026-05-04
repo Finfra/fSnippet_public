@@ -25,28 +25,6 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue109: [Bug/Design] Settings 라우팅 정책 불일치 — `SettingsWindowManager`가 stub이라 모든 Settings 진입이 paidApp 위임 (등록: 2026-05-05)
-* 목적: Issue107 v1.2 설계 문서가 "Settings는 항상 cliApp 자체 설정창"으로 명시했으나, 실제 코드는 `SettingsWindowManager.swift:18-21`에서 `showSettings()` → `PaidAppManager.handlePaidFeature()`만 호출하는 stub. cliApp 자체 Settings UI는 존재하지 않음. 설계와 구현 정합성 회복
-* 근본 원인:
-    - `cli/fSnippetCli/Managers/SettingsWindowManager.swift:6-37`: `class SettingsWindowManager`가 stub. `showSettings()`/`toggleSettings()` 모두 `PaidAppManager.shared.handlePaidFeature()` 호출
-    - `handlePaidFeature()`는 paidAppStatus에 따라 분기:
-        - `started` → `PaidAppDetector.openSettings()` (paidApp URL Scheme)
-        - `stopped` → "fSnippet이 필요합니다" alert
-        - `notInstall` → "Only support the paid version" alert
-    - **Issue105 fix는 placebo**였음: KeyEventHandler/MenuBarView 양쪽이 `SettingsWindowManager.toggleSettings()`로 통일됐지만 toggleSettings가 결국 handlePaidFeature를 호출하므로 paidApp 분기 로직이 그대로 작동
-    - paidApp 압축 상태(executable 미존재) → `isInstalled()` false → "Only support paid version" alert이 그대로 표시됨
-* 결정 필요 (택1):
-    - **옵션 A** (대규모): cliApp 자체 Settings UI 신규 구현 — paidApp 의존 없이 _config.yml 기반 단축키·로깅·히스토리 옵션 편집 창 제작. SwiftUI 기반 Settings Scene 또는 NSWindow + SwiftUI hosted view. Issue107 v1.2 설계 그대로 유지
-    - **옵션 B** (저비용): Issue107 v1.2 설계 갱신 — Settings는 paidApp 라우팅(현 코드 반영). 메뉴 라벨도 paidApp 분기에 맞춰 재설계 (예: paidApp 활성 시 "Open fSnippet Settings", 비활성 시 항목 비활성화 또는 안내). Issue105 hash `e1984f6` 회고 메모 추가
-    - **옵션 C** (혼합): cliApp 자체 최소 Settings UI(_config.yml 일부 키만 편집) + paidApp 활성 시 paidApp Settings 위임 메뉴 별도 노출
-* 영향:
-    - 사용자: 현재 paidApp 미설치 사용자는 cliApp 단축키/설정을 변경할 수 없음 (옵션 B 채택 시 명시적 기록 필요)
-    - 유지보수: 설계-코드 갭이 잔존하면 후속 이슈에서 같은 혼선 재발
-    - paidApp Issue851/852 완료 후 paidApp 측 Settings 안정화 — paidApp 활성 시는 paidApp Settings로 위임이 자연스러움
-* 구현 명세 (옵션 결정 후 분리):
-    - 옵션 A 진행 시: `SettingsWindowManager` 실구현 + 단축키/로그/히스토리/일반 탭 SwiftUI View + 변경사항 _config.yml 저장 + 라이브 적용 알림
-    - 옵션 B 진행 시: `_doc_design/menuBar_enhance.md` v1.2 → v1.3 갱신 (Settings 정책 섹션 재작성), Issue105 회고 노트, MenuBarView Settings 항목 paidAppStatus 분기 처리
-
 ## Issue110: [Refactor] PaidAppManager.handlePaidFeature를 AppStateManager.paidAppStatus 단일 진입점으로 통합 (등록: 2026-05-05)
 * 목적: Issue107 v1.2 설계가 paidAppStatus 3-state enum을 단일 진입점으로 정의했으나, `handlePaidFeature()`는 여전히 `isInstalled()` + `isRunning()` 2-flag 체크 사용. 추상화 일관성 확보 + 후속 변경 시 단일 진입점 보장
 * 근본 원인:
@@ -69,6 +47,22 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue109: [Bug/Design] Settings 라우팅 정책 불일치 — 옵션 B 채택, 설계 v1.3 갱신 (등록: 2026-05-05, 완료: 2026-05-05) (코드 변경 없음, 로컬 SSOT 문서)
+* 목적: Issue107 v1.2 설계 문서가 "Settings는 항상 cliApp 자체 설정창"으로 명시했으나, 실제 코드는 `SettingsWindowManager.swift:18-21`에서 `showSettings()` → `PaidAppManager.handlePaidFeature()`만 호출하는 stub. cliApp 자체 Settings UI는 존재하지 않음 → 설계와 구현 정합성 회복
+* 근본 원인:
+    - `cli/fSnippetCli/Managers/SettingsWindowManager.swift:6-37`: `class SettingsWindowManager`가 stub. `showSettings()`/`toggleSettings()` 모두 `PaidAppManager.shared.handlePaidFeature()` 호출
+    - **Issue105 fix는 placebo**였음: KeyEventHandler/MenuBarView 양쪽이 `SettingsWindowManager.toggleSettings()`로 통일됐지만 toggleSettings가 결국 handlePaidFeature를 호출
+* 결정: **옵션 B 채택** (저비용 — 설계 갱신)
+    - 옵션 A(cliApp 자체 Settings UI 신규 구현)는 ROI 낮음 — Configuration 서브메뉴 `Open Config File`로 _config.yml 직접 편집 가능
+    - 옵션 C(혼합)는 중간 비용 + 사용자 혼란 우려 → 본 라운드에서는 미채택
+* 해결:
+    - `_doc_design/menuBar_enhance.md` v1.2 → v1.3 개정 (로컬 전용 SSOT)
+    - 기본 방침 4번째 항목 재작성: "Settings는 paidApp 라우팅 + Configuration 서브메뉴 fallback" 명시
+    - 유료 기능 클릭 처리 섹션에 "Settings 항목 라우팅 (Issue109 v1.3)" 하위 표 추가 — 3-state별 결과 명시
+    - "Issue105 회고 노트" 섹션 추가 — placebo 사실 문서화
+    - paidApp 없이 설정 변경 가이드: `⚙️ Configuration → Open Config File` 사용
+* 영향: 코드 변경 없음 (문서 개선만). Issue110(handlePaidFeature 리팩터링)은 별도 진행
 
 ## Issue108: [Feat] cliApp 메뉴바 항목 다국어 지원 — Localizable.strings 정비 (ko) (등록: 2026-05-05, 완료: 2026-05-05) (Hash: cd4577e)
 * 목적: pairApp Issue70(fWarrange) 동일 패턴의 cliApp 측 작업. Issue106 Quit 항목 정책 분리 후 메뉴 라벨이 영어 하드코딩 상태 → 시스템 언어 전환 시 메뉴 텍스트가 즉시 반영되도록 다국어 리소스 정비
