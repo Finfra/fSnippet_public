@@ -8,6 +8,7 @@ date: 2026-04-07
 
 * Issue HWM: 103
 * Save Point :
+      - 2026.05.04: 505e55d (Feat(Issue103): paidApp 동작 시 About 메뉴를 fSnippet 모드로 분기)
       - 2026.05.03: 24f2a1b (Fix(Issue101): NSWorkspace bundleIdentifier 매칭으로 zombie process 제거)
       - 2026.05.02: 2804aaa (Docs: Close Issue99 — menuBar_enhance.md 반영)
       - 2026.04.27: 0cacd11 (Feat(Cli): Issue84 — registerSnippet 단축키 메뉴 노출 + 등록 로직)
@@ -20,18 +21,6 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue103: [Menu] paidApp 동작 시 About 메뉴를 fSnippet 모드로 전환 (등록: 2026-05-04)
-* 목적: paidApp 동작 중일 때 cliApp 메뉴바의 "About fSnippetCli" 라벨과 About 창 내용이 fSnippet(paidApp)을 가리키도록 분기. 사용자에게 현재 활성 제품을 일관되게 노출.
-* plan: `cli/_doc_work/plan/about-paidapp-mode_plan.md`
-* 상세:
-    - paidApp 동작 시: 메뉴 라벨 "About fSnippet", 창 제목 "About fSnippet", 본문 제품명 "fSnippet", 버전 = paidApp 버전(`PaidAppStateStore.status().version`)
-    - paidApp 미동작 시: 라벨 "About fSnippetCli", 창 제목 "About fSnippetCli", 제품명 "fSnippetCli", 버전 = cliApp Bundle 버전
-    - 추가 API 불필요 (`AppStateManager.shared.paidAppStatus` + `PaidAppStateStore.shared.status()` 활용)
-* 구현 명세:
-    - `MenuBarView.swift`: `@StateObject AppStateManager` 의존, `paidAppStatus == .started` 분기로 라벨·showAbout 인자 분기
-    - `AboutWindowManager.swift`: `showAbout(isPaidAppMode:)` 시그니처, `AboutView(isPaidAppMode:)` 분기 (제품명·버전·링크)
-    - 검증: 빌드 통과 + 수동 확인 (paidApp 실행/종료 시 라벨·창 토글)
-
 # 📕 중요
 
 # 📙 일반
@@ -40,7 +29,16 @@ date: 2026-04-07
 
 # ✅ 완료
 
-
+## Issue103: [Menu] paidApp 동작 시 About 메뉴를 fSnippet 모드로 전환 (등록: 2026-05-04, 완료: 2026-05-04) (Hash: 505e55d)
+* 목적: paidApp 동작 중일 때 cliApp 메뉴바 About 라벨/창 내용을 fSnippet 제품 기준으로 분기
+* plan: `cli/_doc_work/plan/about-paidapp-mode_plan.md`
+* 구현:
+    - `MenuBarView.swift`: `@StateObject AppStateManager` 의존, `paidAppStatus == .started`로 라벨 토글 + `showAbout(isPaidAppMode:)` 호출
+    - `AboutWindowManager.swift`: `showAbout(isPaidAppMode:)` 시그니처 도입, 윈도우 title/`AboutView` 분기
+    - `AboutView`: 모드별 제품명("fSnippet"/"fSnippetCli")·버전 출처(PaidAppStateStore.status().version vs Bundle) 분기
+* 검증: Release 빌드 통과 (`** BUILD SUCCEEDED **`)
+* 수정 파일: `cli/fSnippetCli/MenuBarView.swift`, `cli/fSnippetCli/Managers/AboutWindowManager.swift`
+* 부수 변경: MenuBarView "Launch at Login" 라벨에 🚀 prefix, Issue.md z_old 아카이브 노트 위치 정정
 
 ## Issue102: [Verify] Issue101/paidApp Issue849 검증 — paidApp/cliApp 종료 시 zombie process 제거 확인 (등록: 2026-05-03, 완료: 2026-05-03) (Hash: 24f2a1b)
 * 목적: Issue101 수정 후 실제 zombie process가 제거되는지 검증
