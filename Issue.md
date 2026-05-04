@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 106
+* Issue HWM: 108
 * Save Point :
       - 2026.05.04: fddc8f4 (Feat(Issue106): cliApp 메뉴바 Quit 항목 paidApp 정책 분리)
       - 2026.05.04: e1984f6 (Fix(Issue105): Settings 단축키·메뉴바를 cliApp 자체 설정창으로 라우팅)
@@ -31,6 +31,23 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue107: [Docs] menuBar_enhance.md v1.2 개선 — paidAppStatus 3-상태·시작흐름·종료정책 명세 (등록: 2026-05-05, 완료: 2026-05-05) (코드 변경 없음, 로컬 SSOT 문서)
+* 목적: paidApp Issue851(cliApp API ready 대기), Issue852(설정창 취소 사이드 이펙트) 후속 문서 정비. pairApp(fWarrange) `_doc_design/menuBar_enhance.md` v1.2 수준의 명세 보강
+* 해결:
+    - `_doc_design/menuBar_enhance.md` v1.1 → v1.2 개정 (로컬 전용 SSOT, gitignored)
+    - `paidAppStatus` 3-상태(`notInstall`/`stopped`/`started`) 정의 추가 — Issue851 API ready 대기 로직 근거
+    - 시작 흐름 차트 추가: paidApp → cliApp 감지(API v2 포트 3015 검증), cliApp → paidApp 감지(상태 전이)
+    - 아이콘 매핑 3-상태 표 (`started`=전체, `stopped`/`notInstall`=잘린 아이콘)
+    - 유료 기능 클릭 처리 분기표 + Settings 예외 명시 (Issue105)
+    - 종료 항목 정책 4-상태 표 (Issue106 결과 명세화)
+    - 단축키 표시 원칙 (`⌘Q`는 paidApp 활성 시 `Quit fSnippet` 항목 단독)
+    - 메뉴 구조 트리 갱신: `[paidApp 활성 시] Quit fSnippet ⌘Q` + `[paidApp 활성 시] Quit All` + `[paidApp 비활성 시] Quit All` 3-라인 명시
+    - About 메뉴 분기 명시 (Issue103) + Snippet Popup 알림 경로 (Issue104)
+    - 다국어 정책 (현 시점 영어 하드코딩, 향후 도입 시 신규 키 정의)
+    - 단축키 체계 표에 `_config.yml` 키 매핑 컬럼 추가
+    - 관련 파일 목록 9개 → 11개로 확장 (PaidAppManager, AppStateManager 등 명시)
+* 영향: 코드 변경 없음 (로컬 SSOT 문서 개선만). paidApp Issue851/852 후속 정비를 위한 참조 문서 정합성 확보. `_doc_design/`은 `_public/.gitignore`에 의해 의도적 비추적이므로 본 변경은 로컬에만 유지됨
 
 ## Issue106: [Feat] cliApp 메뉴바 Quit 항목 paidApp 정책 분리 — `Quit fSnippet ⌘Q` + `Quit All` (등록: 2026-05-04, 완료: 2026-05-04) (Hash: fddc8f4)
 * 목적: `_doc_design/menuBar_enhance.md:53-54` 정책 — paidApp 활성 시 cliApp 메뉴에 paidApp 단독 종료(`Quit fSnippet ⌘Q`) + cliApp Quit All(`Quit All`, 단축키 없음) 두 항목 노출. paidApp 비활성 시 `Quit All` 단일 항목(단축키 없음). pairApp Issue70(fWarrange) 동일 패턴
