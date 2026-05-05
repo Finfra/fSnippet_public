@@ -8,6 +8,7 @@ date: 2026-04-07
 
 * Issue HWM: 110
 * Save Point :
+      - 2026.05.05: ef2d6d6 (Refactor(Issue110): handlePaidFeature를 AppStateManager.paidAppStatus 단일 진입점으로 통합)
       - 2026.05.05: cd4577e (Feat(Issue108): cliApp 메뉴바 항목 다국어 지원 — ko 번역 정비)
       - 2026.05.04: fddc8f4 (Feat(Issue106): cliApp 메뉴바 Quit 항목 paidApp 정책 분리)
       - 2026.05.04: e1984f6 (Fix(Issue105): Settings 단축키·메뉴바를 cliApp 자체 설정창으로 라우팅)
@@ -25,21 +26,6 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue110: [Refactor] PaidAppManager.handlePaidFeature를 AppStateManager.paidAppStatus 단일 진입점으로 통합 (등록: 2026-05-05)
-* 목적: Issue107 v1.2 설계가 paidAppStatus 3-state enum을 단일 진입점으로 정의했으나, `handlePaidFeature()`는 여전히 `isInstalled()` + `isRunning()` 2-flag 체크 사용. 추상화 일관성 확보 + 후속 변경 시 단일 진입점 보장
-* 근본 원인:
-    - `cli/fSnippetCli/Managers/PaidAppManager.swift:124-...`: `handlePaidFeature()`가 `guard isInstalled() else {...}` + `if isRunning() {...}` 패턴 사용
-    - `AppStateManager.shared.paidAppStatus`는 동일 정보를 enum으로 보유하나 `handlePaidFeature` 미사용
-    - 동작은 동등하나, 향후 paidAppStatus 전이 정책 변경 시 두 곳을 동시 수정해야 하는 위험
-* 구현 명세:
-    - `handlePaidFeature()` 시그니처 유지, 내부 분기를 `switch AppStateManager.shared.paidAppStatus` 로 재작성
-        - `case .started` → `PaidAppDetector.openSettings()` (또는 옵션 A 채택 시 `SettingsWindowManager` 자체)
-        - `case .stopped` → `showRequirePaidAlert()`
-        - `case .notInstall` → `showPaidOnlyAlert()`
-    - 동작 동등성 단위 테스트 (각 상태에서 적절한 alert/창 노출)
-    - 영향: paidApp 라이프사이클 NotificationCenter 갱신 → AppStateManager → handlePaidFeature 자동 동기화
-* 영향: 기능 변경 없음. 코드 라인 수 감소 + 후속 이슈에서 paidAppStatus 정책 변경 시 단일 위치만 수정
-
 # 📕 중요
 
 # 📙 일반
@@ -47,6 +33,22 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue110: [Refactor] PaidAppManager.handlePaidFeature를 AppStateManager.paidAppStatus 단일 진입점으로 통합 (등록: 2026-05-05, 완료: 2026-05-05) (Hash: ef2d6d6)
+* 목적: Issue107 v1.2 설계가 paidAppStatus 3-state enum을 단일 진입점으로 정의했으나, `handlePaidFeature()`는 여전히 `isInstalled()` + `isRunning()` 2-flag 체크 사용. 추상화 일관성 확보 + 후속 변경 시 단일 진입점 보장
+* 근본 원인:
+    - `cli/fSnippetCli/Managers/PaidAppManager.swift:124-135`: `handlePaidFeature()`가 `guard isInstalled() else {...}` + `if isRunning() {...}` 패턴 사용
+    - `AppStateManager.shared.paidAppStatus`는 동일 정보를 enum으로 보유하나 `handlePaidFeature` 미사용
+    - 동작은 동등하나, 향후 paidAppStatus 전이 정책 변경 시 두 곳을 동시 수정해야 하는 위험
+* 해결:
+    - `handlePaidFeature()` 시그니처 유지, 내부 분기를 `switch AppStateManager.shared.paidAppStatus` 로 재작성
+        - `case .started` → `PaidAppDetector.openSettings()`
+        - `case .stopped` → `showRequirePaidAlert()`
+        - `case .notInstall` → `showPaidOnlyAlert()`
+    - 영향: paidApp 라이프사이클 NotificationCenter 갱신 → AppStateManager → handlePaidFeature 자동 동기화
+* 검증: Release 빌드 통과 (`** BUILD SUCCEEDED **`)
+* 수정 파일: `cli/fSnippetCli/Managers/PaidAppManager.swift`
+* 영향: 기능 변경 없음. 코드 라인 수 감소 + 후속 이슈에서 paidAppStatus 정책 변경 시 단일 위치만 수정
 
 ## Issue109: [Bug/Design] Settings 라우팅 정책 불일치 — 옵션 B 채택, 설계 v1.3 갱신 (등록: 2026-05-05, 완료: 2026-05-05) (코드 변경 없음, 로컬 SSOT 문서)
 * 목적: Issue107 v1.2 설계 문서가 "Settings는 항상 cliApp 자체 설정창"으로 명시했으나, 실제 코드는 `SettingsWindowManager.swift:18-21`에서 `showSettings()` → `PaidAppManager.handlePaidFeature()`만 호출하는 stub. cliApp 자체 Settings UI는 존재하지 않음 → 설계와 구현 정합성 회복
