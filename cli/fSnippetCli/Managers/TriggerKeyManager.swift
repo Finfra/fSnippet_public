@@ -91,7 +91,8 @@ class TriggerKeyManager: ObservableObject {
         let settingsHotkey = prefs.string(forKey: "settings.open.hotkey", defaultValue: "^⇧⌘;")
         if matchHotkey(event: event, hotkeyString: settingsHotkey) {
             logI("🔑 [TriggerKeyManager] Settings Hotkey Detected: \(settingsHotkey)")
-            DispatchQueue.main.async {
+            // Issue852 패턴: asyncAfter로 event handler 벗어나기
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 SettingsWindowManager.shared.toggleSettings()
             }
             return true
