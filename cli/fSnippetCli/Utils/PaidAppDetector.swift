@@ -34,9 +34,12 @@ enum PaidAppDetector {
     return true
   }
 
-  /// paidApp 설정창 열기 — Issue827 Phase B
+  /// paidApp 설정창 열기 — Issue827 Phase B / Issue111
   /// URL Scheme 우선 (fsnippet://command?action=settings&source=cliApp),
-  /// 롤백 플래그(fsc.disableUrlScheme) 활성 시 SettingsWindowManager fallback
+  /// 롤백 플래그(fsc.disableUrlScheme) 활성 시 SettingsWindowManager fallback.
+  ///
+  /// paid_cli_protocol §3.5: REST register `bundlePath`가 있으면 1차 채널로 사용해
+  /// LaunchServices의 잘못된 URL Scheme 매핑(옛 Bundle ID/백업 경로 등)을 우회.
   static func openSettings() {
     let disableUrlScheme = UserDefaults.standard.bool(forKey: "fsc.disableUrlScheme")
     guard !disableUrlScheme, let schemeURL = URL(string: "fsnippet://command?action=settings&source=cliApp") else {
@@ -45,11 +48,25 @@ enum PaidAppDetector {
       return
     }
 
+    // 1차 채널 — register된 bundlePath로 URL을 강제 라우팅 (LaunchServices 캐시 우회)
+    if let registered = PaidAppStateStore.shared.status(),
+       FileManager.default.fileExists(atPath: registered.bundlePath) {
+      let bundleURL = URL(fileURLWithPath: registered.bundlePath)
+      logI("🪟 [Settings] register bundlePath 사용: \(registered.bundlePath)")
+      NSWorkspace.shared.open(
+        [schemeURL],
+        withApplicationAt: bundleURL,
+        configuration: NSWorkspace.OpenConfiguration(),
+        completionHandler: nil
+      )
+      return
+    }
+
+    // 2차 안전망 — LaunchServices 기본 라우팅
+    logI("🪟 [Settings] LaunchServices 라우팅 폴백")
     if isRunning() {
-      // 실행 중 → URL Scheme 직접 전달
       NSWorkspace.shared.open(schemeURL)
     } else {
-      // 미실행 → 앱 먼저 기동 후 URL Scheme 전달 (~1초 대기)
       guard launch() else { return }
       DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
         NSWorkspace.shared.open(schemeURL)
