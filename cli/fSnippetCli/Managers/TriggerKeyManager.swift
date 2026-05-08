@@ -87,7 +87,17 @@ class TriggerKeyManager: ObservableObject {
     private func handleGlobalKeyEvent(_ event: NSEvent) -> Bool {
         let prefs = PreferencesManager.shared
 
-        // 1. 히스토리 뷰어 호출 단축키 체크
+        // 1. 설정 창 단축키 체크 (Issue855: paidApp foreground에서도 작동해야 함)
+        let settingsHotkey = prefs.string(forKey: "settings.open.hotkey", defaultValue: "^⇧⌘;")
+        if matchHotkey(event: event, hotkeyString: settingsHotkey) {
+            logI("🔑 [TriggerKeyManager] Settings Hotkey Detected: \(settingsHotkey)")
+            DispatchQueue.main.async {
+                SettingsWindowManager.shared.toggleSettings()
+            }
+            return true
+        }
+
+        // 2. 히스토리 뷰어 호출 단축키 체크
         let viewerHotkey = prefs.string(forKey: "history.viewer.hotkey", defaultValue: "^⌥⌘;")
         if matchHotkey(event: event, hotkeyString: viewerHotkey) {
             logI("🔑 [TriggerKeyManager] Viewer Hotkey Detected: \(viewerHotkey)")
@@ -97,7 +107,7 @@ class TriggerKeyManager: ObservableObject {
             return true
         }
 
-        // 2. 수집 일시 중단 단축키 체크
+        // 3. 수집 일시 중단 단축키 체크
         let pauseHotkey = prefs.string(forKey: "history.pause.hotkey", defaultValue: "^⌥⌘P")
         if matchHotkey(event: event, hotkeyString: pauseHotkey) {
             logI("🔑 [TriggerKeyManager] Pause Hotkey Detected: \(pauseHotkey)")
