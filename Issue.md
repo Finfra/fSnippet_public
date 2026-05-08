@@ -8,6 +8,7 @@ date: 2026-04-07
 
 * Issue HWM: 111
 * Save Point :
+      - 2026.05.08: 7e8b5e9 (Fix(Issue111): cliApp Settings 단축키 LaunchServices 캐시 우회)
       - 2026.05.05: ef2d6d6 (Refactor(Issue110): handlePaidFeature를 AppStateManager.paidAppStatus 단일 진입점으로 통합)
       - 2026.05.05: cd4577e (Feat(Issue108): cliApp 메뉴바 항목 다국어 지원 — ko 번역 정비)
       - 2026.05.04: fddc8f4 (Feat(Issue106): cliApp 메뉴바 Quit 항목 paidApp 정책 분리)
@@ -26,28 +27,6 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue111: [Bug] cliApp Settings 단축키가 paidApp 설정창을 열지 못함 — URL Scheme이 LaunchServices 캐시로 죽은 앱에 라우팅 (등록: 2026-05-05)
-* 목적: paid_cli_protocol §3 (실행 상태 감지) register 정보를 활용하지 않고 LaunchServices 기본 라우팅에 전적으로 의존하여, URL Scheme 핸들러가 옛 Bundle ID(예: Time Machine 백업의 `com.finfra.fSnippetCli`)로 매핑된 사용자 환경에서 settings 단축키가 paidApp을 열지 못하는 회귀를 차단함. §3.2/§3.5 1차 채널(REST register `bundlePath`)을 활용하여 LaunchServices 캐시 오염을 우회.
-* 재현:
-    - paidApp 정상 실행 중 + `/api/v2/paidapp/status` `registered:true` 응답 + `bundlePath` 일치
-    - LaunchServices DB의 `fsnippet://` 핸들러가 다른 앱(옛 Bundle ID/백업 경로)으로 잘못 등록된 환경
-    - cliApp `^⇧⌘;` 입력 → 로그에 `Hotkey Detected: settings.hotkey`만 남고 paidApp `🏁 [AppDelegate] URL Scheme 수신` 미출력 → 설정창 미노출
-* 근본 원인:
-    - `cli/fSnippetCli/Utils/PaidAppDetector.swift:40-58` `openSettings()`가 `NSWorkspace.shared.open(URL("fsnippet://..."))`만 호출 — 수신 앱을 지정하지 않으므로 LaunchServices가 기본 핸들러로 라우팅
-    - `PaidAppStateStore.shared.status()`로 `bundlePath`를 이미 보유 중이지만 미사용
-    - paid_cli_protocol §3.5 "REST register 1차 채널" 원칙 위반
-* 구현 명세:
-    - `PaidAppDetector.openSettings()` 분기 추가:
-        - 1차: `PaidAppStateStore.shared.status()` 결과가 있고 `bundlePath` 실제 존재 → `NSWorkspace.shared.open(_:withApplicationAt:configuration:completionHandler:)`로 URL을 해당 번들에 강제 라우팅 (LaunchServices 캐시 우회)
-        - 2차 안전망: 기존 `isRunning()`/`launch()` 경로 유지 (Store 미보유 환경)
-        - 롤백 플래그 `fsc.disableUrlScheme` 동작 유지
-    - 로깅: 1차 채널 사용 시 `logI("🪟 [Settings] register bundlePath 사용: \(path)")`, 폴백 시 `logI("🪟 [Settings] LaunchServices 라우팅 폴백")`
-* 검증:
-    - 빌드: `xcodebuild -scheme fSnippetCli -configuration Release build` 통과
-    - 동작: paidApp 실행 중 상태에서 `^⇧⌘;` 입력 → paidApp 로그 `🏁 [AppDelegate] URL Scheme 수신: action=settings, source=cliApp` 확인 → 설정창 표시
-    - LaunchServices 매핑이 정상 환경에서도 동등 동작 (1차 경로가 동일 결과)
-* 영향 범위: `cli/fSnippetCli/Utils/PaidAppDetector.swift` 단일 파일 (단순/중간 복잡도, plan/task 없이 fix → close)
-
 # 📕 중요
 
 # 📙 일반
@@ -55,6 +34,22 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue111: [Bug] cliApp Settings 단축키가 paidApp 설정창을 열지 못함 — URL Scheme이 LaunchServices 캐시로 죽은 앱에 라우팅 (등록: 2026-05-05, 완료: 2026-05-08) (Hash: 7e8b5e9)
+* 목적: paid_cli_protocol §3 (실행 상태 감지) register 정보를 활용하지 않고 LaunchServices 기본 라우팅에 전적으로 의존하여, URL Scheme 핸들러가 옛 Bundle ID(예: Time Machine 백업의 `com.finfra.fSnippetCli`)로 매핑된 사용자 환경에서 settings 단축키가 paidApp을 열지 못하는 회귀를 차단함. §3.2/§3.5 1차 채널(REST register `bundlePath`)을 활용하여 LaunchServices 캐시 오염을 우회.
+* 근본 원인:
+    - `cli/fSnippetCli/Utils/PaidAppDetector.swift:40-58` `openSettings()`가 `NSWorkspace.shared.open(URL("fsnippet://..."))`만 호출 — 수신 앱을 지정하지 않으므로 LaunchServices가 기본 핸들러로 라우팅
+    - `PaidAppStateStore.shared.status()`로 `bundlePath`를 이미 보유 중이지만 미사용
+    - paid_cli_protocol §3.5 "REST register 1차 채널" 원칙 위반
+* 해결:
+    - `PaidAppDetector.openSettings()` 분기 추가:
+        - 1차 채널: `PaidAppStateStore.shared.status()` 결과가 있고 `bundlePath` 실제 존재 → `NSWorkspace.shared.open(_:withApplicationAt:configuration:completionHandler:)`로 URL을 해당 번들에 강제 라우팅 (LaunchServices 캐시 우회)
+        - 2차 안전망: 기존 `isRunning()`/`launch()` + LaunchServices 기본 라우팅 (Store 미보유 환경)
+        - 롤백 플래그 `fsc.disableUrlScheme` 동작 유지
+    - 로깅: 1차 채널 사용 시 `🪟 [Settings] register bundlePath 사용: <path>`, 폴백 시 `🪟 [Settings] LaunchServices 라우팅 폴백`
+* 검증: Release 빌드 통과 (`** BUILD SUCCEEDED **`)
+* 수정 파일: `cli/fSnippetCli/Utils/PaidAppDetector.swift`
+* 영향: 단일 파일 변경. paid_cli_protocol §3.5 1차 채널 원칙 준수로 후속 회귀 차단.
 
 ## Issue110: [Refactor] PaidAppManager.handlePaidFeature를 AppStateManager.paidAppStatus 단일 진입점으로 통합 (등록: 2026-05-05, 완료: 2026-05-05) (Hash: ef2d6d6)
 * 목적: Issue107 v1.2 설계가 paidAppStatus 3-state enum을 단일 진입점으로 정의했으나, `handlePaidFeature()`는 여전히 `isInstalled()` + `isRunning()` 2-flag 체크 사용. 추상화 일관성 확보 + 후속 변경 시 단일 진입점 보장
