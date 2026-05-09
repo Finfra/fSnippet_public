@@ -242,15 +242,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                   app.bundleIdentifier == paidBundleID else { return }
             logI("fSnippet(유료) 종료 감지")
             PaidAppStateStore.shared.markStaleFromWorkspace(pid: app.processIdentifier)
-            // markStaleFromWorkspace 는 pid 일치 시에만 발송하므로,
-            // REST register 없이 실행된 paidApp 종료 시 누락될 수 있음 → 직접 발송으로 보장
+            // markStaleFromWorkspace sends notification only when pid matches.
+            // Post directly to guarantee state change even if paidApp never called register.
             NotificationCenter.default.post(name: .paidAppStateChanged, object: nil, userInfo: ["isRunning": false])
-            // paidApp 종료 시 cliApp도 함께 종료 (brew service 포함)
-            // applicationWillTerminate 에서 BrewServiceSync.onAppStop() 자동 호출됨
-            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(200)) {
-                logI("🛑 paidApp 종료 연동 — cliApp 종료")
-                NSApplication.shared.terminate(nil)
-            }
+            // Issue856: cliApp must NOT terminate when paidApp quits normally (Cmd+Q).
+            // cliApp terminates only via "Quit All" menu → POST /api/v2/shutdown.
         }
     }
 
