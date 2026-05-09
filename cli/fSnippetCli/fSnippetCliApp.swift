@@ -133,9 +133,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // 중복 인스턴스로 판정된 경우 정리 로직 불필요 (초기화 자체를 건너뜀)
         guard !isDuplicateInstance else { return }
 
-        // Issue849 — cliApp이 종료될 때 paidApp에 종료 신호 전송 (역방향 신호)
-        // cliApp이 메뉴바에서 Quit 되었을 때, paidApp도 함께 종료되어야 함
-        terminatePaidApp()
+        // Issue849 fix — cliApp이 다른 cliApp 인스턴스에 의해 SingleInstanceGuard로 terminate되는
+        // "인스턴스 교체" 시나리오에서는 paidApp 종료 신호를 스킵.
+        // (이전 버그: launchd-spawned cliApp이 _nowage_app cliApp을 종료시키면, 종료되는 cliApp이
+        //  자기가 메뉴바 Quit인 줄 알고 paidApp까지 종료시킴 → paidApp이 시작 직후 죽는 현상)
+        let myPID = ProcessInfo.processInfo.processIdentifier
+        let otherCliApps = NSWorkspace.shared.runningApplications.filter {
+            $0.bundleIdentifier == "kr.finfra.fSnippetCli" && $0.processIdentifier != myPID
+        }
+        if !otherCliApps.isEmpty {
+            let otherPIDs = otherCliApps.map { $0.processIdentifier }
+            logI("다른 cliApp 인스턴스 활동 중 (PIDs: \(otherPIDs)) — paidApp 종료 신호 스킵 (인스턴스 교체)")
+        } else {
+            // Issue849 — cliApp이 종료될 때 paidApp에 종료 신호 전송 (역방향 신호)
+            // cliApp이 메뉴바에서 Quit 되었을 때, paidApp도 함께 종료되어야 함
+            terminatePaidApp()
+        }
 
         // Issue849 — KeyEventMonitor 정리 (CGEventTap 해제 + NotificationCenter 옵저버 제거)
         keyEventMonitor?.stopMonitoring()
