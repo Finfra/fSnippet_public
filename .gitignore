@@ -1,13 +1,14 @@
 # agent
 .claude/
 CLAUDE.md
-_doc_design
-_doc_work
-
 
 # 작업 문서 (로컬 전용)
-cli/_doc_work/
+# 본 레포는 cli/_doc_design/, cli/_doc_work/만 사용 — 루트 _doc_design/, _doc_work/ 사용 금지
+# 상세: .claude/rules/path-rules.md "4. nPTiR 작업 문서는 cli/ 하위에서만 운영" 섹션
+_doc_design/
+_doc_work/
 cli/_doc_design/
+cli/_doc_work/
 
 # claudeCode_xcode_Skel
 Issue.md
