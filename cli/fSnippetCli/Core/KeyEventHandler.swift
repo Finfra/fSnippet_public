@@ -549,6 +549,27 @@ class KeyEventHandler: KeyEventProcessorDelegate {
     )
   }
 
+  // Issue104: Public entry for menu/hotkey-driven snippet popup (no typing buffer).
+  // PopupController auto-displays Top 10 when both candidates and searchTerm are empty.
+  // deleteLength is 0 because the active app's buffer was not consumed by typing.
+  func showSnippetPopupRequest() {
+    let cursorRect = CursorTracker.shared.getCursorRect()
+    logI("🔹 [KeyEventHandler] showSnippetPopupRequest (menu/hotkey)")
+    popupController.showPopup(
+      with: [],
+      searchTerm: "",
+      cursorRect: cursorRect,
+      onSelection: { [weak self] snippet, _, popupFrame in
+        self?.expansionCoordinator.performSnippetExpansion(
+          snippet: snippet,
+          fromPopup: true,
+          deleteLength: 0,
+          referenceFrame: popupFrame
+        )
+      }
+    )
+  }
+
   // MARK: - Helper Logic
 
   private func resolveKeyRole(_ keyInfo: KeyEventInfo) -> ShortcutItem? {
@@ -589,8 +610,8 @@ class KeyEventHandler: KeyEventProcessorDelegate {
           self.handlePopupKeyDetected()
         }
       } else if item.id == "settings.hotkey" {
-        // Issue8: 설정창은 유료 버전 전용 기능
-        PaidAppManager.shared.handlePaidFeature()
+        // Issue105: 메뉴와 동일하게 cliApp 자체 설정창 열기 (paidApp 분기 제거)
+        SettingsWindowManager.shared.toggleSettings()
       }
     }
   }

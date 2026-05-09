@@ -94,6 +94,7 @@
 		9DB1E6E02CF13A65FCB02146 /* ConfigMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38563EA46F747FEAF69E823C /* ConfigMigrationTests.swift */; };
 		9FDB6BCE518AD9CC30BF8F04 /* SnippetFileManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9B34A717829BD00FFC0E011 /* SnippetFileManager.swift */; };
 		A01E927B7B2B6E63E7B8B86A /* KeyRenderingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7F9E20F9DB4BC1F2B7AED6D /* KeyRenderingManager.swift */; };
+		A1D633A7E23AFC3710270740 /* AppStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41EB5B04EA6B44794E11E6EA /* AppStateManager.swift */; };
 		A4A4F533C32F8A6F74D31057 /* _config.yml in Resources */ = {isa = PBXBuildFile; fileRef = E32E556FF721C982939671CB /* _config.yml */; };
 		AA43E5A6624917791D54F5C1 /* VersionCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43808B5A135767BA06E9F7E4 /* VersionCommand.swift */; };
 		ABA436970D6214002F3BDBC5 /* CommandHandlingWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 717BC88E398254D6C1632A79 /* CommandHandlingWindow.swift */; };
@@ -198,6 +199,7 @@
 		3DD21578E571498DB78C391E /* PaidAppStateLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaidAppStateLogger.swift; sourceTree = "<group>"; };
 		3ECD1786CFA3BFE603236D11 /* HistoryViewerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryViewerManager.swift; sourceTree = "<group>"; };
 		407B0655339D9E14F7345941 /* StatsCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsCommand.swift; sourceTree = "<group>"; };
+		41EB5B04EA6B44794E11E6EA /* AppStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStateManager.swift; sourceTree = "<group>"; };
 		4227CB7C5C4C7B12FCA8C7F8 /* PopupKeyboardHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupKeyboardHandler.swift; sourceTree = "<group>"; };
 		424044DE6418866A33BFAA3E /* KeyEventProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyEventProcessor.swift; sourceTree = "<group>"; };
 		42A67A90E10001A7CD321589 /* BufferManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BufferManager.swift; sourceTree = "<group>"; };
@@ -433,6 +435,7 @@
 				BFE4E0741D23BD483DC13C42 /* APIServer.swift */,
 				A5C2B2DD2EA89AABD66D318E /* AppAppearance.swift */,
 				158B7CD40277D4D1FF2560EA /* AppSettingManager.swift */,
+				41EB5B04EA6B44794E11E6EA /* AppStateManager.swift */,
 				216BDD57B7C2A5E6D9359282 /* AutoStartManager.swift */,
 				42A67A90E10001A7CD321589 /* BufferManager.swift */,
 				F6284934CA039DD9CC4CBA4B /* ClipboardManager.swift */,
@@ -723,6 +726,7 @@
 				85004A4D9FB25A1D306BF134 /* AppActivationMonitor.swift in Sources */,
 				D2F99174376D286CAAB2145B /* AppAppearance.swift in Sources */,
 				621B95E98B072BBCA85FCF56 /* AppSettingManager.swift in Sources */,
+				A1D633A7E23AFC3710270740 /* AppStateManager.swift in Sources */,
 				0809371B00344E88F41F91B8 /* AtomicPropertyWrapper.swift in Sources */,
 				81AC84A2BB787C9DAC8A6733 /* AutoStartManager.swift in Sources */,
 				5333F3BF33FE8D1902AE0943 /* BrewServiceSync.swift in Sources */,
@@ -891,6 +895,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = kr.finfra.fSnippetCli;
 				SDKROOT = macosx;
 			};
@@ -973,6 +978,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = kr.finfra.fSnippetCli;
 				SDKROOT = macosx;
 			};

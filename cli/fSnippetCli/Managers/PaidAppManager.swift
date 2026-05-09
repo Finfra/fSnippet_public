@@ -78,24 +78,60 @@ class PaidAppManager {
         return false
     }
 
+    // MARK: - paidApp 단독 종료 (Issue106)
+
+    /// paidApp만 graceful 종료(cliApp은 잔존). 메뉴바 "Quit fSnippet" 항목용.
+    /// `fSnippetCliApp.terminatePaidApp()`(Issue101)와 동일 매커니즘 — NSWorkspace.runningApplications + bundleIdentifier 정확 매칭.
+    /// graceful 1초 대기 후 미종료 시 forceTerminate fallback.
+    @discardableResult
+    func terminatePaidApp() -> Bool {
+        let paidApps = NSWorkspace.shared.runningApplications.filter {
+            $0.bundleIdentifier == paidBundleID
+        }
+        guard !paidApps.isEmpty else {
+            logI("🏷️ [PaidApp] terminate 요청 — 실행 중 paidApp 없음")
+            return false
+        }
+
+        for app in paidApps {
+            logI("🏷️ [PaidApp] paidApp 종료 신호 (PID: \(app.processIdentifier))")
+            app.terminate()
+        }
+
+        let deadline = Date().addingTimeInterval(1.0)
+        while Date() < deadline {
+            if paidApps.allSatisfy({ $0.isTerminated }) {
+                logI("🏷️ [PaidApp] paidApp 정상 종료")
+                return true
+            }
+            usleep(50_000)
+        }
+
+        for app in paidApps where !app.isTerminated {
+            logW("🏷️ [PaidApp] paidApp graceful 실패 — forceTerminate (PID: \(app.processIdentifier))")
+            app.forceTerminate()
+        }
+        return true
+    }
+
     // MARK: - paid 전용 기능 핸들링
 
     /// paid 전용 기능 시도 시 호출 (paid_cli_protocol §4.2 준수)
-    /// - 미설치 → showPaidOnlyAlert (App Store / Locate / Show Config / Cancel)
-    /// - 설치 + 실행 중 → URL Scheme 직접 라우팅 (alert 없음)
-    /// - 설치 + 미실행 → showRequirePaidAlert ("fSnippet이 필요합니다" + [열기]/[취소])
-    /// - 자동 기동 금지: 미실행 시 사용자가 [열기]를 명시적으로 누른 경우에만 paidApp 기동
+    /// Routes via AppStateManager.paidAppStatus (single source of truth, Issue110).
+    /// - .notInstall → showPaidOnlyAlert (App Store / Locate / Show Config / Cancel)
+    /// - .stopped    → showRequirePaidAlert ("fSnippet이 필요합니다" + [열기]/[취소])
+    /// - .started    → URL Scheme 직접 라우팅 (alert 없음)
+    /// - 자동 기동 금지: .stopped 시 사용자가 [열기]를 명시적으로 누른 경우에만 paidApp 기동
     func handlePaidFeature() {
-        guard isInstalled() else {
-            showPaidOnlyAlert()
-            return
-        }
-        if isRunning() {
+        switch AppStateManager.shared.paidAppStatus {
+        case .started:
             // paidApp 실행 중 — 사용자 동의 alert 생략, URL Scheme 직접 전달
             PaidAppDetector.openSettings()
-            return
+        case .stopped:
+            showRequirePaidAlert()
+        case .notInstall:
+            showPaidOnlyAlert()
         }
-        showRequirePaidAlert()
     }
 
     /// "fSnippet이 필요합니다" 안내 NSAlert (Issue70)

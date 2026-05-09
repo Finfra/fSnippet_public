@@ -161,6 +161,10 @@ class KeyEventMonitor: PopupControllerDelegate, CollisionManagerDelegate, Trigge
         NotificationCenter.default.addObserver(
             self, selector: #selector(handlePlaceholderDidResignActive),
             name: NSNotification.Name("fSnippetPlaceholderWindowDidResignActive"), object: nil)
+        // Issue104: Menu/hotkey -> show empty snippet popup
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(handleShowPopupRequest),
+            name: NSNotification.Name("fSnippetShowPopup"), object: nil)
 
         WindowContextManager.shared.onContextChange = { [weak self] pid, winId in
             self?.bufferController.clear(reason: "Context Change")
@@ -169,6 +173,13 @@ class KeyEventMonitor: PopupControllerDelegate, CollisionManagerDelegate, Trigge
 
     @objc private func handleRulesChanged() {
         RuleManager.shared.invalidateEffectiveRulesCache()
+    }
+
+    @objc private func handleShowPopupRequest() {
+        // Issue104: Bridge fSnippetShowPopup notification (menu/hotkey) to popup display.
+        DispatchQueue.main.async { [weak self] in
+            self?.keyEventHandler.showSnippetPopupRequest()
+        }
     }
 
     @objc private func handlePlaceholderDidBecomeActive() {

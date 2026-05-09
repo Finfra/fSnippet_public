@@ -1,4 +1,3 @@
-import Combine
 import SwiftUI
 
 // MARK: - Menu Bar View
@@ -6,33 +5,23 @@ import SwiftUI
 /// fSnippetCli menu bar (Issue82 — grouped submenus + shared shortcut tokens).
 /// Tree mirrors `_doc_design/menuBar_enhance.md` cliApp section (L82-105).
 ///
-/// Time-based mutual exclusion is enforced by `MenuBarExtra(isInserted:)`
-/// in `fSnippetCliApp.swift` — this view is only instantiated when paidApp is not running.
+/// Issue845/Issue98: Always visible; icon and About entry adapt to paidApp status
+/// via `AppStateManager.shared.paidAppStatus`.
 struct MenuBarView: View {
+    @StateObject private var appState = AppStateManager.shared
     @State private var isPaused: Bool = PreferencesManager.shared.bool(
         forKey: "history.isPaused", defaultValue: false)
-    @State private var launchAtLoginEnabled: Bool = PreferencesManager.shared.bool(
-        forKey: "start_at_login", defaultValue: false)
-    @State private var statusLine: String = "Status: Running · Port 3015"
-
-    private let appLaunchTime: Date = Date()
-    private let statusTimer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
-
+    @State private var isApiPaused: Bool = false
+    @State private var launchAtLoginEnabled: Bool = FileManager.default.fileExists(
+        atPath: NSHomeDirectory() + "/Library/LaunchAgents/homebrew.mxcl.fsnippet-cli.plist")
     var body: some View {
-        // ─── About ───
+        // ─── About (Issue103: paidApp 동작 시 fSnippet 모드로 분기) ───
+        let isPaidMode = appState.paidAppStatus == .started
         Button {
-            AboutWindowManager.shared.showAbout()
+            AboutWindowManager.shared.showAbout(isPaidAppMode: isPaidMode)
         } label: {
-            Label("About fSnippetCli", systemImage: "info.circle")
-        }
-
-        Divider()
-
-        // ─── Launch fSnippet (conditional: installed → launch / missing → product page) ───
-        Button {
-            launchOrOpenPaidAppPage()
-        } label: {
-            shortcutRow(label: "Launch fSnippet", shortcut: "⌃⇧⌘W")
+            // Issue108: ternary returns String → wrap LocalizedStringKey for translation
+            Label(LocalizedStringKey(isPaidMode ? "About fSnippet" : "About fSnippetCli"), systemImage: "info.circle")
         }
 
         Divider()
@@ -42,119 +31,144 @@ struct MenuBarView: View {
             NotificationCenter.default.post(
                 name: NSNotification.Name("fSnippetShowPopup"), object: nil)
         } label: {
-            shortcutRow(label: "Snippet Popup", shortcut: "⌃⇧Space")
+            Label("⚡ Snippet Popup", systemImage: "bolt.fill")
         }
+        .keyboardShortcut(KeyEquivalent(" "), modifiers: [.control, .shift])
 
         Button {
             HistoryViewerManager.shared.show()
         } label: {
-            shortcutRow(label: "Show History", shortcut: "⌘;")
+            Label("📋 Show Clipboard History", systemImage: "clock.arrow.circlepath")
         }
+        .keyboardShortcut(";", modifiers: .command)
 
         // ─── 📜 Clipboard submenu ───
-        Menu("📜 Clipboard") {
+        Menu {
             Button {
                 togglePauseAction()
             } label: {
-                shortcutRow(
-                    label: isPaused ? "Resume" : "Pause",
-                    shortcut: "⌃⌥⌘P")
+                // Issue108: ternary → LocalizedStringKey wrap
+                Label(
+                    LocalizedStringKey(isPaused ? "Resume" : "Pause"),
+                    systemImage: isPaused ? "play.fill" : "pause.fill")
             }
+            .keyboardShortcut("p", modifiers: [.control, .option, .command])
 
-            // Issue84 — Register Snippet (UI wired; backend deferred)
+            // Issue84 — Clipboard to Snippet (UI wired; backend deferred)
             Button {
                 registerSnippetAction()
             } label: {
-                shortcutRow(
-                    label: "Register Snippet",
-                    shortcut: registerSnippetShortcutLabel())
-            }
-
-            Button("Clear Clipboard History") {
-                clearClipboardHistory()
-            }
-        }
-
-        // ─── 👻 Daemon submenu ───
-        Menu("👻 Daemon") {
-            Button("Reload Snippets") {
-                reloadSnippets()
+                Label("Clipboard to Snippet", systemImage: "text.badge.plus")
             }
 
             Button {
-                PaidAppDetector.launch()
+                clearClipboardHistory()
             } label: {
-                shortcutRow(label: "Open Main Window", shortcut: "⌃⇧⌘W")
+                Label("Clear Clipboard History", systemImage: "trash")
             }
-
-            Text(statusLine)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .onReceive(statusTimer) { _ in
-                    statusLine = formatStatusLine()
-                }
-                .onAppear {
-                    statusLine = formatStatusLine()
-                }
-
-            Button("Restart Daemon") {
-                restartDaemon()
-            }
+        } label: {
+            Label("📜 Clipboard", systemImage: "doc.on.clipboard")
         }
 
-        // ─── Settings ───
+        // ─── 🔧 Open Settings Window ───
         Button {
-            PaidAppDetector.openSettings()
+            // Issue105: 단축키와 동일하게 cliApp 자체 설정창 열기 (paidApp 분기 제거)
+            SettingsWindowManager.shared.toggleSettings()
         } label: {
-            shortcutRow(label: "Settings...", shortcut: "⌃⇧⌘;")
+            Label("🔧 Open Settings Window", systemImage: "gear")
+        }
+        .keyboardShortcut(";", modifiers: [.control, .shift, .command])
+
+        Divider()
+
+        // ─── 👻 Daemon submenu ───
+        Menu {
+            Button {
+                reloadSnippets()
+            } label: {
+                Label("Reload Snippets", systemImage: "arrow.clockwise")
+            }
+
+            Button {
+                restartDaemon()
+            } label: {
+                Label("Restart Daemon", systemImage: "arrow.triangle.2.circlepath")
+            }
+
+            Button {
+                pauseResumeAPIAction()
+            } label: {
+                // Issue108: ternary → LocalizedStringKey wrap
+                Label(
+                    LocalizedStringKey(isApiPaused ? "Resume REST API" : "Pause REST API"),
+                    systemImage: isApiPaused ? "play.circle" : "pause.circle")
+            }
+        } label: {
+            Label("👻 Daemon", systemImage: "terminal")
         }
 
         // ─── ⚙️ Configuration submenu ───
-        Menu("⚙️ Configuration") {
-            Button("Open Config File") { openConfigFile() }
-            Button("Open Data Folder") { openDataFolder() }
-            Button("Open Log Folder") { openLogDirectory() }
+        Menu {
+            Button { openConfigFile() } label: {
+                Label("Open Config File", systemImage: "doc.text")
+            }
+            Button { openSnippetFolder() } label: {
+                Label("Open Snippet Folder", systemImage: "folder.badge.gearshape")
+            }
+            Button { openDataFolder() } label: {
+                Label("Open Data Folder", systemImage: "folder")
+            }
+            Button { openLogDirectory() } label: {
+                Label("Open Log Folder", systemImage: "doc.text.magnifyingglass")
+            }
+        } label: {
+            Label("⚙️ Configuration", systemImage: "slider.horizontal.3")
+        }
+
+        // ─── Launch at Login ───
+        Toggle(isOn: $launchAtLoginEnabled) {
+            Label("🚀 Launch at Login", systemImage: "rocket")
+        }
+        .onChange(of: launchAtLoginEnabled) { _, newValue in
+            handleLaunchAtLoginToggle(newValue)
         }
 
         Divider()
 
-        // ─── Launch at Login (Phase 6 stub — brew services binding to be added) ───
-        Toggle("Launch at Login", isOn: $launchAtLoginEnabled)
-            .onChange(of: launchAtLoginEnabled) { _, newValue in
-                handleLaunchAtLoginToggle(newValue)
+        // ─── Quit (Issue106: paidApp 활성 시 분리 노출) ───
+        // - paidApp 활성: `Quit fSnippet ⌘Q` (paidApp 단독) + `Quit All` (단축키 없음)
+        // - paidApp 비활성: `Quit All` 단일, 단축키 없음
+        if isPaidMode {
+            Button {
+                PaidAppManager.shared.terminatePaidApp()
+            } label: {
+                Label("Quit fSnippet", systemImage: "power")
             }
+            .keyboardShortcut("q")
 
-        // ─── Quit ───
-        Button {
-            NSApplication.shared.terminate(nil)
-        } label: {
-            Label("Quit", systemImage: "power")
-        }
-        .keyboardShortcut("q")
-    }
-
-    // MARK: - Shortcut Label Helper
-
-    /// Renders a label-only shortcut (no SwiftUI keyboardShortcut binding).
-    /// Global hotkey registration is owned solely by `ShortcutMgr` (Issue82 Phase1 SSOT).
-    private func shortcutRow(label: String, shortcut: String) -> some View {
-        HStack {
-            Text(label)
-            Spacer()
-            Text(shortcut).foregroundStyle(.secondary)
+            Button {
+                NSApplication.shared.terminate(nil)
+            } label: {
+                Label("Quit All", systemImage: "power")
+            }
+        } else {
+            Button {
+                NSApplication.shared.terminate(nil)
+            } label: {
+                Label("Quit All", systemImage: "power")
+            }
         }
     }
 
     // MARK: - Actions
 
-    private func launchOrOpenPaidAppPage() {
-        if PaidAppDetector.installedURL() != nil {
-            PaidAppDetector.launch()
+    private func pauseResumeAPIAction() {
+        if APIServer.shared.isApiPaused {
+            APIServer.shared.resumeAPI()
         } else {
-            if let url = URL(string: "https://finfra.kr/fSnippet") {
-                NSWorkspace.shared.open(url)
-            }
+            APIServer.shared.pauseAPI()
         }
+        isApiPaused = APIServer.shared.isApiPaused
     }
 
     private func togglePauseAction() {
@@ -180,11 +194,6 @@ struct MenuBarView: View {
             iconName: "hammer")
     }
 
-    private func registerSnippetShortcutLabel() -> String {
-        let key = PreferencesManager.shared.string(forKey: "history.registerSnippet.hotkey")
-        return key
-    }
-
     private func reloadSnippets() {
         let basePath = PreferencesManager.shared.string(
             forKey: "snippet_base_path",
@@ -192,22 +201,6 @@ struct MenuBarView: View {
         SnippetIndexManager.shared.rebuildIndex(basePath: basePath) { count in
             NSLog("[MenuBar] Snippets reloaded: \(count) entries")
         }
-    }
-
-    private func formatStatusLine() -> String {
-        let uptime = Date().timeIntervalSince(appLaunchTime)
-        let formatted = formatUptime(uptime)
-        return "Status: Running · Port 3015 · Uptime \(formatted)"
-    }
-
-    private func formatUptime(_ seconds: TimeInterval) -> String {
-        let s = Int(seconds)
-        let h = s / 3600
-        let m = (s % 3600) / 60
-        let sec = s % 60
-        if h > 0 { return "\(h)h \(m)m" }
-        if m > 0 { return "\(m)m \(sec)s" }
-        return "\(sec)s"
     }
 
     private func restartDaemon() {
@@ -247,7 +240,8 @@ struct MenuBarView: View {
 
     private static func showRestartFailure(reason: String) {
         let alert = NSAlert()
-        alert.messageText = "Restart Daemon Failed"
+        // Issue108: NSAlert messageText is plain String → use NSLocalizedString
+        alert.messageText = NSLocalizedString("Restart Daemon Failed", comment: "Alert title when brew services restart fails")
         alert.informativeText = reason
         alert.alertStyle = .warning
         alert.runModal()
@@ -270,6 +264,29 @@ struct MenuBarView: View {
         } else {
             NSLog("Config file not found: \(url.path)")
         }
+    }
+
+    private func openSnippetFolder() {
+        let basePath = PreferencesManager.shared.string(
+            forKey: "snippet_base_path",
+            defaultValue: "~/Documents/finfra/fSnippetData/snippets")
+        let url = Self.resolveSnippetURL(basePath)
+        if FileManager.default.fileExists(atPath: url.path) {
+            NSWorkspace.shared.open(url)
+        } else {
+            NSLog("Snippet folder not found: \(url.path)")
+        }
+    }
+
+    // Resolves snippet_base_path against the data root directory when the path
+    // is relative (e.g. "./snippets"). Tilde paths and absolute paths pass through.
+    static func resolveSnippetURL(_ basePath: String) -> URL {
+        let dataRoot = PreferencesManager.shared.configURL.deletingLastPathComponent()
+        let expanded = (basePath as NSString).expandingTildeInPath
+        if expanded.hasPrefix("/") {
+            return URL(fileURLWithPath: expanded)
+        }
+        return URL(fileURLWithPath: expanded, relativeTo: dataRoot).standardizedFileURL
     }
 
     private func openDataFolder() {

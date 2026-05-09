@@ -13,7 +13,7 @@ paidApp이 설치되어 있으면 자동 실행하고 메뉴바를 숨기며, pa
 * **fSnippet (paidApp)**: App Store 배포 Sandbox GUI 앱
 * **관계**: cliApp은 독립 실행 가능하되, paidApp 설치 시 GUI 기능을 위임함
 
-> **상위 설계 문서**: 본 문서는 cliApp 측 구현 세부 SSOT. 2-앱 협업 아키텍처 전반(6대 시나리오, 역할 분담, Status 표)은 메인 레포의 [`../../../_doc_design/fSnippetCli_design.md`](../../../_doc_design/fSnippetCli_design.md) 참조. 특히 §3.1(설치 감지 공통 API)은 본 문서 1.1~1.4절을 상위 관점에서 요약하고 있으므로 상호 참조.
+> **상위 설계 문서**: 본 문서는 cliApp 측 구현 세부 SSOT. 2-앱 협업 아키텍처 전반(9개 협업 시나리오, 역할 분담, Status 표, 라이프사이클·메뉴바·기동 오케스트레이션)은 메인 레포의 [`../../../_doc_design/paid_cli_protocol.md`](../../../_doc_design/paid_cli_protocol.md) 참조 (Issue853, 2026-05-04 통합). 특히 §2.1(설치 감지 공통 API)은 본 문서 1.1~1.4절을 상위 관점에서 요약하고 있으므로 상호 참조.
 >
 > **갱신 이력 (2026-04-20)**: Issue826 Phase A (paidApp 라이프사이클 REST) + Issue828 Phase C (showMenuBar 제거 → 메뉴바 상시 표시 + 동적 아이콘) 반영 완료. 이전 `showMenuBar` 토글 설계는 삭제됨.
 
