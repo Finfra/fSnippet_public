@@ -14,6 +14,10 @@ cli/_doc_work/
 Issue.md
 noteForHuman.md
 
+# 도구 로컬 캐시 (활용 안 함, 자동 생성 차단)
+.context/
+.rtk/
+
 # macOS
 .DS_Store
 .AppleDouble
