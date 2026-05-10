@@ -248,7 +248,7 @@ class APIRouter {
       return handleCreateFolder(request: request)
     case ("DELETE", _) where decodedPath.hasPrefix("/api/v2/folders/"):
       let name = String(decodedPath.dropFirst("/api/v2/folders/".count))
-      return handleDeleteFolder(name: name.removingPercentEncoding ?? name)
+      return handleDeleteFolder(name: name.removingPercentEncoding ?? name, request: request)
     case ("GET", _) where decodedPath.hasPrefix("/api/v2/folders/"):
       let name = String(decodedPath.dropFirst("/api/v2/folders/".count))
       return handleGetFolderDetail(name: name.removingPercentEncoding ?? name, request: request)
@@ -2067,8 +2067,9 @@ class APIRouter {
     }
   }
 
-  /// DELETE /api/v2/folders/{name} — 스니펫 폴더 삭제
-  private func handleDeleteFolder(name: String) -> APIServer.HTTPResponse {
+  /// DELETE /api/v2/folders/{name}?force=true — 스니펫 폴더 삭제
+  /// force=true: 내부 스니펫 포함 삭제 (cascade). force=false(기본): 빈 폴더만 삭제.
+  private func handleDeleteFolder(name: String, request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
     let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmedName.isEmpty else {
       return errorResponse(code: "INVALID_REQUEST", message: "폴더명이 비어있음", statusCode: 400)
@@ -2085,21 +2086,23 @@ class APIRouter {
       return errorResponse(code: "NOT_FOUND", message: "폴더를 찾을 수 없음: \(trimmedName)", statusCode: 404)
     }
 
+    let force = request.query["force"] == "true"
+
     // 폴더 내 파일 수 확인
     let contents = (try? FileManager.default.contentsOfDirectory(atPath: folderURL.path)) ?? []
     let snippetFiles = contents.filter { !$0.hasPrefix(".") && !$0.hasPrefix("_") }
 
-    if !snippetFiles.isEmpty {
+    if !snippetFiles.isEmpty && !force {
       return errorResponse(
         code: "FOLDER_NOT_EMPTY",
-        message: "폴더에 \(snippetFiles.count)개의 파일이 있음. 비어있는 폴더만 삭제 가능",
+        message: "폴더에 \(snippetFiles.count)개의 파일이 있음. force=true 파라미터로 강제 삭제 가능",
         statusCode: 409
       )
     }
 
     do {
       try FileManager.default.removeItem(at: folderURL)
-      logI("🌐 폴더 삭제 완료: \(trimmedName)")
+      logI("🌐 폴더 삭제 완료: \(trimmedName) (snippets: \(snippetFiles.count), force: \(force))")
 
       // 스니펫 인덱스 리로드
       SnippetFileManager.shared.loadAllSnippets(reason: "API/deleteFolder", force: true)
