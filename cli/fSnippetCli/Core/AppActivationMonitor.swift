@@ -247,10 +247,6 @@ class AppActivationMonitor {
             if lastWindowID != currentWindowID {
                 if lastPID == currentPID {
                     // 같은 앱 내에서 윈도우만 변경됨
-                    logI(
-                        "👋 🪟 [AppActivationMonitor] 윈도우 전환 감지: ID(\(lastWindowID ?? 0) -> \(currentWindowID)) (PID: \(currentPID))"
-                    )
-
                     // Notification 발송 (KeyEventMonitor 버퍼 클리어용)
                     NotificationCenter.default.post(name: .didChangeActiveWindow, object: nil)
                 }
