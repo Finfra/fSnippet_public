@@ -145,6 +145,7 @@
 		F1510F94FAC2C5AC9986E561 /* StatsCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 407B0655339D9E14F7345941 /* StatsCommand.swift */; };
 		F228CA07EB8BF021511B8BD9 /* PaidAppStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6493A488147AF375C044ADBB /* PaidAppStateStore.swift */; };
 		F27D9138EDF276295B44BA3D /* MenuBarManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E17E3A2DE24ABDB9D44DC7F7 /* MenuBarManager.swift */; };
+		F35C3D925E0ECB85ED6693F6 /* KeyCaptureManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B68B4AE9CA9C907B5D3219D5 /* KeyCaptureManager.swift */; };
 		F44420D26BBF7C8412E08353 /* WindowContextManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5C4C51C3DC533E5E7952F12 /* WindowContextManager.swift */; };
 		F906327C9348F6FA44E1DDCB /* HistoryPreviewManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 191F41B83FE93946E1786015 /* HistoryPreviewManager.swift */; };
 		FA57CF2BBCAB6FFA829563CE /* APIRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7804F97D92EF402565B92E1D /* APIRouter.swift */; };
@@ -257,6 +258,7 @@
 		ACB675EF49A8CE722FED1D7C /* KeyEventHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyEventHandler.swift; sourceTree = "<group>"; };
 		ACF2B6605E6B4FF5F14C48D4 /* UnifiedHistoryViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedHistoryViewer.swift; sourceTree = "<group>"; };
 		B5A8814D92B15C9AAA83CD52 /* KeyEventMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyEventMonitor.swift; sourceTree = "<group>"; };
+		B68B4AE9CA9C907B5D3219D5 /* KeyCaptureManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyCaptureManager.swift; sourceTree = "<group>"; };
 		B6D4AC4945EBB15FEED4AF03 /* ImageDetailWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageDetailWindow.swift; sourceTree = "<group>"; };
 		B9349830613352652B062660 /* HistoryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryViewModel.swift; sourceTree = "<group>"; };
 		B995D91929FE8FABD637E6F3 /* ToastManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastManager.swift; sourceTree = "<group>"; };
@@ -445,6 +447,7 @@
 				3ECD1786CFA3BFE603236D11 /* HistoryViewerManager.swift */,
 				C79CAF04EEB2F6F13AC88A07 /* ImageDetailManager.swift */,
 				49DA528D5DDE1AFED377ABAF /* InputSourceManager.swift */,
+				B68B4AE9CA9C907B5D3219D5 /* KeyCaptureManager.swift */,
 				D7F9E20F9DB4BC1F2B7AED6D /* KeyRenderingManager.swift */,
 				E17E3A2DE24ABDB9D44DC7F7 /* MenuBarManager.swift */,
 				25156CDA4065D94285A9F35A /* NotificationManager.swift */,
@@ -648,7 +651,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 2640;
+				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					7DAC764A90BE3685455B6384 = {
 						DevelopmentTeam = BZDZFZWF6K;
@@ -767,6 +770,7 @@
 				C95D00B7AC262A5F03FCC512 /* ImportCommand.swift in Sources */,
 				BF230BE861B209F301165767 /* InputSourceManager.swift in Sources */,
 				BAB68A3F7DA0F00DD705D4B1 /* InstantTooltipModifier.swift in Sources */,
+				F35C3D925E0ECB85ED6693F6 /* KeyCaptureManager.swift in Sources */,
 				128C19D586BB193A5787CC44 /* KeyEventDataExtractor.swift in Sources */,
 				D1C5D840BB545A040A305368 /* KeyEventHandler.swift in Sources */,
 				B6E6F497D652472CF6478A61 /* KeyEventInfo.swift in Sources */,
@@ -865,9 +869,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_IDENTITY = "";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				COMBINE_HIDPI_IMAGES = YES;
-				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -887,7 +889,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = fSnippetCli/fSnippetCli.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = fSnippetCli/Info.plist;
@@ -895,7 +896,6 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = kr.finfra.fSnippetCli;
 				SDKROOT = macosx;
 			};
@@ -905,7 +905,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -937,12 +936,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = BZDZFZWF6K;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -957,7 +954,6 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = fSnippetCli;
 				SDKROOT = macosx;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
@@ -970,7 +966,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = fSnippetCli/fSnippetCli.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = fSnippetCli/Info.plist;
@@ -978,7 +973,6 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = kr.finfra.fSnippetCli;
 				SDKROOT = macosx;
 			};
@@ -988,7 +982,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -1020,12 +1013,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = BZDZFZWF6K;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -1047,7 +1038,6 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = fSnippetCli;
 				SDKROOT = macosx;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -1059,9 +1049,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_IDENTITY = "";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				COMBINE_HIDPI_IMAGES = YES;
-				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

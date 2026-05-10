@@ -197,6 +197,19 @@ class CGEventTapManager {
             return Unmanaged.passUnretained(event)
         }
 
+        // Issue863: key-capture mode — consume the event for REST API session
+        if type == .keyDown || type == .flagsChanged {
+            if let nsEv = NSEvent(cgEvent: event) {
+                let displayStr = nsEv.charactersIgnoringModifiers ?? ""
+                let nsMods = nsEv.modifierFlags.rawValue
+                if KeyCaptureManager.shared.captureKeyIfActive(
+                    keyCode: keyCode, nsModifiers: nsMods, displayString: displayStr)
+                {
+                    return nil
+                }
+            }
+        }
+
         // Pass through 확인 (Passthrough Check)
         if delegate.isAppActive() {
             if AboutWindowManager.shared.isAboutWindowVisible {

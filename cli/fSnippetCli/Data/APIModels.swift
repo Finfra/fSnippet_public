@@ -707,3 +707,22 @@ struct ShutdownResponse: Codable {
   let accepted: Bool
   let message: String
 }
+
+// MARK: - Key Capture (Issue863)
+
+// Response for POST /api/v2/key-capture/start and DELETE /api/v2/key-capture/stop.
+struct KeyCaptureSimpleResponse: Codable {
+  let ok: Bool
+  let status: String
+}
+
+// Response for GET /api/v2/key-capture/result.
+// status: "idle" | "pending" | "captured"
+// keyCode, modifiers, displayString: present only when status == "captured"
+struct KeyCaptureResultResponse: Codable {
+  let ok: Bool
+  let status: String
+  let keyCode: Int?
+  let modifiers: UInt?
+  let displayString: String?
+}

@@ -45,7 +45,7 @@ tags:
   - name: Stats
     description: 스니펫 사용 통계
   - name: Triggers
-    description: 트리거 키 조회
+    description: 트리거 키 조회 / 키 캡처 세션 (Issue863)
   - name: CLI
     description: fSnippetCli 앱 관리 (상태/버전/종료)
   - name: Reload
@@ -1643,6 +1643,83 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TriggerResponse'
+
+  /key-capture/start:
+    post:
+      summary: Start key-capture session
+      description: |
+        Begins a one-shot key-capture session in cliApp.
+        cliApp intercepts the next key event via CGEventTap and stores it.
+        Poll `/key-capture/result` at ~500 ms intervals until status is `captured` or `idle`.
+        Added in Issue863: paidApp (Sandboxed) cannot create CGEventTap directly.
+      operationId: startKeyCapture
+      tags:
+        - Triggers
+      responses:
+        '200':
+          description: Capture session started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  status: { type: string, enum: [pending] }
+              example:
+                ok: true
+                status: pending
+
+  /key-capture/result:
+    get:
+      summary: Get key-capture result
+      description: |
+        Returns the current capture state.
+        - `pending`: waiting for a key press
+        - `captured`: key was captured (see keyCode/modifiers/displayString)
+        - `idle`: session not active or timed out (30 s)
+      operationId: getKeyCaptureResult
+      tags:
+        - Triggers
+      responses:
+        '200':
+          description: Capture state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  status: { type: string, enum: [idle, pending, captured] }
+                  keyCode: { type: integer, description: Hardware key code (present when captured) }
+                  modifiers: { type: integer, description: CGEventFlags raw value (present when captured) }
+                  displayString: { type: string, description: Characters ignoring modifiers (present when captured) }
+              example:
+                ok: true
+                status: captured
+                keyCode: 60
+                modifiers: 0
+                displayString: ""
+
+  /key-capture/stop:
+    delete:
+      summary: Stop key-capture session
+      description: Cancels an active capture session. Safe to call if no session is active.
+      operationId: stopKeyCapture
+      tags:
+        - Triggers
+      responses:
+        '200':
+          description: Session stopped
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  status: { type: string, enum: [idle] }
+              example:
+                ok: true
+                status: idle
 
   /status:
     get:

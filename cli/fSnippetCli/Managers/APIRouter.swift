@@ -263,6 +263,14 @@ class APIRouter {
     case ("GET", "/api/v2/triggers"):
       return handleGetTriggers()
 
+    // Key capture (Issue863): delegate CGEventTap key recording from paidApp to cliApp
+    case ("POST", "/api/v2/key-capture/start"):
+      return handleKeyCaptureStart()
+    case ("GET", "/api/v2/key-capture/result"):
+      return handleKeyCaptureResult()
+    case ("DELETE", "/api/v2/key-capture/stop"):
+      return handleKeyCaptureStop()
+
     // Health (Issue92): v2-prefixed health check for ops monitoring
     case ("GET", "/api/v2/status"):
       return handleV2Status(server: server)
@@ -1662,6 +1670,40 @@ class APIRouter {
       ok: true,
       data: APITriggerData(defaultTrigger: defaultTrigger, active: active)
     ))
+  }
+
+  // MARK: - Key Capture (Issue863)
+
+  // POST /api/v2/key-capture/start
+  // Begins a one-shot key-capture session. cliApp captures the next key event via CGEventTap.
+  private func handleKeyCaptureStart() -> APIServer.HTTPResponse {
+    KeyCaptureManager.shared.startCapture()
+    return jsonResponse(KeyCaptureSimpleResponse(ok: true, status: "pending"))
+  }
+
+  // GET /api/v2/key-capture/result
+  // Returns the capture state: idle | pending | captured.
+  // Poll at ~500 ms until status != "pending".
+  private func handleKeyCaptureResult() -> APIServer.HTTPResponse {
+    let r = KeyCaptureManager.shared.result
+    let status = r["status"] as? String ?? "idle"
+    let keyCode = r["keyCode"] as? Int
+    let modifiers = r["modifiers"] as? UInt
+    let displayString = r["displayString"] as? String
+    return jsonResponse(KeyCaptureResultResponse(
+      ok: true,
+      status: status,
+      keyCode: keyCode,
+      modifiers: modifiers,
+      displayString: displayString
+    ))
+  }
+
+  // DELETE /api/v2/key-capture/stop
+  // Cancels an active capture session.
+  private func handleKeyCaptureStop() -> APIServer.HTTPResponse {
+    KeyCaptureManager.shared.stopCapture()
+    return jsonResponse(KeyCaptureSimpleResponse(ok: true, status: "idle"))
   }
 
   // MARK: - Settings
