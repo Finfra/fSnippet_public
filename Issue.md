@@ -8,6 +8,7 @@ date: 2026-04-07
 
 * Issue HWM: 117
 * Save Point :
+      - 2026.05.10: 7ee74e9 (Fix(Issue117): Accessibility 권한 런타임 박탈 시 시스템 슬로다운 차단 — 양방향 모니터 + 자체 종료)
       - 2026.05.10: 336f33a (Fix(Issue112,113): Settings 라우팅 — 동의 기반 자동 기동 + foreground 보장)
       - 2026.05.08: 7e8b5e9 (Fix(Issue111): cliApp Settings 단축키 LaunchServices 캐시 우회)
 
@@ -20,30 +21,6 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue117: [Critical/Bug] Accessibility 권한 런타임 박탈 시 시스템 슬로다운 — 감지·알림·종료 절차 도입 (등록: 2026-05-10)
-* 목적: 사용자가 시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용에서 fSnippetCli.app을 제거(권한 박탈)하면 시스템 전체가 급격히 느려지는 회귀를 차단. 권한 박탈 즉시 사용자에게 NSAlert로 안내하고 앱을 종료(self-quit)하도록 정책 변경.
-* 근본 원인:
-    - 현재 [`fSnippetCliApp.swift:259`](cli/fSnippetCli/fSnippetCliApp.swift#L259) `checkAccessibilityPermission()`은 **앱 시작 시 1회만** 검사함. 미승인 시 5초 주기 부여 감지 폴링(`startAccessibilityPolling()`, 최대 10분)만 가동 — **권한 박탈 시점은 감지 경로 없음**.
-    - 권한 박탈 시 `CGEventTap`이 비활성화되며 `handleTapDisabled` 콜백이 폭주. [`CGEventTapManager.swift:130-166`](cli/fSnippetCli/Core/CGEventTapManager.swift#L130-L166)의 backoff(0.1×N → cooldown 후 재귀 재시도)가 무한히 반복되어 메인 큐를 점유, 시스템 전반의 입력/렌더링 지연 유발.
-    - 결과: 사용자는 원인을 모르는 채 시스템이 굳는 현상을 경험.
-* 구현 명세:
-    - **런타임 모니터**: `AppDelegate.applicationDidFinishLaunching`에서 권한 승인이 확인된 직후 5초 주기 `Timer`(또는 `DispatchSourceTimer`)로 `AXIsProcessTrusted()` 폴링. `wasGranted == true && nowGranted == false` 전이를 감지하면 박탈 핸들러 호출.
-    - **박탈 핸들러**: `showAccessibilityRevokedAlertAndQuit()`
-        1. `keyEventMonitor?.stopMonitoring()` + `keyEventMonitor?.cleanup()`로 CGEventTap 완전 해제 (재시도 루프 차단)
-        2. NSAlert 표시: 제목 = "Accessibility 권한이 해제되었습니다", 본문 = "fSnippetCli는 키보드 입력 모니터링을 위해 Accessibility 권한이 필요합니다. 권한이 해제되어 앱을 종료합니다. 시스템 설정에서 다시 권한을 부여한 후 앱을 재실행하세요." + [시스템 설정 열기] [확인]
-        3. 응답과 무관하게 `NSApplication.shared.terminate(nil)` — 시스템 설정 버튼 클릭 시에만 deep link 후 종료
-    - **시작 시 정책 통합**: `checkAccessibilityPermission()`이 권한 미승인을 감지한 경우의 동작도 검토 — 현재 폴링 유지 정책은 그대로 두되, 권한 부여 후 박탈 시점부터는 박탈 핸들러로 일원화.
-    - **다국어**: NSLocalizedString 키 `Accessibility Permission Revoked`, `Accessibility permission for fSnippetCli has been revoked. ...`, `Open System Settings`, `Quit` 추가 (`ko.lproj/Localizable.strings`).
-    - **로깅**: 박탈 감지 시 `logE("🛑 Accessibility 권한 박탈 감지 — 앱 종료 절차 진입")`. 종료 직전 `logI("🛑 자체 종료 호출")`.
-    - **회귀 방지**: 폴링 인터벌(5초)은 권한 부여 폴링과 동일 → 단일 Timer로 통합 가능. 통합 시 `if granted { handleGrant() } else if wasGranted { handleRevoke() }` 분기.
-* 검증:
-    - 시나리오: 앱 정상 실행 → 시스템 설정에서 fSnippetCli 권한 토글 OFF → 5~10초 내 NSAlert 표시 + 앱 종료 + 시스템 슬로다운 미발생 확인
-    - 회귀: 권한 부여 상태에서 일반 사용 시 폴링이 부수 효과 없음 확인 (성능 로그)
-    - 빌드: `/build` Release 통과
-* 수정 파일:
-    - `cli/fSnippetCli/fSnippetCliApp.swift` — Timer 통합 + 박탈 핸들러 추가
-    - `cli/fSnippetCli/ko.lproj/Localizable.strings` — 다국어 키 추가
-
 # 📕 중요
 
 # 📙 일반
@@ -51,6 +28,29 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue117: [Critical/Bug] Accessibility 권한 런타임 박탈 시 시스템 슬로다운 — 감지·알림·종료 절차 도입 (등록: 2026-05-10, 완료: 2026-05-10) (Hash: 7ee74e9)
+* 목적: 시스템 설정에서 fSnippetCli.app의 접근성 권한을 박탈하면 `CGEventTap` 재시도 루프(`handleTapDisabled` backoff)가 메인 큐를 점유하여 시스템 전반이 급격히 느려지던 회귀를 차단. 박탈 즉시 NSAlert로 안내 후 앱 자체 종료.
+* 근본 원인:
+    - 기존 `checkAccessibilityPermission()`은 시작 시 1회 검사 + grant-only 폴링(`startAccessibilityPolling`, 최대 10분)만 가동 — **revoke 전이 감지 경로 부재**
+    - 권한 박탈 → CGEventTap 비활성화 → `handleTapDisabled` 재시도 루프(0.1×N backoff → cooldown 후 재귀 재시도)가 무한 반복 → 메인 큐 점유 → 시스템 입력/렌더링 지연
+* 해결:
+    - `accessibilityPollingTimer` (grant-only) → `accessibilityMonitorTimer` (양방향)으로 통합
+    - `lastAccessibilityTrusted` 상태 추적 → grant(`false→true`)·revoke(`true→false`) 전이 모두 감지
+    - 시작 상태(승인/미승인)와 무관하게 모니터 가동
+    - 신규 `handleAccessibilityRevoked()`:
+        1. `KeyEventMonitor.stopMonitoring()` + `cleanup()` → CGEventTap 재시도 루프 차단 (slowdown 방지의 핵심)
+        2. `NSAlert` 표시 (`.critical` 스타일, [시스템 설정 열기] [종료])
+        3. `NSApplication.shared.terminate(nil)` — 응답과 무관하게 자체 종료
+    - `ko.lproj/Localizable.strings`에 키 3개 추가 (`Accessibility Permission Revoked`, 본문, `Quit`)
+* 검증: Release 빌드 통과 (`** BUILD SUCCEEDED **`)
+* 수정 파일:
+    - `cli/fSnippetCli/fSnippetCliApp.swift`
+    - `cli/fSnippetCli/ko.lproj/Localizable.strings`
+* 부수 변경 (한 커밋 통합):
+    - `Managers/SettingsWindowManager.swift` — `SettingYmlLoader` 제거 (`_config.yml` SSOT 단일화)
+    - `Core/AppActivationMonitor.swift` — 윈도우 전환 verbose 로그 제거
+    - `cli/fSnippetCli.xcodeproj/` — Xcode 자동 권장 빌드 설정 업그레이드 (`DEAD_CODE_STRIPPING` 등)
 
 ## Issue116: [ShortcutMgr] 컨텍스트 hotkey 등록 거부 면제 (Issue115 페어) (등록: 2026-05-10, 완료: 2026-05-10) (Hash: d36c9d8)
 * 목적: Issue115에서 `ConfigMigration`은 컨텍스트 hotkey 정리 면제했으나, `ShortcutMgr.tryRegister()` 가 동일한 `ShortcutBlacklist.isReserved()` 검사로 등록을 별도 거부하던 문제 해결. YAML 보존 + 실제 hotkey 등록까지 정책 일관 적용.
