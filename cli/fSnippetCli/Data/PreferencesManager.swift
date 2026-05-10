@@ -291,8 +291,8 @@ class PreferencesManager: PreferencesManagerProtocol {
                     logW("⚙️ 🚀 [Preference] 설정에 snippet_trigger_key 누락! 기본값 사용.")
                 }
 
-                logV("⚙️ [Preference] 설정 로드 완료: \(path)")
-                logV("⚙️ [Preference] 설정 로드 완료 (\(configToLoad.count) keys)")
+                logI("⚙️ [Preference] 설정 로드 완료: \(path)")
+                logI("⚙️ [Preference] 설정 로드 완료 (\(configToLoad.count) keys)")
 
                 self._isConfigLoaded = true
 
