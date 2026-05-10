@@ -8,6 +8,7 @@ date: 2026-04-07
 
 * Issue HWM: 113
 * Save Point :
+      - 2026.05.10: 336f33a (Fix(Issue112,113): Settings 라우팅 — 동의 기반 자동 기동 + foreground 보장)
       - 2026.05.08: 7e8b5e9 (Fix(Issue111): cliApp Settings 단축키 LaunchServices 캐시 우회)
 
 
@@ -23,62 +24,32 @@ date: 2026-04-07
 
 # 📙 일반
 
-## Issue113: [cliApp] 메뉴바 Settings 클릭 시 paidApp 실행 및 설정창 foreground 표시 (등록: 2026-05-10)
-* 목적: cliApp 메뉴바의 "Settings" 클릭 시 paidApp을 실행하고 설정창을 foreground에 표시.
-* 배경:
-    - paidApp 실행 중에는 cliApp 메뉴바가 숨겨짐(`isInserted=false`) → paidApp 메뉴만 노출
-    - paidApp 미실행 시 cliApp 메뉴바가 복원 → cliApp 메뉴의 Settings가 유일한 설정 진입점
-    - 관련: 메인 레포 Issue855(paidApp 측 메뉴 클릭 foreground fix, cb8e492c)와 대칭
-* 상세:
-    - cliApp 메뉴바 "Settings" 클릭 시 처리 시나리오:
-        1. paidApp 미설치 → 설치 안내 표시 (기존 동작 유지)
-        2. paidApp 설치됨 + 미실행 → `NSWorkspace.shared.open(paidAppURL)` 후 설정창 표시
-        3. paidApp 실행 중 → REST(`POST /api/v2/open-settings` 등) 또는 NSWorkspace activate로 foreground 전환
-    - 현재 `MenuBarView.swift` 또는 `PaidAppManager.swift`의 Settings 액션 핸들러 동작 확인 필요
-* 구현 명세:
-    - `cli/fSnippetCli/Managers/PaidAppManager.swift` — Settings 라우팅 시나리오별 분기 확인/수정
-    - `.stopped` 상태: `launchPaidApp()` 후 paidApp이 register 완료되면 설정창 열기 신호 전달
-    - `.started` 상태: `NSWorkspace.shared.activate(paidAppPID)` + `openSettings()` REST 호출
-    - paidApp 측: REST `/api/v2/open-settings` 수신 시 `SettingsWindowManager.showSettings()` 호출 (또는 기존 URL Scheme 활용)
-* 참고:
-    - Issue112: paidApp `.stopped` 시 다이얼로그 제거 — 자동 기동 정책과 연계 검토
-    - 코드 위치: `cli/fSnippetCli/Managers/PaidAppManager.swift`, `cli/fSnippetCli/MenuBarView.swift`
-
-## Issue112: [정책/UX] paidApp .stopped 시 다이얼로그 제거 — 최초 1회 동의 후 자동 기동 (등록: 2026-05-10)
-* 목적: paidApp이 설치되어 있고 미실행(`.stopped`)인 상태에서 paid 전용 기능을 호출하면 매번 "fSnippet이 필요합니다" NSAlert가 뜨는 UX를 제거. cliApp 시작 시 자동 기동 정책(`paid_cli_protocol §4.2`)과 일관된 흐름으로 통합. 다만 자동 기동 거부 의사가 있는 사용자를 위해 **최초 1회 동의 메커니즘** 도입 — 사용자가 한 번 [열기]를 누르면 이후 다이얼로그 없이 즉시 실행.
-* 상세:
-    - 현재 분기: `cli/fSnippetCli/Managers/PaidAppManager.swift:125-135` `handlePaidFeature()`가 `.stopped` 시 `showRequirePaidAlert()` 호출 → 사용자 확인 후에만 paidApp 기동 (Issue70에서 의도적으로 도입)
-    - 사용자 요청: paidApp이 설치되어 있으면 다이얼로그 없이 바로 시작·열림
-    - 결정 정책: "최초 1회 동의 후 기억" — 첫 호출 시 다이얼로그를 표시하고 [열기] 클릭 시 UserDefaults 플래그 저장, 이후 자동 기동
-    - 동의 철회 경로(설정 화면 reset 등)는 후속 이슈에서 별도 검토
-* 구현 명세:
-    - **UserDefaults 키**: `paidApp.autoLaunchConsent` (Bool, 기본 false)
-    - **헬퍼 추가**: `PaidAppManager`에 `autoLaunchConsent` getter/setter 프로퍼티 (UserDefaults 래퍼)
-    - **`handlePaidFeature()` 분기 재작성**:
-        - `.started` → 기존 동일 (`PaidAppDetector.openSettings()`)
-        - `.stopped` + `autoLaunchConsent == true` → 다이얼로그 생략, `launchPaidApp()` 호출 후 일정 시간 대기(혹은 register 신호 대기) 후 `PaidAppDetector.openSettings()`
-        - `.stopped` + `autoLaunchConsent == false` → 기존 `showRequirePaidAlert()` 표시. [열기] 클릭 시 `autoLaunchConsent = true` 저장 후 `launchPaidApp()` + `openSettings()` 흐름
-        - `.notInstall` → 기존 동일 (`showPaidOnlyAlert()`)
-    - **로깅**: 자동 기동 경로 시 `🏷️ [PaidApp] 동의 기반 자동 기동` 정보 로그
-* 검증:
-    - 클린 환경(autoLaunchConsent 미설정) + paidApp 설치+종료 상태 → paid 기능 호출 → 다이얼로그 1회 표시 → [열기] → paidApp 기동 + Settings 열림 + UserDefaults 플래그 true 확인
-    - 두 번째 호출(같은 상태) → 다이얼로그 없이 즉시 paidApp 기동
-    - paidApp 종료 후 또 다시 paid 기능 호출 → 다이얼로그 없이 자동 기동
-    - paidApp 미설치 상태 → 기존 "Only support the paid version" 다이얼로그 정상 표시 (회귀 없음)
-    - Release 빌드 통과
-* 수정 파일:
-    - `cli/fSnippetCli/Managers/PaidAppManager.swift` (handlePaidFeature, showRequirePaidAlert, autoLaunchConsent 프로퍼티)
-* 영향 범위:
-    - 코드: 단일 파일 변경
-    - 설계 SSOT 동기화 필요: 메인 레포 `_doc_design/paid_cli_protocol.md` §1.2/§4.2 — "런타임 paid 기능 호출 시 .stopped 처리 = 최초 1회 동의 후 자동 기동" 정책 반영
-    - 로컬 SSOT: `cli/_doc_design/menuBar_enhance.md` Issue109 v1.3 표(Settings 라우팅 .stopped 행) 갱신 검토
-* 참고:
-    - 이전 이슈: Issue70(다이얼로그 도입), Issue110(handlePaidFeature 단일 진입점화)
-    - 코드 라인: `_public/cli/fSnippetCli/Managers/PaidAppManager.swift:125-155`
-
 # 📗 선택
 
 # ✅ 완료
+
+## Issue113: [cliApp] 메뉴바 Settings 클릭 시 paidApp 실행 및 설정창 foreground 표시 (등록: 2026-05-10, 완료: 2026-05-10) (Hash: 336f33a)
+* 목적: cliApp 메뉴바 "Settings" 클릭 시 paidApp 실행 + 설정창 foreground 보장. paid_cli_protocol §4.2 정렬.
+* 해결:
+    - `.started` → `activatePaidApp()` (`NSRunningApplication.activate(.activateIgnoringOtherApps)`) 선행 후 `PaidAppDetector.openSettings()`. URL Scheme 단독 라우팅으로는 paidApp이 hidden/background 상태일 때 foreground 보장이 약했음.
+    - `.stopped` → Issue112와 통합되어 `launchAndOpenSettings()` 호출. 백그라운드에서 `waitForPaidAppRegistration()` 폴링(PaidAppStateStore.status() 1차, isRunning() 2차, 최대 3s) → 메인 큐로 복귀하여 `activatePaidApp()` + `openSettings()` 순서 보장.
+    - `.notInstall` → 기존 `showPaidOnlyAlert()` 유지 (회귀 없음).
+* 검증: Release 빌드 통과 (`** BUILD SUCCEEDED **`).
+* 수정 파일: `cli/fSnippetCli/Managers/PaidAppManager.swift`
+* 영향: Issue112와 단일 커밋 통합 처리. 메인 레포 `_doc_design/paid_cli_protocol.md` §4.2 SSOT 갱신과 `cli/_doc_design/menuBar_enhance.md` Issue109 v1.3 표 갱신은 후속 이슈로 분리.
+
+## Issue112: [정책/UX] paidApp .stopped 시 다이얼로그 제거 — 최초 1회 동의 후 자동 기동 (등록: 2026-05-10, 완료: 2026-05-10) (Hash: 336f33a)
+* 목적: `.stopped` 상태에서 paid 기능 호출 시마다 표시되던 "fSnippet이 필요합니다" NSAlert를 1회 동의 후 자동 기동으로 전환. cliApp 시작 시 자동 기동 정책(paid_cli_protocol §4.2)과 일관된 UX 통합.
+* 해결:
+    - UserDefaults 키 `paidApp.autoLaunchConsent`(Bool, 기본 false) + `PaidAppManager.autoLaunchConsent` getter/setter 추가.
+    - `handlePaidFeature()` 분기 재작성:
+        - `.stopped` + `consent==false` → `showRequirePaidAlert()` 다이얼로그. [열기] 클릭 시 `consent=true` 영속 + `launchAndOpenSettings()` 진입.
+        - `.stopped` + `consent==true` → 다이얼로그 생략, 즉시 `launchAndOpenSettings()` (`🏷️ [PaidApp] 동의 기반 자동 기동` 로그).
+    - 다이얼로그 안내 문구에 "다음부터는 자동으로 실행됩니다" 명시 — 동의의 의미를 사용자에게 가시화.
+    - `launchAndOpenSettings()`는 Issue113과 통합되어 launch → register polling → activate + openSettings 흐름을 일원화.
+* 검증: Release 빌드 통과 (`** BUILD SUCCEEDED **`).
+* 수정 파일: `cli/fSnippetCli/Managers/PaidAppManager.swift`
+* 영향: 단일 파일 변경. 메인 레포 `_doc_design/paid_cli_protocol.md` §1.2/§4.2 SSOT 동기화 및 `cli/_doc_design/menuBar_enhance.md` Issue109 v1.3 표 갱신은 후속 이슈로 분리.
 
 ## Issue111: [Bug] cliApp Settings 단축키가 paidApp 설정창을 열지 못함 — URL Scheme이 LaunchServices 캐시로 죽은 앱에 라우팅 (등록: 2026-05-05, 완료: 2026-05-08) (Hash: 7e8b5e9)
 * 목적: paid_cli_protocol §3 (실행 상태 감지) register 정보를 활용하지 않고 LaunchServices 기본 라우팅에 전적으로 의존하여, URL Scheme 핸들러가 옛 Bundle ID(예: Time Machine 백업의 `com.finfra.fSnippetCli`)로 매핑된 사용자 환경에서 settings 단축키가 paidApp을 열지 못하는 회귀를 차단함. §3.2/§3.5 1차 채널(REST register `bundlePath`)을 활용하여 LaunchServices 캐시 오염을 우회.
