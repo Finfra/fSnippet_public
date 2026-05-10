@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 111
+* Issue HWM: 112
 * Save Point :
       - 2026.05.08: 7e8b5e9 (Fix(Issue111): cliApp Settings 단축키 LaunchServices 캐시 우회)
       - 2026.05.05: ef2d6d6 (Refactor(Issue110): handlePaidFeature를 AppStateManager.paidAppStatus 단일 진입점으로 통합)
@@ -30,6 +30,38 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
+
+## Issue112: [정책/UX] paidApp .stopped 시 다이얼로그 제거 — 최초 1회 동의 후 자동 기동 (등록: 2026-05-10)
+* 목적: paidApp이 설치되어 있고 미실행(`.stopped`)인 상태에서 paid 전용 기능을 호출하면 매번 "fSnippet이 필요합니다" NSAlert가 뜨는 UX를 제거. cliApp 시작 시 자동 기동 정책(`paid_cli_protocol §4.2`)과 일관된 흐름으로 통합. 다만 자동 기동 거부 의사가 있는 사용자를 위해 **최초 1회 동의 메커니즘** 도입 — 사용자가 한 번 [열기]를 누르면 이후 다이얼로그 없이 즉시 실행.
+* 상세:
+    - 현재 분기: `cli/fSnippetCli/Managers/PaidAppManager.swift:125-135` `handlePaidFeature()`가 `.stopped` 시 `showRequirePaidAlert()` 호출 → 사용자 확인 후에만 paidApp 기동 (Issue70에서 의도적으로 도입)
+    - 사용자 요청: paidApp이 설치되어 있으면 다이얼로그 없이 바로 시작·열림
+    - 결정 정책: "최초 1회 동의 후 기억" — 첫 호출 시 다이얼로그를 표시하고 [열기] 클릭 시 UserDefaults 플래그 저장, 이후 자동 기동
+    - 동의 철회 경로(설정 화면 reset 등)는 후속 이슈에서 별도 검토
+* 구현 명세:
+    - **UserDefaults 키**: `paidApp.autoLaunchConsent` (Bool, 기본 false)
+    - **헬퍼 추가**: `PaidAppManager`에 `autoLaunchConsent` getter/setter 프로퍼티 (UserDefaults 래퍼)
+    - **`handlePaidFeature()` 분기 재작성**:
+        - `.started` → 기존 동일 (`PaidAppDetector.openSettings()`)
+        - `.stopped` + `autoLaunchConsent == true` → 다이얼로그 생략, `launchPaidApp()` 호출 후 일정 시간 대기(혹은 register 신호 대기) 후 `PaidAppDetector.openSettings()`
+        - `.stopped` + `autoLaunchConsent == false` → 기존 `showRequirePaidAlert()` 표시. [열기] 클릭 시 `autoLaunchConsent = true` 저장 후 `launchPaidApp()` + `openSettings()` 흐름
+        - `.notInstall` → 기존 동일 (`showPaidOnlyAlert()`)
+    - **로깅**: 자동 기동 경로 시 `🏷️ [PaidApp] 동의 기반 자동 기동` 정보 로그
+* 검증:
+    - 클린 환경(autoLaunchConsent 미설정) + paidApp 설치+종료 상태 → paid 기능 호출 → 다이얼로그 1회 표시 → [열기] → paidApp 기동 + Settings 열림 + UserDefaults 플래그 true 확인
+    - 두 번째 호출(같은 상태) → 다이얼로그 없이 즉시 paidApp 기동
+    - paidApp 종료 후 또 다시 paid 기능 호출 → 다이얼로그 없이 자동 기동
+    - paidApp 미설치 상태 → 기존 "Only support the paid version" 다이얼로그 정상 표시 (회귀 없음)
+    - Release 빌드 통과
+* 수정 파일:
+    - `cli/fSnippetCli/Managers/PaidAppManager.swift` (handlePaidFeature, showRequirePaidAlert, autoLaunchConsent 프로퍼티)
+* 영향 범위:
+    - 코드: 단일 파일 변경
+    - 설계 SSOT 동기화 필요: 메인 레포 `_doc_design/paid_cli_protocol.md` §1.2/§4.2 — "런타임 paid 기능 호출 시 .stopped 처리 = 최초 1회 동의 후 자동 기동" 정책 반영
+    - 로컬 SSOT: `cli/_doc_design/menuBar_enhance.md` Issue109 v1.3 표(Settings 라우팅 .stopped 행) 갱신 검토
+* 참고:
+    - 이전 이슈: Issue70(다이얼로그 도입), Issue110(handlePaidFeature 단일 진입점화)
+    - 코드 라인: `_public/cli/fSnippetCli/Managers/PaidAppManager.swift:125-155`
 
 # 📗 선택
 
