@@ -20,35 +20,6 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue116: [ShortcutMgr] 컨텍스트 hotkey 등록 거부 면제 (Issue115 페어) (등록: 2026-05-10)
-* 목적: Issue115에서 `ConfigMigration`은 컨텍스트 hotkey(`history.registerSnippet.hotkey`, `history.preview.hotkey`)를 시스템 예약 정리에서 면제하도록 수정했으나, `ShortcutMgr.registerAppGlobalShortcuts()` 의 `tryRegister()` 가 같은 `ShortcutBlacklist.isReserved()` 검사로 등록을 별도 거부함. 결과: YAML 값은 보존되지만 실제 hotkey가 작동 안 함. ShortcutMgr 측도 동일 면제 처리 필요.
-* 상세:
-    - 재현 (paidApp 종료 + cliApp만 실행 상태):
-        1. `_config.yml` 에 `history.registerSnippet.hotkey: "{⌘S}"` 설정
-        2. cliApp 재시작 → YAML 보존 ✅ (ConfigMigration 면제 동작)
-        3. 그러나 로그: `⚠️ WARNING: 🚀 [ShortcutMgr] Issue90 차단: history.registerSnippet.hotkey 단축키 '{⌘S}' 는 macOS 표준 예약 (Save) — 등록 거부`
-        4. 결과: hotkey 등록 안 됨 → 클립보드 히스토리 뷰어 활성 시에도 ⌘S로 스니펫 등록 작동 안 함
-    - 글로벌 ⌘S(Save)와 충돌하지 않는 컨텍스트 hotkey이므로 등록 거부할 이유 없음 (Issue90 본래 의도는 글로벌 hotkey 보호)
-* 구현 명세:
-    - 대상 파일: `cli/fSnippetCli/Managers/ShortcutMgr.swift`
-    - 함수: `registerAppGlobalShortcuts()` 내부 `tryRegister(id:keySpec:description:source:)` (L364~)
-    - 변경: blacklist 검사를 `ConfigMigration.contextOnlyHotkeyKeys` 면제 로직과 동일하게 적용
-        ```swift
-        func tryRegister(id: String, keySpec: String, description: String, source: String) {
-            let isContextOnly = ConfigMigration.contextOnlyHotkeyKeys.contains(id)
-            if !isContextOnly && ShortcutBlacklist.isReserved(keySpec) {
-                // ... 차단 로그 + 거부
-                return
-            }
-            register(...)
-        }
-        ```
-    - **단일 진실 원천 활용**: `ConfigMigration.contextOnlyHotkeyKeys` 셋을 ShortcutMgr 가 재사용하여 정책 일관성 확보 (별도 셋 신설 금지)
-    - 검증:
-        1. `_config.yml` 에 `history.registerSnippet.hotkey: "{⌘S}"` 설정
-        2. cliApp 재시작 → YAML 보존 + ShortcutMgr 차단 로그 없음 + hotkey 등록 성공 (`총 등록된 단축키` 카운트 증가)
-        3. 클립보드 히스토리 뷰어 활성 시 ⌘S 입력 → 스니펫 등록 동작 확인
-
 # 📕 중요
 
 # 📙 일반
@@ -56,6 +27,20 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue116: [ShortcutMgr] 컨텍스트 hotkey 등록 거부 면제 (Issue115 페어) (등록: 2026-05-10, 완료: 2026-05-10) (Hash: d36c9d8)
+* 목적: Issue115에서 `ConfigMigration`은 컨텍스트 hotkey 정리 면제했으나, `ShortcutMgr.tryRegister()` 가 동일한 `ShortcutBlacklist.isReserved()` 검사로 등록을 별도 거부하던 문제 해결. YAML 보존 + 실제 hotkey 등록까지 정책 일관 적용.
+* 해결:
+    - `cli/fSnippetCli/Managers/ShortcutMgr.swift` `tryRegister()` 에 `ConfigMigration.contextOnlyHotkeyKeys` 면제 가드 추가
+    - **SSOT 활용**: 별도 셋 신설하지 않고 Issue115에서 만든 `ConfigMigration.contextOnlyHotkeyKeys` 를 재사용 → 정책 단일 진실 원천 보장
+* 검증:
+    - paidApp 종료 + cliApp 단독 실행 상태에서 `_config.yml` 에 `history.registerSnippet.hotkey: "{⌘S}"` 주입 후 재시작
+    - ConfigMigration 정리 로그 없음 (Issue115 ✅)
+    - **ShortcutMgr 차단 로그 없음** (Issue116 ✅)
+    - `🚀 총 등록된 단축키: 12개 "App Shortcuts (5) + ..."` — App Shortcuts 카운트 4 → 5 (registerSnippet 등록 성공)
+* 부가 발견:
+    - paidApp 측은 별도 경로(`SettingsManager.save()` + `PopupKeyShortcut.from(hotkeyString:)`)에서 동일 컨텍스트 hotkey 를 빈 값으로 덮어쓰는 문제가 잔존. 메인 fSnippet 레포 Issue864 로 등록되어 별도 추적 중.
+* 수정 파일: `cli/fSnippetCli/Managers/ShortcutMgr.swift`
 
 ## Issue115: [ConfigMigration] 컨텍스트 hotkey가 매 시작 시 빈 값으로 초기화되는 버그 (등록: 2026-05-10, 완료: 2026-05-10) (Hash: 3d236c3)
 * 목적: 사용자가 설정한 `history.registerSnippet.hotkey: "{⌘S}"` 값이 매 시작 시 `ConfigMigration.migrate()` 가 `ShortcutBlacklist`로 시스템 예약 매칭하여 빈 값으로 강제 정리되는 문제 해결.
