@@ -24,6 +24,15 @@ enum ConfigMigration {
         "snippet_popup_hotkey",
     ]
 
+    /// Issue115: Context-only hotkey keys (active only when a specific window is foreground).
+    /// These do NOT conflict with global system shortcuts (⌘S, ⌘C, etc.) because they fire
+    /// only inside dedicated views (e.g. clipboard history viewer). They MUST be exempted
+    /// from `ShortcutBlacklist` cleanup that targets global hotkeys.
+    static let contextOnlyHotkeyKeys: Set<String> = [
+        "history.registerSnippet.hotkey",  // active only inside Clipboard History viewer
+        "history.preview.hotkey",          // active only inside Clipboard History viewer
+    ]
+
     /// Issue95: 백업 파일 보존 개수 (가장 최근 N개만 유지)
     /// 새 백업이 생성된 직후 cleanup이 실행되므로, N=5면 새 1개 + 직전 4개가 보존됨
     static let backupKeepCount = 5
@@ -85,7 +94,11 @@ enum ConfigMigration {
             }
 
             // 2. 시스템 예약 매칭: 빈 값으로 정정 (라인은 보존하여 사용자 가시성 유지)
-            if !value.isEmpty && ShortcutBlacklist.isReserved(value) {
+            // Issue115: Context-only hotkeys are exempt — they fire inside dedicated views
+            // and do NOT collide with global system shortcuts.
+            if !contextOnlyHotkeyKeys.contains(key)
+                && !value.isEmpty && ShortcutBlacklist.isReserved(value)
+            {
                 let reason = ShortcutBlacklist.reason(for: value) ?? "System Reserved"
                 result.blacklisted.append(key)
                 logI(
