@@ -114,33 +114,101 @@ class PaidAppManager {
         return true
     }
 
+    // MARK: - 자동 기동 동의 (Issue112)
+
+    /// User consent flag — once true, .stopped routing skips the dialog and auto-launches.
+    /// Persisted via UserDefaults (key: paidApp.autoLaunchConsent).
+    private let autoLaunchConsentKey = "paidApp.autoLaunchConsent"
+
+    var autoLaunchConsent: Bool {
+        get { UserDefaults.standard.bool(forKey: autoLaunchConsentKey) }
+        set { UserDefaults.standard.set(newValue, forKey: autoLaunchConsentKey) }
+    }
+
+    // MARK: - foreground / launch helpers (Issue113)
+
+    /// Bring the running paidApp to the foreground.
+    /// URL Scheme alone does not guarantee activation when the app is hidden or in the background.
+    private func activatePaidApp() {
+        let apps = NSRunningApplication.runningApplications(withBundleIdentifier: paidBundleID)
+        if let app = apps.first {
+            app.activate(options: [.activateIgnoringOtherApps])
+            logI("🏷️ [PaidApp] activate (PID: \(app.processIdentifier))")
+        }
+    }
+
+    /// Wait for paidApp REST register or NSWorkspace running state after launch.
+    /// Polls PaidAppStateStore (1차 채널) and isRunning() (2차 안전망).
+    /// - Parameter timeout: maximum wait, default 3.0s
+    /// - Returns: true if registration / running detected within timeout, false otherwise
+    private func waitForPaidAppRegistration(timeout: TimeInterval = 3.0) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if PaidAppStateStore.shared.status() != nil {
+                return true
+            }
+            if isRunning() {
+                // Process up but REST register not yet received — give it a brief grace
+                Thread.sleep(forTimeInterval: 0.2)
+                return true
+            }
+            Thread.sleep(forTimeInterval: 0.05)
+        }
+        return false
+    }
+
+    /// Launch paidApp, wait for register/running, then activate + openSettings on the main queue.
+    /// Used by both consent-based auto-launch (Issue112) and explicit [열기] click.
+    private func launchAndOpenSettings() {
+        guard launchPaidApp() else {
+            logW("🏷️ [PaidApp] launch 실패 — settings 열기 중단")
+            return
+        }
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self else { return }
+            let registered = self.waitForPaidAppRegistration()
+            DispatchQueue.main.async {
+                if registered {
+                    self.activatePaidApp()
+                }
+                PaidAppDetector.openSettings()
+            }
+        }
+    }
+
     // MARK: - paid 전용 기능 핸들링
 
     /// paid 전용 기능 시도 시 호출 (paid_cli_protocol §4.2 준수)
     /// Routes via AppStateManager.paidAppStatus (single source of truth, Issue110).
     /// - .notInstall → showPaidOnlyAlert (App Store / Locate / Show Config / Cancel)
-    /// - .stopped    → showRequirePaidAlert ("fSnippet이 필요합니다" + [열기]/[취소])
-    /// - .started    → URL Scheme 직접 라우팅 (alert 없음)
-    /// - 자동 기동 금지: .stopped 시 사용자가 [열기]를 명시적으로 누른 경우에만 paidApp 기동
+    /// - .stopped + autoLaunchConsent==false → showRequirePaidAlert (최초 1회 동의)
+    /// - .stopped + autoLaunchConsent==true  → 다이얼로그 생략, launchAndOpenSettings (Issue112)
+    /// - .started → activate(foreground) + openSettings (Issue113)
     func handlePaidFeature() {
         switch AppStateManager.shared.paidAppStatus {
         case .started:
-            // paidApp 실행 중 — 사용자 동의 alert 생략, URL Scheme 직접 전달
+            // Issue113: URL Scheme만으로는 foreground 보장이 약하므로 명시적 activate 선행
+            activatePaidApp()
             PaidAppDetector.openSettings()
         case .stopped:
-            showRequirePaidAlert()
+            if autoLaunchConsent {
+                logI("🏷️ [PaidApp] 동의 기반 자동 기동 (Issue112)")
+                launchAndOpenSettings()
+            } else {
+                showRequirePaidAlert()
+            }
         case .notInstall:
             showPaidOnlyAlert()
         }
     }
 
-    /// "fSnippet이 필요합니다" 안내 NSAlert (Issue70)
-    /// 사용자가 [열기] 버튼을 누르면 PaidAppDetector.openSettings()로 URL Scheme 경유 활성화
+    /// "fSnippet이 필요합니다" 안내 NSAlert (Issue70 도입, Issue112에서 1회 동의 정책으로 확장)
+    /// [열기] 클릭 시 autoLaunchConsent=true 저장 후 launchAndOpenSettings() 흐름으로 위임
     private func showRequirePaidAlert() {
         NSApplication.shared.activate(ignoringOtherApps: true)
         let alert = NSAlert()
         alert.messageText = "fSnippet이 필요합니다"
-        alert.informativeText = "이 기능은 fSnippet 앱(유료 버전)에서 사용할 수 있습니다.\nfSnippet을 여시겠습니까?"
+        alert.informativeText = "이 기능은 fSnippet 앱(유료 버전)에서 사용할 수 있습니다.\nfSnippet을 여시겠습니까?\n\n[열기]를 누르면 다음부터는 자동으로 실행됩니다."
         alert.alertStyle = .informational
         if let appIcon = NSApplication.shared.applicationIconImage {
             alert.icon = appIcon
@@ -149,8 +217,10 @@ class PaidAppManager {
         alert.addButton(withTitle: "취소")
 
         if alert.runModal() == .alertFirstButtonReturn {
-            // User explicit consent — launch via URL Scheme (paid_cli_protocol §1.2)
-            PaidAppDetector.openSettings()
+            // Issue112: persist explicit consent so future .stopped routes skip the dialog
+            autoLaunchConsent = true
+            logI("🏷️ [PaidApp] 사용자 동의 저장 — 이후 .stopped 시 자동 기동")
+            launchAndOpenSettings()
         }
     }
 
