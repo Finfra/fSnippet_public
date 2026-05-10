@@ -361,8 +361,13 @@ class ShortcutMgr: ObservableObject {
         let prefs = PreferencesManager.shared
 
         /// Issue90/94: 시스템 예약 단축키 검사 헬퍼 — 예약 시 등록 거부 + logW + Issue94 수집기에 추가
+        /// Issue116: Context-only hotkeys (e.g. clipboard history viewer 내부 동작) are exempt
+        ///   — they do NOT collide with global shortcuts (⌘S, ⌘C, …). SSOT for the exemption set
+        ///   is `ConfigMigration.contextOnlyHotkeyKeys` so that ConfigMigration and ShortcutMgr
+        ///   stay in lock-step.
         func tryRegister(id: String, keySpec: String, description: String, source: String) {
-            if ShortcutBlacklist.isReserved(keySpec) {
+            let isContextOnly = ConfigMigration.contextOnlyHotkeyKeys.contains(id)
+            if !isContextOnly && ShortcutBlacklist.isReserved(keySpec) {
                 let reason = ShortcutBlacklist.reason(for: keySpec) ?? "System Reserved"
                 logW(
                     "🚀 [ShortcutMgr] Issue90 차단: \(id) 단축키 '\(keySpec)' 는 macOS 표준 예약 (\(reason)) — 등록 거부"
