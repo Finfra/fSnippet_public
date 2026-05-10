@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 115
+* Issue HWM: 116
 * Save Point :
       - 2026.05.10: 336f33a (Fix(Issue112,113): Settings 라우팅 — 동의 기반 자동 기동 + foreground 보장)
       - 2026.05.08: 7e8b5e9 (Fix(Issue111): cliApp Settings 단축키 LaunchServices 캐시 우회)
@@ -19,6 +19,35 @@ date: 2026-04-07
 # 🌱 이슈후보
 
 # 🚧 진행중
+
+## Issue116: [ShortcutMgr] 컨텍스트 hotkey 등록 거부 면제 (Issue115 페어) (등록: 2026-05-10)
+* 목적: Issue115에서 `ConfigMigration`은 컨텍스트 hotkey(`history.registerSnippet.hotkey`, `history.preview.hotkey`)를 시스템 예약 정리에서 면제하도록 수정했으나, `ShortcutMgr.registerAppGlobalShortcuts()` 의 `tryRegister()` 가 같은 `ShortcutBlacklist.isReserved()` 검사로 등록을 별도 거부함. 결과: YAML 값은 보존되지만 실제 hotkey가 작동 안 함. ShortcutMgr 측도 동일 면제 처리 필요.
+* 상세:
+    - 재현 (paidApp 종료 + cliApp만 실행 상태):
+        1. `_config.yml` 에 `history.registerSnippet.hotkey: "{⌘S}"` 설정
+        2. cliApp 재시작 → YAML 보존 ✅ (ConfigMigration 면제 동작)
+        3. 그러나 로그: `⚠️ WARNING: 🚀 [ShortcutMgr] Issue90 차단: history.registerSnippet.hotkey 단축키 '{⌘S}' 는 macOS 표준 예약 (Save) — 등록 거부`
+        4. 결과: hotkey 등록 안 됨 → 클립보드 히스토리 뷰어 활성 시에도 ⌘S로 스니펫 등록 작동 안 함
+    - 글로벌 ⌘S(Save)와 충돌하지 않는 컨텍스트 hotkey이므로 등록 거부할 이유 없음 (Issue90 본래 의도는 글로벌 hotkey 보호)
+* 구현 명세:
+    - 대상 파일: `cli/fSnippetCli/Managers/ShortcutMgr.swift`
+    - 함수: `registerAppGlobalShortcuts()` 내부 `tryRegister(id:keySpec:description:source:)` (L364~)
+    - 변경: blacklist 검사를 `ConfigMigration.contextOnlyHotkeyKeys` 면제 로직과 동일하게 적용
+        ```swift
+        func tryRegister(id: String, keySpec: String, description: String, source: String) {
+            let isContextOnly = ConfigMigration.contextOnlyHotkeyKeys.contains(id)
+            if !isContextOnly && ShortcutBlacklist.isReserved(keySpec) {
+                // ... 차단 로그 + 거부
+                return
+            }
+            register(...)
+        }
+        ```
+    - **단일 진실 원천 활용**: `ConfigMigration.contextOnlyHotkeyKeys` 셋을 ShortcutMgr 가 재사용하여 정책 일관성 확보 (별도 셋 신설 금지)
+    - 검증:
+        1. `_config.yml` 에 `history.registerSnippet.hotkey: "{⌘S}"` 설정
+        2. cliApp 재시작 → YAML 보존 + ShortcutMgr 차단 로그 없음 + hotkey 등록 성공 (`총 등록된 단축키` 카운트 증가)
+        3. 클립보드 히스토리 뷰어 활성 시 ⌘S 입력 → 스니펫 등록 동작 확인
 
 # 📕 중요
 
