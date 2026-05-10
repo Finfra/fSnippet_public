@@ -6,18 +6,10 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 112
+* Issue HWM: 113
 * Save Point :
       - 2026.05.08: 7e8b5e9 (Fix(Issue111): cliApp Settings 단축키 LaunchServices 캐시 우회)
-      - 2026.05.05: ef2d6d6 (Refactor(Issue110): handlePaidFeature를 AppStateManager.paidAppStatus 단일 진입점으로 통합)
-      - 2026.05.05: cd4577e (Feat(Issue108): cliApp 메뉴바 항목 다국어 지원 — ko 번역 정비)
-      - 2026.05.04: fddc8f4 (Feat(Issue106): cliApp 메뉴바 Quit 항목 paidApp 정책 분리)
-      - 2026.05.04: e1984f6 (Fix(Issue105): Settings 단축키·메뉴바를 cliApp 자체 설정창으로 라우팅)
-      - 2026.05.04: 0f57ebc (Fix(Issue104): Snippet Popup 메뉴/단축키 작동 — fSnippetShowPopup observer 추가)
-      - 2026.05.04: 505e55d (Feat(Issue103): paidApp 동작 시 About 메뉴를 fSnippet 모드로 분기)
-      - 2026.05.03: 24f2a1b (Fix(Issue101): NSWorkspace bundleIdentifier 매칭으로 zombie process 제거)
-      - 2026.05.02: 2804aaa (Docs: Close Issue99 — menuBar_enhance.md 반영)
-      - 2026.04.27: 0cacd11 (Feat(Cli): Issue84 — registerSnippet 단축키 메뉴 노출 + 등록 로직)
+
 
 # 🤔 결정사항
 * `~/_git/__all/fSnippet/_doc_design/paid_cli_protocol.md` 기준 진행(상위 메인 레포, paidApp앱과 연동)
@@ -30,6 +22,27 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
+
+## Issue113: [cliApp] 메뉴바 Settings 클릭 시 paidApp 실행 및 설정창 foreground 표시 (등록: 2026-05-10)
+* 목적: cliApp 메뉴바의 "Settings" 클릭 시 paidApp을 실행하고 설정창을 foreground에 표시.
+* 배경:
+    - paidApp 실행 중에는 cliApp 메뉴바가 숨겨짐(`isInserted=false`) → paidApp 메뉴만 노출
+    - paidApp 미실행 시 cliApp 메뉴바가 복원 → cliApp 메뉴의 Settings가 유일한 설정 진입점
+    - 관련: 메인 레포 Issue855(paidApp 측 메뉴 클릭 foreground fix, cb8e492c)와 대칭
+* 상세:
+    - cliApp 메뉴바 "Settings" 클릭 시 처리 시나리오:
+        1. paidApp 미설치 → 설치 안내 표시 (기존 동작 유지)
+        2. paidApp 설치됨 + 미실행 → `NSWorkspace.shared.open(paidAppURL)` 후 설정창 표시
+        3. paidApp 실행 중 → REST(`POST /api/v2/open-settings` 등) 또는 NSWorkspace activate로 foreground 전환
+    - 현재 `MenuBarView.swift` 또는 `PaidAppManager.swift`의 Settings 액션 핸들러 동작 확인 필요
+* 구현 명세:
+    - `cli/fSnippetCli/Managers/PaidAppManager.swift` — Settings 라우팅 시나리오별 분기 확인/수정
+    - `.stopped` 상태: `launchPaidApp()` 후 paidApp이 register 완료되면 설정창 열기 신호 전달
+    - `.started` 상태: `NSWorkspace.shared.activate(paidAppPID)` + `openSettings()` REST 호출
+    - paidApp 측: REST `/api/v2/open-settings` 수신 시 `SettingsWindowManager.showSettings()` 호출 (또는 기존 URL Scheme 활용)
+* 참고:
+    - Issue112: paidApp `.stopped` 시 다이얼로그 제거 — 자동 기동 정책과 연계 검토
+    - 코드 위치: `cli/fSnippetCli/Managers/PaidAppManager.swift`, `cli/fSnippetCli/MenuBarView.swift`
 
 ## Issue112: [정책/UX] paidApp .stopped 시 다이얼로그 제거 — 최초 1회 동의 후 자동 기동 (등록: 2026-05-10)
 * 목적: paidApp이 설치되어 있고 미실행(`.stopped`)인 상태에서 paid 전용 기능을 호출하면 매번 "fSnippet이 필요합니다" NSAlert가 뜨는 UX를 제거. cliApp 시작 시 자동 기동 정책(`paid_cli_protocol §4.2`)과 일관된 흐름으로 통합. 다만 자동 기동 거부 의사가 있는 사용자를 위해 **최초 1회 동의 메커니즘** 도입 — 사용자가 한 번 [열기]를 누르면 이후 다이얼로그 없이 즉시 실행.
