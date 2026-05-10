@@ -137,23 +137,22 @@ class PaidAppManager {
         }
     }
 
-    /// Wait for paidApp REST register or NSWorkspace running state after launch.
-    /// Polls PaidAppStateStore (1차 채널) and isRunning() (2차 안전망).
-    /// - Parameter timeout: maximum wait, default 3.0s
-    /// - Returns: true if registration / running detected within timeout, false otherwise
-    private func waitForPaidAppRegistration(timeout: TimeInterval = 3.0) -> Bool {
+    /// Wait for paidApp REST register after launch — strict.
+    /// Only PaidAppStateStore.status() is the green light: it guarantees the URL Scheme
+    /// handler inside paidApp is wired up. NSWorkspace's `isRunning()` flips true the moment
+    /// the process spawns, well before AppDelegate / URL handler init — racing on it caused
+    /// the menu-click route to drop URL Schemes (register-arrives-1.3s-after-LS-fallback).
+    /// - Parameter timeout: maximum wait, default 5.0s (conservative; first launch ~1.5s)
+    /// - Returns: true if registration detected within timeout, false on timeout
+    private func waitForPaidAppRegistration(timeout: TimeInterval = 5.0) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
             if PaidAppStateStore.shared.status() != nil {
                 return true
             }
-            if isRunning() {
-                // Process up but REST register not yet received — give it a brief grace
-                Thread.sleep(forTimeInterval: 0.2)
-                return true
-            }
             Thread.sleep(forTimeInterval: 0.05)
         }
+        logW("🏷️ [PaidApp] register timeout (\(timeout)s) — openSettings는 LaunchServices 폴백으로 진행")
         return false
     }
 
