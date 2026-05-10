@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 113
+* Issue HWM: 114
 * Save Point :
       - 2026.05.10: 336f33a (Fix(Issue112,113): Settings 라우팅 — 동의 기반 자동 기동 + foreground 보장)
       - 2026.05.08: 7e8b5e9 (Fix(Issue111): cliApp Settings 단축키 LaunchServices 캐시 우회)
@@ -23,6 +23,21 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
+
+## Issue114: [Logging] _config.yml 로드 성공 로그를 logV → logI로 승격 (등록: 2026-05-10)
+* 목적: 시작 시 `_config.yml` 로드 성공 여부를 표준 로그 레벨(INFO)에서 즉시 확인 가능하게 함. 현재 verbose 레벨에 묻혀 사용자가 "config 미로드"로 오인하는 사례 발생.
+* 상세:
+    - 현재 `_config.yml`은 정상 로드되고 있음 (시작 로그에서 `popupRows: 10 → 9`, `loadedWidth: 500.0 (Default: 350.0)` 등 default가 아닌 config 값 적용 확인됨)
+    - 그러나 `loadConfigInternal()` 성공 경로의 두 로그(`설정 로드 완료: <path>`, `설정 로드 완료 (N keys)`)가 `logV`(VERBOSE)로 강등되어 있어, 기본 `log_level: INFO` 또는 현재 `DEBUG`에서도 출력되지 않음
+    - 실패/누락 경로(`logI`/`logE`)만 INFO에서 보이는 비대칭 → 정상 케이스에서 "Preference 로드" 흔적이 안 보여 진단 어려움
+* 구현 명세:
+    - 대상 파일: `cli/fSnippetCli/Data/PreferencesManager.swift`
+    - 함수: `loadConfigInternal()` (라인 257~)
+    - 변경:
+        * L294 `logV("⚙️ [Preference] 설정 로드 완료: \(path)")` → `logI(...)`
+        * L295 `logV("⚙️ [Preference] 설정 로드 완료 (\(configToLoad.count) keys)")` → `logI(...)`
+    - 동일 함수 내 다른 진단 라인(`Config Loaded snippet_trigger_key:` 등 L283/L287)은 키별 상세이므로 `logV` 유지
+    - 검증: `/run` 실행 후 `tail -f ~/Documents/finfra/fSnippetData/logs/flog.log`에서 시작 직후 "[Preference] 설정 로드 완료" INFO 라인 2개 확인
 
 # 📗 선택
 
