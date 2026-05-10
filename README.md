@@ -4,7 +4,7 @@ description: macOS Menu Bar Snippet & Clipboard Manager
 date: 2026-03-26
 ---
 
-[![ko](https://img.shields.io/badge/lang-ko-red.svg)](./README_kr.md)
+[![ko](https://img.shields.io/badge/lang-ko-red.svg)](./README_ko.md)
 
 <img src="./manual/app-icon.png" width="28" alt="fSnippet Icon"> [![Product Page](https://img.shields.io/badge/Product%20Page-finfra.kr-blue)](https://finfra.kr/product/fSnippet/en/index.html)
 
