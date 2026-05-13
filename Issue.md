@@ -29,6 +29,9 @@ date: 2026-04-07
 
 ## Issue122: [Path/SSOT] `appRootPath` 해석기 3중 분기 — UserDefaults SSOT 깨짐, `defaults write` / API PATCH 미반영 (등록: 2026-05-14)
 * 목적: `path-rules.md §2`가 명시한 "UserDefaults `appRootPath` = SSOT, 하드코드는 초기 시드" 원칙이 깨져 있음. 사용자가 `defaults write kr.finfra.fSnippetCli appRootPath <path>` 하거나 REST API로 settingsFolder를 PATCH 해도 메인 엔진(Logger·SettingsManager·SnippetFileManager·AppSettingManager)이 변경값을 읽지 못함. 데이터 폴더 변경 기능이 사실상 비활성 상태이며 로그가 사용자 지정 경로와 하드코드 경로로 분산될 위험이 있음.
+* plan: `cli/_doc_work/plan/settings-folder-resolve_plan.md`
+* task: `cli/_doc_work/tasks/settings-folder-resolve_task.md`
+* design: `cli/_doc_design/settings-folder-resolve.md`
 * 상세:
     - 해석기 #1 `PreferencesManager.resolveAppRootPath()` (`cli/fSnippetCli/Data/PreferencesManager.swift:30-38`): ENV `fSnippetCli_config` → 하드코드 `~/Documents/finfra/fSnippetData` 만 봄. UserDefaults 미참조. 메인 엔진 전체가 이 함수 사용.
     - 해석기 #2 `PaidAppStateLogger.resolveAppRootPath()` (`cli/fSnippetCli/Data/PaidAppStateLogger.swift:143-157`): UserDefaults `appRootPath` → 하드코드. 규칙 준수하나 단독 분리.
@@ -47,8 +50,9 @@ date: 2026-04-07
 
 # 📙 일반
 
-## Issue123: [Test/Infra] FolderTest 재실행 인프라 복구 — paidApp→cliApp 의존성 마이그레이션 (등록: 2026-05-14)
-* 목적: 2026-03-26 이후 paidApp 압축 + 엔진의 cliApp 이전으로 인해 메인 fSnippet 레포의 `_tool/verify/run_folder_tests.sh`가 컴파일하는 의존 소스 25개 중 5개가 paidApp 경로(`fSnippet/fSnippet/`)에서 사라짐. 핵심 엔진 파일은 모두 `_public/cli/fSnippetCli/`로 이전됐으므로, 33-case 매트릭스 회귀 인프라를 cliApp 측에 재구축하여 향후 회귀 가시성 확보. 본 이슈는 **인프라 복구 + 빌드 통과**까지만 다룸. 실제 33-case 실행 및 결과 검증은 Issue124로 분리.
+## Issue123: [Test/Infra] FolderTest 재실행 인프라 복구 — paidApp→cliApp 의존성 마이그레이션 (등록: 2026-05-14, 갱신: 2026-05-14)
+* 목적: 2026-03-26 이후 paidApp 압축 + 엔진의 cliApp 이전으로 인해 메인 fSnippet 레포의 `_tool/verify/run_folder_tests.sh`가 컴파일하는 의존 소스 25개 중 5개가 paidApp 경로(`fSnippet/fSnippet/`)에서 사라짐. 핵심 엔진 파일은 모두 `_public/cli/fSnippetCli/`로 이전됐으나 **cliApp 측에서 Facade 패턴으로 재구성**됨이 사후 분석에서 확인. 33-case 매트릭스 회귀 인프라를 cliApp Facade 구조에 맞게 재구축. 본 이슈는 **인프라 복구 + XCTest 빌드 통과**까지만 다룸. 실제 33-case 실행 및 결과 검증은 Issue124로 분리.
+* plan: `cli/_doc_work/plan/folder_test_revival_plan.md`
 * 누락/이동 현황 (메인 fSnippet 레포 기준):
     - **누락 (paidApp 경로에서 소실, cliApp 경로에는 존재)**:
         * `fSnippet/fSnippet/Data/SnippetFileManager.swift` → `_public/cli/fSnippetCli/Data/SnippetFileManager.swift`
@@ -57,28 +61,36 @@ date: 2026-04-07
         * `fSnippet/fSnippet/Core/AbbreviationMatcher.swift` → `_public/cli/fSnippetCli/Core/AbbreviationMatcher.swift`
         * `fSnippet/fSnippet/Managers/DeleteLengthManager.swift` → `_public/cli/fSnippetCli/Managers/DeleteLengthManager.swift`
     - **폴더 이동 (paidApp 잔존본)**: `NotificationNames.swift`, `KeyEventInfo.swift` 모두 `Core/` → `Data/`
-* 호환성 사전 확인:
-    - cliApp 측에 핵심 API 시그니처 동일 보존: `SnippetFileManager.getAbbreviation(for:)`, `SnippetFileManager.loadAllSnippets(reason:force:)` (기본값 있음 → 기존 무인자 호출 호환), `AbbreviationMatcher.findSnippetCandidates(searchTerm:)`, `RuleManager.loadRuleFile(at:)`
-    - FolderTestRunner.swift 본문 수정 없이 의존성 경로만 변경 시 컴파일 가능성 높음 (cliApp 의존성 트리 추가 검증 필요)
-* 옵션 비교:
-    | 옵션 | 작업량 | 위험도 | 미래성 |
-    | :--- | :----- | :----- | :----- |
-    | A. 메인 레포 `run_folder_tests.sh` SOURCE_FILES 5건 경로 재매핑 | 작음 | 중간 (Mock 호환·추가 의존성 발견 가능) | 낮음 (paidApp 폐기 시 재이식 필요) |
-    | **B. cliApp Tests로 이식** (`_public/cli/fSnippetCliTests/FolderTest/`) | 중간 | 낮음 | 높음 ⭐ 권장 |
-* 구현 명세 (옵션 B 권장):
-    - 신규 디렉터리: `_public/cli/fSnippetCliTests/FolderTest/`
-    - 이식 파일 (메인 레포로부터 복사):
-        * `Tests/FolderTest/FolderTestRunner.swift` → `_public/cli/fSnippetCliTests/FolderTest/FolderTestRunner.swift`
-        * `Tests/FolderTest/testTable_org.md` → `_public/cli/fSnippetCliTests/FolderTest/testTable_org.md`
-        * `Tests/UnitTest/TestUtils.swift` → `_public/cli/fSnippetCliTests/FolderTest/TestUtils.swift` (또는 공용 위치)
-        * `Tests/Mocks/{TriggerKeyManager, PreferencesManager, ShortcutMgr, Relauncher, SnippetIndexManager}.swift` → `_public/cli/fSnippetCliTests/Mocks/` (cliApp 의존성 트리 기준 재검토 필수)
-    - 신규 빌드 스크립트: `_public/cli/_tool/folderTest/run_folder_test.sh` — `swiftc`로 cliApp 소스 + Mock + Runner 컴파일, `_public/cli/_tool/folderTest/logs/`에 결과 출력
-    - 결과 디렉터리: `_public/cli/fSnippetCliTests/FolderTest/Results/`
-    - 옵션 A를 fallback으로 보존: 옵션 B에서 cliApp 의존성 트리에 추가 누락이 발견되면 빠른 검증을 위해 옵션 A 변형(메인 레포 `run_folder_tests.sh` 5건 경로 재매핑)을 1회 임시 실행한 뒤 다시 B로 회귀
-    - 본 이슈 완료 조건: `run_folder_test.sh` 컴파일 성공 (실행 결과 검증은 Issue124 범위)
-* 복잡도: **중간** — 변경 파일 수는 적지만 cliApp 의존성 트리 검증·Mock 호환성 확인이 필요. plan 작성 권장. 사용자 별도 요청 시 `cli/_doc_work/plan/folder_test_revival_plan.md` 작성.
-* 관련 영역: `_public/cli/fSnippetCliTests/`, `_public/cli/_tool/folderTest/` (신규), 메인 레포 `Tests/FolderTest/`, `_tool/verify/run_folder_tests.sh` (참조용 원본)
-* 의존: 없음 (선행 이슈 아님)
+* cliApp Facade 구조 (사후 분석으로 발견):
+    - `SnippetFileManager`(cliApp/Data) → Facade. 내부 `SnippetRepository.shared` + `AbbreviationCalculator.shared` 위임. **`init(rootURL:)` 생성자 없음** → 메인 레포 호출 `SnippetFileManager(rootURL: sandbox)` 그대로 못 씀
+    - `SnippetRepository.init(rootURL: URL? = nil)` 생성자 보유 → sandbox URL 주입 가능 (실 진입점)
+    - `AbbreviationMatcher.init(snippetFileManager: SnippetFileManager = .shared)` — 시그니처 동일, 단 sandbox용 Repository로 조립한 Matcher 생성 불가 → **소스 1줄 수정 또는 테스트 후크 필요**
+    - `PreferencesManager`에 `mockBasePath` 없음. 환경변수 `fSnippetCli_config` 후크는 살아있음 (`resolveAppRootPath` L29-30)
+* 호환 API (그대로 사용 가능):
+    - `SnippetRepository.init(rootURL:)`, `loadAllSnippets(reason:force:)`, `getSnippetFolders()`
+    - `RuleManager.shared.loadRuleFile(at:)` — 동일
+    - `AbbreviationCalculator.shared.getAbbreviation(for:)` — 신규 진입점 (구 SnippetFileManager.getAbbreviation 대응)
+    - `AbbreviationMatcher.findSnippetCandidates(searchTerm:)` — 동일
+* 옵션 재구성 (Facade 발견 반영):
+    | 옵션 | 작업량 | cliApp 소스 수정 | 위험도 | 미래성 |
+    | :--- | :----- | :--------------- | :----- | :----- |
+    | A. 메인 레포 `run_folder_tests.sh` 경로 재매핑 + FolderTestRunner cliApp Facade 호출로 재작성 | 중간 | ❌ | 중간 | 낮음 |
+    | **B1. cliApp XCTest 이식 — `AbbreviationMatcher.init(repository:)` 편의 생성자 1건 추가** | 작음 | ⚠️ 1건 | 낮음 | 높음 ⭐ 권장 |
+    | B2. cliApp XCTest 이식 — Mock Facade 우회 | 작음 | ❌ | 중간 | 중간 |
+    | B3. cliApp XCTest 이식 — `SnippetRepository.swapRootForTests(_:)` 테스트 후크 추가 | 작음 | ⚠️ 1건 | 낮음 | 높음 |
+* 구현 명세 (옵션 B1 권장):
+    - **소스 수정 1건**: `cli/fSnippetCli/Core/AbbreviationMatcher.swift` — `init(repository: SnippetRepository)` 편의 생성자 추가 (정확한 필드 구조는 plan에서 결정)
+    - **신규 테스트 자산** (`_public/cli/fSnippetCliTests/FolderTest/`):
+        * `FolderTestRunnerTests.swift` — XCTestCase (메인 레포 `@main FolderTestRunner.swift` 변환)
+        * `testTable_org.md` — 메인 레포로부터 복사
+        * `Results/` — gitignored 결과 보관
+    - **공용 헬퍼**: `_public/cli/fSnippetCliTests/TestUtils.swift` — Sandbox 생성/정리·`_rule.yml` 생성
+    - Mock 5개 이식 불필요 — cliApp 실제 클래스(`RuleManager.shared`, `AbbreviationCalculator.shared`) 사용
+    - **빌드 통합**: `cli/project.yml`의 `fSnippetCliTests` 타겟이 디렉터리 흡수 → 추가 설정 불필요
+    - **본 이슈 완료 조건**: `xcodebuild test -scheme fSnippetCli` 컴파일 통과 (FolderTestRunnerTests 실행 결과 검증은 Issue124)
+* 복잡도: **중간** — cliApp 소스 1건 미세 수정 + 신규 파일 3개. plan 작성 후 진행.
+* 관련 영역: `cli/fSnippetCli/Core/AbbreviationMatcher.swift` (1건 수정), `cli/fSnippetCliTests/FolderTest/` (신규)
+* 의존: 없음
 * 후속: Issue124
 
 ## Issue124: [Test] FolderTest 33-case 회귀 실행 + `testTable_org.md` ↔ 현행 `_rule.yml` 동기화 (등록: 2026-05-14)

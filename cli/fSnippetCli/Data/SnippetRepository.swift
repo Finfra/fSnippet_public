@@ -862,3 +862,23 @@ class SnippetRepository {
     return .success(())
   }
 }
+
+// MARK: - Test Hooks (Issue123)
+#if DEBUG
+extension SnippetRepository {
+  /// Test-only: Sandbox 격리용 rootFolderURL 갱신 + 상태 초기화.
+  /// XCTest setUp/tearDown 에서만 호출. 호출 측은 사용 후 동일 메서드로 원본 root를 복원할 책임을 가진다.
+  /// folderWatcher / accessedFolderURL 도 nil 처리하여 production root 감시·보안 스코프가 sandbox 작업에 간섭하지 않도록 한다.
+  func swapRootForTests(_ url: URL) {
+    self.rootFolderURL = url
+    self.snippetMap = [:]
+    self.folderWatcher = nil
+    self.accessedFolderURL = nil
+  }
+
+  /// Test-only: snippetMap 캐시만 비우고 root는 유지.
+  func clearSnippetMapForTests() {
+    self.snippetMap = [:]
+  }
+}
+#endif

@@ -102,8 +102,8 @@ final class PaidAppAPIRouterTests: XCTestCase {
     func testStatus_notRegistered_returnsNotRunning() throws {
         let resp = router.route(request: makeStatusRequest(), server: server)
         XCTAssertEqual(resp.statusCode, 200)
-        guard let body = resp.body,
-              let data = body.data(using: .utf8),
+        let body = resp.body
+        guard let data = body.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else { XCTFail("응답 바디 파싱 실패"); return }
         XCTAssertEqual(json["registered"] as? Bool, false, "등록 없음 → registered=false")
@@ -123,8 +123,8 @@ final class PaidAppAPIRouterTests: XCTestCase {
         )
         let resp = router.route(request: makeStatusRequest(), server: server)
         XCTAssertEqual(resp.statusCode, 200)
-        guard let body = resp.body,
-              let data = body.data(using: .utf8),
+        let body = resp.body
+        guard let data = body.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else { XCTFail("응답 바디 파싱 실패"); return }
         XCTAssertEqual(json["registered"] as? Bool, true, "등록 후 → registered=true")
