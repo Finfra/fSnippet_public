@@ -26,7 +26,7 @@ class APIRouter {
     let method = request.method.uppercased()
     let decodedPath = path.removingPercentEncoding ?? path
 
-    logD("🌐 API 요청: \(method) \(decodedPath)")
+    logV("🌐 API 요청: \(method) \(decodedPath)")
 
     let response = routeInternal(method: method, decodedPath: decodedPath, request: request, server: server)
 
