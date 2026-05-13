@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 121
+* Issue HWM: 122
 * Save Point :
       - 2026.05.14: 8443022 (Fix(Issue121): _setting.yml legacy 파일 자동 정리 마이그레이션 추가)
       - 2026.05.13: d955324 (Fix(Issue120): Logger.debug/verbose #if DEBUG 가드 제거 — Release에서도 log_level SSOT 작동)
@@ -25,6 +25,24 @@ date: 2026-04-07
 # 🚧 진행중
 
 # 📕 중요
+
+## Issue122: [Path/SSOT] `appRootPath` 해석기 3중 분기 — UserDefaults SSOT 깨짐, `defaults write` / API PATCH 미반영 (등록: 2026-05-14)
+* 목적: `path-rules.md §2`가 명시한 "UserDefaults `appRootPath` = SSOT, 하드코드는 초기 시드" 원칙이 깨져 있음. 사용자가 `defaults write kr.finfra.fSnippetCli appRootPath <path>` 하거나 REST API로 settingsFolder를 PATCH 해도 메인 엔진(Logger·SettingsManager·SnippetFileManager·AppSettingManager)이 변경값을 읽지 못함. 데이터 폴더 변경 기능이 사실상 비활성 상태이며 로그가 사용자 지정 경로와 하드코드 경로로 분산될 위험이 있음.
+* 상세:
+    - 해석기 #1 `PreferencesManager.resolveAppRootPath()` (`cli/fSnippetCli/Data/PreferencesManager.swift:30-38`): ENV `fSnippetCli_config` → 하드코드 `~/Documents/finfra/fSnippetData` 만 봄. UserDefaults 미참조. 메인 엔진 전체가 이 함수 사용.
+    - 해석기 #2 `PaidAppStateLogger.resolveAppRootPath()` (`cli/fSnippetCli/Data/PaidAppStateLogger.swift:143-157`): UserDefaults `appRootPath` → 하드코드. 규칙 준수하나 단독 분리.
+    - 해석기 #3 `APIRouter.currentSettingsFolder()` (`cli/fSnippetCli/Managers/APIRouter.swift:2440-2444`): `_config.yml`의 `app_root_path` → 하드코드. v2 PATCH `/api/v2/settings/general/paths`가 이 키만 쓰므로 ①번이 안 읽으면 무용.
+    - 결과: 같은 "설정 폴더" 개념이 3개 출처(UserDefaults · ENV · `_config.yml`)로 분기. 단일 진실 원천(SSOT) 부재.
+    - 참조 규칙: `_public/.claude/rules/path-rules.md §2` "Dynamic Configuration Source of Truth", `cli/_doc_design/` (있다면) 경로 정책 문서.
+* 구현 명세:
+    - SSOT 결정: 원 설계 의도대로 **UserDefaults `appRootPath`** 를 SSOT로 채택. `_config.yml`의 `app_root_path`는 UserDefaults 미러 또는 폐기 결정 필요.
+    - `PreferencesManager.resolveAppRootPath()` 수정: ENV(테스트/CLI 오버라이드) → UserDefaults `appRootPath` → 하드코드 시드 순서로 정정. 시드 값은 한 번 읽으면 `UserDefaults.standard.set(...)`로 영속화하여 이후엔 정상 경로로 통일.
+    - `APIRouter.currentSettingsFolder()` / `handleV2PatchGeneralPaths()` 수정: `_config.yml` 단독 쓰기를 중단하고 `UserDefaults.standard.set(v, forKey: "appRootPath")` + `PreferencesManager.shared` 캐시 무효화 후 재로드. 필요 시 `_config.yml`은 백업 미러로만 유지.
+    - 해석기 #2(`PaidAppStateLogger`)는 SSOT 통일 후 `PreferencesManager.resolveAppRootPath()` 호출로 일원화. 중복 함수 제거.
+    - 마이그레이션: 기존 `_config.yml`에 `app_root_path`가 있고 UserDefaults에 키가 없으면 1회성 동기화(`UserDefaults` ← `_config.yml`) 수행 후 `_config.yml`에서 키 제거 또는 deprecation 주석.
+    - 검증: ① `defaults write kr.finfra.fSnippetCli appRootPath <임의경로>` 후 앱 재시작 → 로그가 해당 경로 `logs/flog.log`에 기록되는지 확인. ② `PATCH /api/v2/settings/general/paths {"settingsFolder":"<경로>"}` 후 `GET /api/v2/settings/general/paths` 응답과 실제 Logger 경로 일치 확인. ③ `PaidAppStateLogger`의 `paidapp_state_transitions.log`가 동일 경로에 생성되는지 확인.
+    - 관련 영역: `cli/fSnippetCli/Data/PreferencesManager.swift`, `cli/fSnippetCli/Managers/APIRouter.swift`, `cli/fSnippetCli/Managers/SettingsManager.swift`, `cli/fSnippetCli/Data/PaidAppStateLogger.swift`, `cli/fSnippetCli/Data/Logger.swift`, `cli/fSnippetCli/Managers/AppSettingManager.swift`.
+    - 복잡도: **복잡** (3개 SSOT 통합, 마이그레이션 1회, 4개 이상 모듈 영향, v2 API 동작 변경) → plan/task 분리 권장. 별도 요청 시 작성.
 
 # 📙 일반
 
