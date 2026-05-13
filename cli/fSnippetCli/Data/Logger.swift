@@ -333,28 +333,32 @@ class Logger {
         writeToLogFile(logMessage, level: .error)
     }
 
-    /// 디버그 로그 (레이지 평가, 개발용)
+    /// 디버그 로그 (레이지 평가)
+    /// Issue120: Release 빌드에서도 _config.yml log_level 설정을 SSOT로 따르도록
+    /// 파일 쓰기는 항상 호출 (writeToLogFile 이 debug_logging 마스터 스위치로 제어).
+    /// 콘솔 print()는 Release 보안을 위해 DEBUG 빌드 한정.
     func debug(_ message: @autoclosure () -> String) {
         guard currentLogLevel.rawValue <= LogLevel.debug.rawValue else { return }
-        #if DEBUG
-            let evaluatedMessage = message()
-            let logMessage = "🐛 DEBUG: \(evaluatedMessage)"
+        let evaluatedMessage = message()
+        let logMessage = "🐛 DEBUG: \(evaluatedMessage)"
 
+        #if DEBUG
             print(logMessage)
-            writeToLogFile(logMessage, level: .debug)
         #endif
+        writeToLogFile(logMessage, level: .debug)
     }
 
-    /// verbose 로그 (레이지 평가, 개발용)
+    /// verbose 로그 (레이지 평가)
+    /// Issue120: 동일 정책 적용. log_level: VERBOSE 일 때만 통과하므로 spam 위험은 낮음.
     func verbose(_ message: @autoclosure () -> String) {
         guard currentLogLevel.rawValue <= LogLevel.verbose.rawValue else { return }
-        #if DEBUG
-            let evaluatedMessage = message()
-            let logMessage = "💬 VERBOSE: \(evaluatedMessage)"
+        let evaluatedMessage = message()
+        let logMessage = "💬 VERBOSE: \(evaluatedMessage)"
 
+        #if DEBUG
             print(logMessage)
-            writeToLogFile(logMessage, level: .verbose)
         #endif
+        writeToLogFile(logMessage, level: .verbose)
     }
 
     /// 경고 로그 (레이지 평가)
