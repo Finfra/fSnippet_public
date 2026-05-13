@@ -197,16 +197,22 @@ class CGEventTapManager {
             return Unmanaged.passUnretained(event)
         }
 
-        // Issue863: key-capture mode — consume the event for REST API session
-        if type == .keyDown || type == .flagsChanged {
-            if let nsEv = NSEvent(cgEvent: event) {
-                let displayStr = nsEv.charactersIgnoringModifiers ?? ""
-                let nsMods = nsEv.modifierFlags.rawValue
-                if KeyCaptureManager.shared.captureKeyIfActive(
-                    keyCode: keyCode, nsModifiers: nsMods, displayString: displayStr)
-                {
-                    return nil
-                }
+        // Issue863: key-capture mode — consume the event for REST API session.
+        // Issue865-fix: fast lockless check first to avoid the expensive NSEvent(cgEvent:)
+        // construction on every keystroke when no capture session is pending. The previous
+        // unconditional NSEvent build caused CGEventTap callback latency to exceed macOS's
+        // tap timeout, triggering frequent .tapDisabledByTimeout events and intermittent
+        // key processing.
+        if KeyCaptureManager.shared.isPendingFast,
+           type == .keyDown || type == .flagsChanged,
+           let nsEv = NSEvent(cgEvent: event)
+        {
+            let displayStr = nsEv.charactersIgnoringModifiers ?? ""
+            let nsMods = nsEv.modifierFlags.rawValue
+            if KeyCaptureManager.shared.captureKeyIfActive(
+                keyCode: keyCode, nsModifiers: nsMods, displayString: displayStr)
+            {
+                return nil
             }
         }
 
@@ -231,7 +237,7 @@ class CGEventTapManager {
                     character: nsEvent.charactersIgnoringModifiers ?? "")
             {
 
-                logV(
+                logD(
                     "💉 ⚙️ [CGEventTapManager] Registered Shortcut Detected (Blocking): \(shortcut.keySpec) [\(shortcut.type)]"
                 )
 
@@ -330,7 +336,7 @@ class CGEventTapManager {
                     delegate.handleTriggerKeyAsync(
                         keyCode: keyCode, modifiers: event.flags, triggerChar: char)
                 }
-                logV(
+                logD(
                     "💉 ⚙️ [CGEventTapManager] Passing through Fallback Trigger: \(char) (Code: \(keyCode))"
                 )
                 return Unmanaged.passUnretained(event)
@@ -350,7 +356,7 @@ class CGEventTapManager {
                     keyCode: keyCode,
                     modifiers: NSEvent.ModifierFlags(rawValue: UInt(flags.rawValue)))
                 {
-                    logV(
+                    logD(
                         "💉 ⚙️ [CGEventTapManager] Option Mapping (SSOT): \(mappedChar) (Pass-through allowed)"
                     )
                     // ✅ Issue 561_1 Fix: Do NOT intercept. Let it pass to OS.

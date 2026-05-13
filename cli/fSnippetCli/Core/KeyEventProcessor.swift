@@ -435,7 +435,8 @@ class KeyEventProcessor: CGEventTapManagerDelegate {
                     .maskCommand, .maskControl, .maskAlternate, .maskShift,
                 ])
                 if meaningfulModifiers.isEmpty {
-                    logV(
+                    // Issue119: trace logD — modifier release fallback skip 추적
+                    logD(
                         "🎮 [Issue 603] Modifier Key Release (\(keyCode)) - Skipping Trigger Fallback"
                     )
                     return false

@@ -22,6 +22,19 @@ final class KeyCaptureManager {
     private let lock = NSLock()
     private let timeout: TimeInterval = 30
 
+    // Issue865-fix: lockless fast-path indicator for CGEventTap callback hot-path.
+    // Set true only between startCapture() and the first capturing event (or stopCapture).
+    // Reading from the callback thread is safe because Swift Bool is word-sized on
+    // supported platforms; worst-case a stale read causes one extra lock + NSEvent build,
+    // which is bounded and self-correcting.
+    private var _isPendingFast: Bool = false
+
+    /// Lock-free probe used by CGEventTapManager hot-path to skip
+    /// the expensive NSEvent(cgEvent:) construction while no capture session is active.
+    var isPendingFast: Bool {
+        return _isPendingFast
+    }
+
     // MARK: - Session control (called by APIRouter)
 
     func startCapture() {
@@ -32,6 +45,7 @@ final class KeyCaptureManager {
         _capturedNSModifiers = nil
         _capturedDisplayString = nil
         _captureStartTime = Date()
+        _isPendingFast = true   // Issue865-fix: enable hot-path
         logI("🎯 [KeyCaptureManager] Capture session started")
     }
 
@@ -39,6 +53,7 @@ final class KeyCaptureManager {
         lock.lock()
         defer { lock.unlock() }
         _status = .idle
+        _isPendingFast = false  // Issue865-fix: disable hot-path
         logI("🎯 [KeyCaptureManager] Capture session stopped")
     }
 
@@ -56,6 +71,7 @@ final class KeyCaptureManager {
 
         if let start = _captureStartTime, Date().timeIntervalSince(start) > timeout {
             _status = .idle
+            _isPendingFast = false  // Issue865-fix
             logW("🎯 [KeyCaptureManager] Capture session timed out")
             return false
         }
@@ -64,6 +80,7 @@ final class KeyCaptureManager {
         _capturedNSModifiers = nsModifiers
         _capturedDisplayString = displayString
         _status = .captured
+        _isPendingFast = false      // Issue865-fix: capture done, exit hot-path
         logI("🎯 [KeyCaptureManager] Key captured — code:\(keyCode) nsMods:\(nsModifiers) display:\(displayString)")
         return true
     }
@@ -80,6 +97,7 @@ final class KeyCaptureManager {
         case .pending:
             if let start = _captureStartTime, Date().timeIntervalSince(start) > timeout {
                 _status = .idle
+                _isPendingFast = false   // Issue865-fix
                 return ["status": "idle"]
             }
             return ["status": "pending"]
