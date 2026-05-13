@@ -37,6 +37,14 @@ enum ConfigMigration {
     /// 새 백업이 생성된 직후 cleanup이 실행되므로, N=5면 새 1개 + 직전 4개가 보존됨
     static let backupKeepCount = 5
 
+    /// Issue121: Legacy config files that are no longer read or written by the current binary.
+    /// These were produced by prior versions (e.g. `SettingYmlLoader` removed in Issue117) and
+    /// must be cleaned up automatically so users don't perceive them as "auto-regenerated".
+    /// Each entry is the filename relative to the data directory (where `_config.yml` lives).
+    static let legacyFileNames: Set<String> = [
+        "_setting.yml"  // Issue117 (2026-05-10): SettingYmlLoader removed, _config.yml SSOT
+    ]
+
     /// 마이그레이션 결과
     struct Result {
         /// 시스템 예약(블랙리스트) 매칭으로 빈 값 처리된 키
@@ -192,6 +200,42 @@ enum ConfigMigration {
                 logI("⚙️ [ConfigMigration] 오래된 백업 삭제: \(name) (정책: 최근 \(keep)개만 보존)")
             } catch {
                 logW("⚙️ [ConfigMigration] 백업 삭제 실패 \(name): \(error)")
+            }
+        }
+
+        return removed
+    }
+
+    /// Issue121: Remove legacy config files that are no longer used.
+    ///
+    /// Behavior:
+    /// - Scans `directory` for each filename in `legacyFileNames`.
+    /// - When a match exists, renames it to `<name>.legacy_<yyyyMMdd-HHmmss>` (preserves content
+    ///   as a safety net) and logs an INFO entry. Idempotent: missing files are skipped silently.
+    /// - Designed to run on every startup before the existing `_config.yml` migration.
+    ///
+    /// - Parameter directory: Data directory (where `_config.yml` lives).
+    /// - Returns: Renamed file paths (original → backup). Empty when nothing was removed.
+    @discardableResult
+    static func removeLegacyFiles(in directory: URL) -> [(original: String, backup: String)] {
+        let fm = FileManager.default
+        var removed: [(String, String)] = []
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        let stamp = formatter.string(from: Date())
+
+        for name in legacyFileNames {
+            let target = directory.appendingPathComponent(name)
+            guard fm.fileExists(atPath: target.path) else { continue }
+
+            let backup = directory.appendingPathComponent("\(name).legacy_\(stamp)")
+            do {
+                try fm.moveItem(at: target, to: backup)
+                removed.append((target.path, backup.path))
+                logI("⚙️ [ConfigMigration] Legacy file removed: \(name) → \(backup.lastPathComponent)")
+            } catch {
+                logW("⚙️ [ConfigMigration] Failed to remove legacy file \(name): \(error)")
             }
         }
 

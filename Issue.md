@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 120
+* Issue HWM: 121
 * Save Point :
       - 2026.05.13: d955324 (Fix(Issue120): Logger.debug/verbose #if DEBUG 가드 제거 — Release에서도 log_level SSOT 작동)
       - 2026.05.13: c9c4308 (Fix(Issue118,119): KeyCaptureManager hot-path 회귀 차단 + 트리거 trace 가시화)
@@ -20,8 +20,24 @@ date: 2026-04-07
 * `cli/_doc_design/menuBar_enhance.md` 기준 진행(메뉴바, 로컬 SSOT — gitignored)
 
 # 🌱 이슈후보
-1. /Users/nowage/Documents/finfra/fSnippetData/_setting.yml 자꾸 생성됨. 
+
 # 🚧 진행중
+
+## Issue121: [Cleanup] `_setting.yml` legacy 파일 잔존 — 자동 정리 마이그레이션 추가 (등록: 2026-05-14)
+* 목적: `~/Documents/finfra/fSnippetData/_setting.yml` 파일이 사용자 환경에 남아 있어 사용자가 "자꾸 생성된다"고 인지함. Issue117(2026-05-10, hash 7ee78e9)에서 `SettingYmlLoader` 제거 + `_config.yml` SSOT 단일화 완료 후, 현재 바이너리는 더 이상 이 파일을 생성·참조하지 않으나 **이전 버전이 만든 잔존물 자동 정리 절차가 누락**됨. 실제 파일은 2026-05-13 19:25 mtime으로 고정(자동 재생성 없음, atime만 갱신).
+* 복잡도: 단순 (변경 2파일, 자동 정리 1회성)
+* 상세:
+    - 현재 cliApp 바이너리(`/opt/homebrew/opt/fsnippet-cli/...`, mtime: 2026-05-13 20:03) `strings` 검사 결과 `_setting.yml`/`settings_hotkey:`/`SettingYmlLoader` 모두 미참조
+    - paidApp(`_org_before_cli/fSnippet.zip`) 바이너리도 미참조 (현재 미실행)
+    - `_setting.yml` 내용: 단축키 1줄(`settings_hotkey: "^⇧⌘,"`) — `_config.yml`의 `settings.hotkey`로 이미 대체됨
+* 구현 명세:
+    - `cli/fSnippetCli/Data/ConfigMigration.swift`에 `removeLegacyFiles(in directory:)` 추가 — `_setting.yml` 같은 폐기된 설정 파일 발견 시 백업 후 삭제 (idempotent)
+    - `cli/fSnippetCli/Data/PreferencesManager.swift`의 `loadConfigInternal()`에서 기존 `ConfigMigration.migrate()` 호출 직전에 `removeLegacyFiles` 호출 추가
+    - 사용자 환경에서 실제 `_setting.yml` 1회 삭제 후 동작 검증
+* 검증:
+    - 빌드 성공 (Release)
+    - brew 재배포 후 cliApp 시작 시 `_setting.yml` 자동 삭제 로그 출력
+    - 재시작 후 파일이 다시 생성되지 않음을 확인
 
 # 📕 중요
 

@@ -258,6 +258,14 @@ class PreferencesManager: PreferencesManagerProtocol {
         let fileManager = FileManager.default
         let path = self.configURL.path
 
+        // Issue121: Remove legacy config files (e.g. _setting.yml) before migration runs.
+        // Idempotent: missing files are skipped silently.
+        let dataDir = self.configURL.deletingLastPathComponent()
+        let legacyRemoved = ConfigMigration.removeLegacyFiles(in: dataDir)
+        if !legacyRemoved.isEmpty {
+            logI("⚙️ [Preference] Issue121 legacy files cleaned: \(legacyRemoved.count) file(s)")
+        }
+
         // Issue89: 박제된 hotkey 자동 정리 마이그레이션 (파일 파싱 전 1회 수행, idempotent)
         if fileManager.fileExists(atPath: path) {
             let result = ConfigMigration.migrate(at: self.configURL)
