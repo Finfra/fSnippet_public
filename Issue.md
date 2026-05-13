@@ -8,6 +8,7 @@ date: 2026-04-07
 
 * Issue HWM: 121
 * Save Point :
+      - 2026.05.14: 8443022 (Fix(Issue121): _setting.yml legacy 파일 자동 정리 마이그레이션 추가)
       - 2026.05.13: d955324 (Fix(Issue120): Logger.debug/verbose #if DEBUG 가드 제거 — Release에서도 log_level SSOT 작동)
       - 2026.05.13: c9c4308 (Fix(Issue118,119): KeyCaptureManager hot-path 회귀 차단 + 트리거 trace 가시화)
       - 2026.05.10: 7ee74e9 (Fix(Issue117): Accessibility 권한 런타임 박탈 시 시스템 슬로다운 차단 — 양방향 모니터 + 자체 종료)
@@ -23,22 +24,6 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue121: [Cleanup] `_setting.yml` legacy 파일 잔존 — 자동 정리 마이그레이션 추가 (등록: 2026-05-14)
-* 목적: `~/Documents/finfra/fSnippetData/_setting.yml` 파일이 사용자 환경에 남아 있어 사용자가 "자꾸 생성된다"고 인지함. Issue117(2026-05-10, hash 7ee78e9)에서 `SettingYmlLoader` 제거 + `_config.yml` SSOT 단일화 완료 후, 현재 바이너리는 더 이상 이 파일을 생성·참조하지 않으나 **이전 버전이 만든 잔존물 자동 정리 절차가 누락**됨. 실제 파일은 2026-05-13 19:25 mtime으로 고정(자동 재생성 없음, atime만 갱신).
-* 복잡도: 단순 (변경 2파일, 자동 정리 1회성)
-* 상세:
-    - 현재 cliApp 바이너리(`/opt/homebrew/opt/fsnippet-cli/...`, mtime: 2026-05-13 20:03) `strings` 검사 결과 `_setting.yml`/`settings_hotkey:`/`SettingYmlLoader` 모두 미참조
-    - paidApp(`_org_before_cli/fSnippet.zip`) 바이너리도 미참조 (현재 미실행)
-    - `_setting.yml` 내용: 단축키 1줄(`settings_hotkey: "^⇧⌘,"`) — `_config.yml`의 `settings.hotkey`로 이미 대체됨
-* 구현 명세:
-    - `cli/fSnippetCli/Data/ConfigMigration.swift`에 `removeLegacyFiles(in directory:)` 추가 — `_setting.yml` 같은 폐기된 설정 파일 발견 시 백업 후 삭제 (idempotent)
-    - `cli/fSnippetCli/Data/PreferencesManager.swift`의 `loadConfigInternal()`에서 기존 `ConfigMigration.migrate()` 호출 직전에 `removeLegacyFiles` 호출 추가
-    - 사용자 환경에서 실제 `_setting.yml` 1회 삭제 후 동작 검증
-* 검증:
-    - 빌드 성공 (Release)
-    - brew 재배포 후 cliApp 시작 시 `_setting.yml` 자동 삭제 로그 출력
-    - 재시작 후 파일이 다시 생성되지 않음을 확인
-
 # 📕 중요
 
 # 📙 일반
@@ -46,6 +31,33 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue121: [Cleanup] `_setting.yml` legacy 파일 잔존 — 자동 정리 마이그레이션 추가 (등록: 2026-05-14, 완료: 2026-05-14) (Hash: 8443022)
+* 목적: `~/Documents/finfra/fSnippetData/_setting.yml`가 사용자 환경에 잔존하여 "자꾸 생성됨"으로 인지됨. Issue117(2026-05-10, hash 7ee78e9)에서 `SettingYmlLoader` 제거 + `_config.yml` SSOT 단일화 완료 후, 현재 바이너리는 이 파일을 생성·참조하지 않으나 **이전 버전이 만든 잔존물 자동 정리 절차가 누락**됨. 실제 파일은 2026-05-13 19:25 mtime으로 고정(자동 재생성 없음, atime만 갱신).
+* 근본 원인:
+    - 현재 cliApp 바이너리(`/opt/homebrew/opt/fsnippet-cli/...`, mtime: 2026-05-13 20:03) `strings` 검사 결과 `_setting.yml`/`settings_hotkey:`/`SettingYmlLoader` 모두 미참조
+    - paidApp(`_org_before_cli/fSnippet.zip`) 바이너리도 미참조 + 현재 미실행
+    - `_setting.yml` 내용: 단축키 1줄(`settings_hotkey: "^⇧⌘,"`) — `_config.yml`의 `settings.hotkey`로 이미 대체됨
+    - 사용자가 파일을 삭제해도 다음 번 바이너리 업데이트 후에 잔존물 자동 정리 절차가 없어, 한 번이라도 구버전이 실행됐다면 파일이 남아 있음
+* 해결:
+    - `cli/fSnippetCli/Data/ConfigMigration.swift`:
+        * `legacyFileNames` 정적 셋 신설 (현재 `_setting.yml` 1건, 향후 확장 가능)
+        * `removeLegacyFiles(in directory:)` 정적 메서드 추가 — 발견 시 `<name>.legacy_<yyyyMMdd-HHmmss>` 으로 rename(백업 보존), 미존재 시 silent skip (idempotent)
+    - `cli/fSnippetCli/Data/PreferencesManager.swift`:
+        * `loadConfigInternal()` 진입부 `ConfigMigration.migrate()` 호출 직전에 `ConfigMigration.removeLegacyFiles(in: dataDir)` 호출 추가
+        * 정리 발생 시 `⚙️ [Preference] Issue121 legacy files cleaned: N file(s)` INFO 로그
+* 검증:
+    - Release 빌드 성공 (`** BUILD SUCCEEDED **`)
+    - brew 재배포(`/brew-apply` skill) + 서비스 시작 후:
+        * `ls _setting.yml` → No such file (자동 삭제됨)
+        * `ls _setting.yml.legacy_20260514-050315` → 백업 보존 확인
+        * 로그: `[ConfigMigration] Legacy file removed: _setting.yml → _setting.yml.legacy_20260514-050315` + `[Preference] Issue121 legacy files cleaned: 1 file(s)`
+    - `brew services restart` 재기동 후 추가 로그 없음 → **idempotent 정상 작동** 확인
+* 수정 파일:
+    - `cli/fSnippetCli/Data/ConfigMigration.swift` (legacyFileNames 셋 + removeLegacyFiles 메서드)
+    - `cli/fSnippetCli/Data/PreferencesManager.swift` (loadConfigInternal에서 호출)
+* 영향:
+    - 향후 다른 폐기 파일(예: `config.yaml` 같은 legacy) 발생 시 `legacyFileNames`에 한 줄만 추가하면 자동 정리됨 — 확장 가능한 SSOT 구조
 
 ## Issue120: [Logger] `Logger.debug()` / `verbose()` 가 Release 빌드에서 `#if DEBUG` 가드로 무력화 — `_config.yml log_level` SSOT 깨짐 (등록: 2026-05-13, 완료: 2026-05-13) (Hash: d955324)
 * 목적: `_config.yml` 의 `log_level: "DEBUG"` 설정이 Release 빌드(brew binary)에서 무시되어 `logD` / `logV` 호출이 모두 무력화. Issue119 fix(logV→logD 4건)도 Release 환경에서 효과 없었음. 설정 SSOT 회복.
