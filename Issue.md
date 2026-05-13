@@ -6,8 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 122
+* Issue HWM: 124
 * Save Point :
+      - 2026.05.14: d6fc4e5 (Docs: Register Issue122 (Path/SSOT appRootPath 3중 분기))
       - 2026.05.14: 8443022 (Fix(Issue121): _setting.yml legacy 파일 자동 정리 마이그레이션 추가)
       - 2026.05.13: d955324 (Fix(Issue120): Logger.debug/verbose #if DEBUG 가드 제거 — Release에서도 log_level SSOT 작동)
       - 2026.05.13: c9c4308 (Fix(Issue118,119): KeyCaptureManager hot-path 회귀 차단 + 트리거 trace 가시화)
@@ -45,6 +46,63 @@ date: 2026-04-07
     - 복잡도: **복잡** (3개 SSOT 통합, 마이그레이션 1회, 4개 이상 모듈 영향, v2 API 동작 변경) → plan/task 분리 권장. 별도 요청 시 작성.
 
 # 📙 일반
+
+## Issue123: [Test/Infra] FolderTest 재실행 인프라 복구 — paidApp→cliApp 의존성 마이그레이션 (등록: 2026-05-14)
+* 목적: 2026-03-26 이후 paidApp 압축 + 엔진의 cliApp 이전으로 인해 메인 fSnippet 레포의 `_tool/verify/run_folder_tests.sh`가 컴파일하는 의존 소스 25개 중 5개가 paidApp 경로(`fSnippet/fSnippet/`)에서 사라짐. 핵심 엔진 파일은 모두 `_public/cli/fSnippetCli/`로 이전됐으므로, 33-case 매트릭스 회귀 인프라를 cliApp 측에 재구축하여 향후 회귀 가시성 확보. 본 이슈는 **인프라 복구 + 빌드 통과**까지만 다룸. 실제 33-case 실행 및 결과 검증은 Issue124로 분리.
+* 누락/이동 현황 (메인 fSnippet 레포 기준):
+    - **누락 (paidApp 경로에서 소실, cliApp 경로에는 존재)**:
+        * `fSnippet/fSnippet/Data/SnippetFileManager.swift` → `_public/cli/fSnippetCli/Data/SnippetFileManager.swift`
+        * `fSnippet/fSnippet/Data/RuleManager.swift` → `_public/cli/fSnippetCli/Data/RuleManager.swift`
+        * `fSnippet/fSnippet/Managers/PSKeyManager.swift` → `_public/cli/fSnippetCli/Managers/PSKeyManager.swift`
+        * `fSnippet/fSnippet/Core/AbbreviationMatcher.swift` → `_public/cli/fSnippetCli/Core/AbbreviationMatcher.swift`
+        * `fSnippet/fSnippet/Managers/DeleteLengthManager.swift` → `_public/cli/fSnippetCli/Managers/DeleteLengthManager.swift`
+    - **폴더 이동 (paidApp 잔존본)**: `NotificationNames.swift`, `KeyEventInfo.swift` 모두 `Core/` → `Data/`
+* 호환성 사전 확인:
+    - cliApp 측에 핵심 API 시그니처 동일 보존: `SnippetFileManager.getAbbreviation(for:)`, `SnippetFileManager.loadAllSnippets(reason:force:)` (기본값 있음 → 기존 무인자 호출 호환), `AbbreviationMatcher.findSnippetCandidates(searchTerm:)`, `RuleManager.loadRuleFile(at:)`
+    - FolderTestRunner.swift 본문 수정 없이 의존성 경로만 변경 시 컴파일 가능성 높음 (cliApp 의존성 트리 추가 검증 필요)
+* 옵션 비교:
+    | 옵션 | 작업량 | 위험도 | 미래성 |
+    | :--- | :----- | :----- | :----- |
+    | A. 메인 레포 `run_folder_tests.sh` SOURCE_FILES 5건 경로 재매핑 | 작음 | 중간 (Mock 호환·추가 의존성 발견 가능) | 낮음 (paidApp 폐기 시 재이식 필요) |
+    | **B. cliApp Tests로 이식** (`_public/cli/fSnippetCliTests/FolderTest/`) | 중간 | 낮음 | 높음 ⭐ 권장 |
+* 구현 명세 (옵션 B 권장):
+    - 신규 디렉터리: `_public/cli/fSnippetCliTests/FolderTest/`
+    - 이식 파일 (메인 레포로부터 복사):
+        * `Tests/FolderTest/FolderTestRunner.swift` → `_public/cli/fSnippetCliTests/FolderTest/FolderTestRunner.swift`
+        * `Tests/FolderTest/testTable_org.md` → `_public/cli/fSnippetCliTests/FolderTest/testTable_org.md`
+        * `Tests/UnitTest/TestUtils.swift` → `_public/cli/fSnippetCliTests/FolderTest/TestUtils.swift` (또는 공용 위치)
+        * `Tests/Mocks/{TriggerKeyManager, PreferencesManager, ShortcutMgr, Relauncher, SnippetIndexManager}.swift` → `_public/cli/fSnippetCliTests/Mocks/` (cliApp 의존성 트리 기준 재검토 필수)
+    - 신규 빌드 스크립트: `_public/cli/_tool/folderTest/run_folder_test.sh` — `swiftc`로 cliApp 소스 + Mock + Runner 컴파일, `_public/cli/_tool/folderTest/logs/`에 결과 출력
+    - 결과 디렉터리: `_public/cli/fSnippetCliTests/FolderTest/Results/`
+    - 옵션 A를 fallback으로 보존: 옵션 B에서 cliApp 의존성 트리에 추가 누락이 발견되면 빠른 검증을 위해 옵션 A 변형(메인 레포 `run_folder_tests.sh` 5건 경로 재매핑)을 1회 임시 실행한 뒤 다시 B로 회귀
+    - 본 이슈 완료 조건: `run_folder_test.sh` 컴파일 성공 (실행 결과 검증은 Issue124 범위)
+* 복잡도: **중간** — 변경 파일 수는 적지만 cliApp 의존성 트리 검증·Mock 호환성 확인이 필요. plan 작성 권장. 사용자 별도 요청 시 `cli/_doc_work/plan/folder_test_revival_plan.md` 작성.
+* 관련 영역: `_public/cli/fSnippetCliTests/`, `_public/cli/_tool/folderTest/` (신규), 메인 레포 `Tests/FolderTest/`, `_tool/verify/run_folder_tests.sh` (참조용 원본)
+* 의존: 없음 (선행 이슈 아님)
+* 후속: Issue124
+
+## Issue124: [Test] FolderTest 33-case 회귀 실행 + `testTable_org.md` ↔ 현행 `_rule.yml` 동기화 (등록: 2026-05-14)
+* 목적: Issue123에서 복구된 인프라로 33-case 매트릭스를 재실행하여 마지막 실행(2026-03-26 `result_latest.md` 전 항목 ✅) 대비 회귀 여부를 검증. 동시에 사용자 환경 `_rule.yml`(`~/Documents/finfra/fSnippetData/snippets/_rule.yml`, 2026-03-29 갱신)과 테스트 매트릭스 `testTable_org.md`(2026-03-26 기준)의 차이를 분석·동기화하여 회귀 신뢰성 확보.
+* 의존: Issue123 (인프라 복구) 선행 필수
+* 사전 발견된 매트릭스↔환경 불일치 (현재 IDE에 열린 `_rule.yml` 실측 기반):
+    - `_case17`: 현재 `_rule.yml`에서 **누락** (`_case16` 다음에 `_case18`로 점프). `testTable1.md`는 `_case17` 정의 보유 (`suffix: {keypad_comma}`). → 매트릭스에 추가하거나 테스트에서 제외할지 결정 필요.
+    - `_case13` / `_case14`: 현재 `_rule.yml`은 suffix/prefix가 `◊`. `testTable1.md`는 `{right_command}`. → 환경 변경에 매트릭스 동기화 필요.
+    - 그 외 cases는 현재 yml과 일치 여부 전수 비교 필요 (`_case34` 등 추가 case 가능)
+* 구현 명세:
+    - 1단계 (실행): `_public/cli/_tool/folderTest/run_folder_test.sh` 1회 실행. 결과를 `_public/cli/fSnippetCliTests/FolderTest/Results/result_latest.md` 및 `result_<YYYYMMDD-HHmmss>.md`로 저장
+    - 2단계 (회귀 분석): 33-case 중 실패 case 식별. 실패 분류:
+        * **테스트 입력 자체 오류**: testTable_org.md ↔ 현행 `_rule.yml` 불일치 → 매트릭스 갱신
+        * **엔진 회귀**: 동일 입력에서 매칭 실패 → 별도 후속 이슈로 분리 등록
+    - 3단계 (동기화): 사용자 확인 후 `testTable_org.md` 업데이트 — `_case17` 처리, `_case13/14` suffix `{right_command}` → `◊` 갱신, 누락 case 추가 (`_case34` 등). 갱신 시 시계열 보관: `testTable_org_<YYYYMMDD>.md`
+    - 4단계 (재실행): 동기화된 매트릭스로 재실행 → 전 항목 ✅ 통과 확인
+    - 사용자 환경 비파괴: `setupSandbox()` 임시 폴더 사용으로 `~/Documents/finfra/fSnippetData/snippets/`는 미영향 (FolderTestRunner.swift L8 검증 완료)
+* 검증:
+    - `result_latest.md` 전 항목 ✅
+    - 매트릭스 변경 시 git diff로 갱신 사유 명시
+    - 엔진 회귀 발견 시 별도 이슈 번호 부여
+* 복잡도: **중간** — 실행 자체는 자동이나 차이 분석·동기화에 설계 결정 포함. plan 작성 권장 가능. report는 결과가 회귀 또는 매트릭스 변경을 동반할 경우 권장.
+* 관련 영역: `_public/cli/fSnippetCliTests/FolderTest/testTable_org.md` (또는 메인 레포 원본), `_public/cli/fSnippetCliTests/FolderTest/Results/`, `~/Documents/finfra/fSnippetData/snippets/_rule.yml` (참조)
+* 후속: 엔진 회귀 발견 시 신규 이슈 분리 등록
 
 # 📗 선택
 
