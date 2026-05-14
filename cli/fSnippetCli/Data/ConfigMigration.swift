@@ -242,6 +242,70 @@ enum ConfigMigration {
         return removed
     }
 
+    /// Issue122: One-shot migration of the legacy `app_root_path` key from `_config.yml`
+    /// to the SSOT (UserDefaults `appRootPath`).
+    ///
+    /// Behavior:
+    /// - If UserDefaults `appRootPath` is unset and `_config.yml` contains an `app_root_path:`
+    ///   line with a non-empty value, copy the value into UserDefaults.
+    /// - If UserDefaults `appRootPath` is already set, the YAML value is discarded
+    ///   (UserDefaults wins as SSOT).
+    /// - In either case, strip the `app_root_path:` line from `_config.yml` so the key
+    ///   cannot drift back. Idempotent: missing key or missing file returns nil silently.
+    ///
+    /// - Parameter configURL: Path to the active `_config.yml`.
+    /// - Returns: The migrated value if one was actually copied into UserDefaults, otherwise nil.
+    @discardableResult
+    static func migrateAppRootPath(at configURL: URL) -> String? {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: configURL.path) else { return nil }
+
+        guard let content = try? String(contentsOf: configURL, encoding: .utf8) else {
+            logW("⚙️ [ConfigMigration] Issue122 _config.yml read failed")
+            return nil
+        }
+
+        let lines = content.components(separatedBy: "\n")
+        var foundValue: String? = nil
+        var newLines: [String] = []
+        var stripped = false
+
+        for line in lines {
+            // Top-level key only (no leading whitespace) — depth-1 YAML matches existing patterns.
+            if line.hasPrefix("app_root_path:") {
+                let raw = line
+                    .replacingOccurrences(of: "app_root_path:", with: "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+                if !raw.isEmpty { foundValue = raw }
+                stripped = true
+                // line dropped — do not append to newLines
+            } else {
+                newLines.append(line)
+            }
+        }
+
+        guard stripped else { return nil }
+
+        let alreadySet = !(UserDefaults.standard.string(forKey: "appRootPath") ?? "").isEmpty
+        var migrated: String? = nil
+        if !alreadySet, let value = foundValue {
+            UserDefaults.standard.set(value, forKey: "appRootPath")
+            logI("⚙️ [ConfigMigration] Issue122 app_root_path → UserDefaults migrated: \(value)")
+            migrated = value
+        } else if alreadySet, foundValue != nil {
+            logI("⚙️ [ConfigMigration] Issue122 UserDefaults wins, _config.yml app_root_path discarded")
+        }
+
+        do {
+            try newLines.joined(separator: "\n").write(to: configURL, atomically: true, encoding: .utf8)
+            logI("⚙️ [ConfigMigration] Issue122 _config.yml app_root_path key removed")
+        } catch {
+            logE("⚙️ ❌ [ConfigMigration] Issue122 _config.yml write failed: \(error)")
+        }
+        return migrated
+    }
+
     // MARK: - Helpers
 
     /// `  key: "value"` 또는 `key: value` 라인에서 (key, value) 추출

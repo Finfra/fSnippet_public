@@ -832,9 +832,9 @@ class APIRouter {
     let prefs = PreferencesManager.shared
     let language: String = prefs.get("language") ?? "system"
     let appearance: String = prefs.get("appearance") ?? "system"
-    let settingsFolder: String = prefs.get("app_root_path")
-      ?? (FileManager.default.homeDirectoryForCurrentUser
-          .appendingPathComponent("Documents/finfra/fSnippetData").path)
+    // Issue122: settingsFolder is sourced from the SSOT gateway (UserDefaults → seed),
+    // not from _config.yml `app_root_path` (deprecated).
+    let settingsFolder: String = PreferencesManager.resolveAppRootPath()
     let snippetFolder: String = prefs.get("snippet_base_path") ?? "./snippets"
 
     let triggerKeyToken: String = prefs.get("snippet_trigger_key") ?? "{right_command}"
@@ -2296,10 +2296,14 @@ class APIRouter {
       return v2Error(code: "invalid_argument", message: "triggerBias must be between -10 and 10", statusCode: 400)
     }
 
+    // Issue122: settingsFolder writes go straight to UserDefaults (SSOT), not _config.yml.
+    if let v = patch.settingsFolder {
+      UserDefaults.standard.set(v, forKey: "appRootPath")
+      logI("🌐 [APIRouter] Issue122 appRootPath updated via v2 PATCH /general: \(v)")
+    }
     PreferencesManager.shared.batchUpdate { config in
       if let v = patch.language { config["language"] = v }
       if let v = patch.appearance { config["appearance"] = v }
-      if let v = patch.settingsFolder { config["app_root_path"] = v }
       if let v = patch.snippetFolder { config["snippet_base_path"] = v }
       if let v = patch.triggerBias { config["snippet_trigger_bias"] = v }
       if let v = patch.quickSelectModifier { config["quick_select_modifier"] = v }
@@ -2438,9 +2442,9 @@ class APIRouter {
   }
 
   private func currentSettingsFolder() -> String {
-    return PreferencesManager.shared.get("app_root_path")
-      ?? FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent("Documents/finfra/fSnippetData").path
+    // Issue122: SSOT unification — delegate to PreferencesManager gateway
+    // (ENV → UserDefaults → seed). _config.yml `app_root_path` is deprecated.
+    return PreferencesManager.resolveAppRootPath()
   }
 
   private func currentSnippetFolder() -> String {
@@ -2472,8 +2476,12 @@ class APIRouter {
     if let v = body.snippetFolder, v.isEmpty {
       return v2Error(code: "invalid_argument", message: "snippetFolder must not be empty", statusCode: 400)
     }
+    // Issue122: settingsFolder → UserDefaults SSOT (not _config.yml).
+    if let v = body.settingsFolder {
+      UserDefaults.standard.set(v, forKey: "appRootPath")
+      logI("🌐 [APIRouter] Issue122 appRootPath updated via v2 PATCH /general/paths: \(v)")
+    }
     PreferencesManager.shared.batchUpdate { config in
-      if let v = body.settingsFolder { config["app_root_path"] = v }
       if let v = body.snippetFolder { config["snippet_base_path"] = v }
     }
     return jsonResponse(V2PathsResponse(

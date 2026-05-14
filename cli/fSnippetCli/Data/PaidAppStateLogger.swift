@@ -139,21 +139,18 @@ public enum PaidAppStateLogger {
         return logsDir.appendingPathComponent("paidapp_state_transitions.counter")
     }
 
-    /// appRootPath 해결 (UserDefaults 또는 기본값)
+    /// Resolve appRootPath.
+    ///
+    /// Issue122: Production traffic delegates to `PreferencesManager.resolveAppRootPath()`
+    /// (the single SSOT gateway: ENV → UserDefaults → seed). The local `testableDefaultsOverride`
+    /// branch is kept solely for unit-test isolation in `PaidAppStateLoggerTests` — a follow-up
+    /// issue should hoist the test override into the gateway so this entire helper can be removed.
     private static func resolveAppRootPath() -> String {
-        // Test override 확인
         if let testDefaults = testableDefaultsOverride,
            let testPath = testDefaults.string(forKey: "appRootPath"), !testPath.isEmpty {
             return testPath
         }
-
-        // 실제 UserDefaults 확인
-        if let appRootPath = UserDefaults.standard.string(forKey: "appRootPath"), !appRootPath.isEmpty {
-            return appRootPath
-        }
-
-        // 기본값
-        return "/Users/\(NSUserName())/Documents/finfra/fSnippetData"
+        return PreferencesManager.resolveAppRootPath()
     }
 
     /// 로그 디렉토리 생성 (없으면)

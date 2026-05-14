@@ -227,8 +227,17 @@ paths:
               schema:
                 type: object
                 properties:
-                  settingsFolder: { type: string, example: "~/Documents/finfra/fSnippetData2" }
-                  snippetFolder:  { type: string, example: "./snippets" }
+                  settingsFolder:
+                    type: string
+                    example: "~/Documents/finfra/fSnippetData2"
+                    description: |
+                      cliApp 데이터 폴더(SSOT). 내부 저장소는 `UserDefaults["appRootPath"]` 키이며
+                      `PreferencesManager.resolveAppRootPath()` 게이트웨이가 ENV `fSnippetCli_config`
+                      → UserDefaults → 시드 순으로 결정한다 (Issue122). `_config.yml`의 `app_root_path`
+                      키는 deprecated이며 부팅 시 1회 UserDefaults로 마이그레이션된 뒤 제거된다.
+                  snippetFolder:
+                    type: string
+                    example: "./snippets"
     patch:
       tags: [Settings General]
       summary: Settings/Snippet 경로 변경
@@ -239,8 +248,13 @@ paths:
             schema:
               type: object
               properties:
-                settingsFolder: { type: string }
-                snippetFolder:  { type: string }
+                settingsFolder:
+                  type: string
+                  description: |
+                    `UserDefaults["appRootPath"]` 키에 직접 기록된다 (Issue122). UserDefaults는 즉시
+                    반영되지만 이미 로드된 Logger/SettingsManager 캐시는 다음 앱 재시작 후 갱신된다.
+                    ENV `fSnippetCli_config`가 설정된 프로세스는 PATCH 값이 무시될 수 있다(ENV 우선).
+                snippetFolder: { type: string }
       responses:
         '200': { description: OK }
         '400': { $ref: '#/components/responses/BadRequest' }

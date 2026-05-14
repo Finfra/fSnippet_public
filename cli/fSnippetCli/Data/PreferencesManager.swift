@@ -26,7 +26,9 @@ class PreferencesManager: PreferencesManagerProtocol {
         return get("language") ?? "system"
     }
 
-    /// 환경변수 `fSnippetCli_config` → 기본 경로 순으로 appRootPath 결정
+    /// Issue122: SSOT gateway for appRootPath resolution.
+    /// Priority: ENV `fSnippetCli_config` (test/CLI override) → UserDefaults `appRootPath` (SSOT) → seed.
+    /// The seed path is persisted to UserDefaults on first miss so subsequent calls return the same value.
     static func resolveAppRootPath() -> String {
         let envKey = "fSnippetCli_config"
         if let envPath = ProcessInfo.processInfo.environment[envKey], !envPath.isEmpty {
@@ -34,7 +36,15 @@ class PreferencesManager: PreferencesManagerProtocol {
                 ? envPath.replacingOccurrences(of: "~", with: "/Users/\(NSUserName())")
                 : envPath
         }
-        return "/Users/\(NSUserName())/Documents/finfra/fSnippetData"
+
+        if let stored = UserDefaults.standard.string(forKey: "appRootPath"), !stored.isEmpty {
+            return stored
+        }
+
+        let seed = "/Users/\(NSUserName())/Documents/finfra/fSnippetData"
+        UserDefaults.standard.set(seed, forKey: "appRootPath")
+        logI("⚙️ [Preference] Issue122 seed appRootPath → \(seed)")
+        return seed
     }
 
     // 기본 경로 설정 (URL 기반)
@@ -264,6 +274,12 @@ class PreferencesManager: PreferencesManagerProtocol {
         let legacyRemoved = ConfigMigration.removeLegacyFiles(in: dataDir)
         if !legacyRemoved.isEmpty {
             logI("⚙️ [Preference] Issue121 legacy files cleaned: \(legacyRemoved.count) file(s)")
+        }
+
+        // Issue122: One-shot migration of `app_root_path` from _config.yml to UserDefaults SSOT.
+        // Idempotent: missing key is skipped silently; existing UserDefaults value wins.
+        if let migrated = ConfigMigration.migrateAppRootPath(at: self.configURL) {
+            logI("⚙️ [Preference] Issue122 appRootPath migrated from _config.yml: \(migrated)")
         }
 
         // Issue89: 박제된 hotkey 자동 정리 마이그레이션 (파일 파싱 전 1회 수행, idempotent)
