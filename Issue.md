@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 124
+* Issue HWM: 125
 * Save Point :
       - 2026.05.14: d6fc4e5 (Docs: Register Issue122 (Path/SSOT appRootPath 3중 분기))
       - 2026.05.14: 8443022 (Fix(Issue121): _setting.yml legacy 파일 자동 정리 마이그레이션 추가)
@@ -92,6 +92,55 @@ date: 2026-04-07
 * 관련 영역: `cli/fSnippetCli/Core/AbbreviationMatcher.swift` (1건 수정), `cli/fSnippetCliTests/FolderTest/` (신규)
 * 의존: 없음
 * 후속: Issue124
+
+## Issue125: [Logging/Bug] `logFilter.enable: false` 인데 RuleManager 등 일부 모듈 로그 누락 — logFilter ↔ log_level 직교 가드 책임 경계 불명확 (등록: 2026-05-14)
+* 목적: `appSetting.json` 의 `logFilter.enable: false` 설정 시 사용자는 **모든 모듈 로그(타이핑·RuleManager·AbbreviationMatcher 포함)가 출력되리라 기대**. 그러나 실제로는 `RuleManager`, `AbbreviationMatcher` 등 denyList에 포함되어 있던 모듈 로그가 여전히 출력되지 않음. logFilter 가 제대로 비활성화돼도 log_level 가드가 별도로 적용되어 누락 발생. 사용자 멘탈 모델과 실제 동작 정렬.
+* 사용자 보고 (2026-05-14):
+    > `cli/fSnippetCli/_data/appSetting.json` L20 `"enable": false` 이면 필터링 안 되어 타이핑 로그(및 denyList 모듈 로그)가 나와야 하는데 안 나옴.
+* 근본 원인 (코드 분석):
+    - `AppSettingManager.shouldLog(file:)` (`cli/fSnippetCli/Managers/AppSettingManager.swift:109-126`) 정상 동작:
+        ```swift
+        guard setting.logFilter.enable else { return true }   // L110 — enable:false → 즉시 통과
+        ```
+        → logFilter 자체는 모든 모듈 통과 (denyList 무시)
+    - 그러나 전역 `logV`/`logD`/`logI`/... 함수 (`cli/fSnippetCli/Data/Logger.swift:562-607`) 는 2단 가드:
+        1. `AppSettingManager.shared.shouldLog(file:)` — logFilter 가드 (enable=false 시 통과)
+        2. `logger.verbose(message)` 내부의 `currentLogLevel.rawValue <= LogLevel.verbose.rawValue` — **log_level 가드 (별도)**
+    - 현재 환경: `_config.yml` `log_level: "DEBUG"` (= rawValue 1)
+    - `RuleManager` 의 모든 핵심 로그가 `logV` (= VERBOSE, rawValue 0) 로 작성됨:
+        * L57 `Cache Invalidated due to notification`
+        * L144 `규칙 파일 변경 감지 - 재로드 시작`
+        * L165 `YAML 파일 내용`
+        * L211 `규칙 파일 로드 성공: N개 컬렉션`
+        * L245/252/259/266 `[SECTION] xxx 섹션 진입`
+        * L326+ parse 상세
+    - 결과: logFilter 우회됨에도 log_level 가드에서 VERBOSE 컷 → **"logFilter.enable=false인데도 RuleManager 로그 안 나옴"** 으로 인지
+* 설계 모호성:
+    - logFilter (`enable`/`mode`/`allowList`/`denyList`) = "**어떤 모듈** 의 로그를 보는가" — 모듈 차원 필터
+    - log_level = "**얼마나 상세하게** 로그를 보는가" — 상세도 필터
+    - 두 가드는 직교적이나, `logFilter.enable: false` 의미가 "필터 없음 = 다 보임" 으로 해석되어 사용자 직관과 충돌
+* 구현 명세 (옵션 비교):
+    | 옵션 | 변경 범위 | 부작용 | 권장 |
+    | :--- | :-------- | :----- | :--- |
+    | **A. RuleManager 핵심 로그 logV → logD 승격** | RuleManager.swift 가시성 필요 logV (L57/L144/L211/[SECTION] 등) → logD 5~8건 | DEBUG 레벨에서 모듈 가시성 회복. Issue119 패턴 (CGEventTapManager 3건 승격 선례) | ⭐ 1순위 |
+    | B. `logFilter` 에 `forceAllLevels: true` 도입 → log_level 가드 우회 모드 | `LogFilterConfig` 신규 필드 + 전역 `logV`/`logD` 함수가 플래그 체크 시 level 가드 스킵 | 의미 복잡화. 무한 verbose 위험. 디버깅 전용 의도 명시 필요 | 2순위 (선택적) |
+    | C. 문서 명확화 | `appSetting.json description` 갱신 + `cli/.claude/rules/logging-rules.md` 에 "logFilter 와 log_level 직교성" 섹션 추가 | 코드 무수정. 사용자 기대치 정렬 | 동반 적용 |
+    - **권장**: 옵션 A + C 동반 적용
+        * A: RuleManager 핵심 로그(`Cache Invalidated`, `규칙 파일 변경 감지`, `규칙 파일 로드 성공`, `[SECTION] xxx`) 약 5~8건 logV → logD 승격. 노이즈 통제를 위해 L165 `YAML 파일 내용 전체` 같은 대용량은 logV 유지
+        * AbbreviationMatcher 동일 분석 후 핵심 로그 logV → logD 승격 (적용 범위 plan 단계에서 확정)
+        * C: `appSetting.json` description 갱신 + `logging-rules.md` 직교성 섹션 추가
+* 검증:
+    - `_config.yml log_level: "DEBUG"` + `appSetting.json logFilter.enable: false` 조합에서:
+        * Release 빌드 + brew 재배포 후 RuleManager 핵심 로그가 `flog.log` 에 `🐛 DEBUG:` 레벨로 출력
+        * 사용자 호소("RuleManager 로그 안 나옴") 해소 여부 직접 검증
+* 사용자 가설 ("폴더 수정 영향") 검토:
+    - Issue123 변경(SnippetRepository `#if DEBUG` 후크, FolderTest 신규 디렉터리, PaidAppAPIRouterTests fix) 모두 **Release 바이너리에 미반영**
+    - `AppSettingManager` 로드 로직(L231-236) 은 "소스 디렉토리 → Bundle resource" 순. brew 바이너리는 Bundle 사용. 신규 `FolderTest/` 는 `fSnippetCli` 앱 타겟 sources 미포함 → Bundle 영향 없음
+    - **결론**: 폴더 수정 영향 아님. log_level 가드 단독 문제
+* 복잡도: **중간** — 옵션 A logV→logD 승격은 작지만 정책 결정(어느 로그 승격) 필요. 옵션 C 문서 보강 동반. plan 작성 권장.
+* 관련 영역: `cli/fSnippetCli/Data/RuleManager.swift`, `cli/fSnippetCli/Core/AbbreviationMatcher.swift`, `cli/fSnippetCli/_data/appSetting.json`, `cli/.claude/rules/logging-rules.md`
+* 의존: 없음
+* 후속: 옵션 B (forceAllLevels 모드) 채택 시 별도 이슈
 
 ## Issue124: [Test] FolderTest 33-case 회귀 실행 + `testTable_org.md` ↔ 현행 `_rule.yml` 동기화 (등록: 2026-05-14)
 * 목적: Issue123에서 복구된 인프라로 33-case 매트릭스를 재실행하여 마지막 실행(2026-03-26 `result_latest.md` 전 항목 ✅) 대비 회귀 여부를 검증. 동시에 사용자 환경 `_rule.yml`(`~/Documents/finfra/fSnippetData/snippets/_rule.yml`, 2026-03-29 갱신)과 테스트 매트릭스 `testTable_org.md`(2026-03-26 기준)의 차이를 분석·동기화하여 회귀 신뢰성 확보.
