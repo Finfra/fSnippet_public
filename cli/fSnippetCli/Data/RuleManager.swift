@@ -54,7 +54,7 @@ class RuleManager: RuleManagerProtocol {
         // invalidateEffectiveRulesCache() 호출로 충분함 (내부에서 barrier async 사용)
         invalidateEffectiveRulesCache()
         ChangeTracker.shared.record(type: "rule.changed", target: "rule")
-        logV("📐    [RuleManager] Cache Invalidated due to notification")
+        logD("📐    [RuleManager] Cache Invalidated due to notification")
     }
 
     /// 전역 설정 구조체
@@ -141,7 +141,7 @@ class RuleManager: RuleManagerProtocol {
             // 변경됨 - 업데이트
             lastRuleFileModificationDate = modificationDate
             currentRuleFilePath = filePath
-            logV("📐    규칙 파일 변경 감지 - 재로드 시작 (수정시간: \(modificationDate))")
+            logD("📐    규칙 파일 변경 감지 - 재로드 시작 (수정시간: \(modificationDate))")
         }
 
         // 파일 읽기
@@ -208,7 +208,7 @@ class RuleManager: RuleManagerProtocol {
             }
         }
 
-        logV("📐    규칙 파일 로드 성공: \(ruleFile.collections.count)개 컬렉션")
+        logD("📐    규칙 파일 로드 성공: \(ruleFile.collections.count)개 컬렉션")
         return true
     }
 
@@ -456,7 +456,7 @@ class RuleManager: RuleManagerProtocol {
         if !currentEnhancedKeyName.isEmpty && !currentEnhancedKey.isEmpty {
             if let enhancedMapping = createEnhancedKeyMapping(from: currentEnhancedKey) {
                 enhancedKeyMappings[currentEnhancedKeyName] = enhancedMapping
-                logV("📐    [ENHANCED_LOAD] 마지막 Enhanced 매핑 로드 성공: \(currentEnhancedKeyName)")
+                logD("📐    [ENHANCED_LOAD] 마지막 Enhanced 매핑 로드 성공: \(currentEnhancedKeyName)")
             }
         }
 
@@ -793,7 +793,7 @@ class RuleManager: RuleManagerProtocol {
             return cached
         }
 
-        logV("📐    [RuleManager] Cache Miss - Recalculating Effective Rules")
+        logD("📐    [RuleManager] Cache Miss - Recalculating Effective Rules")
 
         // 1. 명시적 규칙으로 시작
         var rules = getAllRules()
@@ -919,7 +919,7 @@ class RuleManager: RuleManagerProtocol {
 
         let endTime = CFAbsoluteTimeGetCurrent()
         let duration = endTime - startTime
-        logV("📐    [RuleManager] Recalculation took: \(String(format: "%.4f", duration))s")
+        logD("📐    [RuleManager] Recalculation took: \(String(format: "%.4f", duration))s")
 
         return rules
     }
@@ -956,7 +956,7 @@ class RuleManager: RuleManagerProtocol {
         let ymlPath = folderPath + "/_rule.yml"
 
         if loadRules(from: ymlPath) {
-            logV("📐    [RuleManager] _rule.yml 로드 성공")
+            logD("📐    [RuleManager] _rule.yml 로드 성공")
             return true
         }
 

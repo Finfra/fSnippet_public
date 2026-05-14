@@ -63,7 +63,7 @@ class AbbreviationMatcher {
         if let exactMatch = uniqueSnippets.first(where: { snippet in
             candidates.contains(snippet.abbreviation)
         }) {
-            logV("🧩 완전 일치 스니펫 발견: \(exactMatch.abbreviation)")
+            logD("🧩 완전 일치 스니펫 발견: \(exactMatch.abbreviation)")
             return exactMatch
         }
 

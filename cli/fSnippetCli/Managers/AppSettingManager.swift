@@ -228,7 +228,7 @@ class AppSettingManager {
     // 수동 이스케이프 처리 제거됨 (표준 JSON 디코더에 의존)
 
     private func getJSONFileURL() -> URL? {
-        // 1. [개발 요청] 소스 디렉토리 우선 (fSnippet/_data/appSetting.json)
+        // 1. [개발 요청] 소스 디렉토리 우선 (cli/fSnippetCli/_data/appSetting.json — Bundle resource)
         // Bundle 경로를 기반으로 동적으로 소스 디렉토리를 감지 (Issue770: 절대경로 하드코딩 제거)
         #if DEBUG
         if let resourcePath = Bundle.main.resourcePath {
