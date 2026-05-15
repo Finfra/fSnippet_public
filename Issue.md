@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 125
+* Issue HWM: 126
 * Save Point :
       - 2026.05.14: 1449700 (Fix(Issue125): logFilter ↔ log_level 직교성 — RuleManager logV → logD 승격 8건)
       - 2026.05.14: 698718c (Feat(Issue123): cliApp Tests에 FolderTest 인프라 이식 — XCTest + Repository 후크)
@@ -30,6 +30,36 @@ date: 2026-04-07
 # 🚧 진행중
 
 # 📕 중요
+
+## Issue126: [Path/Leak] `appSetting.json` Release 환경 누출 — 사용자 데이터 폴더에 `_data/` 자동 생성 (등록: 2026-05-15)
+* 목적: `appSetting.json`은 **DEBUG/개발 전용 Bundle 리소스**임에도 Release(brew) 환경에서 `~/Documents/finfra/fSnippetData/_data/appSetting.json`을 자동 생성하여 사용자 데이터 폴더를 오염시킴. cliApp의 데이터 폴더는 사용자가 직접 다루는 영역이며, 내부 개발용 산출물이 노출되어선 안 됨. Issue122 SSOT 통합과 인접 영역으로, 동일 폴더에 또 하나의 "게이트웨이 우회" 패턴이 존재함.
+* 발견 경위:
+    - 2026-05-15 Issue122 fix 직후 사용자 환경 검증 중 `~/Documents/finfra/fSnippetData/_data/appSetting.json` (688 bytes, mtime 2026-05-14 06:16) 발견
+    - 동일 패턴이 `~/Documents/finfra/fSnippetData_/_data/appSetting.json`에도 존재 (과거 테스트 환경 잔존)
+    - 두 위치 모두 즉시 삭제 완료 (사용자 임시 조치)
+* 근본 원인 (코드 위치):
+    - [`cli/fSnippetCli/Managers/AppSettingManager.swift:230-281`](cli/fSnippetCli/Managers/AppSettingManager.swift#L230-L281) `getJSONFileURL()`
+    - `#if DEBUG ... #endif` 블록(L233-242)이 Bundle resource 우선 분기인 것은 정상
+    - 그러나 Release 분기(L244-281)가 **cwd가 "fSnippet" 미포함 시 `~/Documents/finfra/fSnippetData` 폴백** 후 `_data/` 디렉토리를 `FileManager.createDirectory(... withIntermediateDirectories: true ...)`로 **자동 생성**(L275-278)
+    - brew 실행 환경에서 cwd는 항상 `/`이거나 launchd 컨텍스트 → 항상 폴백 분기 진입 → `_data/appSetting.json` 사용자 폴더에 새는 결과
+    - 즉 DEBUG 전용으로 의도된 파일이 Release에서도 사용자 디스크에 흘러나옴
+* 영향:
+    - 사용자가 데이터 폴더를 들여다볼 때 정체 불명의 `_data/` 디렉토리 발견 → 혼란
+    - 향후 데이터 폴더 백업·동기화 시 불필요한 파일 포함
+    - SSOT 위반 (`_config.yml`이 SSOT여야 하는데 별도 JSON이 같은 폴더에 공존)
+    - Issue122의 SSOT 게이트웨이가 결정한 `appRootPath` 아래에 우회 경로가 또 존재
+* 구현 명세:
+    - 방향: Release 분기에서 **사용자 폴더에 `_data/`를 생성·기록하지 말 것**. 다음 셋 중 하나 채택:
+        * 방안 A (권장): Release에서는 Bundle resource를 read-only로만 로드. 사용자 폴더 변경이 필요한 값은 `_config.yml`로 통합하거나 UserDefaults로 이전
+        * 방안 B: Release에서 `appSetting.json`의 모든 사용처를 `Logger denyList/allowList` 등 개별 키로 분해하여 `_config.yml`에 합쳐 보관
+        * 방안 C: 사용자 폴더 대신 `~/Library/Application Support/kr.finfra.fSnippetCli/` 같은 OS 표준 위치 사용 (사용자 데이터 폴더와 분리)
+    - 결정 필요 항목 (plan 단계):
+        * Release에서 `appSetting.json`의 어떤 필드가 실시간 변경 가능한가? 변경 가능 필드가 있다면 `_config.yml`로 이전, 아니면 read-only Bundle resource 처리
+        * `dataDirectory = "_data"` 상수의 다른 사용처 확인 (다른 파일이 같은 폴더를 공유하는지)
+    - 검증:
+        * Release brew 재배포 + 서비스 시작 후 `~/Documents/finfra/fSnippetData/_data/` 존재 여부 확인 → 없어야 함
+        * `appSetting.json` 의존 기능(로그 필터 denyList/allowList, 키 매핑 등) 회귀 테스트
+    - 복잡도: **중간** (단일 파일 수정이나 설계 결정 1건 필요 — Release 분기 폐기 vs `_config.yml` 통합 vs OS 표준 경로). plan 필요 시 별도 요청.
 
 ## Issue122: [Path/SSOT] `appRootPath` 해석기 3중 분기 — UserDefaults SSOT 깨짐, `defaults write` / API PATCH 미반영 (등록: 2026-05-14)
 * 목적: `path-rules.md §2`가 명시한 "UserDefaults `appRootPath` = SSOT, 하드코드는 초기 시드" 원칙이 깨져 있음. 사용자가 `defaults write kr.finfra.fSnippetCli appRootPath <path>` 하거나 REST API로 settingsFolder를 PATCH 해도 메인 엔진(Logger·SettingsManager·SnippetFileManager·AppSettingManager)이 변경값을 읽지 못함. 데이터 폴더 변경 기능이 사실상 비활성 상태이며 로그가 사용자 지정 경로와 하드코드 경로로 분산될 위험이 있음.
