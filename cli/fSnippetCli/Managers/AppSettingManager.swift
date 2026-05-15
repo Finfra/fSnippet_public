@@ -82,6 +82,9 @@ class AppSettingManager {
     private let jsonFileName = "appSetting.json"
     // Issue126: `dataDirectory` 상수 제거됨. Release 분기에서 사용자 폴더에
     // `_data/` 디렉토리를 자동 생성하던 코드도 함께 폐기. Bundle 리소스만 사용.
+    // Issue126-b (2026-05-15): 리소스 위치를 `_data/appSetting.json`에서 평탄
+    // 위치 `appSetting.json`으로 이동하고 Xcode pbxproj에 등록 → 다른 리소스
+    // (`_config.yml` 등)와 동일한 평탄 패턴.
 
     private(set) var setting: AppSetting
 
@@ -239,29 +242,14 @@ class AppSettingManager {
 
     /// Issue126: Bundle resource read-only loader.
     ///
-    /// In DEBUG builds, the source-tree path is preferred so edits to
-    /// `cli/fSnippetCli/_data/appSetting.json` reflect without rebuilding.
-    /// In Release builds, only the bundled resource is returned — the user
-    /// data folder is never touched, even as a fallback.
+    /// In DEBUG and Release builds alike, the resource is loaded from the app
+    /// bundle via `Bundle.main.url(forResource:withExtension:)`. The user data
+    /// folder is never touched, even as a fallback (Issue126 누출 차단).
     ///
-    /// Note: As of 2026-05-15 the Bundle does not actually include the
-    /// `_data/appSetting.json` resource (Xcode pbxproj does not list it under
-    /// Copy Bundle Resources). This means Release returns nil and
-    /// `AppSetting.default` is used in-memory. Restoring the bundled resource
-    /// is tracked separately so the policy here remains correct either way.
+    /// The same path works for both configurations because `appSetting.json`
+    /// is now registered in Xcode's Copy Bundle Resources (Issue126-b) and
+    /// sits at the bundle root alongside `_config.yml` / `_rule.yml`.
     private func getJSONFileURL() -> URL? {
-        #if DEBUG
-        if let resourcePath = Bundle.main.resourcePath {
-            let devSourceURL = URL(fileURLWithPath: resourcePath)
-                .appendingPathComponent("_data/\(jsonFileName)")
-            if FileManager.default.fileExists(atPath: devSourceURL.path) {
-                Logger.shared.debug("⚒️ [AppSettingManager] Using Dev Source Config: \(devSourceURL.path)")
-                return devSourceURL
-            }
-        }
-        #endif
-
-        // Release (and DEBUG fallback): bundled resource only.
         let bundled = Bundle.main.url(forResource: "appSetting", withExtension: "json")
         if bundled == nil {
             Logger.shared.verbose(
