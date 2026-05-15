@@ -80,7 +80,8 @@ class AppSettingManager {
     static let shared = AppSettingManager()
 
     private let jsonFileName = "appSetting.json"
-    private let dataDirectory = "_data"
+    // Issue126: `dataDirectory` 상수 제거됨. Release 분기에서 사용자 폴더에
+    // `_data/` 디렉토리를 자동 생성하던 코드도 함께 폐기. Bundle 리소스만 사용.
 
     private(set) var setting: AppSetting
 
@@ -191,6 +192,11 @@ class AppSettingManager {
     }
 
     func save() {
+        // Issue126: appSetting.json is a DEBUG-only Bundle resource.
+        // Writes are scoped to DEBUG so developers can persist edits to the
+        // dev-source path returned by getJSONFileURL(). In Release the call
+        // is intentionally a no-op — no user-folder leak.
+        #if DEBUG
         guard let url = getJSONFileURL() else { return }
 
         setting.lastUpdated = Date()
@@ -208,6 +214,10 @@ class AppSettingManager {
         } catch {
             Logger.shared.error("⚒️ [AppSettingManager] Failed to save usage: \(error)")
         }
+        #else
+        Logger.shared.verbose(
+            "⚒️ [AppSettingManager] save() skipped in Release (Issue126 read-only policy)")
+        #endif
     }
 
     // MARK: - 내부 헬퍼
@@ -227,13 +237,23 @@ class AppSettingManager {
 
     // 수동 이스케이프 처리 제거됨 (표준 JSON 디코더에 의존)
 
+    /// Issue126: Bundle resource read-only loader.
+    ///
+    /// In DEBUG builds, the source-tree path is preferred so edits to
+    /// `cli/fSnippetCli/_data/appSetting.json` reflect without rebuilding.
+    /// In Release builds, only the bundled resource is returned — the user
+    /// data folder is never touched, even as a fallback.
+    ///
+    /// Note: As of 2026-05-15 the Bundle does not actually include the
+    /// `_data/appSetting.json` resource (Xcode pbxproj does not list it under
+    /// Copy Bundle Resources). This means Release returns nil and
+    /// `AppSetting.default` is used in-memory. Restoring the bundled resource
+    /// is tracked separately so the policy here remains correct either way.
     private func getJSONFileURL() -> URL? {
-        // 1. [개발 요청] 소스 디렉토리 우선 (cli/fSnippetCli/_data/appSetting.json — Bundle resource)
-        // Bundle 경로를 기반으로 동적으로 소스 디렉토리를 감지 (Issue770: 절대경로 하드코딩 제거)
         #if DEBUG
         if let resourcePath = Bundle.main.resourcePath {
             let devSourceURL = URL(fileURLWithPath: resourcePath)
-                .appendingPathComponent("_data/appSetting.json")
+                .appendingPathComponent("_data/\(jsonFileName)")
             if FileManager.default.fileExists(atPath: devSourceURL.path) {
                 Logger.shared.debug("⚒️ [AppSettingManager] Using Dev Source Config: \(devSourceURL.path)")
                 return devSourceURL
@@ -241,43 +261,13 @@ class AppSettingManager {
         }
         #endif
 
-        // 2. 견고한 프로젝트 루트 감지 (BufferClearKeyManager에서 복사 및 단순화됨)
-        let currentDirectory = FileManager.default.currentDirectoryPath
-        let projectRoot: String
-
-        if currentDirectory.contains("fSnippet") {
-            if let range = currentDirectory.range(of: "fSnippet") {
-                projectRoot = String(currentDirectory[..<range.upperBound])
-            } else {
-                projectRoot = currentDirectory
-            }
-        } else {
-            // 에이전트/스크립트 실행을 위한 폴백 (표준화됨)
-            let documentsURL = FileManager.default.urls(
-                for: .documentDirectory, in: .userDomainMask
-            ).first!
-            projectRoot = documentsURL.appendingPathComponent("finfra/fSnippetData").path
+        // Release (and DEBUG fallback): bundled resource only.
+        let bundled = Bundle.main.url(forResource: "appSetting", withExtension: "json")
+        if bundled == nil {
+            Logger.shared.verbose(
+                "⚒️ [AppSettingManager] Issue126: bundle resource not found; using in-memory AppSetting.default")
         }
-
-        // 경로 로직이 fSnippetData를 올바르게 처리하는지 확인
-        let url: URL
-        if projectRoot.contains("fSnippetData") {
-            url = URL(fileURLWithPath: projectRoot).appendingPathComponent(dataDirectory)
-        } else {
-            // 소스 리포지토리 구조
-            url = URL(fileURLWithPath: projectRoot).appendingPathComponent("fSnippet")
-                .appendingPathComponent(dataDirectory)
-        }
-
-        // 3. 구성된 경로가 존재하지 않는 경우 Documents/finfra/fSnippetData로 폴백?
-        // 아래 로직은 없는 경우 생성하므로, 사실상 계산된 대로 기본값으로 설정됨.
-
-        if !FileManager.default.fileExists(atPath: url.path) {
-            try? FileManager.default.createDirectory(
-                at: url, withIntermediateDirectories: true, attributes: nil)
-        }
-
-        return url.appendingPathComponent(jsonFileName)
+        return bundled
     }
 
     // ShortcutMgr 통합 제거됨 (알림 기반으로 리팩토링됨)
