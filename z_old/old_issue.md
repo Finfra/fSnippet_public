@@ -19,7 +19,7 @@ date: 2026-05-03
     - `MenuBarView`: Daemon 서브메뉴 세 번째 항목으로 Pause/Resume REST API 버튼 추가
 
 ## Issue99: menuBar_enhance.md 반영 — 메뉴바 UI 정제 (등록: 2026-05-02, 종료: 2026-05-02, commit: 5daf710, 3ba331e, 265d7bc, 67fd81f, 01f70fe) ✅
-* 목적: `_doc_design/menuBar_enhance.md` 설계 기준으로 MenuBarView.swift UI 전체 정제
+* 목적: `_doc_arch/menuBar_enhance.md` 설계 기준으로 MenuBarView.swift UI 전체 정제
 * 상세:
     - 단축키 표시 방식 교체: `shortcutRow()` HStack+Spacer → `.keyboardShortcut()` (MenuBarExtra Spacer 붕괴 문제 해결)
     - 메뉴명 교정: "Show History" → "Show Clipboard History", "Settings..." → "Open Settings Window"
@@ -29,10 +29,10 @@ date: 2026-05-03
     - 👻 Daemon 서브메뉴 정리: Open Main Window(⌃⇧⌘W) + Status 텍스트 행 제거 (🔧 Open Settings Window가 역할 대체)
     - 미사용 코드 제거: `statusLine`, `appLaunchTime`, `statusTimer`, `formatStatusLine()`, `formatUptime()`, `import Combine`
 * 구현 명세:
-    - 참조 설계: `_doc_design/menuBar_enhance.md`
+    - 참조 설계: `_doc_arch/menuBar_enhance.md`
 
 ## Issue98: paid_cli_protocol v1.1 cliApp 구현 (등록: 2026-05-02, 종료: 2026-05-02, commit: a089007, d6f2095) ✅
-* 목적: `_doc_design/paid_cli_protocol.md` v1.1 설계 기반으로 cliApp 코드 갭 5개 구현
+* 목적: `_doc_arch/paid_cli_protocol.md` v1.1 설계 기반으로 cliApp 코드 갭 5개 구현
 * 상세:
     - **①** `fSnippetCliApp.swift` — `MenuBarExtra(isInserted: !isPaidAppRunning)` 제거 → 항상 표시 (paidApp 실행 중에도 cliApp 메뉴바 유지)
     - **②** 아이콘 동적 전환 — paidApp `started` 시 전체 bolt 아이콘, `notInstall/stopped` 시 잘린 아이콘 (§7.1)
@@ -40,8 +40,8 @@ date: 2026-05-03
     - **④** cliApp → paidApp 자동 기동 (§4.2) — `applicationDidFinishLaunching` 내 `PaidAppManager.shared.launchPaidApp()` (기존 구현 확인)
     - **⑤** `MenuBarView.swift` — `PaidAppDetector.openSettings()` → `PaidAppManager.shared.handlePaidFeature()` 교체 (notInstall→App Store알림/stopped→실행요청/started→URL Scheme)
 * 구현 명세:
-    - 참조 설계: `_doc_design/paid_cli_protocol.md` §3.5, §4.2, §7.1, §7.2
-    - 참조 설계: `_doc_design/menuBar_enhance.md` 아이콘 변경 규칙
+    - 참조 설계: `_doc_arch/paid_cli_protocol.md` §3.5, §4.2, §7.1, §7.2
+    - 참조 설계: `_doc_arch/menuBar_enhance.md` 아이콘 변경 규칙
     - ①②③: `fSnippetCliApp.swift` — `PaidAppIconState.isPaidAppRunning: Bool` → `status: PaidAppStatus` 3-state 전환, `MenuBarExtra(isInserted:)` 제거 → 항상 표시, 아이콘 `.started` → full bolt / else → trimmed bolt. 신규 `AppStateManager.swift` — `PaidAppStatus` enum + `AppStateManager` ObservableObject
     - ⑤: `MenuBarView.swift` — Settings 버튼 `handlePaidFeature()` 교체
     - 부수 변경: paidApp 종료 시 cliApp도 종료하는 v1.0 연동 로직 제거 (v1.1: cliApp 독립 실행 유지)
@@ -219,7 +219,7 @@ date: 2026-05-03
     - v1 폴더 제거 완료 (`cmdTest/v1/` 26개 스크립트 삭제, `cmdTest_plan_v1.md`는 보존)
     - `cmdTest/cmdTestDo.sh` + `_tool/cmdTestDo.sh` 기본값 v2 전환 + Usage v2 전용으로 정리
     - 무인자 호출(`bash cmdTestDo.sh`) → v2 32개 PASS 확인
-    - 리포트: `cli/_doc_work/report/cmdTestReport_20260501_001.md`
+    - 리포트: `cli/_doc_work/z_done/report/cmdTestReport_20260501_001.md`
 
 ## Issue90: 시스템 예약 단축키 블랙리스트 (등록: 2026-05-01, 종료: 2026-05-01, commit: 1681de8) ✅
 * 목적: `ShortcutMgr.registerAppGlobalShortcuts()` 에 macOS 표준 단축키(⌘S/C/V/X/A/Z/N/O/P/F/Q/W/T/R) 등록을 거부하고, 시도 시 사용자에게 경고하여 시스템 충돌 회귀(Issue87 류) 재발을 차단
@@ -246,7 +246,7 @@ date: 2026-05-03
     - 실패 항목 원인 분석 및 수정
 * 결과:
     - 정상 28개 ✅ + 에러 6개 ✅ — Run2 기준 전체 통과 (Run1은 burst HTTP=000 10건 → Run2 정상)
-    - 리포트: `cli/_doc_work/report/apiTestReport_20260501_001.md`
+    - 리포트: `cli/_doc_work/z_done/report/apiTestReport_20260501_001.md`
     - 후속 권고: E00.v2-404.sh 갱신(`/settings/advanced/debug` 구현 후 200 응답), `/api/v2/status` 헬스체크 엔드포인트 추가 검토
 
 ## Issue88: 글로벌 단축키 SSOT 정책 강제 — `_config.yml` 외 default 등록 차단 (등록: 2026-05-01, 종료: 2026-05-01, commit: 9d33a23) ✅
@@ -285,11 +285,11 @@ date: 2026-05-03
     - 🌱 Register Snippet 백엔드 구현 (Issue84 Out of Scope §1, 클립보드 → 새 스니펫 파일)
 
 ## Issue84: `{registerSnippet}` 단축키 메뉴 노출 + 등록 로직 (등록: 2026-04-27, 종료: 2026-04-27, commit: 0cacd11) ✅
-* 목적: `_doc_design/menuBar_enhance.md` 액션 표에 `{registerSnippet}` 신설하고, cliApp 메뉴 트리·단축키 등록 로직·dispatcher 동작을 일관 반영. 백엔드(클립보드 → 새 스니펫 파일 생성)는 후속 이슈로 분리
-* plan: `_doc_work/plan/menuBar_register-snippet_plan.md` (gitignored)
+* 목적: `_doc_arch/menuBar_enhance.md` 액션 표에 `{registerSnippet}` 신설하고, cliApp 메뉴 트리·단축키 등록 로직·dispatcher 동작을 일관 반영. 백엔드(클립보드 → 새 스니펫 파일 생성)는 후속 이슈로 분리
+* plan: `cli/_doc_work/z_done/plan/menuBar_register-snippet_plan.md` (gitignored)
 * 커밋: 0cacd11
 * 구현 명세 (5단계):
-    - **Phase 1 — 설계서**: `_public/_doc_design/menuBar_enhance.md` (gitignored)
+    - **Phase 1 — 설계서**: `_public/_doc_arch/menuBar_enhance.md` (gitignored)
         * 액션 토큰 표에 `{registerSnippet} — Register Snippet from Clipboard | (unset)` 행 추가 (paidApp ✅ / cliApp ✅ 스텁)
         * paidApp 메뉴 트리 `📜 Clipboard ▶`에 `Register Snippet` 항목 추가 (Pause/Resume과 Clear Clipboard History 사이)
         * cliApp 메뉴 트리 동일 위치에 추가
@@ -320,8 +320,8 @@ date: 2026-05-03
     - **검증**: `xcodebuild -scheme fSnippetCli -configuration Release` BUILD SUCCEEDED
 
 ## Issue82: cliApp 메뉴바 개선 — 그룹화 서브메뉴 + 단축키 토큰 공유 + 시간적 배타성 (등록: 2026-04-27, 종료: 2026-04-27, commits: 588e178, 72f4dfd) ✅
-* 목적: `_doc_design/menuBar_enhance.md` 설계 SSOT를 cliApp(`MenuBarView.swift`)에 1:1 반영. paidApp과 동일 단축키 토큰을 동일 표기로 노출하여 시간적 배타성에도 사용자 학습 비용 0 달성
-* plan: `_doc_work/plan/menuBar_enhance_plan.md`
+* 목적: `_doc_arch/menuBar_enhance.md` 설계 SSOT를 cliApp(`MenuBarView.swift`)에 1:1 반영. paidApp과 동일 단축키 토큰을 동일 표기로 노출하여 시간적 배타성에도 사용자 학습 비용 0 달성
+* plan: `cli/_doc_work/z_done/plan/menuBar_enhance_plan.md`
 * 커밋:
     - **588e178** Phase 2: MenuBarView 그룹화 재구성 + 단축키 토큰 표기 (153 ins / 66 del)
     - **72f4dfd** Phase 3+6: Daemon Status 라이브 표기 + Launch at Login 연동 (37 ins / 6 del)
@@ -343,11 +343,11 @@ date: 2026-05-03
     - 🌱 메인 레포 paidApp `MenuBarManager.swift` 동기화 (별도 메인 레포 이슈)
     - 🌱 `{registerSnippet}` 단축키 메뉴 노출 (설계 결정)
 
-## Issue81: `cli/_doc_design/paidApp_version.md` v1 표기 정정 (등록: 2026-04-26, 종료: 2026-04-27, commit: 9f60322) ✅
+## Issue81: `cli/_doc_arch/paidApp_version.md` v1 표기 정정 (등록: 2026-04-26, 종료: 2026-04-27, commit: 9f60322) ✅
 * 목적: 설계 문서가 "REST API: `localhost:3015/api/v1`, `/api/v2` 제공"으로 기술되어 v1 obsolete(410 Gone) 사실과 충돌
-* 커밋: 9f60322 (`cli/_doc_design/`는 `.gitignore` 처리되어 git 미추적 — Issue.md 커밋 해시로 기록)
+* 커밋: 9f60322 (`cli/_doc_arch/`는 `.gitignore` 처리되어 git 미추적 — Issue.md 커밋 해시로 기록)
 * 구현 명세:
-    - **변경 파일**: `cli/_doc_design/paidApp_version.md` L32
+    - **변경 파일**: `cli/_doc_arch/paidApp_version.md` L32
     - **변경 전**: `` `localhost:3015/api/v1`, `/api/v2` 제공 ``
     - **변경 후**: `` `localhost:3015/api/v2` 제공 (v1 deprecated, 410 Gone) ``
     - **추가 검색**: `grep -in "api/v1\|backward\|호환"` — 동일 문서 내 다른 v1 언급 없음 확인
@@ -366,10 +366,10 @@ date: 2026-05-03
     - **검증**: Release 빌드 BUILD SUCCEEDED. 모든 success 잔존 검사 통과 (Result enum의 `.success` case는 유지)
 
 ## Issue79: `RestAPI_v2.md` 설계서에 shutdown·PaidApp Lifecycle 섹션 보강 (등록: 2026-04-26, 종료: 2026-04-27, commit: c36f672) ✅
-* 목적: 설계 SSOT 문서 `cli/_doc_design/api/RestAPI_v2.md`가 `openapi_v2.yaml` 및 코드보다 뒤처져 있던 부분을 동기화
-* 커밋: c36f672 (`cli/_doc_design/`는 `.gitignore` 처리되어 git 미추적 — Issue.md 커밋 해시로 기록)
+* 목적: 설계 SSOT 문서 `cli/_doc_arch/api/RestAPI_v2.md`가 `openapi_v2.yaml` 및 코드보다 뒤처져 있던 부분을 동기화
+* 커밋: c36f672 (`cli/_doc_arch/`는 `.gitignore` 처리되어 git 미추적 — Issue.md 커밋 해시로 기록)
 * 구현 명세:
-    - **변경 파일**: `cli/_doc_design/api/RestAPI_v2.md`
+    - **변경 파일**: `cli/_doc_arch/api/RestAPI_v2.md`
     - **L11 v1 표기 정합화**: "유지(Backward Compatible)" → "**deprecated** — 모든 요청 `HTTP 410 Gone` 반환" (Issue77 정책 정합)
     - **주요 추가 영역 표**: `PaidApp Lifecycle` + `CLI Shutdown` 2개 행 추가
     - **Data Endpoints 표**: `POST /shutdown` 행 추가 (delayMs/reason 포함)
@@ -534,7 +534,7 @@ date: 2026-05-03
 
 ## Issue61: launchAtLogin ↔ brew services plist 연동 (A+C 방식) (등록: 2026-04-22, 해결: 2026-04-22) ✅
 * 목적: `_config.yml`의 `launchAtLogin` 설정이 실제 LaunchAgent plist 설치 여부와 연동되도록 구현 (pairApp fWarrangeCli Issue51 동기화)
-* plan: `cli/_doc_work/plan/launchAtLogin-plist-sync_plan.md`
+* plan: `cli/_doc_work/z_done/plan/launchAtLogin-plist-sync_plan.md`
 * 현상/원인:
     - `brew services stop` 후 상태가 `none`(plist 제거)이 되어 재부팅 시 자동 시작 불가
     - `launchAtLogin` 설정은 저장만 될 뿐 plist 설치/제거에 미연동 (Issue36 obsolete 처리)
@@ -562,7 +562,7 @@ date: 2026-05-03
     - `CLAUDE.md`: 3곳 치환 — "fSnippetCli는 fSnippet App Store 앱의 비샌드박스 헬퍼" → cliApp/paidApp 병기, 데이터 경로 헤더, 다국어 설명
     - `.claude/rules/coding-rules.md`: 앱 개요 서술 + 로그 시스템 참조
     - `.claude/rules/path-rules.md`: 데이터 경로 헤더
-    - `cli/_doc_design/`: 치환 대상 없음 (이미 paidApp/cliApp 미사용 문서)
+    - `cli/_doc_arch/`: 치환 대상 없음 (이미 paidApp/cliApp 미사용 문서)
 ## Issue56: cliApp 메뉴 다국어 지원 — 시스템 언어에 따라 영어/한국어 자동 전환 (등록: 2026-04-21, 해결: 2026-04-21, commit: 80e9a90) ✅
 * 목적: MenuBarView.swift · fSnippetCliApp.swift 의 하드코딩된 한국어 문자열을 LocalizedStringKey 기반으로 전환. 시스템 언어에 따라 영어/한국어 메뉴가 자동 표시되도록 함.
 * 상세:
@@ -1066,7 +1066,7 @@ date: 2026-05-03
 
 ## Issue39: [Doc/Code] paidApp_version.md 문서 현행화 및 PaidAppManager 정리 (등록: 2026-04-18, 해결: 2026-04-18, commit: a7089d3) ✅
 
-* 목적: `cli/_doc_design/paidApp_version.md`를 현재 `PaidAppManager.swift` 구현(NSAlert 4버튼)과 일치시키고, dead parameter·파일명 오류 등 소스 결함 정리
+* 목적: `cli/_doc_arch/paidApp_version.md`를 현재 `PaidAppManager.swift` 구현(NSAlert 4버튼)과 일치시키고, dead parameter·파일명 오류 등 소스 결함 정리
 * 완료 내용:
     - 📄 문서 갱신: 5.1절 (토스트 → NSAlert 모달), 5.3절 (위치조정 제거), 7절 (향후 고도화 완료 반영), 8.1절 (Issue823 연계 명시), 9절 (메서드명 showPaidOnlyToast → showPaidOnlyAlert), 10절 (NSAlert 패턴 유지)
     - 🔧 코드 정정:
@@ -1079,7 +1079,7 @@ date: 2026-05-03
     - ✅ handlePaidFeature 호출부 정정: 인자 완전 제거
 * 연계:
     - paidApp Issue823: `fsnippet://` URL Scheme 등록 — Issue39 이후 추가 구현 예정
-    - paidApp Issue824: 메인 `_doc_design/` 동기화 (본 이슈 완료 후)
+    - paidApp Issue824: 메인 `_doc_arch/` 동기화 (본 이슈 완료 후)
 
 ## Issue38: KeyRenderingManager visual_key_definitions.json 번들 누락 — 시작 로그 워닝 제거 (등록: 2026-04-17, 해결: 2026-04-17, commit: 7f8adfd) ✅
 
@@ -1239,7 +1239,7 @@ date: 2026-05-03
 
 ## Issue24: paidApp_version.md에 따라 유료 전용 코드 삭제 (등록: 2026-04-08, 해결: 2026-04-09, commit: a4556d2) ✅
 
-* 목적: `cli/_doc_design/paidApp_version.md`에 정의된 유료 전용 기능의 불필요한 코드를 fSnippetCli에서 제거
+* 목적: `cli/_doc_arch/paidApp_version.md`에 정의된 유료 전용 기능의 불필요한 코드를 fSnippetCli에서 제거
 * 구현 명세:
     - `SettingsDraftManager.swift` 제거
     - 드래프트 모드 관련 코드 제거
@@ -1377,7 +1377,7 @@ date: 2026-05-03
 
 ## Issue15: cmd_design.md 업데이트 — Issue7~10 반영 (등록: 2026-04-08, 해결: 2026-04-08, commit: 400e265) ✅
 
-* 목적: `cli/_doc_design/cmd_design.md`가 Issue7 이전에 작성되어 최신 변경사항 미반영
+* 목적: `cli/_doc_arch/cmd_design.md`가 Issue7 이전에 작성되어 최신 변경사항 미반영
 * 구현 명세:
     - `config` 커맨드: 설정 GUI 제거 반영, 읽기 전용 명시 (Issue5)
     - 유료 전용 기능 제한 섹션 추가 (Issue7~9)
@@ -1387,7 +1387,7 @@ date: 2026-05-03
 
 ## Issue10: 유료 기능 목록 문서화 (등록: 2026-04-08, 해결: 2026-04-08, commit: 97da9b7) ✅
 
-* 목적: Issue7, Issue8, Issue9를 포함한 유료 버전 전용 기능 목록을 `cli/_doc_design/paidApp_version.md`에 정리
+* 목적: Issue7, Issue8, Issue9를 포함한 유료 버전 전용 기능 목록을 `cli/_doc_arch/paidApp_version.md`에 정리
 * 구현 명세:
     - 유료 전용 기능 3개 (⌘S Save, 설정 단축키, Tab 편집) 목록화
     - 각 기능별 차단 파일, 안내 방식, 관련 이슈 기록

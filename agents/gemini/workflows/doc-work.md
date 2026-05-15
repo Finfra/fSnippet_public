@@ -19,14 +19,14 @@ description: "코드 분석을 통한 _doc_work 폴더 내 작업/가이드 문�
      - `work_DEPLOY.md`: 배포 가이드
      - `work_GIT.md`: Git 워크플로우 가이드
      - `work_MANUAL.md`: 수동 작업 가이드
-     - `work_ShortcutMgr.md`: 단축키 관리자 문서 (완료 시 `_doc_design`으로 이동)
+     - `work_ShortcutMgr.md`: 단축키 관리자 문서 (완료 시 `_doc_arch`으로 이동)
      - `Issue_*.md`: 이슈 관련 문서
      - `guide_CONTEXT7.md`: Context7 MCP 가이드
 
    - **폴더 정리 규칙 (Folder Organization)**:
      - **`issue_OLD.md`는 언제나 `_doc_work`에 그대로 유지합니다.** (절대 이동/삭제 금지)
      - **`noteForHuman*.md` 파일은 절대 이동하거나 삭제하지 않습니다.** (이 파일들은 사람이 직접 작성/관리하는 노트입니다)
-     - **설계/아키텍처/스펙 성격**으로 발전한 작업 문서는 `_done`으로 옮기지 말고 **`_doc_design` 폴더로 이동**시킵니다.
+     - **설계/아키텍처/스펙 성격**으로 발전한 작업 문서는 `_done`으로 옮기지 말고 **`_doc_arch` 폴더로 이동**시킵니다.
      - 다음에 동일한 실수가 발생하지 않도록 이 규칙을 엄수합니다.
 
 2. **작업 내용 분석 (Analyze Work/Code)**:

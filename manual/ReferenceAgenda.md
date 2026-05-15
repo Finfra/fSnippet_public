@@ -46,7 +46,7 @@ date: 2026-03-26
 ## 5-4. OpenAPI 스펙 참조
 - `api/openapi_v1.yaml`, `api/openapi_v2.yaml` 파일 위치 및 활용
 - Swagger UI 연동 및 코드 제너레이터 사용 가이드
-- `_doc_design/RestAPI.md` 설계 문서 참조
+- `_doc_arch/RestAPI.md` 설계 문서 참조
 
 # 6. Claude Code Skill 연동 (AI Agent Integration)
 

@@ -22,7 +22,7 @@ python3 agents/gemini/skills/rule-manager/scripts/sync-rules.py
     ```bash
     sh agents/gemini/skills/rule-manager/scripts/register-rule.sh [소스파일] [규칙명]
     ```
-    (예: `sh agents/gemini/skills/rule-manager/scripts/register-rule.sh _doc_design/new_design.md new_rules`)
+    (예: `sh agents/gemini/skills/rule-manager/scripts/register-rule.sh _doc_arch/new_design.md new_rules`)
 
 ## 3. 규칙 업데이트 (Update)
 기존 규칙을 수정할 때는 해당 파일을 직접 편집한 후, 필요한 경우 동기화를 다시 수행합니다.

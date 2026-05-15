@@ -8,6 +8,7 @@ date: 2026-04-07
 
 * Issue HWM: 126
 * Save Point :
+      - 2026.05.15: c59ddd2 (Docs: Close Issue126 (appSetting.json Release 격리))
       - 2026.05.15: 059f535 (Docs: Close Issue122 (appRootPath SSOT 통합))
       - 2026.05.14: 1449700 (Fix(Issue125): logFilter ↔ log_level 직교성 — RuleManager logV → logD 승격 8건)
       - 2026.05.14: 698718c (Feat(Issue123): cliApp Tests에 FolderTest 인프라 이식 — XCTest + Repository 후크)
@@ -23,8 +24,8 @@ date: 2026-04-07
 
 
 # 🤔 결정사항
-* `~/_git/__all/fSnippet/_doc_design/paid_cli_protocol.md` 기준 진행(상위 메인 레포, paidApp앱과 연동)
-* `cli/_doc_design/menuBar_enhance.md` 기준 진행(메뉴바, 로컬 SSOT — gitignored)
+* `~/_git/__all/fSnippet/_doc_arch/paid_cli_protocol.md` 기준 진행(상위 메인 레포, paidApp앱과 연동)
+* `cli/_doc_arch/menuBar_enhance.md` 기준 진행(메뉴바, 로컬 SSOT — gitignored)
 
 # 🌱 이슈후보
 
@@ -129,11 +130,11 @@ date: 2026-04-07
 * 목적: `path-rules.md §3`가 명시한 "UserDefaults `appRootPath` = SSOT, 하드코드는 초기 시드" 원칙이 깨져 있음. 사용자가 `defaults write kr.finfra.fSnippetCli appRootPath <path>` 하거나 REST API로 settingsFolder를 PATCH 해도 메인 엔진(Logger·SettingsManager·SnippetFileManager·AppSettingManager)이 변경값을 읽지 못함. 데이터 폴더 변경 기능 회복 + 단일 SSOT 통일.
 * plan: `cli/_doc_work/plan/settings-folder-resolve_plan.md`
 * task: `cli/_doc_work/tasks/settings-folder-resolve_task.md`
-* design: `cli/_doc_design/settings-folder-resolve.md`
+* design: `cli/_doc_arch/settings-folder-resolve.md`
 * 근본 원인:
     - 3개 해석기 분기 공존: `PreferencesManager.resolveAppRootPath()` (ENV → 하드코드, UserDefaults 미참조) / `PaidAppStateLogger.resolveAppRootPath()` (UserDefaults → 하드코드, 단독 분리) / `APIRouter.currentSettingsFolder()` (`_config.yml` `app_root_path` → 하드코드)
     - 메인 엔진은 ①번을 호출하므로 ②·③의 사용자 변경값을 무시
-    - 설계 의도(UserDefaults SSOT)와 코드가 불일치 — 설계 문서 `cli/_doc_design/settings-folder-resolve.md` L42에 원칙은 이미 명시되어 있었으나 ①번이 키 조회 한 줄을 누락
+    - 설계 의도(UserDefaults SSOT)와 코드가 불일치 — 설계 문서 `cli/_doc_arch/settings-folder-resolve.md` L42에 원칙은 이미 명시되어 있었으나 ①번이 키 조회 한 줄을 누락
 * 해결:
     - **T1**: `PreferencesManager.resolveAppRootPath()` 재작성 — ENV(`fSnippetCli_config`, 테스트/CLI 오버라이드) → UserDefaults `appRootPath` → 시드(1회 영속화) 순. 시드 분기에서 `UserDefaults.standard.set(seed, ...)`로 영속화하여 이후 호출에서 UserDefaults 경로로 통일됨
     - **T2**: `APIRouter` 3곳 정정 (`buildV2General`·`handleV2PatchGeneral`·`handleV2PatchGeneralPaths`). `settingsFolder` 쓰기는 `UserDefaults.standard.set(_:forKey:"appRootPath")` 직접 호출로 변경. `_config.yml` `app_root_path` 사용 중단
@@ -397,7 +398,7 @@ date: 2026-04-07
     - `.notInstall` → 기존 `showPaidOnlyAlert()` 유지 (회귀 없음).
 * 검증: Release 빌드 통과 (`** BUILD SUCCEEDED **`).
 * 수정 파일: `cli/fSnippetCli/Managers/PaidAppManager.swift`
-* 영향: Issue112와 단일 커밋 통합 처리. 메인 레포 `_doc_design/paid_cli_protocol.md` §4.2 SSOT 갱신과 `cli/_doc_design/menuBar_enhance.md` Issue109 v1.3 표 갱신은 후속 이슈로 분리.
+* 영향: Issue112와 단일 커밋 통합 처리. 메인 레포 `_doc_arch/paid_cli_protocol.md` §4.2 SSOT 갱신과 `cli/_doc_arch/menuBar_enhance.md` Issue109 v1.3 표 갱신은 후속 이슈로 분리.
 
 ## Issue112: [정책/UX] paidApp .stopped 시 다이얼로그 제거 — 최초 1회 동의 후 자동 기동 (등록: 2026-05-10, 완료: 2026-05-10) (Hash: 336f33a)
 * 목적: `.stopped` 상태에서 paid 기능 호출 시마다 표시되던 "fSnippet이 필요합니다" NSAlert를 1회 동의 후 자동 기동으로 전환. cliApp 시작 시 자동 기동 정책(paid_cli_protocol §4.2)과 일관된 UX 통합.
@@ -410,7 +411,7 @@ date: 2026-04-07
     - `launchAndOpenSettings()`는 Issue113과 통합되어 launch → register polling → activate + openSettings 흐름을 일원화.
 * 검증: Release 빌드 통과 (`** BUILD SUCCEEDED **`).
 * 수정 파일: `cli/fSnippetCli/Managers/PaidAppManager.swift`
-* 영향: 단일 파일 변경. 메인 레포 `_doc_design/paid_cli_protocol.md` §1.2/§4.2 SSOT 동기화 및 `cli/_doc_design/menuBar_enhance.md` Issue109 v1.3 표 갱신은 후속 이슈로 분리.
+* 영향: 단일 파일 변경. 메인 레포 `_doc_arch/paid_cli_protocol.md` §1.2/§4.2 SSOT 동기화 및 `cli/_doc_arch/menuBar_enhance.md` Issue109 v1.3 표 갱신은 후속 이슈로 분리.
 
 ## Issue111: [Bug] cliApp Settings 단축키가 paidApp 설정창을 열지 못함 — URL Scheme이 LaunchServices 캐시로 죽은 앱에 라우팅 (등록: 2026-05-05, 완료: 2026-05-08) (Hash: 7e8b5e9)
 * 목적: paid_cli_protocol §3 (실행 상태 감지) register 정보를 활용하지 않고 LaunchServices 기본 라우팅에 전적으로 의존하여, URL Scheme 핸들러가 옛 Bundle ID(예: Time Machine 백업의 `com.finfra.fSnippetCli`)로 매핑된 사용자 환경에서 settings 단축키가 paidApp을 열지 못하는 회귀를 차단함. §3.2/§3.5 1차 채널(REST register `bundlePath`)을 활용하여 LaunchServices 캐시 오염을 우회.
@@ -453,7 +454,7 @@ date: 2026-04-07
     - 옵션 A(cliApp 자체 Settings UI 신규 구현)는 ROI 낮음 — Configuration 서브메뉴 `Open Config File`로 _config.yml 직접 편집 가능
     - 옵션 C(혼합)는 중간 비용 + 사용자 혼란 우려 → 본 라운드에서는 미채택
 * 해결:
-    - `cli/_doc_design/menuBar_enhance.md` v1.2 → v1.3 개정 (로컬 전용 SSOT)
+    - `cli/_doc_arch/menuBar_enhance.md` v1.2 → v1.3 개정 (로컬 전용 SSOT)
     - 기본 방침 4번째 항목 재작성: "Settings는 paidApp 라우팅 + Configuration 서브메뉴 fallback" 명시
     - 유료 기능 클릭 처리 섹션에 "Settings 항목 라우팅 (Issue109 v1.3)" 하위 표 추가 — 3-state별 결과 명시
     - "Issue105 회고 노트" 섹션 추가 — placebo 사실 문서화
@@ -472,9 +473,9 @@ date: 2026-04-07
 * 수정 파일: `cli/fSnippetCli/MenuBarView.swift`, `cli/fSnippetCli/ko.lproj/Localizable.strings`
 
 ## Issue107: [Docs] menuBar_enhance.md v1.2 개선 — paidAppStatus 3-상태·시작흐름·종료정책 명세 (등록: 2026-05-05, 완료: 2026-05-05) (코드 변경 없음, 로컬 SSOT 문서)
-* 목적: paidApp Issue851(cliApp API ready 대기), Issue852(설정창 취소 사이드 이펙트) 후속 문서 정비. pairApp(fWarrange) `cli/_doc_design/menuBar_enhance.md` v1.2 수준의 명세 보강
+* 목적: paidApp Issue851(cliApp API ready 대기), Issue852(설정창 취소 사이드 이펙트) 후속 문서 정비. pairApp(fWarrange) `cli/_doc_arch/menuBar_enhance.md` v1.2 수준의 명세 보강
 * 해결:
-    - `cli/_doc_design/menuBar_enhance.md` v1.1 → v1.2 개정 (로컬 전용 SSOT, gitignored)
+    - `cli/_doc_arch/menuBar_enhance.md` v1.1 → v1.2 개정 (로컬 전용 SSOT, gitignored)
     - `paidAppStatus` 3-상태(`notInstall`/`stopped`/`started`) 정의 추가 — Issue851 API ready 대기 로직 근거
     - 시작 흐름 차트 추가: paidApp → cliApp 감지(API v2 포트 3015 검증), cliApp → paidApp 감지(상태 전이)
     - 아이콘 매핑 3-상태 표 (`started`=전체, `stopped`/`notInstall`=잘린 아이콘)
@@ -486,10 +487,10 @@ date: 2026-04-07
     - 다국어 정책 (현 시점 영어 하드코딩, 향후 도입 시 신규 키 정의)
     - 단축키 체계 표에 `_config.yml` 키 매핑 컬럼 추가
     - 관련 파일 목록 9개 → 11개로 확장 (PaidAppManager, AppStateManager 등 명시)
-* 영향: 코드 변경 없음 (로컬 SSOT 문서 개선만). paidApp Issue851/852 후속 정비를 위한 참조 문서 정합성 확보. `cli/_doc_design/`은 `_public/.gitignore`에 의해 의도적 비추적이므로 본 변경은 로컬에만 유지됨
+* 영향: 코드 변경 없음 (로컬 SSOT 문서 개선만). paidApp Issue851/852 후속 정비를 위한 참조 문서 정합성 확보. `cli/_doc_arch/`은 `_public/.gitignore`에 의해 의도적 비추적이므로 본 변경은 로컬에만 유지됨
 
 ## Issue106: [Feat] cliApp 메뉴바 Quit 항목 paidApp 정책 분리 — `Quit fSnippet ⌘Q` + `Quit All` (등록: 2026-05-04, 완료: 2026-05-04) (Hash: fddc8f4)
-* 목적: `cli/_doc_design/menuBar_enhance.md:53-54` 정책 — paidApp 활성 시 cliApp 메뉴에 paidApp 단독 종료(`Quit fSnippet ⌘Q`) + cliApp Quit All(`Quit All`, 단축키 없음) 두 항목 노출. paidApp 비활성 시 `Quit All` 단일 항목(단축키 없음). pairApp Issue70(fWarrange) 동일 패턴
+* 목적: `cli/_doc_arch/menuBar_enhance.md:53-54` 정책 — paidApp 활성 시 cliApp 메뉴에 paidApp 단독 종료(`Quit fSnippet ⌘Q`) + cliApp Quit All(`Quit All`, 단축키 없음) 두 항목 노출. paidApp 비활성 시 `Quit All` 단일 항목(단축키 없음). pairApp Issue70(fWarrange) 동일 패턴
 * 근본 원인:
     - 기존 `MenuBarView.swift`에 `Quit ⌘Q` 단일 항목만 존재 → `NSApplication.shared.terminate(nil)` 호출 (cliApp + paidApp 동반 종료, 즉 Quit All만 수행)
     - paidApp 단독 종료 진입점 없음
@@ -502,7 +503,7 @@ date: 2026-04-07
     - Divider 위치 정정: `Configuration → Divider → Launch at Login → Quit` → `Configuration → Launch at Login → Divider → Quit` (menuBar_enhance.md L52 정합)
     - 설계 문서 토큰 정정: `{menu.quit.fwarrange}` → `{menu.quit.fsnippet}`
 * 검증: Release 빌드 통과 + brew local 재배포 9/9 PASS + 사용자 수동 검증 (메뉴 라벨·순서·단축키 정상)
-* 수정 파일: `cli/fSnippetCli/Managers/PaidAppManager.swift`, `cli/fSnippetCli/MenuBarView.swift`, `cli/_doc_design/menuBar_enhance.md`
+* 수정 파일: `cli/fSnippetCli/Managers/PaidAppManager.swift`, `cli/fSnippetCli/MenuBarView.swift`, `cli/_doc_arch/menuBar_enhance.md`
 
 ## Issue105: [Bug] Settings 단축키 + 메뉴바 "Open Settings Window"가 paidApp 분기로 라우팅돼 cliApp 설정창 미열림 (등록: 2026-05-04, 완료: 2026-05-04) (Hash: e1984f6)
 * 목적: 메뉴바 "🔧 Open Settings Window" 버튼과 단축키 `^⇧⌘;` 모두 `PaidAppManager.handlePaidFeature()`로 라우팅되어 paidApp 미설치/압축 상태에서 "Only support the paid version" alert이 뜸 → 두 경로 모두 cliApp 자체 설정창을 직접 열도록 일치

@@ -22,7 +22,7 @@ Python 스크립트를 실행하여 이모지를 할당하고 소스 코드를 �
 
 ```bash
 # // turbo
-python3 agents/gemini/skills/emoji-mapper/scripts/apply_emojis.py _doc_design/diagram_CLASS.mermaid
+python3 agents/gemini/skills/emoji-mapper/scripts/apply_emojis.py _doc_arch/diagram_CLASS.mermaid
 ```
 > [!NOTE]
 > `@[/doc-design]` 워크플로우에서도 이 작업이 포함되지만, 이모지 적용 스크립트를 명시적으로 실행하면 다이어그램의 일관성을 즉시 보장할 수 있습니다.

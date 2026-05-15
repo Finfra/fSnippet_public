@@ -118,7 +118,7 @@ CLI="/opt/homebrew/opt/fsnippet-cli/fSnippetCli.app/Contents/MacOS/fSnippetCli"
 | 결과 개수      | `--limit N` 시 N개 이하 출력                   |
 | 에러 메시지    | stderr에 사용자 친화적 메시지 출력             |
 
-# cmd_design.md ↔ 테스트 매핑 (v1 아카이브; 원본: `cli/_doc_design/z_done/cmd_design.md`)
+# cmd_design.md ↔ 테스트 매핑 (v1 아카이브; 원본: `cli/_doc_arch/z_done/cmd_design.md`)
 
 | 설계 커맨드             | 테스트 번호 | Phase |
 | :---------------------- | :---------- | :---- |
