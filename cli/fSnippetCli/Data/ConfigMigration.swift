@@ -25,9 +25,13 @@ enum ConfigMigration {
     ]
 
     /// Issue115: Context-only hotkey keys (active only when a specific window is foreground).
-    /// These do NOT conflict with global system shortcuts (⌘S, ⌘C, etc.) because they fire
-    /// only inside dedicated views (e.g. clipboard history viewer). They MUST be exempted
-    /// from `ShortcutBlacklist` cleanup that targets global hotkeys.
+    /// These fire only inside dedicated views (e.g. clipboard history viewer).
+    ///
+    /// Issue127 (2026-05-16): Exemption from `ShortcutBlacklist` cleanup was REMOVED.
+    /// Rationale: even inside dedicated views, system-reserved shortcuts (⌘S, ⌘C, ⌘V, ...)
+    /// confuse users who expect macOS standard behavior. Legacy values such as `{⌘S}` left over
+    /// from pre-Issue87 defaults must be auto-cleaned. The set is kept for documentation;
+    /// `migrate()` no longer reads it.
     static let contextOnlyHotkeyKeys: Set<String> = [
         "history.registerSnippet.hotkey",  // active only inside Clipboard History viewer
         "history.preview.hotkey",          // active only inside Clipboard History viewer
@@ -102,10 +106,11 @@ enum ConfigMigration {
             }
 
             // 2. 시스템 예약 매칭: 빈 값으로 정정 (라인은 보존하여 사용자 가시성 유지)
-            // Issue115: Context-only hotkeys are exempt — they fire inside dedicated views
-            // and do NOT collide with global system shortcuts.
-            if !contextOnlyHotkeyKeys.contains(key)
-                && !value.isEmpty && ShortcutBlacklist.isReserved(value)
+            // Issue127 (2026-05-16): context-only exemption removed. Even inside dedicated views
+            // (clipboard history viewer), values like `{⌘S}` confuse users who expect macOS
+            // standard behavior. Pre-Issue87 default `⌘S` for `history.registerSnippet.hotkey`
+            // is the primary target.
+            if !value.isEmpty && ShortcutBlacklist.isReserved(value)
             {
                 let reason = ShortcutBlacklist.reason(for: value) ?? "System Reserved"
                 result.blacklisted.append(key)

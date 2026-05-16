@@ -103,12 +103,21 @@ class ShortcutMgr: ObservableObject {
     // MARK: - Registry Methods
 
     /// 모든 소스로부터 단축키 목록 재구축
+    ///
+    /// Issue127 (2026-05-16): 차단 버퍼 비움 + NSAlert 호출을 본 함수로 통합. 각 register 단계는
+    ///   `blockedShortcutsBuffer` 에 수집만 하고, 사이클 마지막에 일괄 NSAlert 1회 표시.
     func refreshAll() {
         logV("🚀 [ShortcutMgr] Refreshing all shortcuts...")
+        // Issue94/127: 사이클 시작 시 차단 버퍼 비움
+        blockedShortcutsBuffer.removeAll()
+
         registerAppGlobalShortcuts()
         registerTriggerKeys()
         registerBufferClearKeys()
         registerFolderShortcuts()
+
+        // Issue94/127: 사이클 끝에서 일괄 NSAlert 1회 표시 (app global + folder 모두 포함)
+        presentBlockedShortcutsAlertIfNeeded()
 
         NotificationCenter.default.post(name: .shortcutRegistryDidChange, object: nil)
     }
@@ -118,9 +127,26 @@ class ShortcutMgr: ObservableObject {
     // ...
 
     /// 폴더 단축키 (Prefix/Suffix) 등록 (RuleManager)
+    ///
+    /// Issue127 (2026-05-16): macOS 표준 예약 단축키(⌘S, ⌘C, …) 가드 추가.
+    ///   폴더 rule 의 prefix/suffix 가 `{⌘S}` 등 예약 키로 설정되면 등록 거부 + Issue94 NSAlert
+    ///   대상에 수집. `registerAppGlobalShortcuts()` 와 동일한 정책 적용.
     func registerFolderShortcuts() {
         clear(type: .folderSuffix)
         clear(type: .folderPrefix)
+
+        /// Issue127: 폴더 prefix/suffix 도 시스템 예약 검사 — 예약 시 등록 거부 + Issue94 수집
+        func tryRegisterFolder(_ item: ShortcutItem) {
+            if ShortcutBlacklist.isReserved(item.keySpec) {
+                let reason = ShortcutBlacklist.reason(for: item.keySpec) ?? "System Reserved"
+                logW(
+                    "🚀 [ShortcutMgr] Issue127 차단: \(item.id) 단축키 '\(item.keySpec)' 는 macOS 표준 예약 (\(reason)) — 등록 거부"
+                )
+                self.blockedShortcutsBuffer.append((id: item.id, keySpec: item.keySpec, reason: reason))
+                return
+            }
+            register(item)
+        }
 
         let rules = RuleManager.shared.getAllRules()
         for rule in rules {
@@ -138,7 +164,7 @@ class ShortcutMgr: ObservableObject {
                         source: "RuleManager",
                         userInfo: ["folderName": rule.name]
                     )
-                    register(item)
+                    tryRegisterFolder(item)
                 } else {
                     // 레거시 텍스트 접미사에 대한 스마트 감지 (예: "⌃=")
                     let s = suffix
@@ -155,7 +181,7 @@ class ShortcutMgr: ObservableObject {
                             source: "RuleManager",
                             userInfo: ["folderName": rule.name]
                         )
-                        register(item)
+                        tryRegisterFolder(item)
                         logV(
                             "🚀 [ShortcutMgr] Automatically registered legacy text suffix as shortcut: \(s) -> \(normalizedKeySpec) -> \(rule.name)"
                         )
@@ -180,7 +206,7 @@ class ShortcutMgr: ObservableObject {
                             userInfo: ["folderName": rule.name]
                         )
 
-                        register(item)
+                        tryRegisterFolder(item)
                     } else {
                         logV(
                             "🚀 [ShortcutMgr] Prefix '\(prefix)' for '\(rule.name)' skipped from global shortcuts (Simple Typing Key)"
@@ -191,6 +217,7 @@ class ShortcutMgr: ObservableObject {
             }
         }
 
+        // Issue127 (2026-05-16): NSAlert 호출은 `refreshAll()` 로 이동 (app global + folder 누적 후 1회)
     }
 
     /// NotificationCenter 구독 설정
@@ -355,19 +382,16 @@ class ShortcutMgr: ObservableObject {
     /// `ShortcutBlacklist.isReserved()` 검사로 등록 거부 + logW 경고
     private func registerAppGlobalShortcuts() {
         clear(type: .appShortcut)
-        // Issue94: 새 등록 사이클 시작 — 이전 차단 버퍼 비움
-        blockedShortcutsBuffer.removeAll()
+        // Issue127 (2026-05-16): 버퍼 비움은 `refreshAll()` 로 이동. 폴더 단축키 차단도 누적 수집.
 
         let prefs = PreferencesManager.shared
 
         /// Issue90/94: 시스템 예약 단축키 검사 헬퍼 — 예약 시 등록 거부 + logW + Issue94 수집기에 추가
-        /// Issue116: Context-only hotkeys (e.g. clipboard history viewer 내부 동작) are exempt
-        ///   — they do NOT collide with global shortcuts (⌘S, ⌘C, …). SSOT for the exemption set
-        ///   is `ConfigMigration.contextOnlyHotkeyKeys` so that ConfigMigration and ShortcutMgr
-        ///   stay in lock-step.
+        /// Issue127 (2026-05-16): Context-only exemption (Issue115/116) REMOVED. macOS 표준 예약
+        ///   단축키(⌘S, ⌘C, …)는 context-only hotkey 라도 사용자 멘탈 모델과 충돌하므로 일괄 거부.
+        ///   ConfigMigration 측에서도 동일 정책 적용됨 (`ConfigMigration.swift:109-114`).
         func tryRegister(id: String, keySpec: String, description: String, source: String) {
-            let isContextOnly = ConfigMigration.contextOnlyHotkeyKeys.contains(id)
-            if !isContextOnly && ShortcutBlacklist.isReserved(keySpec) {
+            if ShortcutBlacklist.isReserved(keySpec) {
                 let reason = ShortcutBlacklist.reason(for: keySpec) ?? "System Reserved"
                 logW(
                     "🚀 [ShortcutMgr] Issue90 차단: \(id) 단축키 '\(keySpec)' 는 macOS 표준 예약 (\(reason)) — 등록 거부"
@@ -444,8 +468,7 @@ class ShortcutMgr: ObservableObject {
             )
         }
 
-        // Issue94: 차단된 단축키가 있으면 일괄 NSAlert 1회 표시
-        presentBlockedShortcutsAlertIfNeeded()
+        // Issue127 (2026-05-16): NSAlert 호출은 `refreshAll()` 로 이동 (폴더 단축키 차단 누적 후 1회 표시)
     }
 
     /// Issue94: 시스템 예약 단축키 차단 알림 — 1회 일괄 NSAlert
