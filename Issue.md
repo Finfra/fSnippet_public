@@ -20,18 +20,6 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue129: [Bug] TriggerKeyManager NSEvent 모니터 ARC 버그 + 잘못된 설정 키 — paidApp 활성 시 설정창 단축키/메뉴 무반응 3차 재발 (등록: 2026-05-16)
-* 목적: paidApp이 활성화(foreground)된 상태에서 설정창 단축키(⌃⇧⌘;)와 메뉴 클릭이 작동하지 않는 문제. Issue855(paidApp AppDelegate) → Issue862(paidApp SettingsWindowManager) 재발 이후, 동일 ARC 버그 패턴이 cliApp TriggerKeyManager에 잠복해 있었음.
-* 상세:
-    - **원인 1 (ARC 버그)**: `TriggerKeyManager.setupGlobalHotkeyMonitoring()`에서 `NSEvent.addGlobal/LocalMonitorForEvents()` 반환값을 버림 → ARC 즉시 해제 → 모니터 등록 후 즉시 소멸 → 단축키 감지 불가
-    - **원인 2 (잘못된 키)**: `handleGlobalKeyEvent()`에서 `"settings.open.hotkey"` 참조 — 이 키는 config에 존재하지 않음. 정규 키는 `"settings.hotkey"` (ShortcutMgr/MenuBarManager 공용)
-* 구현:
-    - `private var globalHotkeyMonitor: Any?` / `private var localHotkeyMonitor: Any?` 인스턴스 변수 추가
-    - `setupGlobalHotkeyMonitoring()` 반환값 저장
-    - `deinit` 에서 `NSEvent.removeMonitor()` 호출
-    - `"settings.open.hotkey"` → `"settings.hotkey"` 수정
-* 수정 파일: `cli/fSnippetCli/Managers/TriggerKeyManager.swift`
-
 # 📕 중요
 
 # 📙 일반
@@ -105,6 +93,12 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue129: [Bug] TriggerKeyManager NSEvent 모니터 ARC 버그 + 잘못된 설정 키 — paidApp 활성 시 설정창 단축키/메뉴 무반응 3차 재발 (등록: 2026-05-16, 완료: 2026-05-16) (Hash: cfdff95)
+* 목적: paidApp이 활성화(foreground)된 상태에서 설정창 단축키(⌃⇧⌘;)와 메뉴 클릭이 작동하지 않는 문제. Issue855(paidApp AppDelegate) → Issue862(paidApp SettingsWindowManager) 재발 이후, 동일 ARC 버그 패턴이 cliApp TriggerKeyManager에 잠복해 있었음.
+* 원인 1 (ARC 버그): `setupGlobalHotkeyMonitoring()`에서 `NSEvent.addGlobal/LocalMonitorForEvents()` 반환값 미저장 → ARC 즉시 해제 → 모니터 소멸 → 단축키 감지 불가
+* 원인 2 (잘못된 키): `handleGlobalKeyEvent()`에서 `"settings.open.hotkey"` 참조 (존재하지 않는 키) → 매칭 항상 실패
+* 구현: `private var globalHotkeyMonitor/localHotkeyMonitor: Any?` 추가, 반환값 저장, `deinit` 정리, 키 `"settings.hotkey"` 수정 (`cli/fSnippetCli/Managers/TriggerKeyManager.swift`)
 
 ## Issue128: [Clipboard/Perf] 클립보드 팝업 최신 항목 반영 지연 (3~5초) — 동적 폴링 backoff + show() 시 강제 flush 누락 (등록: 2026-05-16, 완료: 2026-05-16) (Hash: 30794af)
 * 목적: 사용자가 텍스트/이미지를 복사한 직후 클립보드 히스토리 팝업(`⌃⌥⌘ ;`)을 띄우면 방금 복사한 항목이 최상단에 즉시 표시되지 않고 3~5초 후에야 반영됨. 원인은 (1) `ClipboardManager`의 동적 폴링 backoff 로직이 유휴 시 최대 10초까지 폴링 간격을 늘리고, (2) `HistoryViewerManager.show()`가 팝업 표시 직전에 `checkForChanges()`를 강제 호출하지 않아 DB가 아직 최신 변경분을 받지 못한 상태에서 `HistoryViewModel.fetchInitialDataSync()`가 실행되기 때문. 결과적으로 사용자가 "복사 → 즉시 팝업" 시퀀스를 수행할 때 시각적 지연이 발생함.
