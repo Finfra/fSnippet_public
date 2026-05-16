@@ -113,6 +113,20 @@ class ClipboardManager: ObservableObject, ClipboardManagerProtocol {
         performMaintenance()
     }
 
+    /// Issue128: 클립보드 팝업 표시 직전에 호출되는 동기 flush.
+    /// 폴링 backoff(최대 10초)로 인해 최신 변경분이 DB에 아직 반영되지 않은 경우를 방어함.
+    /// 호출자 스레드(메인 가정)에서 동기로 processCurrentPasteboard를 실행한 뒤 폴링 간격을 최소(0.5초)로 리셋.
+    func flushPendingChange() {
+        if PreferencesManager.shared.bool(forKey: "history.isPaused", defaultValue: false) {
+            return
+        }
+        guard pasteboard.changeCount != lastChangeCount else { return }
+        lastChangeCount = pasteboard.changeCount
+        processCurrentPasteboard()
+        scheduleNextPoll(interval: minPollingInterval)
+        logD("📋 flush on show (changeCount=\(lastChangeCount))")
+    }
+
     /// 클립보드로 항목 복사
     func copyToPasteboard(item: ClipboardItem) {
         let pasteboard = NSPasteboard.general
@@ -189,9 +203,15 @@ class ClipboardManager: ObservableObject, ClipboardManagerProtocol {
         let prefs = PreferencesManager.shared
 
         // CL060: 소스 앱 캡처 (NSWorkspace를 위해 메인 스레드 UI 접근 필요)
+        // Issue128: flushPendingChange()는 메인 스레드에서 호출되므로 DispatchQueue.main.sync는 데드락.
+        // 스레드 분기로 안전화.
         var appBundle: String? = nil
-        DispatchQueue.main.sync {
+        if Thread.isMainThread {
             appBundle = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        } else {
+            DispatchQueue.main.sync {
+                appBundle = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+            }
         }
 
         // 1. File List (가장 우선순위 높게 취급 - Finder 복사 등)

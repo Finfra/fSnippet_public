@@ -101,6 +101,11 @@ class HistoryViewerManager: NSObject, NSWindowDelegate {
 
         guard let win = window else { return }
 
+        // Issue128: 팝업 표시 직전에 미반영 변경분을 동기 flush.
+        // ClipboardManager의 동적 폴링 backoff(최대 10초)로 인해 방금 복사한 항목이
+        // DB에 아직 들어가지 않은 상태에서 HistoryViewModel이 fetch하는 회귀를 막음.
+        ClipboardManager.shared.flushPendingChange()
+
         // HostingController + ViewModel 캐싱: 첫 호출 시에만 생성, 이후 refresh()로 데이터 갱신
         if viewModel == nil {
             viewModel = HistoryViewModel()
