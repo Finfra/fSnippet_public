@@ -6,8 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 126
+* Issue HWM: 127
 * Save Point :
+      - 2026.05.16: e78f9da (Fix(Issue127): 기본 단축키 글로벌 등록 차단 회귀 복구 — context-only 면제 제거 + 폴더 단축키 가드)
       - 2026.05.15: c59ddd2 (Docs: Close Issue126 (appSetting.json Release 격리))
       - 2026.05.15: 059f535 (Docs: Close Issue122 (appRootPath SSOT 통합))
       - 2026.05.14: 1449700 (Fix(Issue125): logFilter ↔ log_level 직교성 — RuleManager logV → logD 승격 8건)
@@ -104,6 +105,29 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue127: [Regression] 기본 단축키(⌘S 등) 글로벌 등록 차단 회귀 — context-only 면제 박제 + 시작 시 검출 누락 (등록: 2026-05-16, 완료: 2026-05-16) (Hash: e78f9da)
+* 목적: 기본 단축키(⌘S, ⌘C, ⌘V 등 macOS 표준 19종)가 cliApp 글로벌 hotkey 로 등록되어 macOS 표준 동작과 충돌. archive 라인업 Issue90 + Issue94 + Issue96_2 (`_doc_work/issue_OLD.md`) 에서 `ShortcutBlacklist` + `tryRegister()` 가드로 해결했으나 Issue115/116 의 context-only 면제 도입 + paidApp 외부 박제값으로 회귀. 앱 시작 시 검출 + 등록 거부 + 일괄 NSAlert 흐름 복구.
+* archive 참조:
+    - Issue90: `ShortcutBlacklist` 도입 + `tryRegister()` 가드 (19종 정의 — `ShortcutBlacklist.swift:26-46`)
+    - Issue94: 차단 단축키 일괄 NSAlert + `blockedShortcutsBuffer`
+    - Issue96_2: ⌘⇧S/⌘D/⌘E/⌘G 추가
+    - Issue115 (3d236c3): `ConfigMigration` 측 context-only 면제 (`contextOnlyHotkeyKeys`) — 회귀 원인
+    - Issue116 (d36c9d8): `ShortcutMgr.tryRegister()` 측 동일 면제 — 회귀 원인
+* 회귀 원인 (확인됨):
+    - **컨텍스트 면제 우회 경로**: `Issue115/116` 의 `contextOnlyHotkeyKeys` 면제로 `history.registerSnippet.hotkey: "{⌘S}"` / `history.preview.hotkey` 등이 `ShortcutBlacklist.isReserved()` 검사 우회 — 그대로 글로벌 등록됨
+    - **사용자 _config.yml 박제**: Issue87 이전 default `⌘S` 시점에 박제된 값이 자동 정리 안 됨 (위 면제 때문)
+    - **폴더 단축키 경로 미가드**: `registerFolderShortcuts()` 는 `tryRegister()` 미경유 → 폴더 prefix/suffix 가 `{⌘S}` 등으로 설정되면 무차단 등록
+* 구현 명세:
+    - **수정 1 — ConfigMigration**: `contextOnlyHotkeyKeys` 면제 제거 (L30-38, L109-114). 시스템 예약 매칭 시 컨텍스트 hotkey 라도 빈값으로 정정 + 백업. 박제된 `{⌘S}` 자동 정리
+    - **수정 2 — ShortcutMgr.tryRegister()**: `isContextOnly` 가드 제거 (L368-377). `ShortcutBlacklist.isReserved()` 매칭이면 일괄 등록 거부
+    - **수정 3 — registerFolderShortcuts()**: `tryRegisterFolder()` 헬퍼 추가. 폴더 prefix/suffix 가 예약 키 매칭 시 등록 거부 + `blockedShortcutsBuffer` 수집
+    - **수정 4 — refreshAll() NSAlert 통합**: 차단 버퍼 비움 + NSAlert 호출을 `refreshAll()` 로 이동. app global + folder 차단 누적 후 사이클 종료 시 일괄 1회 표시
+* 검증:
+    - Release 빌드 PASS (`** BUILD SUCCEEDED **`)
+    - SourceKit 진단 10건 false positive (실제 컴파일 통과)
+    - 사용자 환경 검증은 brew 재배포 후 별도 확인
+* 수정 파일: `cli/fSnippetCli/Data/ConfigMigration.swift`, `cli/fSnippetCli/Managers/ShortcutMgr.swift`
 
 ## Issue126: [Path/Leak] `appSetting.json` Release 환경 누출 — 사용자 데이터 폴더에 `_data/` 자동 생성 (등록: 2026-05-15, 완료: 2026-05-15) (Hash: 288849b)
 * 목적: `appSetting.json`은 DEBUG/개발 전용 Bundle 리소스인데 Release(brew) 환경에서 `~/Documents/finfra/fSnippetData/_data/appSetting.json`을 자동 생성하여 사용자 데이터 폴더를 오염시킴. Issue122 SSOT 통합 직후 사용자 환경 검증 중 발견된 인접 누출 패턴.
