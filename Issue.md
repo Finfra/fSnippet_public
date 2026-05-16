@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 129
+* Issue HWM: 130
 * Save Point :
       - 2026.05.16: e78f9da (Fix(Issue127): 기본 단축키 글로벌 등록 차단 회귀 복구 — context-only 면제 제거 + 폴더 단축키 가드)
       - 2026.05.16: 30794af (Fix(Issue128): 클립보드 팝업 최신 항목 반영 지연 — show() 동기 flush 추가)
@@ -19,6 +19,14 @@ date: 2026-04-07
 # 🌱 이슈후보
 
 # 🚧 진행중
+
+## Issue130: paidApp 포커스 복원 — 설정 단축키 pass-through (등록: 2026-05-17)
+* 목적: paidApp이 포그라운드일 때 ⌃⇧⌘; 단축키를 CGEventTap이 소비하지 않고 paidApp에 전달. paidApp의 `.regular` 활성화 + Dock 노출 + Cmd+Q 가능.
+* 상세:
+    - `WindowContextManager`: `isPaidAppForeground` 추적 추가
+    - `CGEventTapManager`: protocol `isPaidAppForeground()` + `settings.hotkey` pass-through 조건 추가
+    - `KeyEventProcessor`: `isPaidAppForeground()` 구현
+    - `TriggerKeyManager`: paidApp foreground 시 설정 단축키 핸들러 스킵
 
 # 📕 중요
 

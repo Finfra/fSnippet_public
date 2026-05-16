@@ -28,7 +28,17 @@ class WindowContextManager {
         get { stateQueue.sync { _isAppActive } }
         set { stateQueue.async(flags: .barrier) { self._isAppActive = newValue } }
     }
-    
+
+    // Issue881: Track whether paidApp (fSnippet GUI) is the foreground app.
+    // Used by CGEventTap to pass through the settings shortcut so paidApp handles
+    // it directly (with proper .regular activation policy + focus).
+    private let paidAppBundleID = "kr.finfra.fSnippet"
+    private var _isPaidAppForeground: Bool = false
+    var isPaidAppForeground: Bool {
+        get { stateQueue.sync { _isPaidAppForeground } }
+        set { stateQueue.async(flags: .barrier) { self._isPaidAppForeground = newValue } }
+    }
+
     // MARK: - 컨텍스트 추적 (Context Tracking)
     private var lastContext: (pid_t, CGWindowID)?
     private var observationRefs: [NSObjectProtocol] = []
@@ -72,18 +82,22 @@ class WindowContextManager {
     private func handleGlobalAppActivation(_ notification: Notification) {
         guard let userInfo = notification.userInfo,
               let app = userInfo[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
-        
+
+        // Issue881: Track paidApp foreground state for CGEventTap pass-through logic.
+        // Update before the early-return so the flag is always current.
+        isPaidAppForeground = (app.bundleIdentifier == paidAppBundleID)
+
         // fSnippet 자체 확인
         if app.bundleIdentifier == Bundle.main.bundleIdentifier {
             isAppActive = true
-            return 
+            return
         } else {
             isAppActive = false
         }
-        
+
         // 로그 및 알림
         logV("🗂️ ⚙️ [WindowContextManager] App Activated: \(app.localizedName ?? "Unknown") (PID: \(app.processIdentifier))")
-        
+
         // 컨텍스트 업데이트
         checkContextChange()
     }

@@ -268,6 +268,11 @@ class KeyEventProcessor: CGEventTapManagerDelegate {
         return contextManager.isAppActive
     }
 
+    /// Issue881: Whether paidApp (fSnippet GUI) is the current foreground app.
+    func isPaidAppForeground() -> Bool {
+        return WindowContextManager.shared.isPaidAppForeground
+    }
+
     /// Protocol Conformance for CGEventTapManagerDelegate
     func shouldInterceptArrowKey(_ keyCode: UInt16) -> Bool {
         return shouldInterceptArrowKeyThreadSafe(keyCode)

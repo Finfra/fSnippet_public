@@ -8,6 +8,8 @@ protocol CGEventTapManagerDelegate: AnyObject {
     // 앱 상태 (App State)
     func isAppActive() -> Bool
     func isCurrentlyReplacing() -> Bool
+    // Issue881: Whether paidApp (fSnippet GUI) is the current foreground app.
+    func isPaidAppForeground() -> Bool
 
     // 로직 위임 (Logic Delegation)
     func isTriggerKey(_ keyCode: UInt16, modifiers: CGEventFlags) -> Bool
@@ -243,6 +245,14 @@ class CGEventTapManager {
 
                 // 1. 앱 단축키(.appShortcut)인 경우
                 if shortcut.type == .appShortcut {
+                    // Issue881: When paidApp is foreground and the settings shortcut fires,
+                    // pass the event through so paidApp's own localHotkeyMonitor handles it.
+                    // This lets paidApp activate with .regular policy (visible in Dock/app-switcher)
+                    // instead of being opened headlessly via URL scheme without focus.
+                    if shortcut.id == "settings.hotkey" && delegate.isPaidAppForeground() {
+                        logD("💉 ⚙️ [CGEventTapManager] Settings shortcut: paidApp foreground, passing through for direct handling")
+                        return Unmanaged.passUnretained(event)
+                    }
                     DispatchQueue.main.async { delegate.handleAppShortcutSync(shortcut) }
                     return nil  // Strong Block
                 }

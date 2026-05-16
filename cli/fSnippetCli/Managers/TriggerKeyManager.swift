@@ -102,6 +102,13 @@ class TriggerKeyManager: ObservableObject {
         // "settings.open.hotkey" was a typo — it never existed in config, so monitors never matched.
         let settingsHotkey = prefs.string(forKey: "settings.hotkey", defaultValue: "^⇧⌘;")
         if matchHotkey(event: event, hotkeyString: settingsHotkey) {
+            // Issue881: When paidApp is foreground, CGEventTap already passes through the event
+            // for paidApp's own localHotkeyMonitor to handle. Skip cliApp-side handling here
+            // to prevent a double-open (cliApp SettingsWindowManager + paidApp AppDelegate).
+            if WindowContextManager.shared.isPaidAppForeground {
+                logD("🔑 [TriggerKeyManager] Settings hotkey: paidApp is foreground, skipping cliApp handler")
+                return false
+            }
             logI("🔑 [TriggerKeyManager] Settings Hotkey Detected: \(settingsHotkey)")
             // Issue852 패턴: asyncAfter로 event handler 벗어나기
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
