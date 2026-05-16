@@ -845,6 +845,8 @@ class APIRouter {
     let popupHotkeyStr: String = prefs.get("snippet_popup_hotkey") ?? ""
     let popupKeyCode: Int? = prefs.get("snippet_popup_key_code")
 
+    let excludedFiles: [String] = prefs.get(APIRouter.v2GlobalExcludedKey) ?? []
+
     let permissions = APIV2Permissions(
       accessibility: AXIsProcessTrusted(),
       automation: false
@@ -860,7 +862,8 @@ class APIRouter {
       triggerKey: APIV2TriggerKey(keyCode: nil, display: triggerKeyToken, token: triggerKeyToken),
       triggerBias: triggerBias,
       quickSelectModifier: quickModifier,
-      permissions: permissions
+      permissions: permissions,
+      excludedFiles: excludedFiles
     )
   }
 
@@ -876,11 +879,19 @@ class APIRouter {
       if let d: Double = prefs.get("history.preview.width") { return Int(d) }
       return prefs.get("history.preview.width") ?? 400
     }()
+    let popupModFlags: Int = prefs.get("snippet_popup_modifier_flags") ?? 0
+    let popupKC: Int = prefs.get("snippet_popup_key_code") ?? 0
+    let popupDispStr: String = prefs.get("snippet_popup_hotkey") ?? ""
+    let popupQSFlags: Int = prefs.get("snippet_popup_quick_select_modifier_flags") ?? 0
     return APIV2PopupSettings(
       searchScope: scope,
       popupRows: rows,
       popupWidth: width,
-      previewWindowWidth: previewWidth
+      previewWindowWidth: previewWidth,
+      popupModifierFlags: popupModFlags,
+      popupKeyCode: popupKC,
+      popupDisplayString: popupDispStr,
+      popupQuickSelectModifierFlags: popupQSFlags
     )
   }
 
@@ -1017,6 +1028,10 @@ class APIRouter {
       if let v = patch.popupRows { config["snippet_popup_rows"] = v }
       if let v = patch.popupWidth { config["snippet_popup_width"] = Double(v) }
       if let v = patch.previewWindowWidth { config["history.preview.width"] = Double(v) }
+      if let v = patch.popupModifierFlags { config["snippet_popup_modifier_flags"] = v }
+      if let v = patch.popupKeyCode { config["snippet_popup_key_code"] = v }
+      if let v = patch.popupDisplayString { config["snippet_popup_hotkey"] = v }
+      if let v = patch.popupQuickSelectModifierFlags { config["snippet_popup_quick_select_modifier_flags"] = v }
     }
     return jsonResponse(buildV2Popup())
   }
@@ -2307,6 +2322,7 @@ class APIRouter {
       if let v = patch.snippetFolder { config["snippet_base_path"] = v }
       if let v = patch.triggerBias { config["snippet_trigger_bias"] = v }
       if let v = patch.quickSelectModifier { config["quick_select_modifier"] = v }
+      if let v = patch.excludedFiles { config[APIRouter.v2GlobalExcludedKey] = v }
     }
 
     return jsonResponse(buildV2General())
@@ -2583,12 +2599,26 @@ class APIRouter {
 
   private func buildV2History() -> APIV2HistorySettings {
     let prefs = PreferencesManager.shared
-    let isPaused = prefs.bool(forKey: "history.isPaused", defaultValue: false)
     return APIV2HistorySettings(
-      isPaused: isPaused,
-      viewer: nil,
-      hotkeysAndFilters: nil,
-      retention: nil
+      isPaused: prefs.bool(forKey: "history.isPaused", defaultValue: false),
+      historyEnabledPlainText: prefs.bool(forKey: "history.enable.plainText", defaultValue: true),
+      historyRetentionDaysPlainText: prefs.get("history.retentionDays.plainText") ?? 90,
+      historyEnabledImages: prefs.bool(forKey: "history.enable.images", defaultValue: false),
+      historyRetentionDaysImages: prefs.get("history.retentionDays.images") ?? 7,
+      historyEnabledFileLists: prefs.bool(forKey: "history.enable.fileLists", defaultValue: false),
+      historyRetentionDaysFileLists: prefs.get("history.retentionDays.fileLists") ?? 30,
+      historyIgnoreImages: prefs.bool(forKey: "history.ignore.images", defaultValue: false),
+      historyIgnoreFileLists: prefs.bool(forKey: "history.ignore.fileLists", defaultValue: false),
+      historyMoveDuplicatesToTop: prefs.bool(forKey: "history.moveDuplicatesToTop", defaultValue: true),
+      historyShowStatusBar: prefs.bool(forKey: "history.showStatusBar", defaultValue: true),
+      historyForceInputSource: prefs.get("history.forceInputSource"),
+      historyShowPreview: prefs.bool(forKey: "history.showPreview", defaultValue: true),
+      historyViewerWidth: prefs.get("history.viewer.width") ?? 350.0,
+      historyPreviewWidth: prefs.get("history.viewer_preview.width") ?? 400.0,
+      historyViewerHotkey: prefs.get("history.viewer.hotkey") ?? "",
+      historyPauseHotkey: prefs.get("history.pause.hotkey") ?? "",
+      historyPreviewHotkey: prefs.get("history.preview.hotkey") ?? "",
+      historyRegisterSnippetHotkey: prefs.get("history.registerSnippet.hotkey") ?? ""
     )
   }
 
@@ -2602,17 +2632,26 @@ class APIRouter {
     if let err = err { return err }
     guard let patch = maybe else { return v2Error(code: "internal", message: "decode failed", statusCode: 500) }
 
-    // Patch implementation: store subsection updates
-    let prefs = PreferencesManager.shared
-    if let v = patch.isPaused { prefs.set(v, forKey: "history.isPaused") }
-    if let _ = patch.viewer {
-      // Update viewer settings (to be implemented with full schema)
-    }
-    if let _ = patch.hotkeysAndFilters {
-      // Update hotkeys and filters (to be implemented with full schema)
-    }
-    if let _ = patch.retention {
-      // Update retention settings (to be implemented with full schema)
+    PreferencesManager.shared.batchUpdate { config in
+      if let v = patch.isPaused { config["history.isPaused"] = v }
+      if let v = patch.historyEnabledPlainText { config["history.enable.plainText"] = v }
+      if let v = patch.historyRetentionDaysPlainText { config["history.retentionDays.plainText"] = v }
+      if let v = patch.historyEnabledImages { config["history.enable.images"] = v }
+      if let v = patch.historyRetentionDaysImages { config["history.retentionDays.images"] = v }
+      if let v = patch.historyEnabledFileLists { config["history.enable.fileLists"] = v }
+      if let v = patch.historyRetentionDaysFileLists { config["history.retentionDays.fileLists"] = v }
+      if let v = patch.historyIgnoreImages { config["history.ignore.images"] = v }
+      if let v = patch.historyIgnoreFileLists { config["history.ignore.fileLists"] = v }
+      if let v = patch.historyMoveDuplicatesToTop { config["history.moveDuplicatesToTop"] = v }
+      if let v = patch.historyShowStatusBar { config["history.showStatusBar"] = v }
+      if let v = patch.historyForceInputSource { config["history.forceInputSource"] = v }
+      if let v = patch.historyShowPreview { config["history.showPreview"] = v }
+      if let v = patch.historyViewerWidth { config["history.viewer.width"] = v }
+      if let v = patch.historyPreviewWidth { config["history.viewer_preview.width"] = v }
+      if let v = patch.historyViewerHotkey { config["history.viewer.hotkey"] = v }
+      if let v = patch.historyPauseHotkey { config["history.pause.hotkey"] = v }
+      if let v = patch.historyPreviewHotkey { config["history.preview.hotkey"] = v }
+      if let v = patch.historyRegisterSnippetHotkey { config["history.registerSnippet.hotkey"] = v }
     }
 
     return jsonResponse(buildV2History())

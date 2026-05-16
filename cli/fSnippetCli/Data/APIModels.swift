@@ -418,6 +418,7 @@ struct APIV2GeneralSettings: Codable {
   let triggerBias: Int
   let quickSelectModifier: String
   let permissions: APIV2Permissions
+  let excludedFiles: [String]
 }
 
 // MARK: - v2 Settings Popup
@@ -427,6 +428,10 @@ struct APIV2PopupSettings: Codable {
   let popupRows: Int
   let popupWidth: Int
   let previewWindowWidth: Int
+  let popupModifierFlags: Int
+  let popupKeyCode: Int
+  let popupDisplayString: String
+  let popupQuickSelectModifierFlags: Int
 }
 
 // MARK: - v2 Settings Behavior
@@ -496,6 +501,10 @@ struct APIV2PopupPatch: Decodable {
   let popupRows: Int?
   let popupWidth: Int?
   let previewWindowWidth: Int?
+  let popupModifierFlags: Int?
+  let popupKeyCode: Int?
+  let popupDisplayString: String?
+  let popupQuickSelectModifierFlags: Int?
 }
 
 struct APIV2BehaviorPatch: Decodable {
@@ -530,13 +539,29 @@ struct APIV2GeneralSettingsPatch: Decodable {
   let snippetFolder: String?
   let triggerBias: Int?
   let quickSelectModifier: String?
+  let excludedFiles: [String]?
 }
 
 struct APIV2HistorySettingsPatch: Decodable {
   let isPaused: Bool?
-  let viewer: [String: AnyCodable]?
-  let hotkeysAndFilters: [String: AnyCodable]?
-  let retention: [String: AnyCodable]?
+  let historyEnabledPlainText: Bool?
+  let historyRetentionDaysPlainText: Int?
+  let historyEnabledImages: Bool?
+  let historyRetentionDaysImages: Int?
+  let historyEnabledFileLists: Bool?
+  let historyRetentionDaysFileLists: Int?
+  let historyIgnoreImages: Bool?
+  let historyIgnoreFileLists: Bool?
+  let historyMoveDuplicatesToTop: Bool?
+  let historyShowStatusBar: Bool?
+  let historyForceInputSource: String?
+  let historyShowPreview: Bool?
+  let historyViewerWidth: Double?
+  let historyPreviewWidth: Double?
+  let historyViewerHotkey: String?
+  let historyPauseHotkey: String?
+  let historyPreviewHotkey: String?
+  let historyRegisterSnippetHotkey: String?
 }
 
 // MARK: - v2 Snapshot
@@ -610,9 +635,24 @@ struct AnyCodable: Codable {
 
 struct APIV2HistorySettings: Codable {
   let isPaused: Bool
-  let viewer: [String: AnyCodable]?
-  let hotkeysAndFilters: [String: AnyCodable]?
-  let retention: [String: AnyCodable]?
+  let historyEnabledPlainText: Bool
+  let historyRetentionDaysPlainText: Int
+  let historyEnabledImages: Bool
+  let historyRetentionDaysImages: Int
+  let historyEnabledFileLists: Bool
+  let historyRetentionDaysFileLists: Int
+  let historyIgnoreImages: Bool
+  let historyIgnoreFileLists: Bool
+  let historyMoveDuplicatesToTop: Bool
+  let historyShowStatusBar: Bool
+  let historyForceInputSource: String?
+  let historyShowPreview: Bool
+  let historyViewerWidth: Double
+  let historyPreviewWidth: Double
+  let historyViewerHotkey: String
+  let historyPauseHotkey: String
+  let historyPreviewHotkey: String
+  let historyRegisterSnippetHotkey: String
 }
 
 struct APIV2RestApiSettings: Codable {

@@ -2011,6 +2011,10 @@ components:
           properties:
             accessibility: { type: boolean }
             automation:    { type: boolean }
+        excludedFiles:
+          type: array
+          items: { type: string }
+          description: Globally excluded filenames across all snippet folders
 
     GeneralSettingsPatch:
       type: object
@@ -2021,22 +2025,34 @@ components:
         snippetFolder:        { type: string }
         triggerBias:          { type: integer, minimum: -10, maximum: 10 }
         quickSelectModifier:  { type: string, enum: [command, option, control, shift] }
+        excludedFiles:
+          type: array
+          items: { type: string }
+          description: Replace the entire global excluded files list
 
     # --- Popup -------------------------------------------------------------
     PopupSettings:
       type: object
       properties:
-        searchScope:        { type: string, enum: [keyword, keywordName, keywordNameContent] }
-        popupRows:          { type: integer, minimum: 1, maximum: 30, example: 9 }
-        popupWidth:         { type: integer, description: "points", example: 500 }
-        previewWindowWidth: { type: integer, description: "points", example: 400 }
+        searchScope:                 { type: string, enum: [keyword, keywordName, keywordNameContent] }
+        popupRows:                   { type: integer, minimum: 1, maximum: 30, example: 9 }
+        popupWidth:                  { type: integer, description: "points", example: 500 }
+        previewWindowWidth:          { type: integer, description: "points", example: 400 }
+        popupModifierFlags:          { type: integer, description: "NSEvent.ModifierFlags raw value for popup hotkey" }
+        popupKeyCode:                { type: integer, description: "macOS virtual keycode for popup hotkey" }
+        popupDisplayString:          { type: string, description: "Human-readable popup hotkey display string" }
+        popupQuickSelectModifierFlags: { type: integer, description: "NSEvent.ModifierFlags raw value for quick-select" }
     PopupSettingsPatch:
       type: object
       properties:
-        searchScope:        { type: string, enum: [keyword, keywordName, keywordNameContent] }
-        popupRows:          { type: integer, minimum: 1, maximum: 30 }
-        popupWidth:         { type: integer, minimum: 200, maximum: 2000 }
-        previewWindowWidth: { type: integer, minimum: 0,   maximum: 2000 }
+        searchScope:                 { type: string, enum: [keyword, keywordName, keywordNameContent] }
+        popupRows:                   { type: integer, minimum: 1, maximum: 30 }
+        popupWidth:                  { type: integer, minimum: 200, maximum: 2000 }
+        previewWindowWidth:          { type: integer, minimum: 0,   maximum: 2000 }
+        popupModifierFlags:          { type: integer }
+        popupKeyCode:                { type: integer }
+        popupDisplayString:          { type: string }
+        popupQuickSelectModifierFlags: { type: integer }
 
     # --- Behavior ----------------------------------------------------------
     BehaviorSettings:
@@ -2090,44 +2106,49 @@ components:
     HistorySettings:
       type: object
       properties:
-        isPaused:
-          type: boolean
-          description: 클립보드 히스토리 수집 일시정지 여부
-          example: false
-        viewer:
-          type: object
-          properties:
-            showStatusBar:              { type: boolean }
-            showPreviewPanel:           { type: boolean }
-            imageDetailAlwaysOnTop:     { type: boolean }
-            togglePreviewHotkey:        { $ref: '#/components/schemas/Shortcut' }
-            registerAsSnippetHotkey:    { $ref: '#/components/schemas/Shortcut' }
-            historyWindowWidth:         { type: integer, example: 350 }
-            previewWindowWidth:         { type: integer, example: 400 }
-        hotkeysAndFilters:
-          type: object
-          properties:
-            toggleCollectionPauseHotkey: { $ref: '#/components/schemas/Shortcut' }
-            viewerHotkey:                { $ref: '#/components/schemas/Shortcut' }
-            moveDuplicatesToTop:         { type: boolean }
-            excludeImagesFromSearch:     { type: boolean }
-            excludeFileListsFromSearch:  { type: boolean }
-        retention:
-          type: object
-          properties:
-            text:      { type: object, properties: { enabled: { type: boolean }, keepDays: { type: integer, example: 90 } } }
-            images:    { type: object, properties: { enabled: { type: boolean }, keepDays: { type: integer, example: 7 } } }
-            fileLists: { type: object, properties: { enabled: { type: boolean }, keepDays: { type: integer, example: 30 } } }
+        isPaused:                      { type: boolean, description: "Pause clipboard history collection", example: false }
+        historyEnabledPlainText:       { type: boolean, example: true }
+        historyRetentionDaysPlainText: { type: integer, example: 90 }
+        historyEnabledImages:          { type: boolean, example: false }
+        historyRetentionDaysImages:    { type: integer, example: 7 }
+        historyEnabledFileLists:       { type: boolean, example: false }
+        historyRetentionDaysFileLists: { type: integer, example: 30 }
+        historyIgnoreImages:           { type: boolean }
+        historyIgnoreFileLists:        { type: boolean }
+        historyMoveDuplicatesToTop:    { type: boolean }
+        historyShowStatusBar:          { type: boolean }
+        historyForceInputSource:       { type: string, nullable: true }
+        historyShowPreview:            { type: boolean }
+        historyViewerWidth:            { type: number, example: 350 }
+        historyPreviewWidth:           { type: number, example: 400 }
+        historyViewerHotkey:           { type: string, description: "Hotkey token string (e.g. ^⌥⌘;)" }
+        historyPauseHotkey:            { type: string }
+        historyPreviewHotkey:          { type: string }
+        historyRegisterSnippetHotkey:  { type: string }
 
     HistorySettingsPatch:
       type: object
-      description: |
-        부분 업데이트 지원. `isPaused` 및 서브 섹션(`viewer`, `hotkeysAndFilters`, `retention`) 포함 가능.
+      description: Partial update. All fields optional.
       properties:
-        isPaused:            { type: boolean }
-        viewer:              { type: object, additionalProperties: true }
-        hotkeysAndFilters:   { type: object, additionalProperties: true }
-        retention:           { type: object, additionalProperties: true }
+        isPaused:                      { type: boolean }
+        historyEnabledPlainText:       { type: boolean }
+        historyRetentionDaysPlainText: { type: integer }
+        historyEnabledImages:          { type: boolean }
+        historyRetentionDaysImages:    { type: integer }
+        historyEnabledFileLists:       { type: boolean }
+        historyRetentionDaysFileLists: { type: integer }
+        historyIgnoreImages:           { type: boolean }
+        historyIgnoreFileLists:        { type: boolean }
+        historyMoveDuplicatesToTop:    { type: boolean }
+        historyShowStatusBar:          { type: boolean }
+        historyForceInputSource:       { type: string, nullable: true }
+        historyShowPreview:            { type: boolean }
+        historyViewerWidth:            { type: number }
+        historyPreviewWidth:           { type: number }
+        historyViewerHotkey:           { type: string }
+        historyPauseHotkey:            { type: string }
+        historyPreviewHotkey:          { type: string }
+        historyRegisterSnippetHotkey:  { type: string }
 
     # --- Advanced ----------------------------------------------------------
     AdvancedInfo:
