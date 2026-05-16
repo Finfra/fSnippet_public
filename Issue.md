@@ -6,22 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 127
+* Issue HWM: 128
 * Save Point :
       - 2026.05.16: e78f9da (Fix(Issue127): 기본 단축키 글로벌 등록 차단 회귀 복구 — context-only 면제 제거 + 폴더 단축키 가드)
-      - 2026.05.15: c59ddd2 (Docs: Close Issue126 (appSetting.json Release 격리))
-      - 2026.05.15: 059f535 (Docs: Close Issue122 (appRootPath SSOT 통합))
-      - 2026.05.14: 1449700 (Fix(Issue125): logFilter ↔ log_level 직교성 — RuleManager logV → logD 승격 8건)
-      - 2026.05.14: 698718c (Feat(Issue123): cliApp Tests에 FolderTest 인프라 이식 — XCTest + Repository 후크)
-      - 2026.05.14: 0ca1f1e (Docs: Register Issue125)
-      - 2026.05.14: a94d83c (Docs: Register Issue123, Issue124)
-      - 2026.05.14: d6fc4e5 (Docs: Register Issue122 (Path/SSOT appRootPath 3중 분기))
-      - 2026.05.14: 8443022 (Fix(Issue121): _setting.yml legacy 파일 자동 정리 마이그레이션 추가)
-      - 2026.05.13: d955324 (Fix(Issue120): Logger.debug/verbose #if DEBUG 가드 제거 — Release에서도 log_level SSOT 작동)
-      - 2026.05.13: c9c4308 (Fix(Issue118,119): KeyCaptureManager hot-path 회귀 차단 + 트리거 trace 가시화)
-      - 2026.05.10: 7ee74e9 (Fix(Issue117): Accessibility 권한 런타임 박탈 시 시스템 슬로다운 차단 — 양방향 모니터 + 자체 종료)
-      - 2026.05.10: 336f33a (Fix(Issue112,113): Settings 라우팅 — 동의 기반 자동 기동 + foreground 보장)
-      - 2026.05.08: 7e8b5e9 (Fix(Issue111): cliApp Settings 단축키 LaunchServices 캐시 우회)
 
 
 # 🤔 결정사항
@@ -35,6 +22,34 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
+
+## Issue128: [Clipboard/Perf] 클립보드 팝업 최신 항목 반영 지연 (3~5초) — 동적 폴링 backoff + show() 시 강제 flush 누락 (등록: 2026-05-16)
+* 목적: 사용자가 텍스트/이미지를 복사한 직후 클립보드 히스토리 팝업(`⌃⌥⌘ ;`)을 띄우면 방금 복사한 항목이 최상단에 즉시 표시되지 않고 3~5초 후에야 반영됨. 원인은 (1) `ClipboardManager`의 동적 폴링 backoff 로직이 유휴 시 최대 10초까지 폴링 간격을 늘리고, (2) `HistoryViewerManager.show()`가 팝업 표시 직전에 `checkForChanges()`를 강제 호출하지 않아 DB가 아직 최신 변경분을 받지 못한 상태에서 `HistoryViewModel.fetchInitialDataSync()`가 실행되기 때문. 결과적으로 사용자가 "복사 → 즉시 팝업" 시퀀스를 수행할 때 시각적 지연이 발생함.
+* 원인 분석 (코드 추적):
+    - `cli/fSnippetCli/Managers/ClipboardManager.swift:28-30` — `currentPollingInterval=0.5s`, `minPollingInterval=0.5s`, `maxPollingInterval=10s`
+    - 동 L160-181 `checkForChanges()` — 변경 없으면 `nextInterval = min(currentPollingInterval * 1.5, 10.0)` 로 backoff. 유휴 30초 후 약 7.6초 / 60초 후 10초 고정
+    - 즉, "한참 만에" 복사한 직후 다음 폴링 tick까지 최대 ~10초 대기 발생. 사용자 체감 3~5초는 backoff 중간 단계(2.25/3.4/5.0초)에 해당
+    - 추가로 `processCurrentPasteboard()` 는 `DispatchQueue.global(qos: .userInitiated).async` 로 비동기 실행(L171) → `ClipboardDB.shared.insertItem(item)` (L277, L334, L376) 까지 추가 지연
+    - `cli/fSnippetCli/Managers/HistoryViewerManager.swift:39-159` `show()` — `viewModel!.refresh()` (L113) 만 호출. `ClipboardManager.shared.checkForChanges()` 를 깨우는 경로 없음. 따라서 DB가 최신 상태가 아닌 채로 `fetchInitialDataSync()` 가 동작
+* 재현:
+    1. 앱 시작 후 30초~수 분 클립보드 미사용 (backoff 가 10초까지 도달)
+    2. 임의 텍스트 또는 이미지를 복사
+    3. 즉시 `⌃⌥⌘ ;` 로 클립보드 팝업 열기
+    4. 방금 복사한 항목이 최상단에 보이지 않음 → 1~10초 후 (다음 폴링 tick + DB insert + 다음 사용자 갱신 시점) 반영
+* 구현 명세 (제안 — plan 단계에서 확정):
+    1. **즉시 flush 후크 추가**: `HistoryViewerManager.show()` 의 `viewModel!.refresh()` 호출 직전에 `ClipboardManager.shared.flushPendingChange()` (신규 public 메서드) 를 호출. 내부적으로 `pasteboard.changeCount != lastChangeCount` 인 경우 **동기적으로** `processCurrentPasteboard()` 를 실행하여 DB insert 까지 완료시킨 뒤 리턴. 이후 `viewModel!.refresh()` 가 DB 에서 최신 상태를 읽도록 보장
+    2. **폴링 간격 즉시 리셋**: flush 후 `scheduleNextPoll(interval: minPollingInterval)` 호출하여 backoff 0.5초 로 복귀
+    3. **동기 처리 위험성 검토**: 이미지/대용량 파일 list 의 경우 메인 스레드에서 처리하면 팝업 지연이 발생할 수 있으므로 옵션 A(완전 동기) vs 옵션 B(메인 스레드 빠른 changeCount 갱신 + 백그라운드 insert + DB insert 완료를 기다리는 짧은 `DispatchSemaphore.wait(timeout: 0.3)`) 중 plan 에서 결정
+    4. **NSApp.willBecomeActive 옵션 (보조)**: 향후 패스트보드 변경 감지를 OS 이벤트 기반으로 보강할지 검토 (현재 backoff 의존도 자체를 줄이는 방향)
+* 검증:
+    - 시나리오 1: 1분 유휴 후 즉시 복사 → 팝업 → 최상단 표시 0.3초 이내
+    - 시나리오 2: 이미지 5MB 복사 → 팝업 → 표시 1초 이내 (옵션 B 채택 시)
+    - 시나리오 3: 연속 5회 복사 후 팝업 → 모두 정확한 순서로 반영
+    - flog.log 에 `📋 [HistoryViewModel] fetchHistory done` 직전 `📋 flush on show` 로그 1줄 추가
+* 복잡도: **중간** — `ClipboardManager` public API 1건 추가 + `HistoryViewerManager.show()` 1줄 호출. 동기 vs 비동기 트레이드오프 결정 필요. plan 작성 권장
+* 관련 영역: `cli/fSnippetCli/Managers/ClipboardManager.swift` (flushPendingChange 신규), `cli/fSnippetCli/Managers/HistoryViewerManager.swift:113` (호출 추가)
+* 의존: 없음
+* 후속: 사용자 환경에서 backoff 최대값(10s) 자체 조정이 필요할 경우 별도 이슈
 
 ## Issue123: [Test/Infra] FolderTest 재실행 인프라 복구 — paidApp→cliApp 의존성 마이그레이션 (등록: 2026-05-14, 갱신: 2026-05-14)
 * 목적: 2026-03-26 이후 paidApp 압축 + 엔진의 cliApp 이전으로 인해 메인 fSnippet 레포의 `_tool/verify/run_folder_tests.sh`가 컴파일하는 의존 소스 25개 중 5개가 paidApp 경로(`fSnippet/fSnippet/`)에서 사라짐. 핵심 엔진 파일은 모두 `_public/cli/fSnippetCli/`로 이전됐으나 **cliApp 측에서 Facade 패턴으로 재구성**됨이 사후 분석에서 확인. 33-case 매트릭스 회귀 인프라를 cliApp Facade 구조에 맞게 재구축. 본 이슈는 **인프라 복구 + XCTest 빌드 통과**까지만 다룸. 실제 33-case 실행 및 결과 검증은 Issue124로 분리.
