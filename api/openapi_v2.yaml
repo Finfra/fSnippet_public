@@ -2090,6 +2090,10 @@ components:
     HistorySettings:
       type: object
       properties:
+        isPaused:
+          type: boolean
+          description: 클립보드 히스토리 수집 일시정지 여부
+          example: false
         viewer:
           type: object
           properties:
@@ -2118,8 +2122,9 @@ components:
     HistorySettingsPatch:
       type: object
       description: |
-        부분 업데이트 지원. 서브 섹션(`viewer`, `hotkeysAndFilters`, `retention`)만 포함 가능.
+        부분 업데이트 지원. `isPaused` 및 서브 섹션(`viewer`, `hotkeysAndFilters`, `retention`) 포함 가능.
       properties:
+        isPaused:            { type: boolean }
         viewer:              { type: object, additionalProperties: true }
         hotkeysAndFilters:   { type: object, additionalProperties: true }
         retention:           { type: object, additionalProperties: true }

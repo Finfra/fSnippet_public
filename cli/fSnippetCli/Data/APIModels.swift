@@ -533,6 +533,7 @@ struct APIV2GeneralSettingsPatch: Decodable {
 }
 
 struct APIV2HistorySettingsPatch: Decodable {
+  let isPaused: Bool?
   let viewer: [String: AnyCodable]?
   let hotkeysAndFilters: [String: AnyCodable]?
   let retention: [String: AnyCodable]?
@@ -608,6 +609,7 @@ struct AnyCodable: Codable {
 }
 
 struct APIV2HistorySettings: Codable {
+  let isPaused: Bool
   let viewer: [String: AnyCodable]?
   let hotkeysAndFilters: [String: AnyCodable]?
   let retention: [String: AnyCodable]?

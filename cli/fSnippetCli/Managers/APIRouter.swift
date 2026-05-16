@@ -2582,9 +2582,10 @@ class APIRouter {
   // MARK: - v2 History GET/PATCH
 
   private func buildV2History() -> APIV2HistorySettings {
-    // For now, return a simplified structure
-    // In a full implementation, this would extract all history-related settings
+    let prefs = PreferencesManager.shared
+    let isPaused = prefs.bool(forKey: "history.isPaused", defaultValue: false)
     return APIV2HistorySettings(
+      isPaused: isPaused,
       viewer: nil,
       hotkeysAndFilters: nil,
       retention: nil
@@ -2602,7 +2603,8 @@ class APIRouter {
     guard let patch = maybe else { return v2Error(code: "internal", message: "decode failed", statusCode: 500) }
 
     // Patch implementation: store subsection updates
-    // For now, this is a simplified implementation
+    let prefs = PreferencesManager.shared
+    if let v = patch.isPaused { prefs.set(v, forKey: "history.isPaused") }
     if let _ = patch.viewer {
       // Update viewer settings (to be implemented with full schema)
     }
