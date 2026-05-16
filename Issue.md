@@ -20,14 +20,6 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue130: paidApp 포커스 복원 — 설정 단축키 pass-through (등록: 2026-05-17)
-* 목적: paidApp이 포그라운드일 때 ⌃⇧⌘; 단축키를 CGEventTap이 소비하지 않고 paidApp에 전달. paidApp의 `.regular` 활성화 + Dock 노출 + Cmd+Q 가능.
-* 상세:
-    - `WindowContextManager`: `isPaidAppForeground` 추적 추가
-    - `CGEventTapManager`: protocol `isPaidAppForeground()` + `settings.hotkey` pass-through 조건 추가
-    - `KeyEventProcessor`: `isPaidAppForeground()` 구현
-    - `TriggerKeyManager`: paidApp foreground 시 설정 단축키 핸들러 스킵
-
 # 📕 중요
 
 # 📙 일반
@@ -101,6 +93,14 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue130: paidApp 포커스 복원 — 설정 단축키 CGEventTap pass-through (등록: 2026-05-17, 완료: 2026-05-17) (Hash: c5c3bf7)
+* 목적: paidApp이 포그라운드일 때 ⌃⇧⌘; 단축키를 CGEventTap이 소비하지 않고 paidApp의 localHotkeyMonitor에 직접 전달. paidApp `.regular` 활성화 → Dock 노출, Cmd+Q 종료 가능. pairApp 구조와 일치.
+* 변경:
+    - `WindowContextManager`: `isPaidAppForeground` 추적 (bundleID `kr.finfra.fSnippet`)
+    - `CGEventTapManager`: `isPaidAppForeground()` 프로토콜 + `settings.hotkey` pass-through
+    - `KeyEventProcessor`: `isPaidAppForeground()` 구현
+    - `TriggerKeyManager`: paidApp foreground 시 cliApp 설정 핸들러 스킵 (이중 오픈 방지)
 
 ## Issue129: [Bug] TriggerKeyManager NSEvent 모니터 ARC 버그 + 잘못된 설정 키 — paidApp 활성 시 설정창 단축키/메뉴 무반응 3차 재발 (등록: 2026-05-16, 완료: 2026-05-16) (Hash: cfdff95)
 * 목적: paidApp이 활성화(foreground)된 상태에서 설정창 단축키(⌃⇧⌘;)와 메뉴 클릭이 작동하지 않는 문제. Issue855(paidApp AppDelegate) → Issue862(paidApp SettingsWindowManager) 재발 이후, 동일 ARC 버그 패턴이 cliApp TriggerKeyManager에 잠복해 있었음.
