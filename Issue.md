@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 128
+* Issue HWM: 129
 * Save Point :
       - 2026.05.16: e78f9da (Fix(Issue127): 기본 단축키 글로벌 등록 차단 회귀 복구 — context-only 면제 제거 + 폴더 단축키 가드)
       - 2026.05.16: 30794af (Fix(Issue128): 클립보드 팝업 최신 항목 반영 지연 — show() 동기 flush 추가)
@@ -19,6 +19,18 @@ date: 2026-04-07
 # 🌱 이슈후보
 
 # 🚧 진행중
+
+## Issue129: [Bug] TriggerKeyManager NSEvent 모니터 ARC 버그 + 잘못된 설정 키 — paidApp 활성 시 설정창 단축키/메뉴 무반응 3차 재발 (등록: 2026-05-16)
+* 목적: paidApp이 활성화(foreground)된 상태에서 설정창 단축키(⌃⇧⌘;)와 메뉴 클릭이 작동하지 않는 문제. Issue855(paidApp AppDelegate) → Issue862(paidApp SettingsWindowManager) 재발 이후, 동일 ARC 버그 패턴이 cliApp TriggerKeyManager에 잠복해 있었음.
+* 상세:
+    - **원인 1 (ARC 버그)**: `TriggerKeyManager.setupGlobalHotkeyMonitoring()`에서 `NSEvent.addGlobal/LocalMonitorForEvents()` 반환값을 버림 → ARC 즉시 해제 → 모니터 등록 후 즉시 소멸 → 단축키 감지 불가
+    - **원인 2 (잘못된 키)**: `handleGlobalKeyEvent()`에서 `"settings.open.hotkey"` 참조 — 이 키는 config에 존재하지 않음. 정규 키는 `"settings.hotkey"` (ShortcutMgr/MenuBarManager 공용)
+* 구현:
+    - `private var globalHotkeyMonitor: Any?` / `private var localHotkeyMonitor: Any?` 인스턴스 변수 추가
+    - `setupGlobalHotkeyMonitoring()` 반환값 저장
+    - `deinit` 에서 `NSEvent.removeMonitor()` 호출
+    - `"settings.open.hotkey"` → `"settings.hotkey"` 수정
+* 수정 파일: `cli/fSnippetCli/Managers/TriggerKeyManager.swift`
 
 # 📕 중요
 

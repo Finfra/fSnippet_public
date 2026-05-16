@@ -29,6 +29,11 @@ class TriggerKeyManager: ObservableObject {
     private var cachedDefaultSymbol: String = ""
 
     private var cancellables = Set<AnyCancellable>()
+
+    // Issue871: Retain NSEvent monitors to prevent ARC from immediately releasing them.
+    // Same ARC bug fixed in paidApp AppDelegate (Issue855/862).
+    private var globalHotkeyMonitor: Any?
+    private var localHotkeyMonitor: Any?
     
     // MARK: - Initialization
     
@@ -59,27 +64,32 @@ class TriggerKeyManager: ObservableObject {
         
 
     }
-    /// 글로벌 단축키 감지 설정
 
-
-    
     /// 글로벌 단축키 감지 설정
     private func setupGlobalHotkeyMonitoring() {
+        // Issue871: Store monitor return values to prevent ARC from releasing them immediately.
+        // Without retention, monitors are deallocated right after this method returns and never fire.
+
         // 1. NSEvent 전역 모니터 (앱이 백그라운드일 때)
-        NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        globalHotkeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
             self?.handleGlobalKeyEvent(event)
         }
-        
+
         // 2. NSEvent 로컬 모니터 (앱이 활성 상태일 때)
         // Issue763: 단축키 매칭 시 return nil로 이벤트 소비하여 비프음 방지
-        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        localHotkeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             if self?.handleGlobalKeyEvent(event) == true {
                 return nil  // 이벤트 소비 → 비프음 방지
             }
             return event
         }
-        
+
         logV("🔑 [TriggerKeyManager] 글로벌/로컬 단축키 모니터링 시작")
+    }
+
+    deinit {
+        if let m = globalHotkeyMonitor { NSEvent.removeMonitor(m) }
+        if let m = localHotkeyMonitor { NSEvent.removeMonitor(m) }
     }
     
     // Issue763: 반환타입 Bool로 변경 - 매칭 시 true 반환하여 localMonitor에서 이벤트 소비
@@ -88,7 +98,9 @@ class TriggerKeyManager: ObservableObject {
         let prefs = PreferencesManager.shared
 
         // 1. 설정 창 단축키 체크 (Issue855: paidApp foreground에서도 작동해야 함)
-        let settingsHotkey = prefs.string(forKey: "settings.open.hotkey", defaultValue: "^⇧⌘;")
+        // Issue871: Use "settings.hotkey" (the canonical key shared by ShortcutMgr/MenuBarManager).
+        // "settings.open.hotkey" was a typo — it never existed in config, so monitors never matched.
+        let settingsHotkey = prefs.string(forKey: "settings.hotkey", defaultValue: "^⇧⌘;")
         if matchHotkey(event: event, hotkeyString: settingsHotkey) {
             logI("🔑 [TriggerKeyManager] Settings Hotkey Detected: \(settingsHotkey)")
             // Issue852 패턴: asyncAfter로 event handler 벗어나기
