@@ -21,6 +21,12 @@ enum SingleInstanceGuard {
     /// `true` 반환 시 호출부는 즉시 `exit(0)` 수행.
     /// 내가 승자(launchd-spawned) 인 경우 false 반환 + 다른 인스턴스 비동기 종료.
     static func shouldTerminateAsDuplicate() -> Bool {
+        // Issue124: XCTest 환경에서는 단일 인스턴스 가드 비활성화 (테스트 호스트 부팅 허용)
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            || ProcessInfo.processInfo.environment["XCTestBundlePath"] != nil
+        {
+            return false
+        }
         guard let bundleID = Bundle.main.bundleIdentifier else {
             return false
         }

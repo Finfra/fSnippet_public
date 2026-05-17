@@ -52,4 +52,3 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: kr.finfra.fSnippetCliTests
         PRODUCT_NAME: fSnippetCliTests
         GENERATE_INFOPLIST_FILE: true
-        CODE_SIGN_IDENTITY: ""

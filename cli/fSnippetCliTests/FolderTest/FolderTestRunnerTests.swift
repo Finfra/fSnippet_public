@@ -100,11 +100,164 @@ final class FolderTestRunnerTests: XCTestCase {
     XCTAssertFalse(folders.isEmpty, "Sandbox folders should be discovered after loadAllSnippets")
   }
 
-  // MARK: - Issue124 확장 지점
+  // MARK: - Issue124 — 33-case 매트릭스 실행
 
-  /// Issue124 에서 본격 구현. 현재는 비활성 (XCTSkip).
   /// testTable_org.md 파싱 → _rule.yml 생성 → 33-case 매트릭스 실행 → result_<timestamp>.md 출력.
-  func testAllFolderCases_DISABLED() throws {
-    throw XCTSkip("Issue124 범위 — testTable_org.md 파싱 + 33-case 매트릭스 실행은 후속 이슈에서 구현")
+  /// 각 case별 sandbox 내 `_case{N}/test.txt` 생성 후 SnippetRepository.loadAllSnippets 으로
+  /// 기대 abbreviation 이 snippetMap 에 등록되는지 검증.
+  func testAllFolderCases() throws {
+    let cases = try Self.parseTestTable()
+    XCTAssertEqual(cases.count, 33, "testTable_org.md 에서 33-case 파싱 기대")
+
+    // 1. _rule.yml 생성
+    let ruleYAML = Self.buildRuleYAML(from: cases)
+    try utils.createRuleFile(content: ruleYAML)
+
+    // 2. 각 case 폴더 + test.txt 생성
+    for c in cases {
+      try utils.createFile(path: "\(c.folder)/test.txt", content: "Snippet for \(c.id)")
+    }
+
+    // 3. RuleManager 로드
+    XCTAssertTrue(
+      RuleManager.shared.loadRuleFile(at: sandbox.path),
+      "_rule.yml 로드 실패"
+    )
+
+    // 4. SnippetRepository 강제 리빌드
+    SnippetRepository.shared.loadAllSnippets(reason: "Issue124-Matrix", force: true)
+    let snippetMap = SnippetRepository.shared.snippetMap
+
+    // 5. 각 case 의 expected abbreviation 검증
+    var results: [(id: String, expected: String, actual: String?, ok: Bool)] = []
+    for c in cases {
+      let entries = snippetMap.filter { (_, paths) in
+        paths.contains { $0.contains("/\(c.folder)/") }
+      }
+      let actualAbbr = entries.first?.key
+      let ok = actualAbbr == c.expected
+      results.append((c.id, c.expected, actualAbbr, ok))
+    }
+
+    // 6. 결과 리포트 작성
+    let report = Self.buildReport(results: results)
+    Self.writeReports(report)
+
+    // 7. 전 항목 통과 단언
+    let failures = results.filter { !$0.ok }
+    XCTAssertTrue(
+      failures.isEmpty,
+      "FolderTest 33-case 회귀: \(failures.count)건 실패. 상세는 result_latest.md 참조"
+    )
+  }
+
+  // MARK: - testTable_org.md 파싱
+
+  private struct MatrixCase {
+    let id: String
+    let folder: String
+    let prefix: String
+    let keys: [String]
+    let suffix: String
+    let expected: String
+  }
+
+  private static func parseTestTable() throws -> [MatrixCase] {
+    let testFile = URL(fileURLWithPath: #filePath)
+    let mdURL = testFile.deletingLastPathComponent().appendingPathComponent("testTable_org.md")
+    let text = try String(contentsOf: mdURL, encoding: .utf8)
+
+    var cases: [MatrixCase] = []
+    let lines = text.components(separatedBy: .newlines)
+    for line in lines {
+      let trimmed = line.trimmingCharacters(in: .whitespaces)
+      guard trimmed.hasPrefix("|") else { continue }
+      // 헤더/구분선 스킵 (구분선은 `| --- | --- |...` 형태)
+      if trimmed.hasPrefix("| ---") || trimmed.contains("Folder") { continue }
+      let cells = trimmed.split(separator: "|", omittingEmptySubsequences: false).map {
+        $0.trimmingCharacters(in: .whitespaces)
+      }
+      // 양끝 빈 셀 포함 8개 (0: 빈, 1: id, 2: folder, ..., 6: abbreviation, 7: 빈)
+      guard cells.count >= 7,
+            Int(cells[1]) != nil else { continue }
+      let id = cells[1]
+      let folder = cells[2]
+      let prefix = cells[3]
+      let keys = cells[4].split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+      let suffix = cells[5]
+      let expected = cells[6]
+      cases.append(MatrixCase(
+        id: id, folder: folder, prefix: prefix, keys: keys, suffix: suffix, expected: expected
+      ))
+    }
+    return cases
+  }
+
+  // MARK: - _rule.yml 빌더
+
+  private static func buildRuleYAML(from cases: [MatrixCase]) -> String {
+    var lines: [String] = ["collections:"]
+    for c in cases {
+      lines.append("  - name: \"\(c.folder)\"")
+      if !c.prefix.isEmpty {
+        lines.append("    prefix: \"\(c.prefix)\"")
+      }
+      if !c.suffix.isEmpty {
+        lines.append("    suffix: \"\(c.suffix)\"")
+      }
+    }
+    return lines.joined(separator: "\n") + "\n"
+  }
+
+  // MARK: - 리포트
+
+  private static func buildReport(
+    results: [(id: String, expected: String, actual: String?, ok: Bool)]
+  ) -> String {
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime]
+    let now = formatter.string(from: Date())
+    let passed = results.filter { $0.ok }.count
+    let total = results.count
+
+    var out: [String] = []
+    out.append("---")
+    out.append("title: Folder Test Result (Issue124)")
+    out.append("date: \(now)")
+    out.append("passed: \(passed)/\(total)")
+    out.append("---")
+    out.append("")
+    out.append("# 결과 요약")
+    out.append("")
+    out.append("* 통과: \(passed)/\(total)")
+    out.append("* 실행 시각: \(now)")
+    out.append("")
+    out.append("# 케이스별 상세")
+    out.append("")
+    out.append("| id | expected | actual | status |")
+    out.append("| -- | -------- | ------ | ------ |")
+    for r in results {
+      let mark = r.ok ? "✅" : "❌"
+      let actual = r.actual ?? "(none)"
+      out.append("| \(r.id) | `\(r.expected)` | `\(actual)` | \(mark) |")
+    }
+    return out.joined(separator: "\n") + "\n"
+  }
+
+  private static func writeReports(_ content: String) {
+    let testFile = URL(fileURLWithPath: #filePath)
+    let resultsDir = testFile.deletingLastPathComponent().appendingPathComponent("Results")
+    try? FileManager.default.createDirectory(
+      at: resultsDir, withIntermediateDirectories: true
+    )
+
+    let latest = resultsDir.appendingPathComponent("result_latest.md")
+    try? content.write(to: latest, atomically: true, encoding: .utf8)
+
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyyMMdd-HHmmss"
+    let ts = formatter.string(from: Date())
+    let dated = resultsDir.appendingPathComponent("result_\(ts).md")
+    try? content.write(to: dated, atomically: true, encoding: .utf8)
   }
 }
