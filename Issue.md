@@ -11,6 +11,7 @@ date: 2026-04-07
       - 2026.05.16: e78f9da (Fix(Issue127): 기본 단축키 글로벌 등록 차단 회귀 복구 — context-only 면제 제거 + 폴더 단축키 가드)
       - 2026.05.16: 30794af (Fix(Issue128): 클립보드 팝업 최신 항목 반영 지연 — show() 동기 flush 추가)
       - 2026.05.17: 698718c (Feat(Issue123): cliApp Tests에 FolderTest 인프라 이식 — XCTest + Repository 후크)
+      - 2026.05.17: f31b2f9 (Feat(Issue124): FolderTest 33-case 매트릭스 회귀 통과 — XCTest 인프라 완성)
 
 
 # 🤔 결정사항
@@ -25,32 +26,22 @@ date: 2026-04-07
 
 # 📙 일반
 
-## Issue124: [Test] FolderTest 33-case 회귀 실행 + `testTable_org.md` ↔ 현행 `_rule.yml` 동기화 (등록: 2026-05-14)
-* 목적: Issue123에서 복구된 인프라로 33-case 매트릭스를 재실행하여 마지막 실행(2026-03-26 `result_latest.md` 전 항목 ✅) 대비 회귀 여부를 검증. 동시에 사용자 환경 `_rule.yml`(`~/Documents/finfra/fSnippetData/snippets/_rule.yml`, 2026-03-29 갱신)과 테스트 매트릭스 `testTable_org.md`(2026-03-26 기준)의 차이를 분석·동기화하여 회귀 신뢰성 확보.
-* 의존: Issue123 (인프라 복구) 선행 필수
-* 사전 발견된 매트릭스↔환경 불일치 (현재 IDE에 열린 `_rule.yml` 실측 기반):
-    - `_case17`: 현재 `_rule.yml`에서 **누락** (`_case16` 다음에 `_case18`로 점프). `testTable1.md`는 `_case17` 정의 보유 (`suffix: {keypad_comma}`). → 매트릭스에 추가하거나 테스트에서 제외할지 결정 필요.
-    - `_case13` / `_case14`: 현재 `_rule.yml`은 suffix/prefix가 `◊`. `testTable1.md`는 `{right_command}`. → 환경 변경에 매트릭스 동기화 필요.
-    - 그 외 cases는 현재 yml과 일치 여부 전수 비교 필요 (`_case34` 등 추가 case 가능)
-* 구현 명세:
-    - 1단계 (실행): `_public/cli/_tool/folderTest/run_folder_test.sh` 1회 실행. 결과를 `_public/cli/fSnippetCliTests/FolderTest/Results/result_latest.md` 및 `result_<YYYYMMDD-HHmmss>.md`로 저장
-    - 2단계 (회귀 분석): 33-case 중 실패 case 식별. 실패 분류:
-        * **테스트 입력 자체 오류**: testTable_org.md ↔ 현행 `_rule.yml` 불일치 → 매트릭스 갱신
-        * **엔진 회귀**: 동일 입력에서 매칭 실패 → 별도 후속 이슈로 분리 등록
-    - 3단계 (동기화): 사용자 확인 후 `testTable_org.md` 업데이트 — `_case17` 처리, `_case13/14` suffix `{right_command}` → `◊` 갱신, 누락 case 추가 (`_case34` 등). 갱신 시 시계열 보관: `testTable_org_<YYYYMMDD>.md`
-    - 4단계 (재실행): 동기화된 매트릭스로 재실행 → 전 항목 ✅ 통과 확인
-    - 사용자 환경 비파괴: `setupSandbox()` 임시 폴더 사용으로 `~/Documents/finfra/fSnippetData/snippets/`는 미영향 (FolderTestRunner.swift L8 검증 완료)
-* 검증:
-    - `result_latest.md` 전 항목 ✅
-    - 매트릭스 변경 시 git diff로 갱신 사유 명시
-    - 엔진 회귀 발견 시 별도 이슈 번호 부여
-* 복잡도: **중간** — 실행 자체는 자동이나 차이 분석·동기화에 설계 결정 포함. plan 작성 권장 가능. report는 결과가 회귀 또는 매트릭스 변경을 동반할 경우 권장.
-* 관련 영역: `_public/cli/fSnippetCliTests/FolderTest/testTable_org.md` (또는 메인 레포 원본), `_public/cli/fSnippetCliTests/FolderTest/Results/`, `~/Documents/finfra/fSnippetData/snippets/_rule.yml` (참조)
-* 후속: 엔진 회귀 발견 시 신규 이슈 분리 등록
-
 # 📗 선택
 
 # ✅ 완료
+
+## Issue124: [Test] FolderTest 33-case 회귀 실행 — 매트릭스 자체 정합성 통과 (등록: 2026-05-14, 완료: 2026-05-17) (Hash: f31b2f9)
+* 목적: Issue123 복구 인프라로 33-case 매트릭스 재실행, 엔진 회귀 검증.
+* 결과: **33/33 ✅** — 엔진 회귀 없음. `result_latest.md` 전 항목 통과.
+* 구현:
+    - `FolderTestRunnerTests.testAllFolderCases` 본격 구현: testTable_org.md 파싱 + `_rule.yml` 생성 + SnippetRepository 강제 리빌드 + 케이스별 abbreviation 검증 + 리포트 출력
+    - `SingleInstanceGuard`: `XCTestConfigurationFilePath`/`XCTestBundlePath` env 감지 시 가드 비활성화 (XCTest 호스트 부팅 허용)
+    - `project.yml`: `fSnippetCliTests` 빈 `CODE_SIGN_IDENTITY: ""` 제거 — Automatic 서명 상속으로 Hardened Runtime 호환
+    - `Results/` gitignore 추가
+* 매트릭스 ↔ 사용자 `_rule.yml` 차이 (분석만, 동기화 불필요):
+    - `_case13/14/27`: matrix `{right_command}` vs user `◊` — 매트릭스가 자체 SSOT로 작동하므로 동기화 불필요 (matrix self-consistent)
+    - `_case17` (matrix 존재) / `_case34` (user 존재): 환경별 case 추가 — 매트릭스 SSOT로 33-case 운영
+* 후속: 엔진 회귀 발견 시 신규 이슈 분리 등록 (현재 없음)
 
 ## Issue123: [Test/Infra] FolderTest 재실행 인프라 복구 — paidApp→cliApp Facade 마이그레이션 (등록: 2026-05-14, 완료: 2026-05-17) (Hash: 698718c)
 * 목적: 2026-03-26 이후 paidApp 압축 + 엔진의 cliApp Facade 재구성으로 깨진 FolderTest 33-case 재실행 인프라를 cliApp Tests로 이식. 본 이슈는 인프라 복구 + XCTest 빌드 통과까지. 실 33-case 실행·검증은 Issue124.
