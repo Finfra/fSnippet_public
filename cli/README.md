@@ -191,7 +191,7 @@ Shares the same data directory as fSnippet GUI:
 | Snippet files  | `~/Documents/finfra/fSnippetData/snippets/`   |
 | Clipboard DB   | `~/Documents/finfra/fSnippetData/clipboard.sqlite` |
 | Config file    | `~/Documents/finfra/fSnippetData/_config.yml`  |
-| Log            | `~/Documents/finfra/fSnippetData/logs/flog.log` |
+| Log            | `~/Documents/finfra/fSnippetData/logs/flog_cliApp.log` |
 
 # Requirements
 

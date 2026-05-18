@@ -30,7 +30,7 @@ CLI_DIR="$(dirname "$SCRIPT_DIR")"
 RUN_XCODE="$SCRIPT_DIR/fsc-run-xcode.sh"
 TEST_ROOT="$HOME/Documents/finfra/fSnippetData_testForCli"
 TEST_BOARD="$SCRIPT_DIR/testBoard.txt"
-LOG_FILE="$TEST_ROOT/logs/flog.log"
+LOG_FILE="$TEST_ROOT/logs/flog_cliApp.log"
 
 TOTAL_PASS=0
 TOTAL_FAIL=0

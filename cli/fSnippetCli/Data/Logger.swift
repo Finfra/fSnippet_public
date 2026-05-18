@@ -70,7 +70,7 @@ class Logger {
     }()
 
     private lazy var logFileURL: URL = {
-        return logDirectoryURL.appendingPathComponent("flog.log")
+        return logDirectoryURL.appendingPathComponent("flog_cliApp.log")
     }()
 
     private let queue = DispatchQueue(label: "com.nowage.fSnippet.logger", qos: .utility)
@@ -167,7 +167,7 @@ class Logger {
             // 세션별로 파일을 나누려면 Logger init 시점에 타임스탬프를 고정해야 함.
 
             let archivedLogURL = self.logDirectoryURL.appendingPathComponent(
-                "flog_\(self.sessionDateString).log")
+                "flog_cliApp_\(self.sessionDateString).log")
             self.appendToFile(url: archivedLogURL, data: data)
         }
     }
