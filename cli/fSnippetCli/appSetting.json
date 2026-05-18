@@ -27,11 +27,9 @@
       "KeyEventInfo"
     ],
     "denyList": [
-      "KeyEventHandler",
-      ""
+      "KeyEventHandler"
     ],
-    "description": "Log filtering by module (file name). 'enable: false' bypasses the moduleFilter entirely. Mode: 'allow' (only listed) or 'deny' (exclude listed). NOTE: This filter is orthogonal to log_level (_config.yml). Setting enable=false does NOT lower log_level — VERBOSE logs still require log_level: 'VERBOSE' in _config.yml.
-    RuleManager, Abbreviationatcher, RuleManager"
+    "description": "Log filtering by module (file name). 'enable: false' bypasses the moduleFilter entirely. Mode: 'allow' (only listed) or 'deny' (exclude listed). NOTE: This filter is orthogonal to log_level (_config.yml). Setting enable=false does NOT lower log_level — VERBOSE logs still require log_level: 'VERBOSE' in _config.yml. Candidates: RuleManager, AbbreviationMatcher."
   },
   "excludedFiles": [
     "_README.md",
