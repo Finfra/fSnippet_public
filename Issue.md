@@ -38,19 +38,18 @@ date: 2026-04-07
 * 명세 정정: 등록 시 확인 항목에 적은 GET 응답 형식 `{ "data": {...} }`는 부정확 — 실제 구현·`openapi_v2.yaml` SSOT 모두 래퍼 없는 raw map. SSOT 기준이 정답
 * 결론: cliApp 측 엔드포인트(GET 전체/단건·PUT·DELETE·POST) 정상 작동. paidApp Issue892 구현 시 즉시 사용 가능
 
-## Issue138: [Engine] special-key 트리거 한계 — `{f1}`/`{f2}`/`{keypad_num_lock}` 폴더 affix 미확장 (등록: 2026-05-20, 완료: 2026-05-20, by-design) (Hash: 3fed3e3)
+## Issue138: [Test/Infra] qa 하니스 special-key 케이스 — 35/35 달성 (하니스 결함 수정) (등록: 2026-05-20, 완료: 2026-05-21) (Hash: 3fed3e3, 0a043a2)
 * 목적: Issue137 `qa_run_batch.sh` 검증의 case20/21/22/23 FAIL 4건 원인 규명·처리.
 * plan: `cli/_doc_work/plan/special-key-trigger-conflict_plan.md`
-* 결론: **엔진 버그 아님 — by-design**. function/trigger 키를 folder affix로 쓰는 비표준 조합. 엔진 코드 무수정.
-* Phase 0 정밀 조사 (엔진 코어):
-    - `_rule.yml` ↔ testTable case19~23 정의 완전 일치 — 동기화 문제 아님
-    - **f1/f2** (case21/22/23): `ShortcutMgr.isSimpleTypingKey`가 F1~F20을 non-typing key로 분류(정확 — F-key는 화면 글자 없음) → `registerFolderShortcuts`가 `folderPrefix` global shortcut으로 등록 → `KeyEventHandler.handleFolderPrefixRole`이 폴더 스니펫 **popup**을 띄움. 자동확장이 아니라 popup이 의도된 설계
-    - **keypad_num_lock** (case20): 사용자 `activeTriggerKeys`에 포함되어 `triggerKey`로 등록 → prefix 위치 입력 시 즉시 trigger 발동 → buffer empty 매칭 실패 → prefix 소실 → 잔여 `test{keypad_num_lock}`가 suffix-only `_case19`로 매칭
-    - 대조: `{keypad_comma}` (case17/18 PASS) — `isSimpleTypingKey`=true + `triggerKey` 미등록 → buffer 누적 → 정상 자동확장
-* 판단: f1/f2의 folderPrefix→popup은 정상 설계. F-key를 typing key로 재분류하면 부정확 + 회귀 위험. keypad_num_lock은 사용자가 trigger로 쓰는 키라 folder affix와 본질 충돌. 엔진 수정 부적합 (plan의 A+B 전제가 Phase 0에서 무너짐)
-* 조치: 엔진 코드 무수정. `cli/_tool/qa/qa_run_batch.sh` 헤더에 known-limitation 주석 추가 — 31/35가 정상 baseline, case20~23은 by-design FAIL 명시
-* 검증 기준선: Issue137 하니스 35-case 실행 → **31/35 PASS**가 정상 결과로 확정
-* 관련: Issue137 (검증 하니스), Issue605 (`isSimpleTypingKey` prefix skip 도입)
+* ⚠️ 1차 결론 철회 (2026-05-21): 최초 "엔진 by-design 한계"로 종결(3fed3e3)했으나 **오류**. 사용자 수동 타이핑으로 case20~23 전부 정상 확장됨이 flog로 입증 → **엔진은 정상, 전부 하니스(Issue137 산출물) 결함**.
+* 진짜 근본 원인:
+    - **literal 키 전송 방식**: Quartz keycode-0 unicode가 sh 스크립트 경유 시 불안정. case별 입력 대상은 `testBoard.txt`를 `open`(context-change) + Enter(buffer-clear 키)로 엔진 buffer flush
+    - **osascript ↔ Quartz 혼용 금지**: osascript subprocess 실행 후 같은 process의 Quartz `CGEventPost`가 무효화됨 — token(AppleScript) 직후 literal(Quartz)이 유실. abbreviation 단위로 경로를 하나만 선택하도록 분리
+    - **keypad keycode**: `design_keyProcess.md` 표의 keypad_comma/num_lock keycode 뒤바뀜 → 표준 macOS 값(comma=95, num_lock=71)으로 정정. AppleScript `key code 95`는 US 키보드 미존재 키라 무시 → keypad_comma만 Quartz
+    - **입력 소스**: 한글 IME 시 `keystroke`가 한글 렌더 → `force_ascii.py`(Carbon TIS)로 ASCII 강제
+* 해결 (`0a043a2`): `qa_type.py` 경로 분리 — `{f1}/{f2}/{keypad_num_lock}` 포함 abbreviation은 전체를 한 osascript 세션, 그 외는 전체 Quartz. `qa_run_batch.sh`: testBoard.txt 대상 + Enter flush
+* 검증: 전체 35-case **2회 연속 PASS 35/35**
+* 관련: Issue137 (검증 하니스), Issue134 (XCTest 35/35 — 생성 레이어)
 
 ## Issue137: [Test/Infra] 실제 키보드 paste 확장 검증 — `qa_run_batch.sh` 키보드 자동화 하니스 (등록: 2026-05-20, 완료: 2026-05-20) (Hash: c6802e8)
 * 목적: Issue134는 XCTest로 abbreviation 생성 로직만 검증. 실제 키 입력 → CGEventTap → 텍스트 확장 end-to-end 경로를 키보드 자동화로 검증.
