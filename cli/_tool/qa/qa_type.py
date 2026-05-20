@@ -1,21 +1,26 @@
 #!/usr/bin/env python3
 """
-qa_type.py — Quartz CGEvent keystroke typer for the FolderTest QA harness.
+qa_type.py — hybrid keystroke typer for the FolderTest QA harness (Issue138).
 
-Types a testTable_org.md `abbreviation` string into the focused app:
-  * literal characters  -> unicode keystroke (handles 한글, ø, ¥, ∆, ...)
-  * {modifier} tokens   -> flagsChanged down/up tap (right_command, ...)
-  * {key} tokens        -> normal keyDown/keyUp (f1, keypad_comma, ...)
+  literal chars     -> Quartz unicode keystroke (CGEventKeyboardSetUnicodeString).
+                       Bypasses the IME entirely, so the active input source /
+                       Hangul does not matter, and every character (incl. '-',
+                       'ø', '∆', …) is delivered. AppleScript `keystroke` went
+                       through the IME and silently dropped some characters.
+  plain-key tokens  -> AppleScript `key code` (f1/f2/keypad). These accumulate
+                       into the engine buffer as tokens; Quartz tap_key made the
+                       same key resolve as folderPrefix and open a popup.
+  modifier tokens   -> Quartz flagsChanged (right_command/option/control).
+                       AppleScript `key code` does not emit the flagsChanged
+                       event the engine needs for a modifier trigger.
 
 CLI:
-  python3 qa_type.py "test{right_command}"
-  python3 qa_type.py --delay 0.04 "{right_option}test{right_command}"
-
-Requires the pyobjc Quartz binding and Accessibility permission for the
-process posting the events (Terminal / python).
+  python3 qa_type.py "test{f1}"
+  python3 qa_type.py --delay 0.05 -- "{right_option}test{right_command}"
 """
 import argparse
 import re
+import subprocess
 import sys
 import time
 
@@ -24,22 +29,19 @@ import Quartz
 from keycode_map import classify
 
 # Default inter-keystroke delay (seconds). Tunable via --delay.
-# 0.03 was too fast: a special-key token (which may act as a trigger) fired
-# before the engine absorbed the preceding literal keystrokes (async main-queue
-# dispatch), causing a buffer race and false-FAIL on case20-23. (Issue138)
-DEFAULT_KEY_DELAY = 0.06
+DEFAULT_KEY_DELAY = 0.04
 # Hold time for a modifier flagsChanged down before the matching up.
 MODIFIER_HOLD = 0.05
-# Settle delay before a special-key {token}: lets preceding literal keystrokes
-# reach the engine abbreviation buffer before the token (possibly a trigger)
-# is processed. Without it the prefix/buffer is lost. (Issue138)
-TOKEN_SETTLE = 0.2
+# Settle after a {token}: an AppleScript `key code` subprocess returns before
+# the OS finishes the event, so a following Quartz keystroke is lost without
+# this pause (observed: {f1} prefix swallowed the next literal). (Issue138)
+TOKEN_SETTLE = 0.3
 
 _TOKEN_RE = re.compile(r"(\{[^}]+\})")
 
 
 def type_char(ch: str, delay: float) -> None:
-    """Post a unicode keyDown/keyUp pair carrying a single character."""
+    """Post a unicode keyDown/keyUp pair — IME-independent, any character."""
     for is_down in (True, False):
         ev = Quartz.CGEventCreateKeyboardEvent(None, 0, is_down)
         Quartz.CGEventKeyboardSetUnicodeString(ev, len(ch), ch)
@@ -47,8 +49,16 @@ def type_char(ch: str, delay: float) -> None:
         time.sleep(delay)
 
 
+def as_keycode(code: int) -> None:
+    """Press a plain key (f1, keypad, ...) via AppleScript System Events."""
+    subprocess.run(
+        ["osascript", "-e",
+         f'tell application "System Events" to key code {code}'],
+        check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
 def tap_modifier(keycode: int, flags: int) -> None:
-    """Post a flagsChanged down (with flags) then up (cleared) — a modifier tap."""
+    """Post a flagsChanged down (with flags) then up (cleared) via Quartz."""
     down = Quartz.CGEventCreateKeyboardEvent(None, keycode, True)
     Quartz.CGEventSetType(down, Quartz.kCGEventFlagsChanged)
     Quartz.CGEventSetFlags(down, flags)
@@ -61,30 +71,19 @@ def tap_modifier(keycode: int, flags: int) -> None:
     Quartz.CGEventPost(Quartz.kCGHIDEventTap, up)
 
 
-def tap_key(keycode: int, delay: float) -> None:
-    """Post a normal keyDown/keyUp pair for a fixed keycode."""
-    for is_down in (True, False):
-        ev = Quartz.CGEventCreateKeyboardEvent(None, keycode, is_down)
-        Quartz.CGEventPost(Quartz.kCGHIDEventTap, ev)
-        time.sleep(delay)
-
-
 def type_string(text: str, delay: float = DEFAULT_KEY_DELAY) -> None:
-    """Tokenize `text` into {tokens} + literals and post each as a keystroke."""
+    """Tokenize `text` into {tokens} + literals and type each."""
     for part in _TOKEN_RE.split(text):
         if not part:
             continue
         if part.startswith("{") and part.endswith("}"):
             kind, meta = classify(part)
-            if kind == "modifier" or kind == "key":
-                # Settle so the engine absorbs preceding literal keystrokes
-                # before this token (which may act as a trigger) is processed.
-                time.sleep(TOKEN_SETTLE)
             if kind == "modifier":
                 tap_modifier(meta["keycode"], meta["flags"])
-                time.sleep(delay)
+                time.sleep(TOKEN_SETTLE)
             elif kind == "key":
-                tap_key(meta, delay)
+                as_keycode(meta)
+                time.sleep(TOKEN_SETTLE)
             else:
                 # Unknown token: type it literally so the failure is visible.
                 for ch in part:
@@ -95,7 +94,7 @@ def type_string(text: str, delay: float = DEFAULT_KEY_DELAY) -> None:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="CGEvent keystroke typer")
+    ap = argparse.ArgumentParser(description="hybrid keystroke typer")
     ap.add_argument("text", help="abbreviation string to type")
     ap.add_argument("--delay", type=float, default=DEFAULT_KEY_DELAY,
                     help=f"inter-keystroke delay seconds (default {DEFAULT_KEY_DELAY})")
