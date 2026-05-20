@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 136
+* Issue HWM: 137
 * Save Point :
       - 2026.05.16: e78f9da (Fix(Issue127): 기본 단축키 글로벌 등록 차단 회귀 복구 — context-only 면제 제거 + 폴더 단축키 가드)
 
@@ -33,6 +33,29 @@ date: 2026-04-07
 * 확인 항목:
     - `GET /api/v2/settings/excluded-files/per-folder` → `{ "data": { "folderName": ["file.txt"] } }` 형식 반환 확인
     - `PUT /api/v2/settings/excluded-files/per-folder/{folder}` → 정상 저장 후 `_config.yml` 반영 확인
+
+## Issue137: [Test/Infra] 실제 키보드 paste 확장 검증 — `qa_run_batch.sh` 신규 작성, 35-case 키 자동화 (등록: 2026-05-20)
+* 목적: Issue134는 XCTest(`FolderTestRunnerTests.testAllFolderCases`)로 abbreviation **생성 로직**만 검증. 실제 키 입력 → CGEventTap 감지 → 텍스트 **확장**까지의 end-to-end 경로는 미검증. 35-case abbreviation을 실제 타이핑하여 스니펫이 정확히 확장되는지 자동화 검증.
+* 배경: Issue134 명세가 지정한 `_tool/qa/qa_run_batch.sh` 스크립트·디렉토리 전체 부재. 신규 작성 필요.
+* 기존 자산:
+    - `cli/_tool/send_right_cmd.py` — Quartz `CGEventCreateKeyboardEvent`로 right_command 트리거 키 down/up 전송. 키 자동화 1차 빌딩블록
+    - `cli/_tool/testBoard.txt` — 입력 보드 (현재 비어 있음)
+    - `cli/fSnippetCliTests/FolderTest/testTable_org.md` — 35-case 매트릭스 SSOT (id/folder/prefix/key/suffix/abbreviation)
+* 구현 명세:
+    - 신규 `cli/_tool/qa/qa_run_batch.sh` (+ 보조 Python `qa_type.py`):
+        1. cliApp 기동 확인 — REST `GET http://localhost:3015/` healthz. 미기동 시 fail-loud
+        2. `testTable_org.md` 파싱 → 35행의 `abbreviation` 컬럼 추출
+        3. 포커스 가능한 텍스트 입력 대상 확보 (TextEdit 신규 문서 등) — 케이스별 입력창 초기화
+        4. 각 case: `abbreviation` 문자열을 Quartz CGEvent 키스트로크로 타이핑. 특수 토큰(`{right_command}`/`{right_option}`/`{right_control}`/`{f1}`/`{f2}`/`{keypad_comma}`/`{keypad_num_lock}`)은 keycode 매핑하여 modifier/function 키로 전송
+        5. 확장 후 입력창 텍스트 읽기 → 기대 스니펫 내용과 비교
+        6. 결과 행별 Status=OK/FAIL + Output 을 `result_<ts>.md`에 기록
+    - 토큰→keycode 매핑 테이블 작성: `{right_command}`=54, `{right_option}`=61, `{right_control}`=62, `{f1}`=122, `{f2}`=120, `{keypad_num_lock}`=71 등. `cli/_doc_arch/key-event/` keycode 정의 참조
+    - 완료조건: 35/35 case 타이핑→확장→일치 검증 OR 확장 실패 케이스 원인 규명 + 후속 분기
+* 리스크:
+    - 키 자동화는 접근성 권한·focus 안정성에 민감. case 간 입력창 격리·딜레이 튜닝 필요
+    - `{right_command}` 트리거가 전역 기본 트리거와 동일 → 충돌 케이스(case13/14/27) 실 환경 재검증이 본 이슈 핵심 관심사
+* 관련: Issue134 (XCTest 35/35 통과 — 생성 로직 검증 완료), Issue124 (33-case XCTest 인프라)
+* 복잡도: 복잡 — 신규 키 자동화 하니스. plan 작성 권장
 
 # 📗 선택
 
