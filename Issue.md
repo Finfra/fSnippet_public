@@ -36,6 +36,7 @@ date: 2026-04-07
 
 ## Issue138: [Engine] special-key 트리거 한계 — `{f1}`/`{f2}`/`{keypad_num_lock}` 폴더 suffix/prefix 미확장 (등록: 2026-05-20)
 * 목적: Issue137 `qa_run_batch.sh` 35-case 키 자동화 검증에서 31/35 PASS, case20/21/22/23 4건 일관 FAIL. 단건 재실행에서도 동일 FAIL — 버퍼 오염이 아닌 엔진 동작으로 확정. function/keypad 키를 트리거로 쓰는 폴더가 확장되지 않는 한계를 규명·수정.
+* plan: `cli/_doc_work/plan/special-key-trigger-conflict_plan.md`
 * 실패 케이스 + flog 증거:
     - **case21 (`test{f1}`) / case22 (`{f1}test`)**: `[CGEventTapManager] Registered Shortcut Detected (Blocking): {f1} [folderPrefix]` → `Passing through Registered Shortcut: f1 (Code: 122)` → `🎮 [Issue38] 트리거키 'f1' 동기 처리 결과: 스니펫 없음`. `{f1}`이 folderPrefix로 인식되나 트리거 동기 처리에서 스니펫 미발견 → pass-through
     - **case23 (`{f2}test{f2}`)**: `{f2}` 동일 — folderPrefix 인식 + 스니펫 없음
