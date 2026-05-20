@@ -243,7 +243,7 @@ class APIRouter {
 
     // Folders
     case ("GET", "/api/v2/folders"):
-      return handleGetFolders()
+      return handleGetFolders(request: request)
     case ("POST", "/api/v2/folders"):
       return handleCreateFolder(request: request)
     case ("DELETE", _) where decodedPath.hasPrefix("/api/v2/folders/"):
@@ -1530,8 +1530,12 @@ class APIRouter {
 
   // MARK: - Folders
 
-  private func handleGetFolders() -> APIServer.HTTPResponse {
+  private func handleGetFolders(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
     let startTime = CFAbsoluteTimeGetCurrent()
+
+    // Opt-in icon delivery: ?icons=true embeds each folder's icon.png as a base64 data URL.
+    // Default calls stay lightweight (no icon payload) so non-icon consumers are unaffected.
+    let includeIcons = request.query["icons"] == "true"
 
     let allEntries = SnippetIndexManager.shared.entries
     var folderMap: [String: [SnippetEntry]] = [:]
@@ -1546,7 +1550,7 @@ class APIRouter {
       let rule = allRules[folderName]
       let isSpecial = folderName.hasPrefix("_")
 
-      return APIFolderSummary(
+      var summary = APIFolderSummary(
         name: folderName,
         prefix: rule?.prefix ?? extractFolderPrefix(from: folderName),
         suffix: rule?.suffix ?? TriggerKeyManager.shared.getCurrentDefaultSymbol(),
@@ -1554,6 +1558,10 @@ class APIRouter {
         triggerBias: rule?.triggerBias ?? 0,
         isSpecial: isSpecial
       )
+      if includeIcons, let folderURL = entries.first?.filePath.deletingLastPathComponent() {
+        summary.icon = loadFolderIconDataURL(folderURL: folderURL)
+      }
+      return summary
     }
 
     let duration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
@@ -1561,6 +1569,14 @@ class APIRouter {
       ok: true, data: data,
       meta: APIMetadata(count: data.count, total: data.count, durationMs: duration)
     ))
+  }
+
+  /// Reads `<folder>/icon.png` and returns it as a `data:image/png;base64,...` URL.
+  /// Returns nil when the file is absent or empty so the `icon` field is omitted from the response.
+  private func loadFolderIconDataURL(folderURL: URL) -> String? {
+    let iconURL = folderURL.appendingPathComponent("icon.png")
+    guard let data = try? Data(contentsOf: iconURL), !data.isEmpty else { return nil }
+    return "data:image/png;base64," + data.base64EncodedString()
   }
 
   private func handleGetFolderDetail(name: String, request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {

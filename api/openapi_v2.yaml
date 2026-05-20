@@ -1449,10 +1449,25 @@ paths:
   /folders:
     get:
       summary: List folders
-      description: Retrieve all snippet folders with rule information.
+      description: |
+        Retrieve all snippet folders with rule information.
+
+        When `icons=true` is supplied, each folder's `icon.png` is embedded as a
+        base64 `data:` URL in the `icon` field. This is opt-in because the payload
+        is large (~30KB per folder); default calls stay lightweight. Clients that
+        need icons should fetch this in the background and cache locally, showing
+        a default icon for folders not yet loaded.
       operationId: getFolders
       tags:
         - Folders
+      parameters:
+        - name: icons
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: When true, embed each folder's icon.png as a base64 data URL.
       responses:
         '200':
           description: Folder list
@@ -2085,6 +2100,36 @@ components:
           items: { type: string, enum: [command, option, control, shift, fn] }
         display: { type: string, description: "사람이 읽는 표기 (ex: ⌃⇧⌘;)" }
         token:   { type: string, description: "내부 토큰 (ex: ^⇧⌘;)" }
+
+    # --- Folders (list) ----------------------------------------------------
+    FolderSummary:
+      type: object
+      properties:
+        name:          { type: string, example: "AWS" }
+        prefix:        { type: string, example: "aws" }
+        suffix:        { type: string, example: "{right_command}" }
+        snippet_count: { type: integer, example: 21 }
+        trigger_bias:  { type: integer, example: 0 }
+        is_special:    { type: boolean, description: "Folder name starts with '_'", example: false }
+        icon:
+          type: string
+          description: >-
+            base64 data URL of the folder's icon.png. Present only when the
+            request was made with ?icons=true AND the folder has an icon.png.
+          example: "data:image/png;base64,iVBORw0KGgo..."
+    FolderListResponse:
+      type: object
+      properties:
+        ok:   { type: boolean, example: true }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/FolderSummary' }
+        meta:
+          type: object
+          properties:
+            count:       { type: integer }
+            total:       { type: integer }
+            duration_ms: { type: number }
 
     # --- Snippet Folder Rules ---------------------------------------------
     SnippetFolderRule:

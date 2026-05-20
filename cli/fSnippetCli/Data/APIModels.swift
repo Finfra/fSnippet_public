@@ -201,8 +201,11 @@ struct APIFolderSummary: Codable {
   let snippetCount: Int
   let triggerBias: Int
   let isSpecial: Bool
+  /// base64 data URL of the folder's icon.png — populated only when GET /folders?icons=true.
+  /// Omitted from the response when nil (icons not requested or icon.png absent).
+  var icon: String? = nil
   enum CodingKeys: String, CodingKey {
-    case name, prefix, suffix
+    case name, prefix, suffix, icon
     case snippetCount = "snippet_count"
     case triggerBias = "trigger_bias"
     case isSpecial = "is_special"
