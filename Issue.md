@@ -26,7 +26,7 @@ date: 2026-04-07
 
 # ✅ 완료
 
-## Issue135: [paidApp 연동] folderExcludedFiles REST API 제공 검증 — paidApp Issue892 대응 (등록: 2026-05-20, 완료: 2026-05-20, 검증 완료) (Hash: TBD)
+## Issue135: [paidApp 연동] folderExcludedFiles REST API 제공 검증 — paidApp Issue892 대응 (등록: 2026-05-20, 완료: 2026-05-20, 검증 완료) (Hash: 175a916)
 * 목적: paidApp Issue892가 `folderExcludedFiles`를 REST 경유로 읽고 쓸 때 cliApp `/api/v2/settings/excluded-files/per-folder` 엔드포인트가 정상 응답하는지 검증.
 * depends: paidApp Issue892 (구현 주체)
 * 검증 결과 (cliApp 실행 중 curl, 엔진 코드 무수정):
