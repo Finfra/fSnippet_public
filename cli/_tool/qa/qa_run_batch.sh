@@ -133,13 +133,18 @@ while IFS=$(printf '\t') read -r id abbr; do
 
   te_open
   sleep "$SETTLE"
+  # press Enter once on the fresh document: Enter is a buffer-clear key so it
+  # flushes the engine buffer, and it dismisses any popup/menu a prior case
+  # may have left open. The leading newline is stripped before comparison.
+  osascript -e 'tell application "System Events" to key code 36' >/dev/null 2>&1
+  sleep 0.4
   python3 "$QA_DIR/qa_type.py" --delay "$DELAY" -- "$abbr"
   sleep "$EXPAND_WAIT"
   actual="$(te_read)"
 
-  # normalize trailing whitespace/newlines for comparison
-  exp_trim="$(printf '%s' "$expected" | sed -e 's/[[:space:]]*$//')"
-  act_trim="$(printf '%s' "$actual"  | sed -e 's/[[:space:]]*$//')"
+  # drop blank lines (the leading Enter line) + trailing whitespace before compare
+  exp_trim="$(printf '%s' "$expected" | sed -e '/^[[:space:]]*$/d' -e 's/[[:space:]]*$//')"
+  act_trim="$(printf '%s' "$actual"  | sed -e '/^[[:space:]]*$/d' -e 's/[[:space:]]*$//')"
 
   if [ "$act_trim" = "$exp_trim" ]; then
     PASS=$((PASS + 1)); status="✅ OK"
