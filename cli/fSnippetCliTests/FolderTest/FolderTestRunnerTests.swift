@@ -100,14 +100,14 @@ final class FolderTestRunnerTests: XCTestCase {
     XCTAssertFalse(folders.isEmpty, "Sandbox folders should be discovered after loadAllSnippets")
   }
 
-  // MARK: - Issue124 — 33-case 매트릭스 실행
+  // MARK: - Issue124/Issue134 — 35-case 매트릭스 실행
 
-  /// testTable_org.md 파싱 → _rule.yml 생성 → 33-case 매트릭스 실행 → result_<timestamp>.md 출력.
+  /// testTable_org.md 파싱 → _rule.yml 생성 → 35-case 매트릭스 실행 → result_<timestamp>.md 출력.
   /// 각 case별 sandbox 내 `_case{N}/test.txt` 생성 후 SnippetRepository.loadAllSnippets 으로
   /// 기대 abbreviation 이 snippetMap 에 등록되는지 검증.
   func testAllFolderCases() throws {
     let cases = try Self.parseTestTable()
-    XCTAssertEqual(cases.count, 33, "testTable_org.md 에서 33-case 파싱 기대")
+    XCTAssertEqual(cases.count, 35, "testTable_org.md 에서 35-case 파싱 기대")
 
     // 1. _rule.yml 생성
     let ruleYAML = Self.buildRuleYAML(from: cases)
@@ -147,7 +147,7 @@ final class FolderTestRunnerTests: XCTestCase {
     let failures = results.filter { !$0.ok }
     XCTAssertTrue(
       failures.isEmpty,
-      "FolderTest 33-case 회귀: \(failures.count)건 실패. 상세는 result_latest.md 참조"
+      "FolderTest 35-case 회귀: \(failures.count)건 실패. 상세는 result_latest.md 참조"
     )
   }
 
