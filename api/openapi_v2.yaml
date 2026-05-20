@@ -2111,6 +2111,7 @@ components:
         snippet_count: { type: integer, example: 21 }
         trigger_bias:  { type: integer, example: 0 }
         is_special:    { type: boolean, description: "Folder name starts with '_'", example: false }
+        rule_managed:  { type: boolean, description: "Folder has an explicit rule in _rule.yml (paidApp may trust prefix/suffix)", example: true }
         icon:
           type: string
           description: >-

@@ -201,6 +201,8 @@ struct APIFolderSummary: Codable {
   let snippetCount: Int
   let triggerBias: Int
   let isSpecial: Bool
+  /// true = _rule.yml에 명시적 규칙이 있는 폴더 (paidApp이 prefix/suffix를 신뢰하기 위한 플래그)
+  let ruleManaged: Bool
   /// base64 data URL of the folder's icon.png — populated only when GET /folders?icons=true.
   /// Omitted from the response when nil (icons not requested or icon.png absent).
   var icon: String? = nil
@@ -209,6 +211,7 @@ struct APIFolderSummary: Codable {
     case snippetCount = "snippet_count"
     case triggerBias = "trigger_bias"
     case isSpecial = "is_special"
+    case ruleManaged = "rule_managed"
   }
 }
 

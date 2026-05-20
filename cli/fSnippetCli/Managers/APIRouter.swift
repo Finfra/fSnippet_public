@@ -1556,7 +1556,8 @@ class APIRouter {
         suffix: rule?.suffix ?? TriggerKeyManager.shared.getCurrentDefaultSymbol(),
         snippetCount: entries.count,
         triggerBias: rule?.triggerBias ?? 0,
-        isSpecial: isSpecial
+        isSpecial: isSpecial,
+        ruleManaged: rule != nil
       )
       if includeIcons, let folderURL = entries.first?.filePath.deletingLastPathComponent() {
         summary.icon = loadFolderIconDataURL(folderURL: folderURL)
@@ -1600,7 +1601,8 @@ class APIRouter {
       suffix: rule?.suffix ?? TriggerKeyManager.shared.getCurrentDefaultSymbol(),
       snippetCount: folderEntries.count,
       triggerBias: rule?.triggerBias ?? 0,
-      isSpecial: isSpecial
+      isSpecial: isSpecial,
+      ruleManaged: rule != nil
     )
 
     let paged = Array(folderEntries.dropFirst(offset).prefix(limit))

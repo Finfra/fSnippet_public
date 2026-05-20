@@ -41,6 +41,9 @@ Temporary Items
 .history
 *.local.vscode/
 
+# Build artifact
+cli/fSnippetCli.app/
+
 # Xcode
 xcuserdata/
 *.hmap
