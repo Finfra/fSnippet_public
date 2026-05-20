@@ -50,11 +50,30 @@ def type_char(ch: str, delay: float) -> None:
 
 
 def as_keycode(code: int) -> None:
-    """Press a plain key (f1, keypad, ...) via AppleScript System Events."""
+    """Press a plain key (f1, f2, keypad_num_lock) via AppleScript System Events.
+
+    A trailing `delay` keeps the osascript process alive until the OS has
+    finished the key event — otherwise a following Quartz keystroke posted
+    immediately after can be lost.
+    """
     subprocess.run(
-        ["osascript", "-e",
-         f'tell application "System Events" to key code {code}'],
+        ["osascript",
+         "-e", f'tell application "System Events" to key code {code}',
+         "-e", "delay 0.35"],
         check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def tap_key(keycode: int, delay: float) -> None:
+    """Quartz keyDown/keyUp — for keys AppleScript `key code` ignores.
+
+    AppleScript silently drops a `key code` for a key absent on the active
+    physical layout (e.g. keypad_comma=95, a JIS-only key). Quartz posts the
+    keycode directly regardless of layout.
+    """
+    for is_down in (True, False):
+        ev = Quartz.CGEventCreateKeyboardEvent(None, keycode, is_down)
+        Quartz.CGEventPost(Quartz.kCGHIDEventTap, ev)
+        time.sleep(delay)
 
 
 def tap_modifier(keycode: int, flags: int) -> None:
@@ -82,7 +101,12 @@ def type_string(text: str, delay: float = DEFAULT_KEY_DELAY) -> None:
                 tap_modifier(meta["keycode"], meta["flags"])
                 time.sleep(TOKEN_SETTLE)
             elif kind == "key":
-                as_keycode(meta)
+                # keypad_comma (95) is absent on US layouts — AppleScript
+                # `key code` drops it, so post it via Quartz instead.
+                if part == "{keypad_comma}":
+                    tap_key(meta, delay)
+                else:
+                    as_keycode(meta)
                 time.sleep(TOKEN_SETTLE)
             else:
                 # Unknown token: type it literally so the failure is visible.
