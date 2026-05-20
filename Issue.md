@@ -6,13 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 130
+* Issue HWM: 133
 * Save Point :
       - 2026.05.16: e78f9da (Fix(Issue127): 기본 단축키 글로벌 등록 차단 회귀 복구 — context-only 면제 제거 + 폴더 단축키 가드)
-      - 2026.05.16: 30794af (Fix(Issue128): 클립보드 팝업 최신 항목 반영 지연 — show() 동기 flush 추가)
-      - 2026.05.17: 698718c (Feat(Issue123): cliApp Tests에 FolderTest 인프라 이식 — XCTest + Repository 후크)
-      - 2026.05.17: f31b2f9 (Feat(Issue124): FolderTest 33-case 매트릭스 회귀 통과 — XCTest 인프라 완성)
-
 
 # 🤔 결정사항
 * `~/_git/__all/fSnippet/_doc_arch/paid_cli_protocol.md` 기준 진행(상위 메인 레포, paidApp앱과 연동)
@@ -29,6 +25,42 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue133: [API/Feature] `GET /api/v2/folders` 폴더 아이콘 노출 — `?icons=true` opt-in base64 (등록: 2026-05-20, 완료: 2026-05-20) (Hash: c976b6c)
+* 목적: paidApp 폴더 목록(Snippets/Folders 탭)에 폴더 커스텀 아이콘 미표시. paidApp은 샌드박스(`com.apple.security.app-sandbox`, `files.user-selected.read-write`만, Documents 권한 없음)라 snippet 폴더(`~/Documents/finfra/fSnippetData/snippets`)에 파일시스템 직접 접근 불가(`lsof` 핸들 0). 유일한 통로인 REST API가 아이콘을 리턴하지 않아 paidApp `SnippetIconProvider`가 SF Symbol 폴백만 출력.
+* 구현:
+    - `cli/fSnippetCli/Data/APIModels.swift`: `APIFolderSummary`에 `var icon: String? = nil` + CodingKey `icon` (nil 시 응답 생략)
+    - `cli/fSnippetCli/Managers/APIRouter.swift`: `handleGetFolders()` → `handleGetFolders(request:)`. `request.query["icons"] == "true"` 시 폴더별 `icon.png`를 `loadFolderIconDataURL`로 base64 data URL 인코딩. 기본 호출은 경량 유지(회귀 방지)
+    - `api/openapi_v2.yaml`: `/folders` GET `icons` 쿼리 파라미터 + `FolderSummary`/`FolderListResponse` 스키마 신규 정의
+* 선행 작업: 백업 폴더의 `Icon\r` 리소스 포크에서 icns 추출 → 현재 snippet 폴더 44개에 `icon.png`(256×256) 복원
+* 검증: brew local 재배포 후 — 기본 호출 15KB(icon 없음), `?icons=true` 1.76MB(44/89 폴더 icon), AWS icon = valid PNG 39677B
+* 후속: paidApp 측(메인 fSnippet 레포)에서 `?icons=true` 백그라운드 호출 + 로컬 캐시 + 기본 아이콘 폴백 구현 필요 — 메인 레포 Issue 등록·해결
+* 잔여 스펙 갭: `openapi_v2.yaml`에 `FolderDetail`/`CreateFolderRequest` 등 폴더 엔드포인트 스키마가 `$ref`만 있고 정의 누락 — 별도 이슈 분리 권장
+
+## Issue132: [Logging] cliApp 로그 파일명을 `flog_cliApp.log`로 변경 — paidApp(`flog_paidApp.log`)과 명명 대칭 (등록: 2026-05-18, 완료: 2026-05-18) (Hash: 6c2b806)
+* 목적: cliApp 로그가 prefix 없는 `flog.log`로 출력되어 paidApp(`flog_paidApp.log`)과 식별 비대칭. cliApp도 `flog_cliApp.log`로 명명 통일.
+* 구현:
+    - `cli/fSnippetCli/Data/Logger.swift` L73: 실시간 로그 `flog.log` → `flog_cliApp.log`
+    - `cli/fSnippetCli/Data/Logger.swift` L170: 세션 아카이브 `flog_{ts}.log` → `flog_cliApp_{ts}.log`
+    - `cli/_tool/fsc-test.sh` L33: 테스트 LOG_FILE 경로 동기화
+    - `cli/README.md`, `cli/README_ko.md`: 로그 경로 표 갱신
+    - `.claude/rules/logging-rules.md`, `.claude/rules/path-rules.md`, `.claude/skills/dev/SKILL.md`: 로컬 룰·스킬 문서 동기화
+* 검증: brew local 재배포 후 13:51 부팅 시 `flog_cliApp.log` + `flog_cliApp_2026-05-18_13-51-58.log` 생성, 기존 `flog.log`는 13:50에서 정지(미갱신)
+* 옛 파일 정리: 사용자 수동 삭제 영역 (자동 마이그레이션 미적용 — over-engineering 회피)
+* 관련: Issue884 (paidApp 로그 분리) 대칭 명명
+
+## Issue131: [Bug/Critical] `appSetting.json` JSON 파싱 실패로 logFilter 전면 무력화 — description 내 unescaped newline (등록: 2026-05-18, 완료: 2026-05-18) (Hash: 6156c84)
+* 목적: `cli/fSnippetCli/appSetting.json` `logFilter.description` 문자열에 escape되지 않은 raw newline이 포함되어 `JSONDecoder`가 파일 전체 파싱에 실패. 결과적으로 `AppSettingManager`가 `AppSetting.default`로 폴백하면서 `logFilter.enable = false`가 되어 `denyList: ["KeyEventHandler"]` 설정이 무력화됨. `KeyEventHandler.swift`의 `[Typing]` 키 타이핑 로그가 차단되지 않고 `flog.log`에 계속 출력됨.
+* 근본 원인: JSON 표준(RFC 8259 §7)상 string literal 내부 unescaped newline은 invalid control character. catch 블록은 `Logger.error`만 남기고 `setting` 변경 없이 종료 → init 시점 `AppSetting.default` (enable=false) 유지 → silent failure
+* 결정적 증거 (flog.log): `❌ ERROR: ⚒️ [AppSettingManager] Failed to load settings: Error Domain=NSCocoaErrorDomain Code=3840 "Unescaped control character around line 32, column 338."`
+* 구현:
+    - `appSetting.json` description 줄바꿈 제거 + 한 줄 통합, 오타 `Abbreviationatcher` → `AbbreviationMatcher` 교정, denyList 빈 문자열 항목 제거
+    - 부수 발견: brew 배포 tarball이 `cli/fSnippetCli.app/`의 stale prebuilt app (5월 14일, appSetting.json 누락)을 그대로 패키징 중. DerivedData Release fresh app으로 교체 후 tarball 재생성
+    - 검증: `python3 -m json.tool` 통과, brew local 재배포 후 cliApp 부팅 로그 82행 중 `[Typing]`/`KeyEventHandler` 출력 0건, `Failed to load settings` 부재
+* 후속 검토 (별도 이슈 분리 권장):
+    - Fix B (Defensive): `AppSettingManager.load()` catch에서 ① `logE` → `logC` 승격 ② JSON 파싱 실패 시 `setting.logFilter.enable = false` 명시 ③ Build-time JSON 검증 스크립트 + Pre-commit hook
+    - brew tarball 구성 회귀: prebuilt app 자동 갱신 절차 부재 (수동 cp 의존)
+* 관련: Issue125 (logFilter ↔ log_level 직교 가드 silent failure 카테고리), Issue126 (appSetting.json Bundle resource-only 전환 이후 첫 회귀), Issue120 (Release 빌드 사용자 가드 무력화 패턴)
 
 ## Issue124: [Test] FolderTest 33-case 회귀 실행 — 매트릭스 자체 정합성 통과 (등록: 2026-05-14, 완료: 2026-05-17) (Hash: f31b2f9)
 * 목적: Issue123 복구 인프라로 33-case 매트릭스 재실행, 엔진 회귀 검증.
