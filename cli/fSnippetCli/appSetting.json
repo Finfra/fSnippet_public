@@ -17,7 +17,7 @@
     "description": "Auxiliary bias for deletion length calculation (Developer tuning)"
   },
   "logFilter": {
-    "enable": true,
+    "enable": false,
     "mode": "deny",
     "allowList": [
       "KeyEventMonitor",
