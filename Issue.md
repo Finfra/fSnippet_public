@@ -8,6 +8,7 @@ date: 2026-04-07
 
 * Issue HWM: 138
 * Save Point :
+      - 2026.05.21: 3eb736d (Docs(Issue138): by-design 결론 철회 — 하니스 결함 수정으로 35/35 달성 (Hash: 0a043a2))
       - 2026.05.16: e78f9da (Fix(Issue127): 기본 단축키 글로벌 등록 차단 회귀 복구 — context-only 면제 제거 + 폴더 단축키 가드)
 
 # 🤔 결정사항
