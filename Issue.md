@@ -34,23 +34,23 @@ date: 2026-04-07
     - `GET /api/v2/settings/excluded-files/per-folder` → `{ "data": { "folderName": ["file.txt"] } }` 형식 반환 확인
     - `PUT /api/v2/settings/excluded-files/per-folder/{folder}` → 정상 저장 후 `_config.yml` 반영 확인
 
-## Issue138: [Engine] special-key 트리거 한계 — `{f1}`/`{f2}`/`{keypad_num_lock}` 폴더 suffix/prefix 미확장 (등록: 2026-05-20)
-* 목적: Issue137 `qa_run_batch.sh` 35-case 키 자동화 검증에서 31/35 PASS, case20/21/22/23 4건 일관 FAIL. 단건 재실행에서도 동일 FAIL — 버퍼 오염이 아닌 엔진 동작으로 확정. function/keypad 키를 트리거로 쓰는 폴더가 확장되지 않는 한계를 규명·수정.
-* plan: `cli/_doc_work/plan/special-key-trigger-conflict_plan.md`
-* 실패 케이스 + flog 증거:
-    - **case21 (`test{f1}`) / case22 (`{f1}test`)**: `[CGEventTapManager] Registered Shortcut Detected (Blocking): {f1} [folderPrefix]` → `Passing through Registered Shortcut: f1 (Code: 122)` → `🎮 [Issue38] 트리거키 'f1' 동기 처리 결과: 스니펫 없음`. `{f1}`이 folderPrefix로 인식되나 트리거 동기 처리에서 스니펫 미발견 → pass-through
-    - **case23 (`{f2}test{f2}`)**: `{f2}` 동일 — folderPrefix 인식 + 스니펫 없음
-    - **case20 (`{keypad_num_lock}test{keypad_num_lock}`)**: `[AbbreviationMatcher] Match Found (Without Suffix): 'test{keypad_num_lock}'` → `Rule '_case19' matched` — prefix+suffix 동시 조합이 suffix-only `_case19` 룰에 가려짐 (매칭 우선순위)
-* 분석 방향:
-    - f1/f2: `ShortcutMgr` Overlay 등록이 folder suffix/prefix보다 우선 (`Overlay 등록 : {f1}가 Folder Suffix보다 우선순위 높음` 로그). function 키 트리거 폴더의 우선순위 정책 재검토
-    - keypad_num_lock: prefix+suffix 동일 토큰 조합 시 `AbbreviationMatcher`가 짧은 suffix-only 룰을 우선 매칭. longest-match 우선순위 검토
-* 검증: Issue137 하니스 재사용 — `sh cli/_tool/qa/qa_run_batch.sh --case 20`(및 21/22/23)으로 회귀 확인
-* 관련: Issue137 (검증 하니스 — 본 이슈의 재현 도구), testTable case19/20/21/22/23
-* 복잡도: 복잡 — CGEventTap 우선순위·AbbreviationMatcher 매칭 정책 변경. 엔진 코어 영향
-
 # 📗 선택
 
 # ✅ 완료
+
+## Issue138: [Engine] special-key 트리거 한계 — `{f1}`/`{f2}`/`{keypad_num_lock}` 폴더 affix 미확장 (등록: 2026-05-20, 완료: 2026-05-20, by-design) (Hash: 3fed3e3)
+* 목적: Issue137 `qa_run_batch.sh` 검증의 case20/21/22/23 FAIL 4건 원인 규명·처리.
+* plan: `cli/_doc_work/plan/special-key-trigger-conflict_plan.md`
+* 결론: **엔진 버그 아님 — by-design**. function/trigger 키를 folder affix로 쓰는 비표준 조합. 엔진 코드 무수정.
+* Phase 0 정밀 조사 (엔진 코어):
+    - `_rule.yml` ↔ testTable case19~23 정의 완전 일치 — 동기화 문제 아님
+    - **f1/f2** (case21/22/23): `ShortcutMgr.isSimpleTypingKey`가 F1~F20을 non-typing key로 분류(정확 — F-key는 화면 글자 없음) → `registerFolderShortcuts`가 `folderPrefix` global shortcut으로 등록 → `KeyEventHandler.handleFolderPrefixRole`이 폴더 스니펫 **popup**을 띄움. 자동확장이 아니라 popup이 의도된 설계
+    - **keypad_num_lock** (case20): 사용자 `activeTriggerKeys`에 포함되어 `triggerKey`로 등록 → prefix 위치 입력 시 즉시 trigger 발동 → buffer empty 매칭 실패 → prefix 소실 → 잔여 `test{keypad_num_lock}`가 suffix-only `_case19`로 매칭
+    - 대조: `{keypad_comma}` (case17/18 PASS) — `isSimpleTypingKey`=true + `triggerKey` 미등록 → buffer 누적 → 정상 자동확장
+* 판단: f1/f2의 folderPrefix→popup은 정상 설계. F-key를 typing key로 재분류하면 부정확 + 회귀 위험. keypad_num_lock은 사용자가 trigger로 쓰는 키라 folder affix와 본질 충돌. 엔진 수정 부적합 (plan의 A+B 전제가 Phase 0에서 무너짐)
+* 조치: 엔진 코드 무수정. `cli/_tool/qa/qa_run_batch.sh` 헤더에 known-limitation 주석 추가 — 31/35가 정상 baseline, case20~23은 by-design FAIL 명시
+* 검증 기준선: Issue137 하니스 35-case 실행 → **31/35 PASS**가 정상 결과로 확정
+* 관련: Issue137 (검증 하니스), Issue605 (`isSimpleTypingKey` prefix skip 도입)
 
 ## Issue137: [Test/Infra] 실제 키보드 paste 확장 검증 — `qa_run_batch.sh` 키보드 자동화 하니스 (등록: 2026-05-20, 완료: 2026-05-20) (Hash: c6802e8)
 * 목적: Issue134는 XCTest로 abbreviation 생성 로직만 검증. 실제 키 입력 → CGEventTap → 텍스트 확장 end-to-end 경로를 키보드 자동화로 검증.
