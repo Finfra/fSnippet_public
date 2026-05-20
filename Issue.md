@@ -36,24 +36,19 @@ date: 2026-04-07
 
 # 📗 선택
 
-## Issue134: [Test] 35-case 스니펫 paste 테스트 재실행 — `_rule.yml`/testTable 동기화 후 확장 검증 (등록: 2026-05-20)
-* 목적: `_rule.yml` ↔ `testTable_org.md` 를 35-case 매트릭스로 동기화한 뒤, 실제 35개 케이스가 모두 정상 확장되는지 키보드 자동화 테스트로 검증한다. 동기화 전 33-case 테스트에서 발생한 case13/14/17/27 이상 4건이 해소되었는지 확인이 목적.
-* 상세:
-    - 동기화 완료 산출물:
-        - `~/Documents/finfra/fSnippetData/snippets/_rule.yml` (35 case, Collections 45)
-        - `Tests/FolderTest/testTable_org.md` (메인 레포, 35행)
-        - `_public/cli/fSnippetCliTests/FolderTest/testTable_org.md` (동일 동기화)
-    - 중점 확인 케이스:
-        - case13/14/27: 트리거 `{right_command}` — 전역 기본 트리거와 충돌 가능성. 직전 테스트에서 `testorch` 오확장·Fail 관측됨
-        - case17: suffix `{keypad_comma}` (동기화로 신규 추가분)
-        - case34/35: `{right_control}` suffix/prefix (신규 추가분)
-* 구현 명세:
-    - 실행: cliApp 기동 확인 → `sh _tool/qa/qa_run_batch.sh Tests/FolderTest/testTable_org.md`
-    - 검증: 결과 `testTable1_N.md` 35행 전부 Status=OK + Output 일치
-    - case13/14/27 가 `{right_command}` 충돌로 재실패하면 트리거 문자 재검토 (후속 이슈 분기)
-    - 완료조건: 35/35 정상 확장 OR 실패건 원인 규명·후속 이슈 등록
-
 # ✅ 완료
+
+## Issue134: [Test] 35-case 스니펫 매트릭스 회귀 — XCTest 35/35 통과 (등록: 2026-05-20, 완료: 2026-05-20) (Hash: e61584b, 9640986)
+* 목적: `_rule.yml` ↔ `testTable_org.md` 를 35-case 매트릭스로 동기화한 뒤 35개 케이스 abbreviation 확장 회귀 검증. 33-case 시점 우려된 case13/14/17/27 이상 해소 확인.
+* 실행 방식: 명세의 `_tool/qa/qa_run_batch.sh` 키보드 자동화 스크립트는 부재 → Issue124 XCTest 인프라(`FolderTestRunnerTests.testAllFolderCases`)로 대체 실행. abbreviation 생성 로직 차원 검증 (실제 키 paste 확장은 범위 외)
+* 구현:
+    - `cli/fSnippetCliTests/FolderTest/testTable_org.md`: 33 → 35 case 동기화 (e61584b — Issue134 산출물)
+    - `cli/fSnippetCliTests/FolderTest/FolderTestRunnerTests.swift`: L110 `XCTAssertEqual` 기대값 33 → 35 박제 수정 + 주석·실패 메시지 정합성 정정 (9640986)
+* 검증: `xcodebuild test FolderTestRunnerTests/testAllFolderCases` → **35/35 PASS** (`** TEST SUCCEEDED **`)
+    - `result_latest.md` `passed: 35/35`
+    - 중점 케이스 전부 ✅: case13/14/27 (`{right_command}`), case17 (`{keypad_comma}`), case34/35 (`{right_control}`)
+    - 33-case 시점 우려된 `{right_command}` 충돌·`testorch` 오확장 재현 없음
+* 후속: 실제 키보드 paste 확장 검증(`qa_run_batch.sh` 신규 작성)이 필요하면 별도 이슈 — 본 이슈는 매트릭스 abbreviation 회귀까지
 
 ## Issue136: [API] `APIFolderSummary`에 `rule_managed` 필드 추가 — paidApp prefix/suffix 신뢰 판정 (등록: 2026-05-20, 완료: 2026-05-20) (Hash: b191a55)
 * 목적: Issue133 후속. paidApp이 폴더의 `prefix`/`suffix`를 신뢰하고 표시하려면, 해당 값이 `_rule.yml`의 명시적 규칙에서 온 것인지 기본값(전역 트리거) 폴백인지 구분이 필요. 현재 `APIFolderSummary`는 둘을 구분 못 함.
