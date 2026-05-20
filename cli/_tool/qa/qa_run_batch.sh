@@ -15,6 +15,16 @@
 #
 # Requires: cliApp running on :3015, Accessibility permission for the shell,
 # the pyobjc Quartz binding.
+#
+# KNOWN LIMITATIONS (Issue138 — by design, not a harness bug):
+#   31/35 is the expected baseline. case20/21/22/23 fail because they place a
+#   function/trigger key in a folder affix position:
+#     - {f1}/{f2} as folder prefix  -> resolved as folderPrefix role, which
+#       opens the folder snippet popup (by design) instead of auto-expanding.
+#     - {keypad_num_lock} as prefix -> it is a registered triggerKey, so it
+#       fires immediately at the prefix position and the prefix is lost.
+#   Function/trigger keys as folder affixes is a non-standard combination;
+#   see Issue138 in Issue.md for the full root-cause analysis.
 set -u
 
 # --- locate paths (no hardcoded user paths; resolve dynamically) ---
