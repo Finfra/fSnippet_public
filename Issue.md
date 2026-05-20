@@ -22,21 +22,21 @@ date: 2026-04-07
 
 # 📙 일반
 
-## Issue135: [paidApp 연동] folderExcludedFiles REST API 제공 검증 — paidApp Issue892 대응 (등록: 2026-05-20)
-* 목적: paidApp Issue892에서 `folderExcludedFiles`를 REST 경유로 읽고 쓰도록 구현 예정. 이때 cliApp의 `/api/v2/settings/excluded-files/per-folder` CRUD 엔드포인트가 정상 응답하는지 확인 및 필요 시 보완.
-* 상세:
-    - cliApp `APIRouter.swift`: GET/PUT/DELETE/POST `/api/v2/settings/excluded-files/per-folder{/folder}` 구현 완료
-    - `v2PerFolderExcludedKey = "snippet_folder_excluded_files"` → `PreferencesManager` 저장
-    - 스냅샷 PUT 엔드포인트에서는 `perFolderExcludedFiles` 무시 (미래 구현) — 전용 엔드포인트로 대체
-    - paidApp은 전용 엔드포인트(`GET` + `PUT /per-folder/{folder}`)를 사용하므로 스냅샷 미구현은 블로커 아님
-* depends: paidApp Issue892 (구현 주체)
-* 확인 항목:
-    - `GET /api/v2/settings/excluded-files/per-folder` → `{ "data": { "folderName": ["file.txt"] } }` 형식 반환 확인
-    - `PUT /api/v2/settings/excluded-files/per-folder/{folder}` → 정상 저장 후 `_config.yml` 반영 확인
-
 # 📗 선택
 
 # ✅ 완료
+
+## Issue135: [paidApp 연동] folderExcludedFiles REST API 제공 검증 — paidApp Issue892 대응 (등록: 2026-05-20, 완료: 2026-05-20, 검증 완료) (Hash: TBD)
+* 목적: paidApp Issue892가 `folderExcludedFiles`를 REST 경유로 읽고 쓸 때 cliApp `/api/v2/settings/excluded-files/per-folder` 엔드포인트가 정상 응답하는지 검증.
+* depends: paidApp Issue892 (구현 주체)
+* 검증 결과 (cliApp 실행 중 curl, 엔진 코드 무수정):
+    - **GET** `/per-folder` → raw map `{ "folderName": ["file.txt"] }` 반환. `openapi_v2.yaml` L539-542 (object + additionalProperties array of string) 와 일치
+    - **PUT** `/per-folder/{folder}` body `["dummy.txt"]` → 200 + 응답 list. `_config.yml`의 `snippet_folder_excluded_files` 키에 `{"_qaTestFolder":["dummy.txt"]}` 반영 확인
+    - **DELETE** `/per-folder/{folder}` → 204 + 키 제거 확인 (`snippet_folder_excluded_files: {}`)
+    - 저장소: `PreferencesManager` → `_config.yml` `snippet_folder_excluded_files` (상수 `v2PerFolderExcludedKey`)
+    - 테스트 데이터(`_qaTestFolder`)는 DELETE로 정리 완료
+* 명세 정정: 등록 시 확인 항목에 적은 GET 응답 형식 `{ "data": {...} }`는 부정확 — 실제 구현·`openapi_v2.yaml` SSOT 모두 래퍼 없는 raw map. SSOT 기준이 정답
+* 결론: cliApp 측 엔드포인트(GET 전체/단건·PUT·DELETE·POST) 정상 작동. paidApp Issue892 구현 시 즉시 사용 가능
 
 ## Issue138: [Engine] special-key 트리거 한계 — `{f1}`/`{f2}`/`{keypad_num_lock}` 폴더 affix 미확장 (등록: 2026-05-20, 완료: 2026-05-20, by-design) (Hash: 3fed3e3)
 * 목적: Issue137 `qa_run_batch.sh` 검증의 case20/21/22/23 FAIL 4건 원인 규명·처리.
