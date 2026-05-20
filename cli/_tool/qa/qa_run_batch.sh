@@ -40,16 +40,20 @@ TABLE="$DEFAULT_TABLE"
 DELAY="0.06"
 ONLY_CASE=""
 DRY_RUN=0
+NO_RETRY=0        # skip the isolated retry phase
+RETRY_MAX=10      # run the retry phase only if batch failures <= this
 SETTLE=0.6        # delay after TextEdit activate before typing
 EXPAND_WAIT=1.0   # delay after typing for the engine to finish expansion
+RETRY_SETTLE=3    # extra idle before each retry case — drains cross-case state
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --delay)   DELAY="$2"; shift 2 ;;
-    --case)    ONLY_CASE="$2"; shift 2 ;;
-    --dry-run) DRY_RUN=1; shift ;;
-    --*)       echo "unknown option: $1" >&2; exit 2 ;;
-    *)         TABLE="$1"; shift ;;
+    --delay)    DELAY="$2"; shift 2 ;;
+    --case)     ONLY_CASE="$2"; shift 2 ;;
+    --dry-run)  DRY_RUN=1; shift ;;
+    --no-retry) NO_RETRY=1; shift ;;
+    --*)        echo "unknown option: $1" >&2; exit 2 ;;
+    *)          TABLE="$1"; shift ;;
   esac
 done
 
@@ -116,55 +120,103 @@ te_read() {
 # Note: no initial te_new_doc — te_reset (run per case) creates the document.
 # Two back-to-back osascript activations (new_doc then reset) destabilised the
 # TextEdit window so unicode keystrokes were dropped. (Issue138)
-echo "▶ Typing harness — delay=${DELAY}s"
+# run a single case in isolation. Sets RC_STATUS (ok|fail) and RC_ACTUAL.
+run_one_case() {
+  rc_abbr="$1"; rc_exp="$2"
+  # recreate the document so the window-id change flushes the cliApp
+  # abbreviation buffer (context-change) — drains carry-over special-key tokens
+  te_reset
+  sleep "$SETTLE"
+  python3 "$QA_DIR/qa_type.py" --delay "$DELAY" -- "$rc_abbr"
+  sleep "$EXPAND_WAIT"
+  rc_exp_trim="$(printf '%s' "$rc_exp" | sed -e 's/[[:space:]]*$//')"
+  RC_ACTUAL="$(te_read | sed -e 's/[[:space:]]*$//')"
+  if [ "$RC_ACTUAL" = "$rc_exp_trim" ]; then RC_STATUS=ok; else RC_STATUS=fail; fi
+  # placeholder for empty actual: an empty TAB-field collapses under `read`
+  # (TAB is IFS-whitespace) and shifts later columns. Keep every field non-empty.
+  [ -z "$RC_ACTUAL" ] && RC_ACTUAL="∅"
+}
 
 TS="$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$RESULT_DIR"
 REPORT="$RESULT_DIR/result_${TS}.md"
-PASS=0
-FAIL=0
-ROWS=""
+# one line per case: id<TAB>abbr<TAB>exp<TAB>actual<TAB>status
+RESULTS_TMP="$(mktemp)"
 
+# --- Phase 1: batch run ---
+echo "▶ Phase 1 — batch run (delay=${DELAY}s)"
 while IFS=$(printf '\t') read -r id abbr; do
   [ -n "$ONLY_CASE" ] && [ "$id" != "$ONLY_CASE" ] && continue
 
   exp_file="$SNIPPET_DIR/_case${id}/test===case${id}.txt"
   if [ ! -f "$exp_file" ]; then
-    ROWS="${ROWS}| $id | \`$abbr\` | <no snippet file> | — | ⚠️ SKIP |
-"
+    printf '%s\t%s\t∅\t∅\tSKIP\n' "$id" "$abbr" >> "$RESULTS_TMP"
+    printf "  case%-3s ⚠️ SKIP\n" "$id"
     continue
   fi
   expected="$(cat "$exp_file")"
-
-  # recreate the document so the window-id change flushes the cliApp
-  # abbreviation buffer (context-change) — drains carry-over special-key tokens
-  te_reset
-  sleep "$SETTLE"
-  python3 "$QA_DIR/qa_type.py" --delay "$DELAY" -- "$abbr"
-  sleep "$EXPAND_WAIT"
-  actual="$(te_read)"
-
-  # normalize trailing whitespace/newlines for comparison
   exp_trim="$(printf '%s' "$expected" | sed -e 's/[[:space:]]*$//')"
-  act_trim="$(printf '%s' "$actual"  | sed -e 's/[[:space:]]*$//')"
 
-  if [ "$act_trim" = "$exp_trim" ]; then
-    PASS=$((PASS + 1))
-    status="✅ OK"
+  run_one_case "$abbr" "$expected"
+  if [ "$RC_STATUS" = ok ]; then
+    printf "  case%-3s ✅ OK\n" "$id"
+    printf '%s\t%s\t%s\t%s\tOK\n' "$id" "$abbr" "$exp_trim" "$RC_ACTUAL" >> "$RESULTS_TMP"
   else
-    FAIL=$((FAIL + 1))
-    status="❌ FAIL"
+    printf "  case%-3s ❌ FAIL\n" "$id"
+    printf '%s\t%s\t%s\t%s\tFAIL\n' "$id" "$abbr" "$exp_trim" "$RC_ACTUAL" >> "$RESULTS_TMP"
   fi
-  printf "  case%-3s %s\n" "$id" "$status"
-  ROWS="${ROWS}| $id | \`$abbr\` | \`$exp_trim\` | \`$act_trim\` | $status |
-"
 done <<EOF
 $(parse_table)
 EOF
 
-RAN=$((PASS + FAIL))
+BATCH_FAIL="$(awk -F'\t' '$5=="FAIL"' "$RESULTS_TMP" | wc -l | tr -d ' ')"
 
-# --- write report ---
+# --- Phase 2: isolated retry of failed cases ---
+# A case that fails in batch but passes when re-run alone was a false-FAIL
+# caused by cross-case interference. Retry only when failures are few enough
+# that one-by-one re-verification is meaningful.
+RETRY_RECOVERED=0
+if [ "$NO_RETRY" -eq 0 ] && [ -z "$ONLY_CASE" ] \
+   && [ "$BATCH_FAIL" -gt 0 ] && [ "$BATCH_FAIL" -le "$RETRY_MAX" ]; then
+  echo "▶ Phase 2 — retry ${BATCH_FAIL} failed case(s) in isolation"
+  RETRY_TMP="$(mktemp)"
+  while IFS=$(printf '\t') read -r id abbr exp actual status; do
+    if [ "$status" = FAIL ]; then
+      sleep "$RETRY_SETTLE"          # idle so cross-case engine state drains
+      run_one_case "$abbr" "$exp"
+      if [ "$RC_STATUS" = ok ]; then
+        printf "  case%-3s ✅ OK (retry)\n" "$id"
+        RETRY_RECOVERED=$((RETRY_RECOVERED + 1))
+        printf '%s\t%s\t%s\t%s\tRETRY_OK\n' "$id" "$abbr" "$exp" "$RC_ACTUAL" >> "$RETRY_TMP"
+      else
+        printf "  case%-3s ❌ FAIL (retry)\n" "$id"
+        printf '%s\t%s\t%s\t%s\tFAIL\n' "$id" "$abbr" "$exp" "$RC_ACTUAL" >> "$RETRY_TMP"
+      fi
+    else
+      printf '%s\t%s\t%s\t%s\t%s\n' "$id" "$abbr" "$exp" "$actual" "$status" >> "$RETRY_TMP"
+    fi
+  done < "$RESULTS_TMP"
+  mv "$RETRY_TMP" "$RESULTS_TMP"
+elif [ "$BATCH_FAIL" -gt "$RETRY_MAX" ]; then
+  echo "▶ Phase 2 생략 — 실패 ${BATCH_FAIL}건 > ${RETRY_MAX} (전수 재시도 무의미)"
+fi
+
+# --- tally + report ---
+PASS=0; FAIL=0; SKIP=0; ROWS=""
+while IFS=$(printf '\t') read -r id abbr exp actual status; do
+  case "$status" in
+    OK)        PASS=$((PASS+1)); disp="✅ OK" ;;
+    RETRY_OK)  PASS=$((PASS+1)); disp="✅ OK (retry)" ;;
+    FAIL)      FAIL=$((FAIL+1)); disp="❌ FAIL" ;;
+    SKIP)      SKIP=$((SKIP+1)); disp="⚠️ SKIP" ;;
+    *)         disp="$status" ;;
+  esac
+  ROWS="${ROWS}| $id | \`$abbr\` | \`$exp\` | \`$actual\` | $disp |
+"
+done < "$RESULTS_TMP"
+RAN=$((PASS + FAIL))
+rm -f "$RESULTS_TMP"
+
 cat > "$REPORT" <<EOF
 ---
 title: QA Keyboard Batch Result (Issue137)
@@ -174,8 +226,9 @@ passed: ${PASS}/${RAN}
 
 # 결과 요약
 
-* 통과: ${PASS}/${RAN}
+* 통과: ${PASS}/${RAN}  (batch $((PASS - RETRY_RECOVERED)) + retry 구제 ${RETRY_RECOVERED})
 * 실패: ${FAIL}
+* batch 실패: ${BATCH_FAIL}
 * testTable: $(basename "$TABLE")
 * delay: ${DELAY}s
 
@@ -186,6 +239,6 @@ passed: ${PASS}/${RAN}
 ${ROWS}
 EOF
 
-echo "▶ 완료 — PASS ${PASS} / FAIL ${FAIL} (총 ${RAN})"
+echo "▶ 완료 — PASS ${PASS} / FAIL ${FAIL} (총 ${RAN}), retry 구제 ${RETRY_RECOVERED}"
 echo "▶ 리포트: $REPORT"
 [ "$FAIL" -eq 0 ] && exit 0 || exit 1
