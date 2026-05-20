@@ -33,11 +33,18 @@ MODIFIER_TOKENS = {
 # the standard macOS HIToolbox values are authoritative here:
 #   kVK_JIS_KeypadComma  = 0x5F (95)
 #   kVK_ANSI_KeypadClear = 0x47 (71)  -- the "num_lock" key
+# {space}/{backspace} use real keycodes (not the keycode-0 unicode path) so the
+# engine recognises them as buffer-clear keys for flushing between cases.
 KEY_TOKENS = {
     "{f1}": 122,
     "{f2}": 120,
     "{keypad_comma}": 95,
     "{keypad_num_lock}": 71,
+    "{space}": 49,
+    "{backspace}": 51,
+    # {escape} forces the engine to clear its abbreviation buffer
+    # (KeyEventHandler "Escape Key" path) — used to flush between cases.
+    "{escape}": 53,
 }
 
 

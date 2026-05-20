@@ -99,14 +99,24 @@ te_clear() {
   osascript -e 'tell application "TextEdit"' -e 'activate' \
     -e 'set text of front document to ""' -e 'end tell' >/dev/null 2>&1
 }
+# Recreate the document: close all + make new. The window-id change triggers
+# WindowContextManager.onContextChange in cliApp, which clears the engine's
+# abbreviation buffer (KeyEventMonitor.swift "Context Change"). A plain
+# set-text="" does NOT change the window id, so it never flushes the buffer.
+te_reset() {
+  osascript -e 'tell application "TextEdit"' -e 'activate' \
+    -e 'if (count of documents) > 0 then close every document saving no' \
+    -e 'make new document' -e 'end tell' >/dev/null 2>&1
+}
 te_read() {
   osascript -e 'tell application "TextEdit" to get text of front document' 2>/dev/null
 }
 
 # --- Phase 1-4: run cases ---
+# Note: no initial te_new_doc — te_reset (run per case) creates the document.
+# Two back-to-back osascript activations (new_doc then reset) destabilised the
+# TextEdit window so unicode keystrokes were dropped. (Issue138)
 echo "▶ Typing harness — delay=${DELAY}s"
-te_new_doc
-sleep 0.5
 
 TS="$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$RESULT_DIR"
@@ -126,7 +136,9 @@ while IFS=$(printf '\t') read -r id abbr; do
   fi
   expected="$(cat "$exp_file")"
 
-  te_clear
+  # recreate the document so the window-id change flushes the cliApp
+  # abbreviation buffer (context-change) — drains carry-over special-key tokens
+  te_reset
   sleep "$SETTLE"
   python3 "$QA_DIR/qa_type.py" --delay "$DELAY" -- "$abbr"
   sleep "$EXPAND_WAIT"
