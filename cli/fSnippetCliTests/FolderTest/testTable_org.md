@@ -1,7 +1,7 @@
 ---
 title: Folder Test Table (Original)
 description: 폴더 테스트 케이스 테이블 원본 데이터
-date: 2026-03-26
+date: 2026-05-20
 ---
 
 # /Users/nowage/Documents/finfra/fSnippetData/snippets/_rule.yml
@@ -19,8 +19,8 @@ date: 2026-03-26
 | 10  | _case10 |                   | t10, test | ππ                | testππ                                 |
 | 11  | _case11 | ππ                | t11, test |                   | ππtest                                 |
 | 12  | _case12 | ¥¥                | t12, test | ¥¥                | ¥¥test¥¥                               |
-| 13  | _case13 |                   | t13, test | {right_command}                 | test{right_command}                                  |
-| 14  | _case14 | {right_command}                 | t14, test |                   | {right_command}test                                  |
+| 13  | _case13 |                   | t13, test | {right_command}   | test{right_command}                    |
+| 14  | _case14 | {right_command}   | t14, test |                   | {right_command}test                    |
 | 15  | _case15 | ¿                 | t15, test | ¿                 | ¿test¿                                 |
 | 16  | _case16 |                   | t16, test | {right_option}    | test{right_option}                     |
 | 17  | _case17 |                   | t17, test | {keypad_comma}    | test{keypad_comma}                     |
@@ -33,10 +33,12 @@ date: 2026-03-26
 | 24  | _case24 | {right_option}    | t24, test | -                 | {right_option}test-                    |
 | 25  | _case25 | {right_option}    | t25, test | ø                 | {right_option}testø                    |
 | 26  | _case26 | {right_option}    | t26, test | ¥¥                | {right_option}test¥¥                   |
-| 27  | _case27 | {right_option}    | t27, test | {right_command}                 | {right_option}test{right_command}                    |
+| 27  | _case27 | {right_option}    | t27, test | {right_command}   | {right_option}test{right_command}      |
 | 28  | _case28 | {right_option}    | t28, test | ¿¿                | {right_option}test¿¿                   |
 | 29  | _case29 | =                 | t29, test | {right_option}    | =test{right_option}                    |
 | 30  | _case30 | ∆                 | t30, test | {right_option}    | ∆test{right_option}                    |
 | 31  | _case31 | ††                | t31, test | {right_option}    | ††test{right_option}                   |
 | 32  | _case32 | Œ                 | t32, test | {right_option}    | Œtest{right_option}                    |
 | 33  | _case33 | ¿¿                | t33, test | {right_option}    | ¿¿test{right_option}                   |
+| 34  | _case34 |                   | t34, test | {right_control}   | test{right_control}                    |
+| 35  | _case35 | {right_control}   | t35, test |                   | {right_control}test                    |
