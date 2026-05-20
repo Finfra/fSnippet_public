@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 137
+* Issue HWM: 138
 * Save Point :
       - 2026.05.16: e78f9da (Fix(Issue127): 기본 단축키 글로벌 등록 차단 회귀 복구 — context-only 면제 제거 + 폴더 단축키 가드)
 
@@ -34,33 +34,39 @@ date: 2026-04-07
     - `GET /api/v2/settings/excluded-files/per-folder` → `{ "data": { "folderName": ["file.txt"] } }` 형식 반환 확인
     - `PUT /api/v2/settings/excluded-files/per-folder/{folder}` → 정상 저장 후 `_config.yml` 반영 확인
 
-## Issue137: [Test/Infra] 실제 키보드 paste 확장 검증 — `qa_run_batch.sh` 신규 작성, 35-case 키 자동화 (등록: 2026-05-20)
-* 목적: Issue134는 XCTest(`FolderTestRunnerTests.testAllFolderCases`)로 abbreviation **생성 로직**만 검증. 실제 키 입력 → CGEventTap 감지 → 텍스트 **확장**까지의 end-to-end 경로는 미검증. 35-case abbreviation을 실제 타이핑하여 스니펫이 정확히 확장되는지 자동화 검증.
-* plan: `cli/_doc_work/plan/qa-keyboard-batch_plan.md`
-* 배경: Issue134 명세가 지정한 `_tool/qa/qa_run_batch.sh` 스크립트·디렉토리 전체 부재. 신규 작성 필요.
-* 기존 자산:
-    - `cli/_tool/send_right_cmd.py` — Quartz `CGEventCreateKeyboardEvent`로 right_command 트리거 키 down/up 전송. 키 자동화 1차 빌딩블록
-    - `cli/_tool/testBoard.txt` — 입력 보드 (현재 비어 있음)
-    - `cli/fSnippetCliTests/FolderTest/testTable_org.md` — 35-case 매트릭스 SSOT (id/folder/prefix/key/suffix/abbreviation)
-* 구현 명세:
-    - 신규 `cli/_tool/qa/qa_run_batch.sh` (+ 보조 Python `qa_type.py`):
-        1. cliApp 기동 확인 — REST `GET http://localhost:3015/` healthz. 미기동 시 fail-loud
-        2. `testTable_org.md` 파싱 → 35행의 `abbreviation` 컬럼 추출
-        3. 포커스 가능한 텍스트 입력 대상 확보 (TextEdit 신규 문서 등) — 케이스별 입력창 초기화
-        4. 각 case: `abbreviation` 문자열을 Quartz CGEvent 키스트로크로 타이핑. 특수 토큰(`{right_command}`/`{right_option}`/`{right_control}`/`{f1}`/`{f2}`/`{keypad_comma}`/`{keypad_num_lock}`)은 keycode 매핑하여 modifier/function 키로 전송
-        5. 확장 후 입력창 텍스트 읽기 → 기대 스니펫 내용과 비교
-        6. 결과 행별 Status=OK/FAIL + Output 을 `result_<ts>.md`에 기록
-    - 토큰→keycode 매핑 테이블 작성: `{right_command}`=54, `{right_option}`=61, `{right_control}`=62, `{f1}`=122, `{f2}`=120, `{keypad_num_lock}`=71 등. `cli/_doc_arch/key-event/` keycode 정의 참조
-    - 완료조건: 35/35 case 타이핑→확장→일치 검증 OR 확장 실패 케이스 원인 규명 + 후속 분기
-* 리스크:
-    - 키 자동화는 접근성 권한·focus 안정성에 민감. case 간 입력창 격리·딜레이 튜닝 필요
-    - `{right_command}` 트리거가 전역 기본 트리거와 동일 → 충돌 케이스(case13/14/27) 실 환경 재검증이 본 이슈 핵심 관심사
-* 관련: Issue134 (XCTest 35/35 통과 — 생성 로직 검증 완료), Issue124 (33-case XCTest 인프라)
-* 복잡도: 복잡 — 신규 키 자동화 하니스. plan 작성 권장
+## Issue138: [Engine] special-key 트리거 한계 — `{f1}`/`{f2}`/`{keypad_num_lock}` 폴더 suffix/prefix 미확장 (등록: 2026-05-20)
+* 목적: Issue137 `qa_run_batch.sh` 35-case 키 자동화 검증에서 31/35 PASS, case20/21/22/23 4건 일관 FAIL. 단건 재실행에서도 동일 FAIL — 버퍼 오염이 아닌 엔진 동작으로 확정. function/keypad 키를 트리거로 쓰는 폴더가 확장되지 않는 한계를 규명·수정.
+* 실패 케이스 + flog 증거:
+    - **case21 (`test{f1}`) / case22 (`{f1}test`)**: `[CGEventTapManager] Registered Shortcut Detected (Blocking): {f1} [folderPrefix]` → `Passing through Registered Shortcut: f1 (Code: 122)` → `🎮 [Issue38] 트리거키 'f1' 동기 처리 결과: 스니펫 없음`. `{f1}`이 folderPrefix로 인식되나 트리거 동기 처리에서 스니펫 미발견 → pass-through
+    - **case23 (`{f2}test{f2}`)**: `{f2}` 동일 — folderPrefix 인식 + 스니펫 없음
+    - **case20 (`{keypad_num_lock}test{keypad_num_lock}`)**: `[AbbreviationMatcher] Match Found (Without Suffix): 'test{keypad_num_lock}'` → `Rule '_case19' matched` — prefix+suffix 동시 조합이 suffix-only `_case19` 룰에 가려짐 (매칭 우선순위)
+* 분석 방향:
+    - f1/f2: `ShortcutMgr` Overlay 등록이 folder suffix/prefix보다 우선 (`Overlay 등록 : {f1}가 Folder Suffix보다 우선순위 높음` 로그). function 키 트리거 폴더의 우선순위 정책 재검토
+    - keypad_num_lock: prefix+suffix 동일 토큰 조합 시 `AbbreviationMatcher`가 짧은 suffix-only 룰을 우선 매칭. longest-match 우선순위 검토
+* 검증: Issue137 하니스 재사용 — `sh cli/_tool/qa/qa_run_batch.sh --case 20`(및 21/22/23)으로 회귀 확인
+* 관련: Issue137 (검증 하니스 — 본 이슈의 재현 도구), testTable case19/20/21/22/23
+* 복잡도: 복잡 — CGEventTap 우선순위·AbbreviationMatcher 매칭 정책 변경. 엔진 코어 영향
 
 # 📗 선택
 
 # ✅ 완료
+
+## Issue137: [Test/Infra] 실제 키보드 paste 확장 검증 — `qa_run_batch.sh` 키보드 자동화 하니스 (등록: 2026-05-20, 완료: 2026-05-20) (Hash: c6802e8)
+* 목적: Issue134는 XCTest로 abbreviation 생성 로직만 검증. 실제 키 입력 → CGEventTap → 텍스트 확장 end-to-end 경로를 키보드 자동화로 검증.
+* plan: `cli/_doc_work/plan/qa-keyboard-batch_plan.md`
+* 구현: 신규 하니스 3종 (`cli/_tool/qa/`)
+    - `keycode_map.py` — 특수 토큰 → keycode 매핑. `design_keyProcess.md` 표의 keypad_comma/num_lock keycode가 뒤바뀐 것 발견 → 표준 macOS 값(comma=95, num_lock/Clear=71)으로 정정
+    - `qa_type.py` — Quartz CGEvent 키스트로크 타이퍼 (리터럴 unicode + modifier flagsChanged + plain key)
+    - `qa_run_batch.sh` — orchestrator: healthz → testTable 파싱 → TextEdit 타이핑 → 확장 결과 비교 → result 리포트
+* 검증: 35-case 실행 → **31/35 PASS**
+    - 통과: case1~19, 24~35 — modifier 트리거(`{right_command}`/`{right_option}`/`{right_control}`), `{keypad_comma}`, 특수문자 prefix/suffix 전부 정상 확장. case13/14/27(`{right_command}`) 충돌 우려 재현 없음
+    - 실패 4건: case20/21/22/23 — 단건 재실행에서도 일관 FAIL → 엔진 special-key 트리거 한계로 원인 규명
+* 하니스 버그 수정 (실행 중 발견):
+    - argparse가 `-` 시작 abbreviation(`-test`)을 옵션 오인 → `--` 구분자 추가
+    - keypad keycode 뒤바뀜 → `keycode_map.py` 정정
+    - flaky case2 → `SETTLE` 0.4→0.6, `EXPAND_WAIT` 0.7→1.0 상향
+* 후속: case20/21/22/23 엔진 한계 → **Issue138** 분기
+* result 리포트: `cli/_tool/qa/results/` (gitignored, 실행 산출물)
 
 ## Issue134: [Test] 35-case 스니펫 매트릭스 회귀 — XCTest 35/35 통과 (등록: 2026-05-20, 완료: 2026-05-20) (Hash: e61584b, 9640986)
 * 목적: `_rule.yml` ↔ `testTable_org.md` 를 35-case 매트릭스로 동기화한 뒤 35개 케이스 abbreviation 확장 회귀 검증. 33-case 시점 우려된 case13/14/17/27 이상 해소 확인.
