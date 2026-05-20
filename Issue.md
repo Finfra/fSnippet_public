@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 133
+* Issue HWM: 136
 * Save Point :
       - 2026.05.16: e78f9da (Fix(Issue127): 기본 단축키 글로벌 등록 차단 회귀 복구 — context-only 면제 제거 + 폴더 단축키 가드)
 
@@ -22,9 +22,47 @@ date: 2026-04-07
 
 # 📙 일반
 
+## Issue135: [paidApp 연동] folderExcludedFiles REST API 제공 검증 — paidApp Issue892 대응 (등록: 2026-05-20)
+* 목적: paidApp Issue892에서 `folderExcludedFiles`를 REST 경유로 읽고 쓰도록 구현 예정. 이때 cliApp의 `/api/v2/settings/excluded-files/per-folder` CRUD 엔드포인트가 정상 응답하는지 확인 및 필요 시 보완.
+* 상세:
+    - cliApp `APIRouter.swift`: GET/PUT/DELETE/POST `/api/v2/settings/excluded-files/per-folder{/folder}` 구현 완료
+    - `v2PerFolderExcludedKey = "snippet_folder_excluded_files"` → `PreferencesManager` 저장
+    - 스냅샷 PUT 엔드포인트에서는 `perFolderExcludedFiles` 무시 (미래 구현) — 전용 엔드포인트로 대체
+    - paidApp은 전용 엔드포인트(`GET` + `PUT /per-folder/{folder}`)를 사용하므로 스냅샷 미구현은 블로커 아님
+* depends: paidApp Issue892 (구현 주체)
+* 확인 항목:
+    - `GET /api/v2/settings/excluded-files/per-folder` → `{ "data": { "folderName": ["file.txt"] } }` 형식 반환 확인
+    - `PUT /api/v2/settings/excluded-files/per-folder/{folder}` → 정상 저장 후 `_config.yml` 반영 확인
+
 # 📗 선택
 
+## Issue134: [Test] 35-case 스니펫 paste 테스트 재실행 — `_rule.yml`/testTable 동기화 후 확장 검증 (등록: 2026-05-20)
+* 목적: `_rule.yml` ↔ `testTable_org.md` 를 35-case 매트릭스로 동기화한 뒤, 실제 35개 케이스가 모두 정상 확장되는지 키보드 자동화 테스트로 검증한다. 동기화 전 33-case 테스트에서 발생한 case13/14/17/27 이상 4건이 해소되었는지 확인이 목적.
+* 상세:
+    - 동기화 완료 산출물:
+        - `~/Documents/finfra/fSnippetData/snippets/_rule.yml` (35 case, Collections 45)
+        - `Tests/FolderTest/testTable_org.md` (메인 레포, 35행)
+        - `_public/cli/fSnippetCliTests/FolderTest/testTable_org.md` (동일 동기화)
+    - 중점 확인 케이스:
+        - case13/14/27: 트리거 `{right_command}` — 전역 기본 트리거와 충돌 가능성. 직전 테스트에서 `testorch` 오확장·Fail 관측됨
+        - case17: suffix `{keypad_comma}` (동기화로 신규 추가분)
+        - case34/35: `{right_control}` suffix/prefix (신규 추가분)
+* 구현 명세:
+    - 실행: cliApp 기동 확인 → `sh _tool/qa/qa_run_batch.sh Tests/FolderTest/testTable_org.md`
+    - 검증: 결과 `testTable1_N.md` 35행 전부 Status=OK + Output 일치
+    - case13/14/27 가 `{right_command}` 충돌로 재실패하면 트리거 문자 재검토 (후속 이슈 분기)
+    - 완료조건: 35/35 정상 확장 OR 실패건 원인 규명·후속 이슈 등록
+
 # ✅ 완료
+
+## Issue136: [API] `APIFolderSummary`에 `rule_managed` 필드 추가 — paidApp prefix/suffix 신뢰 판정 (등록: 2026-05-20, 완료: 2026-05-20) (Hash: b191a55)
+* 목적: Issue133 후속. paidApp이 폴더의 `prefix`/`suffix`를 신뢰하고 표시하려면, 해당 값이 `_rule.yml`의 명시적 규칙에서 온 것인지 기본값(전역 트리거) 폴백인지 구분이 필요. 현재 `APIFolderSummary`는 둘을 구분 못 함.
+* 구현:
+    - `cli/fSnippetCli/Data/APIModels.swift`: `APIFolderSummary`에 `let ruleManaged: Bool` + CodingKey `rule_managed`
+    - `cli/fSnippetCli/Managers/APIRouter.swift`: `handleGetFolders` 2개 호출부에 `ruleManaged: rule != nil` 전달
+    - `api/openapi_v2.yaml`: `FolderSummary` 스키마에 `rule_managed` boolean 추가
+* 검증: Release 빌드 통과
+* 후속: paidApp 측에서 `rule_managed == false` 폴더의 prefix/suffix 표시 정책 결정
 
 ## Issue133: [API/Feature] `GET /api/v2/folders` 폴더 아이콘 노출 — `?icons=true` opt-in base64 (등록: 2026-05-20, 완료: 2026-05-20) (Hash: c976b6c)
 * 목적: paidApp 폴더 목록(Snippets/Folders 탭)에 폴더 커스텀 아이콘 미표시. paidApp은 샌드박스(`com.apple.security.app-sandbox`, `files.user-selected.read-write`만, Documents 권한 없음)라 snippet 폴더(`~/Documents/finfra/fSnippetData/snippets`)에 파일시스템 직접 접근 불가(`lsof` 핸들 0). 유일한 통로인 REST API가 아이콘을 리턴하지 않아 paidApp `SnippetIconProvider`가 SF Symbol 폴백만 출력.
