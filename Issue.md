@@ -36,6 +36,7 @@ date: 2026-04-07
 
 ## Issue137: [Test/Infra] 실제 키보드 paste 확장 검증 — `qa_run_batch.sh` 신규 작성, 35-case 키 자동화 (등록: 2026-05-20)
 * 목적: Issue134는 XCTest(`FolderTestRunnerTests.testAllFolderCases`)로 abbreviation **생성 로직**만 검증. 실제 키 입력 → CGEventTap 감지 → 텍스트 **확장**까지의 end-to-end 경로는 미검증. 35-case abbreviation을 실제 타이핑하여 스니펫이 정확히 확장되는지 자동화 검증.
+* plan: `cli/_doc_work/plan/qa-keyboard-batch_plan.md`
 * 배경: Issue134 명세가 지정한 `_tool/qa/qa_run_batch.sh` 스크립트·디렉토리 전체 부재. 신규 작성 필요.
 * 기존 자산:
     - `cli/_tool/send_right_cmd.py` — Quartz `CGEventCreateKeyboardEvent`로 right_command 트리거 키 down/up 전송. 키 자동화 1차 빌딩블록
