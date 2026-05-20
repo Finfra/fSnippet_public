@@ -16,15 +16,13 @@
 # Requires: cliApp running on :3015, Accessibility permission for the shell,
 # the pyobjc Quartz binding.
 #
-# KNOWN LIMITATIONS (Issue138 — by design, not a harness bug):
-#   31/35 is the expected baseline. case20/21/22/23 fail because they place a
-#   function/trigger key in a folder affix position:
-#     - {f1}/{f2} as folder prefix  -> resolved as folderPrefix role, which
-#       opens the folder snippet popup (by design) instead of auto-expanding.
-#     - {keypad_num_lock} as prefix -> it is a registered triggerKey, so it
-#       fires immediately at the prefix position and the prefix is lost.
-#   Function/trigger keys as folder affixes is a non-standard combination;
-#   see Issue138 in Issue.md for the full root-cause analysis.
+# Issue138: an earlier run reported case20-23 as FAIL and concluded a
+# "by-design" engine limit. That was WRONG — manual typing of the same cases
+# expands correctly (flog: Rule '_caseN' matched + expansion). Root cause was a
+# harness timing race: literal keystrokes are dispatched async to the engine's
+# main queue, and a too-fast inter-key delay let a following special-key token
+# fire as a trigger before the buffer was populated. Fixed in qa_type.py via
+# TOKEN_SETTLE + a larger default delay.
 set -u
 
 # --- locate paths (no hardcoded user paths; resolve dynamically) ---
@@ -39,7 +37,7 @@ SNIPPET_DIR="$APP_ROOT/snippets"
 
 # --- args ---
 TABLE="$DEFAULT_TABLE"
-DELAY="0.03"
+DELAY="0.06"
 ONLY_CASE=""
 DRY_RUN=0
 SETTLE=0.6        # delay after TextEdit activate before typing

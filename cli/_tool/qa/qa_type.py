@@ -24,9 +24,16 @@ import Quartz
 from keycode_map import classify
 
 # Default inter-keystroke delay (seconds). Tunable via --delay.
-DEFAULT_KEY_DELAY = 0.03
+# 0.03 was too fast: a special-key token (which may act as a trigger) fired
+# before the engine absorbed the preceding literal keystrokes (async main-queue
+# dispatch), causing a buffer race and false-FAIL on case20-23. (Issue138)
+DEFAULT_KEY_DELAY = 0.06
 # Hold time for a modifier flagsChanged down before the matching up.
 MODIFIER_HOLD = 0.05
+# Settle delay before a special-key {token}: lets preceding literal keystrokes
+# reach the engine abbreviation buffer before the token (possibly a trigger)
+# is processed. Without it the prefix/buffer is lost. (Issue138)
+TOKEN_SETTLE = 0.2
 
 _TOKEN_RE = re.compile(r"(\{[^}]+\})")
 
@@ -69,6 +76,10 @@ def type_string(text: str, delay: float = DEFAULT_KEY_DELAY) -> None:
             continue
         if part.startswith("{") and part.endswith("}"):
             kind, meta = classify(part)
+            if kind == "modifier" or kind == "key":
+                # Settle so the engine absorbs preceding literal keystrokes
+                # before this token (which may act as a trigger) is processed.
+                time.sleep(TOKEN_SETTLE)
             if kind == "modifier":
                 tap_modifier(meta["keycode"], meta["flags"])
                 time.sleep(delay)
