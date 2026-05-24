@@ -3,6 +3,7 @@ import SwiftUI
 
 struct HistoryPreviewView: View {
     let item: ClipboardItem
+    var onDelete: (() -> Void)? = nil
 
     @ObservedObject var state = HistoryPreviewState.shared
     @ObservedObject var clipboardManager = ClipboardManager.shared  // ✅ CL050: Focus Mode State
@@ -38,6 +39,13 @@ struct HistoryPreviewView: View {
                 Text(item.dateString)  // Relative time
                     .font(.caption2)
                     .foregroundColor(.secondary.opacity(0.8))
+
+                Button(action: { onDelete?() }) {
+                    Image(systemName: "trash")
+                        .font(.caption2)
+                        .foregroundColor(.red.opacity(0.8))
+                }
+                .buttonStyle(PlainButtonStyle())
             }
             .padding(8)
             .background(

@@ -19,9 +19,14 @@ struct UnifiedHistoryViewer: View {
                     .background(Color.secondary.opacity(0.3))
                 
                 if let item = previewState.currentItem {
-                    HistoryPreviewView(item: item)
-                        .frame(width: settings.historyPreviewWidth)
-                        .id(item.id) // 항목 변경 시 뷰 갱신 유도
+                    HistoryPreviewView(item: item, onDelete: {
+                        if let id = item.id {
+                            viewModel.selectedIds = [id]
+                            viewModel.deleteSelectedItems()
+                        }
+                    })
+                    .frame(width: settings.historyPreviewWidth)
+                    .id(item.id) // 항목 변경 시 뷰 갱신 유도
                 } else {
                     // 선택된 항목이 없는 경우 빈 영역 처리
                     VStack {

@@ -6,72 +6,89 @@ struct HistoryRowView: View {
     let isListActive: Bool // ✅ CL045_9: Focus State
     let shortcut: String? // ✅ CL027_2: Visual Shortcut Indicator
     var onDelete: (() -> Void)? = nil
-    
-    @State private var isHovered: Bool = false
-    @State private var isPopoverPresented: Bool = false
-    
+
     var body: some View {
-        HStack(spacing: 12) {
-            // Icon / Preview
+        HStack(spacing: 8) {
+            // Icon
             iconView
-                .frame(width: 32, height: 32)
+                .frame(width: 24, height: 24)
                 .background(Color.secondary.opacity(0.1))
-                .cornerRadius(4)
-            
-            // Content
-            VStack(alignment: .leading, spacing: 2) {
-                HStack {
-                    Text(kindLabel)
-                        .font(.caption2).bold()
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    
-                    Text(timeString)
+                .cornerRadius(3)
+
+            // Single-line content with overflow indicator
+            HStack(spacing: 4) {
+                Text(firstLineText)
+                    .font(.system(size: 13))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                if extraLineCount > 0 {
+                    Text("+\(extraLineCount)L")
                         .font(.caption2)
                         .foregroundColor(.secondary)
-
-                    // ✅ Shortcut Indicator
-                    if let shortcut = shortcut {
-                        Text(shortcut)
-                            .font(.system(size: 12, weight: .bold, design: .monospaced))
-                            .foregroundColor(isSelected ? .white : .secondary.opacity(0.7))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(isSelected ? Color.white.opacity(0.15) : Color.clear)
-                            )
-                    }
-                    
-                    if isHovered || isSelected {
-                        Button(action: { onDelete?() }) {
-                            Image(systemName: "trash")
-                                .font(.caption2)
-                                .foregroundColor(.red.opacity(0.8))
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        .transition(.opacity)
-                    }
+                        .fixedSize()
                 }
-                
-                contentPreview
-                    .font(.system(size: 13))
-                    .lineLimit(2)
+
+                Spacer(minLength: 0)
+            }
+
+            // Shortcut indicator
+            if let shortcut = shortcut {
+                Text(shortcut)
+                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                    .foregroundColor(isSelected ? .white : .secondary.opacity(0.7))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(isSelected ? Color.white.opacity(0.15) : Color.clear)
+                    )
             }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 4)
         .padding(.horizontal, 10)
         // ✅ CL045_9: Blue when active list, Gray when preview focus
         .background(isSelected ? (isListActive ? PopupUIConstants.clipboardSelectionColor : Color.gray.opacity(0.2)) : Color.clear)
         .cornerRadius(6)
         .contentShape(Rectangle())
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.2)) {
-                isHovered = hovering
+    }
+
+    private var firstLineText: String {
+        switch item.kind {
+        case "plain_text":
+            let text = item.text ?? ""
+            return text.components(separatedBy: "\n").first ?? text
+        case "image":
+            return "Image (\(formatSize(item.sizeBytes ?? 0)))"
+        case "file_list":
+            if let json = item.filelistJson,
+               let paths = try? JSONDecoder().decode([String].self, from: Data(json.utf8)),
+               let first = paths.first {
+                return first
             }
+            return "File List"
+        default:
+            return item.text ?? "Unknown"
         }
     }
-    
+
+    private var extraLineCount: Int {
+        switch item.kind {
+        case "plain_text":
+            let text = item.text ?? ""
+            let lines = text.components(separatedBy: "\n")
+            return max(0, lines.count - 1)
+        case "file_list":
+            if let json = item.filelistJson,
+               let paths = try? JSONDecoder().decode([String].self, from: Data(json.utf8)) {
+                return max(0, paths.count - 1)
+            }
+            return 0
+        default:
+            return 0
+        }
+    }
+
     @ViewBuilder
     private var iconView: some View {
         // ✅ CL077: Prioritize Image Thumbnail for image items
@@ -97,70 +114,7 @@ struct HistoryRowView: View {
             }
         }
     }
-    
-    private var kindLabel: String {
-        switch item.kind {
-        case "plain_text": return "TEXT"
-        case "image": return "IMAGE"
-        case "file_list": return "FILES"
-        default: return item.kind.uppercased()
-        }
-    }
-    
-    private var timeString: String {
-        let date = Date(timeIntervalSince1970: TimeInterval(item.createdAt))
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
-    }
-    
-    @ViewBuilder
-    private var contentPreview: some View {
-        switch item.kind {
-        case "plain_text":
-            if let text = item.text, text.count > 300 {
-                HStack(alignment: .top, spacing: 4) {
-                    Text(text.prefix(100) + "...")
-                        .lineLimit(2)
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        isPopoverPresented = true
-                    }) {
-                        Image(systemName: "questionmark.circle")
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .popover(isPresented: $isPopoverPresented) {
-                        ScrollView {
-                            Text(text)
-                                .padding()
-                                .frame(width: 400, height: 300, alignment: .topLeading) // Fixed size popover
-                        }
-                    }
-                }
-            } else {
-                Text(item.text ?? "")
-            }
-        case "image":
-            Text("Image (\(formatSize(item.sizeBytes ?? 0)))")
-                .italic()
-        case "file_list":
-            if let json = item.filelistJson, let paths = try? JSONDecoder().decode([String].self, from: Data(json.utf8)) {
-                if paths.count == 1 {
-                    Text(paths[0])
-                } else {
-                    Text("\(paths[0]) and \(paths.count - 1) more...")
-                }
-            } else {
-                Text("File List")
-            }
-        default:
-            Text("Unknown Content")
-        }
-    }
-    
+
     private func formatSize(_ bytes: Int64) -> String {
         let formatter = ByteCountFormatter()
         formatter.countStyle = .file
@@ -171,7 +125,7 @@ struct HistoryRowView: View {
 struct HistoryThumbnailView: View {
     let item: ClipboardItem
     @State private var thumbnail: NSImage? = nil
-    
+
     var body: some View {
         Group {
             if let thumbnail = thumbnail {
@@ -190,11 +144,11 @@ struct HistoryThumbnailView: View {
             }
         }
     }
-    
+
     private func loadThumbnail() {
         guard item.kind == "image", let blobPath = item.blobPath, let blobsDir = ClipboardDB.shared.getBlobsDir() else { return }
         let fileURL = URL(fileURLWithPath: blobsDir).appendingPathComponent(blobPath)
-        
+
         DispatchQueue.global(qos: .userInteractive).async {
             // ✅ Issue715: Handle missing image files
             if !FileManager.default.fileExists(atPath: fileURL.path) {

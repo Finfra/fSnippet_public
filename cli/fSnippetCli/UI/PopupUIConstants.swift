@@ -9,7 +9,7 @@ struct PopupUIConstants {
     static let headerHeight: CGFloat = 36.0
     
     /// 행 높이 (스니펫 항목)
-    static let rowHeight: CGFloat = 44.0
+    static let rowHeight: CGFloat = 30.0
     
     /// 윈도우 내부 패딩 (상단/하단 여백 및 보정값)
     static let paddingHeight: CGFloat = 10.0

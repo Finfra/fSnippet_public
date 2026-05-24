@@ -27,7 +27,8 @@ class ClipboardManager: ObservableObject, ClipboardManagerProtocol {
     // 동적 폴링(Dynamic Polling) 상태
     private var currentPollingInterval: TimeInterval = 0.5
     private let minPollingInterval: TimeInterval = 0.5
-    private let maxPollingInterval: TimeInterval = 10.0
+    // Issue140: 10.0 → 2.0 단축. 10s 백오프는 idle CPU 절감 이점 대비 복사 누락 위험 큼.
+    private let maxPollingInterval: TimeInterval = 2.0
     private var eventMonitor: Any?
     private var localEventMonitor: Any?
 
@@ -472,9 +473,17 @@ class ClipboardManager: ObservableObject, ClipboardManagerProtocol {
             }
 
             if isCopyAction {
-                // 복사 단축키 감지 시 즉시 0.5초 모드로 복귀하여 빠르게 확인
-                logV("📋 [DP] 복사 단축키 감지! 즉각 0.5초 폴링 복귀")
-                DispatchQueue.main.async {
+                // Issue140: staggered 재폴링 — OS 페이스트보드 갱신 타이밍 변동(특히 대용량/이미지) 흡수
+                logV("📋 [DP] 복사 단축키 감지! staggered 재폴링 (0.15s, 0.4s, 0.8s)")
+                let delays: [TimeInterval] = [0.15, 0.4, 0.8]
+                for delay in delays {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                        self?.flushPendingChange()
+                    }
+                }
+                // 백오프 즉시 리셋
+                DispatchQueue.main.async { [weak self] in
+                    guard let self = self else { return }
                     self.scheduleNextPoll(interval: self.minPollingInterval)
                 }
             }
