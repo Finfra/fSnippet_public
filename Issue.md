@@ -6,8 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 138
+* Issue HWM: 139
 * Save Point :
+      - 2026.05.24: cd95b0f (Close Issue139)
       - 2026.05.21: 3eb736d (Docs(Issue138): by-design 결론 철회 — 하니스 결함 수정으로 35/35 달성 (Hash: 0a043a2))
       - 2026.05.16: e78f9da (Fix(Issue127): 기본 단축키 글로벌 등록 차단 회귀 복구 — context-only 면제 제거 + 폴더 단축키 가드)
 
@@ -16,16 +17,28 @@ date: 2026-04-07
 * `cli/_doc_arch/menuBar_enhance.md` 기준 진행(메뉴바, 로컬 SSOT — gitignored)
 
 # 🌱 이슈후보
+1.
 
 # 🚧 진행중
 
 # 📕 중요
 
 # 📙 일반
-
 # 📗 선택
 
 # ✅ 완료
+## Issue139: paidApp 꺼진 상태에서 설정창 첫 번째 열기 실패 (등록: 2026.05.24) (✅ 완료, cd95b0f) ✅
+* 목적: cliApp이 paidApp을 시작하고 설정창을 열 때, 첫 번째 시도에서 설정창이 열리지 않는 문제 수정
+* 상세: 
+    - PaidAppDetector.openSettings() 1차 채널(NSWorkspace.open([schemeURL], withApplicationAt:))이 completionHandler: nil로 실패를 무시함
+    - custom URL scheme을 NSWorkspace.open([url], withApplicationAt:)에 전달 시 실패할 수 있음 (파일 URL 용 API)
+    - 실패가 묻혀 설정창이 미표시되는 silent failure 패턴
+* 구현 명세:
+    - PaidAppDetector.openSettings() 1차 채널에 completionHandler 추가
+    - error 발생 시 logW 기록 후 2차 채널(LaunchServices NSWorkspace.open(schemeURL))로 자동 폴백
+    - 수정 파일: cli/fSnippetCli/Utils/PaidAppDetector.swift
+
+
 
 ## Issue135: [paidApp 연동] folderExcludedFiles REST API 제공 검증 — paidApp Issue892 대응 (등록: 2026-05-20, 완료: 2026-05-20, 검증 완료) (Hash: 175a916)
 * 목적: paidApp Issue892가 `folderExcludedFiles`를 REST 경유로 읽고 쓸 때 cliApp `/api/v2/settings/excluded-files/per-folder` 엔드포인트가 정상 응답하는지 검증.
