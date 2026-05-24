@@ -53,12 +53,19 @@ enum PaidAppDetector {
        FileManager.default.fileExists(atPath: registered.bundlePath) {
       let bundleURL = URL(fileURLWithPath: registered.bundlePath)
       logI("🪟 [Settings] register bundlePath 사용: \(registered.bundlePath)")
+      let schemeURLCapture = schemeURL
       NSWorkspace.shared.open(
         [schemeURL],
         withApplicationAt: bundleURL,
-        configuration: NSWorkspace.OpenConfiguration(),
-        completionHandler: nil
-      )
+        configuration: NSWorkspace.OpenConfiguration()
+      ) { _, error in
+        if let error {
+          logW("🪟 [Settings] 1차 채널 실패: \(error.localizedDescription) — LaunchServices 폴백")
+          DispatchQueue.main.async {
+            NSWorkspace.shared.open(schemeURLCapture)
+          }
+        }
+      }
       return
     }
 
