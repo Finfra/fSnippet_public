@@ -6,8 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 139
+* Issue HWM: 141
 * Save Point :
+      - 2026.05.25: ba25957 (Feat(Issue140): 클립보드 히스토리 셀 단순화 + 복사 누락 캡처 보강)
       - 2026.05.24: cd95b0f (Close Issue139)
       - 2026.05.21: 3eb736d (Docs(Issue138): by-design 결론 철회 — 하니스 결함 수정으로 35/35 달성 (Hash: 0a043a2))
       - 2026.05.16: e78f9da (Fix(Issue127): 기본 단축키 글로벌 등록 차단 회귀 복구 — context-only 면제 제거 + 폴더 단축키 가드)
@@ -20,6 +21,19 @@ date: 2026-04-07
 1.
 
 # 🚧 진행중
+## Issue141: [paidApp 연동] 메뉴/단축키 첫 클릭 시 설정창 미표시 — startup 자동기동 race (등록: 2026-05-25)
+* 목적: cliApp 시작 시 paidApp을 자동 launch(설정창 없이)하는 기능은 정상이나, 직후 사용자가 메뉴바/단축키로 설정창을 열려 할 때 첫 클릭에서 설정창이 안 뜨고 두 번 클릭해야 열리는 race 해소
+* 상세:
+    - 현재 흐름: cliApp `applicationDidFinishLaunching` 에서 `PaidAppManager.launchPaidApp()` 호출 (URL scheme 없이) → paidApp 프로세스 기동 → 설정창 미표시 (의도된 startup 동작)
+    - 문제: paidApp 기동 직후 `paidAppStateChanged` 알림이 도달하기 전(`AppStateManager.paidAppStatus == .stopped` 유지) 사용자가 메뉴/단축키 클릭 시 `PaidAppManager.handlePaidFeature()` 가 `.stopped` 분기로 진입
+        * `autoLaunchConsent==false` → `showRequirePaidAlert()` consent 다이얼로그 표시 (설정창 대신 다이얼로그가 뜸)
+        * `autoLaunchConsent==true` → `launchAndOpenSettings()` 진입하여 `launchPaidApp()` 재호출 + register 대기 후 `openSettings()` (5초 이상 지연 가능)
+    - 결과: 첫 클릭에서 설정창이 즉시 안 뜸 → 두 번째 클릭에서야 `.started` 인지 후 정상 동작
+* 구현 명세:
+    - `PaidAppManager.handlePaidFeature()` 진입 시점에 cached `paidAppStatus` 의존을 줄이고 NSWorkspace 직접 확인(`isRunning()`)으로 fresh 상태 평가
+    - paidApp 프로세스가 실제로 떠 있으면 (process running) `.started` 와 동일하게 처리: `activatePaidApp()` + `PaidAppDetector.openSettings()` 직행 (consent/launch 우회)
+    - 수정 파일: `cli/fSnippetCli/Managers/PaidAppManager.swift`
+
 
 # 📕 중요
 
@@ -27,6 +41,21 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue140: [UI/Clipboard] 클립보드 히스토리 셀 단순화 + 복사 누락 캡처 보강 (등록: 2026-05-25, 완료: 2026-05-25) (Hash: ba25957) ✅
+* 목적:
+    - (UI) 클립보드 히스토리 팝업 셀을 1행으로 단순화하여 한 화면에 더 많은 항목 표시
+    - (Bug) Cmd+C 후 클립보드 히스토리에 항목이 등록되지 않는 누락 케이스 보강
+* plan: `cli/_doc_work/plan/clipboard-cell-simplify_plan.md`
+* 상세:
+    - UI Part: kindLabel·trash 버튼·timeString 셀 내 제거, contentPreview 1줄+`+NL` 배지, rowHeight 44→30, trash 버튼은 HistoryPreviewView 헤더로 이동
+    - Bug Part: `maxPollingInterval=10s` 백오프 + Cmd+C 감지 시 단발 `scheduleNextPoll(0.5)` → OS 페이스트보드 갱신 타이밍과 폴링 timer 어긋남 → 1회성 0.5s 폴링이 빈손으로 종료 후 backoff 진입하여 항목 누락 발생
+* 구현 명세:
+    - UI: HistoryRowView/PopupUIConstants/HistoryPreviewView/UnifiedHistoryViewer 수정 (계획서 Step 1~4)
+    - Bug:
+        * `maxPollingInterval` 10s → 2s 단축
+        * Cmd+C/Cmd+X 감지 시 staggered `flushPendingChange()` 재폴링 (0.15s, 0.4s, 0.8s) + 백오프 즉시 리셋
+    - 수정 파일: `cli/fSnippetCli/UI/History/HistoryRowView.swift`, `HistoryPreviewView.swift`, `UnifiedHistoryViewer.swift`, `cli/fSnippetCli/UI/PopupUIConstants.swift`, `cli/fSnippetCli/Managers/ClipboardManager.swift`
+
 ## Issue139: paidApp 꺼진 상태에서 설정창 첫 번째 열기 실패 (등록: 2026.05.24) (✅ 완료, cd95b0f) ✅
 * 목적: cliApp이 paidApp을 시작하고 설정창을 열 때, 첫 번째 시도에서 설정창이 열리지 않는 문제 수정
 * 상세: 
