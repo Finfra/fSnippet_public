@@ -6,8 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 152
+* Issue HWM: 153
 * Save Point :
+      - 2026.05.27: d2580d9 (Fix(Issue153): paidApp 설정창 열기 — DistributedNotification 채널 전환)
       - 2026.05.27: 62853ff (Revert(Issue152): Issue146 revert — appRootPath seed → ~/Documents/finfra/fSnippetData)
       - 2026.05.26: 2afc508 (Refactor(Issue150): pairApp 패턴 차용 — 권한 처리 simplify)
       - 2026.05.26: fde04ae (Fix(Issue149): TCC mismatch — alert 메시지 보강 + grant 전이 시 자동 dismiss)
@@ -33,6 +34,17 @@ date: 2026-04-07
 # 📙 일반
 
 # ✅ 완료
+## Issue153: [cliApp] paidApp 설정창 열기 — DistributedNotification 채널 전환 (등록: 2026-05-27, 완료: 2026-05-27) (Hash: d2580d9) ✅
+* 목적: paidApp 이미 실행 중일 때 URL scheme + activate() 경로가 unreliable (paidApp frontmost 상태에서 설정창 미표시). DistributedNotification 채널로 안정화.
+* 상세:
+    - `PaidAppManager.openSettings()` `.started` 분기: `activatePaidApp` + URL scheme → `DistributedNotificationCenter` post (`fSnippetOpenSettings`)
+    - paidApp 측 `setupDistributedNotificationListeners` → `handleOpenSettingsNotification` → `showSettings` (policy restore + activation 자체 처리)
+    - `PaidAppDetector.openSettings()`: Issue143 1초 디바운스 제거 (paidApp 측에서 자체 처리)
+    - `activatePaidApp`: deprecated `activateIgnoringOtherApps` → `app.activate()`
+* 구현 명세:
+    - `.stopped` 분기는 `launchAndOpenSettings` 유지 (paidApp 미실행 시 URL scheme fallback 필요)
+    - DistributedNotification name: `fSnippetOpenSettings`, deliverImmediately=true
+
 ## Issue152: [cliApp] Issue146 revert — appRootPath seed → ~/Documents/finfra/fSnippetData (등록: 2026-05-27, 완료: 2026-05-27) (Hash: 62853ff) ✅
 * 목적: Issue146 (data root 를 `~/Library/Application Support/kr.finfra.fSnippetCli/data` 로 이전) 가 사용자 의도와 불일치. `~/Documents/finfra/fSnippetData/` 는 legacy 가 아닌 정식 SSOT 임을 확정.
 * 상세:
