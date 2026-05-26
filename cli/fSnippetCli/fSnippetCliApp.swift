@@ -72,6 +72,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// 직전 폴링 시점의 trusted 상태 — 전이(grant/revoke) 감지에 사용
     private var lastAccessibilityTrusted: Bool = false
 
+    /// Issue149: 표시 중인 accessibility alert — grant 전이 감지 시 abortModal 로 자동 dismiss
+    private var pendingAccessibilityAlert: NSAlert?
+
     /// 중복 인스턴스 여부 — true 이면 applicationWillTerminate 에서 정리 로직 건너뜀
     private var isDuplicateInstance = false
 
@@ -308,6 +311,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 // grant 전이
                 self.lastAccessibilityTrusted = true
                 logI("✅ 접근성 권한 부여 감지 — KeyEventMonitor 재초기화")
+                // Issue149: 표시 중인 alert 자동 dismiss (사용자가 OFF→ON 토글 후 alert 가 그대로 남는 문제 회피)
+                if self.pendingAccessibilityAlert != nil {
+                    DispatchQueue.main.async {
+                        NSApplication.shared.abortModal()
+                        self.pendingAccessibilityAlert = nil
+                        logI("✅ 접근성 alert 자동 dismiss (grant 전이)")
+                    }
+                }
                 self.reinitializeKeyEventMonitor()
             } else if wasTrusted && !nowTrusted {
                 // revoke 전이 — Issue117
@@ -377,15 +388,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// 접근성 권한 미승인 시 사용자에게 알림 표시
+    /// Issue149: alert 인스턴스를 ivar 로 보관하여 grant 전이 시 polling 이 abortModal 로 자동 dismiss
     private func showAccessibilityAlert() {
         let alert = NSAlert()
         alert.messageText = NSLocalizedString("Accessibility Permission Required", comment: "Alert title when accessibility permission is not granted")
-        alert.informativeText = NSLocalizedString("fSnippetCli requires accessibility permission to monitor keyboard input.\n\nPlease enable fSnippetCli in System Settings > Privacy & Security > Accessibility.", comment: "Alert body explaining how to grant accessibility permission")
+        alert.informativeText = NSLocalizedString(
+            "fSnippetCli requires accessibility permission to monitor keyboard input.\n\n시스템 설정 > 개인정보 보호 및 보안 > 접근성에서 fSnippetCli 를 허용해주세요.\n\nbrew 재배포 직후 권한 매칭이 깨졌을 수 있습니다. 이 경우 토글을 OFF → ON 한 번 다시 누르면 됩니다.",
+            comment: "Alert body explaining how to grant accessibility permission")
         alert.alertStyle = .warning
         alert.addButton(withTitle: NSLocalizedString("Open System Settings", comment: "Button to open System Settings"))
         alert.addButton(withTitle: NSLocalizedString("Later", comment: "Button to dismiss the alert"))
 
+        pendingAccessibilityAlert = alert
         let response = alert.runModal()
+        pendingAccessibilityAlert = nil
+
         if response == .alertFirstButtonReturn {
             NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
         }
