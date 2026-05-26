@@ -27,10 +27,9 @@ class PreferencesManager: PreferencesManagerProtocol {
     }
 
     /// Issue122: SSOT gateway for appRootPath resolution.
-    /// Issue146: Seed moved to ~/Library/Application Support to avoid macOS Documents folder TCC prompt.
     /// Priority: ENV `fSnippetCli_config` (test/CLI override) → UserDefaults `appRootPath` (SSOT) → seed.
-    /// If legacy `~/Documents/finfra/fSnippetData` exists, contents are copied to the new seed once
-    /// and `appRootPath` is rewritten to the new path. Legacy folder is preserved for manual cleanup.
+    /// Seed: ~/Documents/finfra/fSnippetData. Issue146 (Application Support 이전) 은 사용자 결정으로 revert.
+    /// 기존 Application Support 경로가 UserDefaults 에 남아 있으면 Documents 로 자동 재지정.
     static func resolveAppRootPath() -> String {
         let envKey = "fSnippetCli_config"
         if let envPath = ProcessInfo.processInfo.environment[envKey], !envPath.isEmpty {
@@ -40,53 +39,22 @@ class PreferencesManager: PreferencesManagerProtocol {
         }
 
         let home = "/Users/\(NSUserName())"
-        let legacySeed = "\(home)/Documents/finfra/fSnippetData"
-        let newSeed = "\(home)/Library/Application Support/kr.finfra.fSnippetCli/data"
+        let seed = "\(home)/Documents/finfra/fSnippetData"
+        let deprecatedAppSupport = "\(home)/Library/Application Support/kr.finfra.fSnippetCli/data"
 
         if let stored = UserDefaults.standard.string(forKey: "appRootPath"), !stored.isEmpty {
-            // Issue146: stored may still point to legacy from pre-migration installs.
-            if stored == legacySeed {
-                migrateLegacyData(from: legacySeed, to: newSeed)
-                UserDefaults.standard.set(newSeed, forKey: "appRootPath")
-                // NOTE: NSLog (not logI) — this runs inside Logger.init via lazy logDirectoryURL,
-                // so calling logI here would re-enter AppSettingManager.shared.dispatch_once and SIGTRAP.
-                NSLog("⚙️ [Preference] Issue146 appRootPath migrated → %@", newSeed)
-                return newSeed
+            // Issue146 revert: deprecated Application Support 경로 잔존 시 Documents 로 재지정.
+            if stored == deprecatedAppSupport {
+                UserDefaults.standard.set(seed, forKey: "appRootPath")
+                NSLog("⚙️ [Preference] Issue146 revert: appRootPath → %@", seed)
+                return seed
             }
             return stored
         }
 
-        // First-boot path: detect legacy folder and migrate before persisting the new seed.
-        if FileManager.default.fileExists(atPath: legacySeed) {
-            migrateLegacyData(from: legacySeed, to: newSeed)
-        }
-        UserDefaults.standard.set(newSeed, forKey: "appRootPath")
-        NSLog("⚙️ [Preference] Issue146 seed appRootPath → %@", newSeed)
-        return newSeed
-    }
-
-    /// Issue146: Copy legacy data folder to new Application Support seed.
-    /// Preserves legacy for user-controlled cleanup. Skips if destination already populated.
-    /// NOTE: uses NSLog only — see resolveAppRootPath comment for re-entrancy details.
-    private static func migrateLegacyData(from legacy: String, to new: String) {
-        let fm = FileManager.default
-        guard fm.fileExists(atPath: legacy) else { return }
-        if let contents = try? fm.contentsOfDirectory(atPath: new), !contents.isEmpty {
-            NSLog("⚙️ [Preference] Issue146 destination already populated, skip migration: %@", new)
-            return
-        }
-        do {
-            let newURL = URL(fileURLWithPath: new)
-            try fm.createDirectory(at: newURL.deletingLastPathComponent(),
-                                   withIntermediateDirectories: true)
-            if fm.fileExists(atPath: new) {
-                try fm.removeItem(atPath: new)
-            }
-            try fm.copyItem(atPath: legacy, toPath: new)
-            NSLog("⚙️ [Preference] Issue146 data copied: %@ → %@ (legacy preserved)", legacy, new)
-        } catch {
-            NSLog("⚙️ ❌ [Preference] Issue146 migration failed: %@", error.localizedDescription)
-        }
+        UserDefaults.standard.set(seed, forKey: "appRootPath")
+        NSLog("⚙️ [Preference] seed appRootPath → %@", seed)
+        return seed
     }
 
     // 기본 경로 설정 (URL 기반)
