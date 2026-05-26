@@ -30,7 +30,7 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
-## Issue146: [cliApp] 권한 다이얼로그 반복 노출 영구 fix — 데이터 폴더 이전 + 다이얼로그 표시 조건 완화 (등록: 2026-05-26) (✅ 완료, fc0905c) ✅
+## Issue146: [cliApp] 권한 다이얼로그 반복 노출 영구 fix — 데이터 폴더 이전 + 다이얼로그 표시 조건 완화 (등록: 2026-05-26) (✅ 완료, fc0905c, 143f4a8) ✅
 * 목적: brew 재빌드·launchd respawn 시 Documents TCC 다이얼로그 + 접근성 NSAlert 반복 노출 차단
 * 구현 명세:
     - **A안 (데이터 폴더 이전)**: `PreferencesManager.resolveAppRootPath()` seed → `~/Library/Application Support/kr.finfra.fSnippetCli/data`. legacy `~/Documents/finfra/fSnippetData` 존재 시 1회 copyItem + UserDefaults 재기록 (legacy 보존)
