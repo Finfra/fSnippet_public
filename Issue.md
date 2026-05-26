@@ -6,8 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 151
+* Issue HWM: 152
 * Save Point :
+      - 2026.05.27: 62853ff (Revert(Issue152): Issue146 revert — appRootPath seed → ~/Documents/finfra/fSnippetData)
       - 2026.05.26: 2afc508 (Refactor(Issue150): pairApp 패턴 차용 — 권한 처리 simplify)
       - 2026.05.26: fde04ae (Fix(Issue149): TCC mismatch — alert 메시지 보강 + grant 전이 시 자동 dismiss)
       - 2026.05.26: 32a9591 (Fix(Issue148): 권한 OFF 시 revoke alert + respawn boot alert 두 번 노출 차단)
@@ -32,6 +33,17 @@ date: 2026-04-07
 # 📙 일반
 
 # ✅ 완료
+## Issue152: [cliApp] Issue146 revert — appRootPath seed → ~/Documents/finfra/fSnippetData (등록: 2026-05-27, 완료: 2026-05-27) (Hash: 62853ff) ✅
+* 목적: Issue146 (data root 를 `~/Library/Application Support/kr.finfra.fSnippetCli/data` 로 이전) 가 사용자 의도와 불일치. `~/Documents/finfra/fSnippetData/` 는 legacy 가 아닌 정식 SSOT 임을 확정.
+* 상세:
+    - `PreferencesManager.resolveAppRootPath()` seed → `~/Documents/finfra/fSnippetData`
+    - `migrateLegacyData()` 함수 제거
+    - UserDefaults `appRootPath` 가 deprecated Application Support 경로면 Documents 로 자동 재지정
+    - Application Support 폴더 (`~/Library/Application Support/kr.finfra.fSnippetCli`) 수동 삭제 (사용자 직접)
+* 구현 명세:
+    - ENV `fSnippetCli_config` override / UserDefaults priority 유지
+    - 마이그레이션 로직은 Documents → AS 단방향이 아닌 AS → Documents 자동 재지정으로 변경
+
 ## Issue151: [UI/Snippet] 스니펫 팝업 셀 단순화 — Issue140 클립보드 패턴 차용 (등록: 2026-05-26, 완료: 2026-05-26) (Hash: 60cb6e4) ✅
 * 목적: 스니펫 팝업 셀이 2행 VStack (abbreviation+folder badge / displayName) 으로 빽빽함. Issue140 에서 클립보드 셀을 1행으로 정리한 것과 동일 패턴으로 스니펫 셀도 단순화하여 한 화면에 더 많은 항목 표시
 * 참고: Issue140 (Hash: ba25957) — 클립보드 셀 단순화 (kindLabel·trash·timeString 제거, 1행, rowHeight 44→30, trash 버튼은 Preview 헤더로 이관)
