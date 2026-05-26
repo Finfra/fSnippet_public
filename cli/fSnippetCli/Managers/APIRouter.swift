@@ -2664,12 +2664,22 @@ class APIRouter {
       if let v = patch.historyShowStatusBar { config["history.showStatusBar"] = v }
       if let v = patch.historyForceInputSource { config["history.forceInputSource"] = v }
       if let v = patch.historyShowPreview { config["history.showPreview"] = v }
+      if let v = patch.historyImageDetailIsFloating { config["history.imageDetail.isFloating"] = v }  // Issue900
       if let v = patch.historyViewerWidth { config["history.viewer.width"] = v }
       if let v = patch.historyPreviewWidth { config["history.viewer_preview.width"] = v }
       if let v = patch.historyViewerHotkey { config["history.viewer.hotkey"] = v }
       if let v = patch.historyPauseHotkey { config["history.pause.hotkey"] = v }
       if let v = patch.historyPreviewHotkey { config["history.preview.hotkey"] = v }
       if let v = patch.historyRegisterSnippetHotkey { config["history.registerSnippet.hotkey"] = v }
+    }
+
+    // Issue900: Update SettingsObservableObject @Published properties so SwiftUI viewer re-renders immediately
+    let patchCopy = patch
+    DispatchQueue.main.async {
+      let obs = SettingsObservableObject.shared
+      if let v = patchCopy.historyShowStatusBar { obs.historyShowStatusBar = v }
+      if let v = patchCopy.historyShowPreview { obs.historyShowPreview = v }
+      if let v = patchCopy.historyImageDetailIsFloating { obs.historyImageDetailIsFloating = v }
     }
 
     return jsonResponse(buildV2History())

@@ -562,6 +562,7 @@ struct APIV2HistorySettingsPatch: Decodable {
   let historyShowStatusBar: Bool?
   let historyForceInputSource: String?
   let historyShowPreview: Bool?
+  let historyImageDetailIsFloating: Bool?  // Issue900
   let historyViewerWidth: Double?
   let historyPreviewWidth: Double?
   let historyViewerHotkey: String?
