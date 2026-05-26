@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 141
+* Issue HWM: 142
 * Save Point :
       - 2026.05.25: ba25957 (Feat(Issue140): 클립보드 히스토리 셀 단순화 + 복사 누락 캡처 보강)
       - 2026.05.24: cd95b0f (Close Issue139)
@@ -25,9 +25,23 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
+
 # 📗 선택
 
 # ✅ 완료
+## Issue142: [paidApp 연동] 첫 클릭 설정창 미표시 — `.started` 경로 URL scheme LaunchServices 폴백 신뢰성 (등록: 2026-05-25, 완료: 2026-05-25) (Hash: 4ab95f5) ✅
+* 목적: cliApp 자동기동 직후 첫 클릭 시 설정창이 여전히 열리지 않는 문제 해소 (Issue141 cliApp-side fix 불완전)
+* 상세:
+    - Issue141 fix: `.started` case → `activatePaidApp()` 후 0.1s 고정 딜레이 + `PaidAppDetector.openSettings()`
+    - paidApp 등록 미완료 상태(< ~3s)이면 `PaidAppStateStore.status()=nil` → LaunchServices 폴백(`NSWorkspace.open(schemeURL)`)
+    - LaunchServices 폴백은 DerivedData/캐시된 경로 등 잘못된 앱 인스턴스로 라우팅될 수 있어 URL scheme 미전달 가능
+    - `.stopped + autoLaunchConsent=true` 경로(`launchAndOpenSettings()`)는 `waitForPaidAppRegistration()` 적용됨 — `.started` 경로만 누락
+* 구현 명세:
+    - `PaidAppManager.handlePaidFeature()` `.started` case: 고정 0.1s asyncAfter → `waitForPaidAppRegistration()` 패턴으로 교체
+    - `launchAndOpenSettings()`와 동일: global queue에서 `waitForPaidAppRegistration()` 대기 후 main queue에서 `openSettings()` 호출
+    - registration 완료 시 1차 채널(bundlePath 직접 라우팅) 보장 → 신뢰성 향상
+    - 수정 파일: `cli/fSnippetCli/Managers/PaidAppManager.swift`
+
 ## Issue141: [paidApp 연동] 메뉴/단축키 첫 클릭 시 설정창 미표시 — startup 자동기동 race (등록: 2026-05-25, 완료: 2026-05-25) (Hash: a88736a) ✅
 * 목적: cliApp 시작 시 paidApp 자동 launch 직후 사용자가 메뉴바/단축키로 설정창을 열 때 첫 클릭에서 설정창 미표시 race 해소
 * 구현 명세:
