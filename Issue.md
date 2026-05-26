@@ -21,19 +21,6 @@ date: 2026-04-07
 1.
 
 # 🚧 진행중
-## Issue141: [paidApp 연동] 메뉴/단축키 첫 클릭 시 설정창 미표시 — startup 자동기동 race (등록: 2026-05-25)
-* 목적: cliApp 시작 시 paidApp을 자동 launch(설정창 없이)하는 기능은 정상이나, 직후 사용자가 메뉴바/단축키로 설정창을 열려 할 때 첫 클릭에서 설정창이 안 뜨고 두 번 클릭해야 열리는 race 해소
-* 상세:
-    - 현재 흐름: cliApp `applicationDidFinishLaunching` 에서 `PaidAppManager.launchPaidApp()` 호출 (URL scheme 없이) → paidApp 프로세스 기동 → 설정창 미표시 (의도된 startup 동작)
-    - 문제: paidApp 기동 직후 `paidAppStateChanged` 알림이 도달하기 전(`AppStateManager.paidAppStatus == .stopped` 유지) 사용자가 메뉴/단축키 클릭 시 `PaidAppManager.handlePaidFeature()` 가 `.stopped` 분기로 진입
-        * `autoLaunchConsent==false` → `showRequirePaidAlert()` consent 다이얼로그 표시 (설정창 대신 다이얼로그가 뜸)
-        * `autoLaunchConsent==true` → `launchAndOpenSettings()` 진입하여 `launchPaidApp()` 재호출 + register 대기 후 `openSettings()` (5초 이상 지연 가능)
-    - 결과: 첫 클릭에서 설정창이 즉시 안 뜸 → 두 번째 클릭에서야 `.started` 인지 후 정상 동작
-* 구현 명세:
-    - `PaidAppManager.handlePaidFeature()` 진입 시점에 cached `paidAppStatus` 의존을 줄이고 NSWorkspace 직접 확인(`isRunning()`)으로 fresh 상태 평가
-    - paidApp 프로세스가 실제로 떠 있으면 (process running) `.started` 와 동일하게 처리: `activatePaidApp()` + `PaidAppDetector.openSettings()` 직행 (consent/launch 우회)
-    - 수정 파일: `cli/fSnippetCli/Managers/PaidAppManager.swift`
-
 
 # 📕 중요
 
@@ -41,6 +28,14 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue141: [paidApp 연동] 메뉴/단축키 첫 클릭 시 설정창 미표시 — startup 자동기동 race (등록: 2026-05-25, 완료: 2026-05-25) (Hash: a88736a) ✅
+* 목적: cliApp 시작 시 paidApp 자동 launch 직후 사용자가 메뉴바/단축키로 설정창을 열 때 첫 클릭에서 설정창 미표시 race 해소
+* 구현 명세:
+    - `PaidAppManager.handlePaidFeature()`: `AppStateManager.paidAppStatus` 캐시 → `isRunning()`/`isInstalled()` NSWorkspace 직접 조회로 freshStatus 결정. paidApp 실행 중이면 consent/launch 우회하고 `.started` 분기로 직행
+    - `activatePaidApp()` 후 `openSettings()` 를 0.1s `asyncAfter` 지연 — activation 처리 전 URL scheme 수신 race 해소
+    - `KeyEventProcessor.isPaidAppForeground()`: `WindowContextManager` 캐시 → `NSWorkspace.shared.frontmostApplication` 직접 조회로 전환 (동일 race 패턴)
+    - 수정 파일: `PaidAppManager.swift`, `KeyEventProcessor.swift`
+
 ## Issue140: [UI/Clipboard] 클립보드 히스토리 셀 단순화 + 복사 누락 캡처 보강 (등록: 2026-05-25, 완료: 2026-05-25) (Hash: ba25957) ✅
 * 목적:
     - (UI) 클립보드 히스토리 팝업 셀을 1행으로 단순화하여 한 화면에 더 많은 항목 표시
