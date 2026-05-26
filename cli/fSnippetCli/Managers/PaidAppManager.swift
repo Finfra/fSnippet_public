@@ -183,12 +183,25 @@ class PaidAppManager {
     /// - .stopped + autoLaunchConsent==false → showRequirePaidAlert (최초 1회 동의)
     /// - .stopped + autoLaunchConsent==true  → 다이얼로그 생략, launchAndOpenSettings (Issue112)
     /// - .started → activate(foreground) + openSettings (Issue113)
+    ///
+    /// Issue141: cliApp startup 직후 자동 launch 된 paidApp 의 `paidAppStateChanged`
+    /// 알림 도달 전이라도 NSWorkspace 직접 확인으로 fresh 평가하여 race 해소.
     func handlePaidFeature() {
-        switch AppStateManager.shared.paidAppStatus {
+        // Issue141: cached paidAppStatus 의 stale 상태(특히 .stopped) 가 첫 클릭을 consent
+        // 다이얼로그/launchAndOpenSettings 우회 경로로 잘못 라우팅하지 않도록 fresh check.
+        let freshStatus: PaidAppStatus = {
+            if isRunning() { return .started }
+            if isInstalled() { return .stopped }
+            return .notInstall
+        }()
+        switch freshStatus {
         case .started:
             // Issue113: URL Scheme만으로는 foreground 보장이 약하므로 명시적 activate 선행
+            // Delay openSettings to allow paidApp to process activation before receiving URL scheme.
             activatePaidApp()
-            PaidAppDetector.openSettings()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                PaidAppDetector.openSettings()
+            }
         case .stopped:
             if autoLaunchConsent {
                 logI("🏷️ [PaidApp] 동의 기반 자동 기동 (Issue112)")

@@ -269,8 +269,9 @@ class KeyEventProcessor: CGEventTapManagerDelegate {
     }
 
     /// Issue881: Whether paidApp (fSnippet GUI) is the current foreground app.
+    /// Uses synchronous check to avoid race condition when paidApp was just activated.
     func isPaidAppForeground() -> Bool {
-        return WindowContextManager.shared.isPaidAppForeground
+        return NSWorkspace.shared.frontmostApplication?.bundleIdentifier == "kr.finfra.fSnippet"
     }
 
     /// Protocol Conformance for CGEventTapManagerDelegate
