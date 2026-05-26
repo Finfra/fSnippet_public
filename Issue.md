@@ -6,8 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 147
+* Issue HWM: 148
 * Save Point :
+      - 2026.05.26: 32a9591 (Fix(Issue148): 권한 OFF 시 revoke alert + respawn boot alert 두 번 노출 차단)
       - 2026.05.26: b52a39d (Fix(Issue147): 권한 OFF 시 NSAlert 두 번 노출 — ErrorRecoveryManager alert 경로 제거)
       - 2026.05.26: fc0905c (Fix(Issue146): 권한 다이얼로그 반복 노출 영구 fix — Application Support 이전 + 가드)
       - 2026.05.25: ba25957 (Feat(Issue140): 클립보드 히스토리 셀 단순화 + 복사 누락 캡처 보강)
@@ -31,6 +32,15 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue148: [cliApp] 권한 OFF → revoke alert + launchd 재시작 boot alert 두 번 노출 (등록: 2026-05-26) (✅ 완료, 32a9591) ✅
+* 목적: revoke alert 표시 후 cliApp terminate → launchd KeepAlive 재시작 → boot 시 showAccessibilityAlert 가 또 표시되는 두 alert 시퀀스 차단
+* 상세: Issue147 은 키 이벤트 실패 경로 alert 만 차단. revoke + respawn 경로는 별개 — KeepAlive.SuccessfulExit=false 로 정상 종료도 재시작
+* 구현 명세:
+    - revoke 시 UserDefaults `suppressBootAlertOnce=true` 마커 세팅 후 terminate
+    - boot 시 `checkAccessibilityPermission` 에서 마커 존재 + 권한 미승인이면 alert skip + 마커 clear
+    - polling 그대로 시작. 사용자가 권한 재부여하면 grant 전이 감지하여 reinit
+* 검증: 빌드·brew local 9/9 PASS
+
 ## Issue147: [cliApp] 권한 OFF 시 NSAlert 두 번 노출 — ErrorRecoveryManager alert 경로 제거 (등록: 2026-05-26) (✅ 완료, b52a39d) ✅
 * 목적: 시스템 설정 접근성 권한 OFF 시 두 NSAlert 동시 노출 차단
 * 상세: 경로 A(`fSnippetCliApp.handleAccessibilityRevoked` polling)와 경로 B(`ErrorRecoveryManager.showAccessibilityPermissionAlert` 키 실패 후 안내)가 동시 트리거되어 중복. Issue146 버전 가드는 부팅 첫 표시만 차단 — revoke 시 B 가 첫 표시면 통과
