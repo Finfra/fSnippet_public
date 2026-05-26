@@ -6,8 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 146
+* Issue HWM: 147
 * Save Point :
+      - 2026.05.26: b52a39d (Fix(Issue147): 권한 OFF 시 NSAlert 두 번 노출 — ErrorRecoveryManager alert 경로 제거)
       - 2026.05.26: fc0905c (Fix(Issue146): 권한 다이얼로그 반복 노출 영구 fix — Application Support 이전 + 가드)
       - 2026.05.25: ba25957 (Feat(Issue140): 클립보드 히스토리 셀 단순화 + 복사 누락 캡처 보강)
       - 2026.05.24: cd95b0f (Close Issue139)
@@ -30,6 +31,15 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue147: [cliApp] 권한 OFF 시 NSAlert 두 번 노출 — ErrorRecoveryManager alert 경로 제거 (등록: 2026-05-26) (✅ 완료, b52a39d) ✅
+* 목적: 시스템 설정 접근성 권한 OFF 시 두 NSAlert 동시 노출 차단
+* 상세: 경로 A(`fSnippetCliApp.handleAccessibilityRevoked` polling)와 경로 B(`ErrorRecoveryManager.showAccessibilityPermissionAlert` 키 실패 후 안내)가 동시 트리거되어 중복. Issue146 버전 가드는 부팅 첫 표시만 차단 — revoke 시 B 가 첫 표시면 통과
+* 구현 명세:
+    - `ErrorRecoveryManager.handleAccessibilityPermission()` 의 `showAccessibilityPermissionAlert()` 호출 제거, `logW` 만 유지
+    - `showAccessibilityPermissionAlert()` 함수 삭제 (호출자 없음). Issue146 버전 가드 코드 정리
+    - polling 경로 A 가 NSAlert SSOT. 부팅 시 미승인 안내 (경로 C) 는 그대로 유지
+* 검증: 빌드 + brew local 재배포 정상, REST 3015 응답 OK, 9/9 PASS
+
 ## Issue146: [cliApp] 권한 다이얼로그 반복 노출 영구 fix — 데이터 폴더 이전 + 다이얼로그 표시 조건 완화 (등록: 2026-05-26) (✅ 완료, fc0905c, 143f4a8) ✅
 * 목적: brew 재빌드·launchd respawn 시 Documents TCC 다이얼로그 + 접근성 NSAlert 반복 노출 차단
 * 구현 명세:
