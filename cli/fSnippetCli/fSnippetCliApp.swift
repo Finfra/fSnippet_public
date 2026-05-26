@@ -62,18 +62,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// 키 이벤트 모니터 (Core 엔진)
     var keyEventMonitor: KeyEventMonitor?
 
-    /// Accessibility 권한 런타임 모니터 타이머 (Issue42 Phase B + Issue117 통합)
-    /// 5초 주기로 `AXIsProcessTrusted()`를 재검사하여 양방향 전이를 감지함:
-    ///   - 부여 전이(`false → true`): `KeyEventMonitor` 자동 재초기화 (Issue42)
-    ///   - 박탈 전이(`true → false`): CGEventTap 정리 + NSAlert + 자체 종료 (Issue117)
-    /// 박탈 시 즉시 종료하므로 시스템 슬로다운(`handleTapDisabled` 재시도 루프) 차단.
-    private var accessibilityMonitorTimer: Timer?
-
-    /// 직전 폴링 시점의 trusted 상태 — 전이(grant/revoke) 감지에 사용
-    private var lastAccessibilityTrusted: Bool = false
-
-    /// Issue149: 표시 중인 accessibility alert — grant 전이 감지 시 abortModal 로 자동 dismiss
-    private var pendingAccessibilityAlert: NSAlert?
+    /// Issue150: pairApp 패턴 차용 — accessibility 체크용 service.
+    /// 폴링·revoke·자동 dismiss 모두 제거. 부팅 시 1회 alert 만.
+    private let accessibilityService: AccessibilityService = SystemAccessibilityService()
 
     /// 중복 인스턴스 여부 — true 이면 applicationWillTerminate 에서 정리 로직 건너뜀
     private var isDuplicateInstance = false
@@ -257,154 +248,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - 접근성 권한 체크
 
-    /// 접근성 권한 확인 및 요청
-    /// CGEventTap, 키 시뮬레이션 등 핵심 기능에 필수
-    ///
-    /// Issue42 Phase A (2026-04-19): pairApp(fWarrangeCli) 패턴 이식.
-    /// 시스템 "Accessibility Access" 프롬프트와 커스텀 NSAlert가 중첩되는 문제를 해결하기 위해
-    /// `AXIsProcessTrustedWithOptions(prompt: true)` → `AXIsProcessTrusted()`로 전환.
-    /// 시스템 프롬프트는 표시하지 않고, 커스텀 NSAlert로만 사용자 안내 + 시스템 설정 deep link 제공.
+    /// Issue150: pairApp 패턴 차용 — 부팅 시 1회 alert 만.
+    /// 폴링·revoke 핸들러·자동 dismiss·suppressBootAlertOnce 마커 모두 제거.
+    /// 권한 박탈 시 system slowdown 위험은 `KeyEventMonitor.handleTapDisabled` 자체 fallback 에 위임.
+    /// 권한 부여 후 사용자가 cliApp 을 재시작해야 함 (brew services restart 또는 메뉴바).
     private func checkAccessibilityPermission() {
-        let trusted = AXIsProcessTrusted()
-        lastAccessibilityTrusted = trusted
-
-        if trusted {
+        if accessibilityService.isAccessibilityGranted() {
             logI("접근성 권한: 승인됨")
         } else {
-            // Issue148: revoke 직후 launchd 가 KeepAlive 로 재시작했을 때 boot alert 를 1회 skip.
-            // 직전 인스턴스의 handleAccessibilityRevoked() 가 alert 를 이미 노출했으므로
-            // respawn 후 동일 anlert 가 또 뜨면 사용자에게 같은 다이얼로그가 두 번 보임.
-            let suppressKey = "suppressBootAlertOnce"
-            let shouldSuppress = UserDefaults.standard.bool(forKey: suppressKey)
-            if shouldSuppress {
-                UserDefaults.standard.removeObject(forKey: suppressKey)
-                logW("접근성 권한: 미승인 — Issue148 suppressBootAlertOnce 마커로 boot alert skip")
-            } else {
-                logW("접근성 권한: 미승인")
-                showAccessibilityAlert()
-            }
-        }
-        // Issue117: 시작 상태와 무관하게 양방향 모니터 가동 (grant/revoke 모두 감지)
-        startAccessibilityMonitoring()
-    }
-
-    /// Accessibility 권한 런타임 양방향 모니터 (Issue42 Phase B + Issue117)
-    ///
-    /// 5초 주기로 `AXIsProcessTrusted()`를 재검사하여 직전 상태 대비 전이를 감지함:
-    ///   - 미승인 → 승인: `reinitializeKeyEventMonitor()` (Issue42)
-    ///   - 승인 → 미승인: `handleAccessibilityRevoked()` — 알림 + 자체 종료 (Issue117)
-    /// 박탈 즉시 CGEventTap을 정리하여 `handleTapDisabled` 재시도 루프로 인한
-    /// 시스템 슬로다운을 차단함.
-    private func startAccessibilityMonitoring() {
-        guard accessibilityMonitorTimer == nil else { return }
-
-        accessibilityMonitorTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] timer in
-            guard let self else {
-                timer.invalidate()
-                return
-            }
-
-            let nowTrusted = AXIsProcessTrusted()
-            let wasTrusted = self.lastAccessibilityTrusted
-
-            if !wasTrusted && nowTrusted {
-                // grant 전이
-                self.lastAccessibilityTrusted = true
-                logI("✅ 접근성 권한 부여 감지 — KeyEventMonitor 재초기화")
-                // Issue149: 표시 중인 alert 자동 dismiss (사용자가 OFF→ON 토글 후 alert 가 그대로 남는 문제 회피)
-                if self.pendingAccessibilityAlert != nil {
-                    DispatchQueue.main.async {
-                        NSApplication.shared.abortModal()
-                        self.pendingAccessibilityAlert = nil
-                        logI("✅ 접근성 alert 자동 dismiss (grant 전이)")
-                    }
-                }
-                self.reinitializeKeyEventMonitor()
-            } else if wasTrusted && !nowTrusted {
-                // revoke 전이 — Issue117
-                self.lastAccessibilityTrusted = false
-                logE("🛑 Accessibility 권한 박탈 감지 — 앱 종료 절차 진입")
-                timer.invalidate()
-                self.accessibilityMonitorTimer = nil
-                self.handleAccessibilityRevoked()
-            }
-        }
-        logI("⏱️ 접근성 권한 모니터링 시작 (5초 주기, 양방향 전이 감지)")
-    }
-
-    /// Issue42 Phase B: KeyEventMonitor 재초기화
-    ///
-    /// 권한 부여 감지 시 호출됨. 기존 monitor를 cleanup + 새 인스턴스 생성 + startMonitoring.
-    /// CGEventTap 핸들이 권한 미승인으로 실패 상태였다면 새로 생성된 monitor에서
-    /// Tap이 정상 등록되어 키 이벤트 감지가 활성화됨.
-    private func reinitializeKeyEventMonitor() {
-        keyEventMonitor?.stopMonitoring()
-        keyEventMonitor?.cleanup()
-        keyEventMonitor = KeyEventMonitor(onPotentialAbbreviation: { _ in })
-        keyEventMonitor?.startMonitoring()
-        logI("✅ KeyEventMonitor 재초기화 완료 — 키 이벤트 감지 활성화")
-    }
-
-    /// Issue117: 런타임 권한 박탈 처리 — CGEventTap 정리 + NSAlert + 자체 종료
-    ///
-    /// 권한 박탈 시 `CGEventTap`이 비활성화되며 `handleTapDisabled` 콜백이 폭주하여
-    /// 메인 큐를 점유 → 시스템 전반 슬로다운을 유발함. 박탈 감지 시 즉시 monitor를
-    /// 정리하여 재시도 루프를 차단하고, 사용자에게 안내 후 자체 종료함.
-    private func handleAccessibilityRevoked() {
-        // 1. CGEventTap 완전 정리 — 재시도 루프 차단 (slowdown 방지의 핵심)
-        keyEventMonitor?.stopMonitoring()
-        keyEventMonitor?.cleanup()
-        keyEventMonitor = nil
-        logI("🛑 KeyEventMonitor 정리 완료 — CGEventTap 재시도 루프 차단")
-
-        // Issue148: launchd KeepAlive 가 재시작할 때 boot alert 가 또 표시되는 것을 차단.
-        // checkAccessibilityPermission() 이 이 마커를 보면 alert 를 1회 skip 하고 마커를 지움.
-        UserDefaults.standard.set(true, forKey: "suppressBootAlertOnce")
-
-        // 2. 사용자 안내 NSAlert
-        let alert = NSAlert()
-        alert.messageText = NSLocalizedString(
-            "Accessibility Permission Revoked",
-            comment: "Alert title when accessibility permission is revoked at runtime"
-        )
-        alert.informativeText = NSLocalizedString(
-            "Accessibility permission for fSnippetCli has been revoked.\n\nThe app will quit. Re-grant the permission in System Settings > Privacy & Security > Accessibility, then relaunch the app.",
-            comment: "Alert body explaining revocation and quit"
-        )
-        alert.alertStyle = .critical
-        alert.addButton(withTitle: NSLocalizedString("Open System Settings", comment: "Button to open System Settings"))
-        alert.addButton(withTitle: NSLocalizedString("Quit", comment: "Button to quit the app"))
-
-        let response = alert.runModal()
-        if response == .alertFirstButtonReturn {
-            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                NSWorkspace.shared.open(url)
-            }
-        }
-
-        // 3. 자체 종료 — 응답과 무관 (시스템 설정 열기 후에도 종료)
-        logI("🛑 Accessibility 권한 박탈 — 자체 종료 호출")
-        NSApplication.shared.terminate(nil)
-    }
-
-    /// 접근성 권한 미승인 시 사용자에게 알림 표시
-    /// Issue149: alert 인스턴스를 ivar 로 보관하여 grant 전이 시 polling 이 abortModal 로 자동 dismiss
-    private func showAccessibilityAlert() {
-        let alert = NSAlert()
-        alert.messageText = NSLocalizedString("Accessibility Permission Required", comment: "Alert title when accessibility permission is not granted")
-        alert.informativeText = NSLocalizedString(
-            "fSnippetCli requires accessibility permission to monitor keyboard input.\n\n시스템 설정 > 개인정보 보호 및 보안 > 접근성에서 fSnippetCli 를 허용해주세요.\n\nbrew 재배포 직후 권한 매칭이 깨졌을 수 있습니다. 이 경우 토글을 OFF → ON 한 번 다시 누르면 됩니다.",
-            comment: "Alert body explaining how to grant accessibility permission")
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: NSLocalizedString("Open System Settings", comment: "Button to open System Settings"))
-        alert.addButton(withTitle: NSLocalizedString("Later", comment: "Button to dismiss the alert"))
-
-        pendingAccessibilityAlert = alert
-        let response = alert.runModal()
-        pendingAccessibilityAlert = nil
-
-        if response == .alertFirstButtonReturn {
-            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+            logW("접근성 권한: 미승인 — 사용자 안내 alert 표시")
+            AccessibilityGuidePresenter.show(service: accessibilityService)
         }
     }
 }
