@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 144
+* Issue HWM: 145
 * Save Point :
       - 2026.05.25: ba25957 (Feat(Issue140): 클립보드 히스토리 셀 단순화 + 복사 누락 캡처 보강)
       - 2026.05.24: cd95b0f (Close Issue139)
@@ -29,6 +29,17 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue145: [cliApp] paidApp 실행 중 설정창 열기 실패 — .started 경로 5초 블로킹 해소 (등록: 2026-05-26) (✅ 완료, 2934048) ✅
+* 목적: paidApp이 이미 실행 중일 때 메뉴바/단축키로 설정창을 즉시 열기
+* 상세:
+    - cliApp 재시작 후 paidApp은 re-register를 하지 않아 PaidAppStateStore.status()=nil
+    - `.started` 경로에서 `waitForPaidAppRegistration()` 이 5초 대기 후 타임아웃 → 설정창 열리지 않는 문제
+    - `activatePaidApp()` 누락으로 paidApp이 foreground로 올라오지 않는 문제 동시 해소
+* 구현 명세:
+    - `PaidAppManager.openSettings()` `.started` 케이스: `waitForPaidAppRegistration()` 제거, `activatePaidApp()` 추가
+    - paidApp 이미 실행 중이므로 등록 대기 불필요 — PaidAppDetector.openSettings()가 1채널(bundlePath)/2채널(LaunchServices) 자동 선택
+    - `activatePaidApp()` 안전: paidApp.applicationDidBecomeActive가 비어있음 (Issue144)
+
 ## Issue144: [cliApp] 설정창 무조건 열기 — consent 우회 + activatePaidApp 제거 (등록: 2026-05-26) (✅ 완료, 4a51b18) ✅
 * 목적: 단축키/메뉴바로 설정창 열 때 autoLaunchConsent 플래그와 무관하게 무조건 settings 진입
 * 상세:
