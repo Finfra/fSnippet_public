@@ -235,20 +235,10 @@ class ErrorRecoveryManager {
             logV("🔫 접근성 권한 확인됨")
             completion(true)
         } else {
-            logW("🔫 접근성 권한이 여전히 없음")
-            // Issue146: Show alert at most once per app version.
-            // Revocation via System Settings is handled by the polling monitor in
-            // fSnippetCliApp.swift (양방향 전이 감지), so suppressing the recovery-path
-            // alert avoids dialog spam on brew restart / launchd respawn loops.
-            let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
-            let shownKey = "accessibilityAlertShownVersion"
-            let lastShown = UserDefaults.standard.string(forKey: shownKey)
-            if lastShown != currentVersion {
-                UserDefaults.standard.set(currentVersion, forKey: shownKey)
-                showAccessibilityPermissionAlert()
-            } else {
-                logI("🔫 Issue146: accessibility alert suppressed (already shown for \(currentVersion))")
-            }
+            // Issue147: NSAlert is owned by fSnippetCliApp polling (showAccessibilityAlert at boot,
+            // handleAccessibilityRevoked on runtime revoke). Recovery path stays log-only to avoid
+            // double-dialog when permission is toggled off in System Settings.
+            logW("🔫 접근성 권한 미승인 — alert 은 fSnippetCliApp polling 경로에서 처리")
             completion(false)
         }
     }
@@ -416,22 +406,10 @@ class ErrorRecoveryManager {
         }
     }
     
-    private func showAccessibilityPermissionAlert() {
-        DispatchQueue.main.async {
-            let alert = NSAlert()
-            alert.alertStyle = .warning
-            alert.messageText = "🔐 접근성 권한 필요"
-            alert.informativeText = "fSnippet이 정상적으로 작동하려면 접근성 권한이 필요합니다.\n\n시스템 환경설정 > 보안 및 개인 정보 보호 > 접근성에서 fSnippet을 허용해주세요."
-            alert.addButton(withTitle: "설정 열기")
-            alert.addButton(withTitle: "취소")
-            
-            let response = alert.runModal()
-            if response == .alertFirstButtonReturn {
-                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
-            }
-        }
-    }
-    
+    // Issue147: showAccessibilityPermissionAlert() removed.
+    // Accessibility NSAlert is owned by fSnippetCliApp polling path
+    // (showAccessibilityAlert at boot, handleAccessibilityRevoked on runtime revoke).
+
     private func openSystemPreferences(for error: SnippetError) {
         switch error.category {
         case .settings, .system:
