@@ -30,22 +30,21 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
-## Issue151: [UI/Snippet] 스니펫 팝업 셀 단순화 — Issue140 클립보드 패턴 차용 (등록: 2026-05-26)
-* 목적: 스니펫 팝업(`⌃⌥⌘ ;` 와 유사) 셀이 2행 VStack (abbreviation+folder badge / displayName) 으로 빽빽함. Issue140 에서 클립보드 셀을 1행으로 정리한 것과 동일 패턴으로 스니펫 셀도 단순화하여 한 화면에 더 많은 항목 표시
+
+# ✅ 완료
+## Issue151: [UI/Snippet] 스니펫 팝업 셀 단순화 — Issue140 클립보드 패턴 차용 (등록: 2026-05-26, 완료: 2026-05-26) (Hash: 60cb6e4) ✅
+* 목적: 스니펫 팝업 셀이 2행 VStack (abbreviation+folder badge / displayName) 으로 빽빽함. Issue140 에서 클립보드 셀을 1행으로 정리한 것과 동일 패턴으로 스니펫 셀도 단순화하여 한 화면에 더 많은 항목 표시
 * 참고: Issue140 (Hash: ba25957) — 클립보드 셀 단순화 (kindLabel·trash·timeString 제거, 1행, rowHeight 44→30, trash 버튼은 Preview 헤더로 이관)
-* 상세:
-    - 현재 `SnippetRowView` 구조: HStack [icon / VStack(HStack(abbr, folderBadge), HStack(displayName))] / shortcut / pencil]
-    - 30px rowHeight 에 2행 VStack 이 들어가 폰트/패딩이 겹쳐 보이고, abbreviation/description/folder 가 시각적으로 혼잡
 * 구현 명세:
     - `SnippetRowView` 1행 HStack 으로 재구성: [icon] [abbreviation (mono semibold)] [displayName (truncate, secondary)] [folderBadge] [shortcut?] [pencil(selected/hover)]
     - VStack 내부 2행 구조 제거, abbreviation·displayName 같은 baseline 정렬
-    - pencil 편집 버튼은 셀에 유지 (paidApp 안내 트리거 — 사용자가 자주 누르므로 Preview 헤더로 옮기면 발견성 저하). 단, hover/selected 시에만 표시는 유지
+    - pencil 편집 버튼은 셀에 유지 (paidApp 안내 트리거 — 사용자가 자주 누르므로 Preview 헤더로 옮기면 발견성 저하). 단, hover/selected 시에만 표시 유지
     - 수정 파일: `cli/fSnippetCli/Views/Popup/SnippetRowView.swift`
 * trade-off:
     - 1행 변경으로 긴 displayName 은 truncate. 사용자가 전체 description 보려면 우측 SnippetPreviewView 활용
-    - rowHeight 는 PopupUIConstants.rowHeight (30) 유지 — 윈도우 높이 계산 영향 없음
+    - rowHeight 는 `PopupUIConstants.rowHeight` (30) 유지 — 윈도우 높이 계산 영향 없음
+* 검증: xcodebuild Release BUILD SUCCEEDED + brew local 9/9 PASS
 
-# ✅ 완료
 ## Issue150: [cliApp] pairApp 패턴 차용 — 권한 처리 simplify (등록: 2026-05-26) (✅ 완료, 2afc508) ✅
 * 목적: pairApp(fWarrangeCli) 의 단순한 권한 처리 패턴(AccessibilityService + AccessibilityGuidePresenter)을 이식. 폴링·revoke·abortModal·마커 등 누적된 복잡성 제거
 * 구현 명세:
