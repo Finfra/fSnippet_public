@@ -156,8 +156,11 @@ class PaidAppManager {
         return false
     }
 
-    /// Launch paidApp, wait for register/running, then activate + openSettings on the main queue.
+    /// Launch paidApp, wait for register/running, then openSettings on the main queue.
     /// Used by both consent-based auto-launch (Issue112) and explicit [열기] click.
+    /// Note: activatePaidApp() removed (Issue144) — URL scheme's activates=true handles foreground;
+    /// calling activatePaidApp() before URL scheme fires applicationDidBecomeActive which
+    /// consumes initialActivationHandled before the scheme arrives, causing settings to be suppressed.
     private func launchAndOpenSettings() {
         guard launchPaidApp() else {
             logW("🏷️ [PaidApp] launch 실패 — settings 열기 중단")
@@ -165,11 +168,8 @@ class PaidAppManager {
         }
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self else { return }
-            let registered = self.waitForPaidAppRegistration()
+            _ = self.waitForPaidAppRegistration()
             DispatchQueue.main.async {
-                if registered {
-                    self.activatePaidApp()
-                }
                 PaidAppDetector.openSettings()
             }
         }
@@ -216,6 +216,34 @@ class PaidAppManager {
             } else {
                 showRequirePaidAlert()
             }
+        case .notInstall:
+            showPaidOnlyAlert()
+        }
+    }
+
+    /// 설정창 직접 열기 — consent 우회 (Issue144)
+    /// 단축키/메뉴바 트리거 전용. autoLaunchConsent 무관하게 무조건 settings 진입.
+    /// - .started → wait for registration + openSettings (activatePaidApp 생략, URL scheme activates)
+    /// - .stopped → launchAndOpenSettings (consent 체크 없이 바로 기동)
+    /// - .notInstall → showPaidOnlyAlert
+    func openSettings() {
+        let freshStatus: PaidAppStatus = {
+            if isRunning() { return .started }
+            if isInstalled() { return .stopped }
+            return .notInstall
+        }()
+        switch freshStatus {
+        case .started:
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                guard let self else { return }
+                _ = self.waitForPaidAppRegistration()
+                DispatchQueue.main.async {
+                    PaidAppDetector.openSettings()
+                }
+            }
+        case .stopped:
+            logI("🏷️ [PaidApp] 설정창 직접 기동 — consent 우회 (Issue144)")
+            launchAndOpenSettings()
         case .notInstall:
             showPaidOnlyAlert()
         }

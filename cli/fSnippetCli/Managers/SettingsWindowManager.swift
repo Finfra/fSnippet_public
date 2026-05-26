@@ -15,9 +15,9 @@ class SettingsWindowManager: NSObject {
 
     // MARK: - Public Methods
 
-    /// 설정 열기 — PaidAppManager에 위임
+    /// 설정 열기 — PaidAppManager에 위임 (Issue144: consent 우회, openSettings 경로)
     func showSettings() {
-        PaidAppManager.shared.handlePaidFeature()
+        PaidAppManager.shared.openSettings()
     }
 
     func hideSettings() {}
