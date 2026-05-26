@@ -223,9 +223,12 @@ class PaidAppManager {
 
     /// 설정창 직접 열기 — consent 우회 (Issue144)
     /// 단축키/메뉴바 트리거 전용. autoLaunchConsent 무관하게 무조건 settings 진입.
-    /// - .started → wait for registration + openSettings (activatePaidApp 생략, URL scheme activates)
+    /// - .started → activatePaidApp + openSettings (Issue145: waitForPaidAppRegistration 제거,
+    ///             cliApp 재시작 후 paidApp 미등록 시 5초 블로킹 방지. paidApp 실행 중이므로 대기 불필요)
     /// - .stopped → launchAndOpenSettings (consent 체크 없이 바로 기동)
     /// - .notInstall → showPaidOnlyAlert
+    ///
+    /// Note: activatePaidApp() is safe here — paidApp.applicationDidBecomeActive is empty (Issue144)
     func openSettings() {
         let freshStatus: PaidAppStatus = {
             if isRunning() { return .started }
@@ -234,12 +237,12 @@ class PaidAppManager {
         }()
         switch freshStatus {
         case .started:
-            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-                guard let self else { return }
-                _ = self.waitForPaidAppRegistration()
-                DispatchQueue.main.async {
-                    PaidAppDetector.openSettings()
-                }
+            // Issue145: paidApp is already running — no registration wait needed.
+            // activatePaidApp() is safe (applicationDidBecomeActive is empty in paidApp after Issue144).
+            // PaidAppDetector.openSettings() uses 1st channel if registered, LaunchServices fallback if not.
+            activatePaidApp()
+            DispatchQueue.main.async {
+                PaidAppDetector.openSettings()
             }
         case .stopped:
             logI("🏷️ [PaidApp] 설정창 직접 기동 — consent 우회 (Issue144)")
