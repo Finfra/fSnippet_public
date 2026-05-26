@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 143
+* Issue HWM: 144
 * Save Point :
       - 2026.05.25: ba25957 (Feat(Issue140): 클립보드 히스토리 셀 단순화 + 복사 누락 캡처 보강)
       - 2026.05.24: cd95b0f (Close Issue139)
@@ -29,6 +29,16 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue144: [cliApp] 설정창 무조건 열기 — consent 우회 + activatePaidApp 제거 (등록: 2026-05-26) (✅ 완료, 4a51b18) ✅
+* 목적: 단축키/메뉴바로 설정창 열 때 autoLaunchConsent 플래그와 무관하게 무조건 settings 진입
+* 상세:
+    - `.stopped + autoLaunchConsent=false` → `showRequirePaidAlert()` 다이얼로그 block 해소
+    - `launchAndOpenSettings()` 내 `activatePaidApp()` 제거 — activatePaidApp이 applicationDidBecomeActive를 미리 소비해 initialActivationHandled 소진, URL scheme 도달 전 paidApp settings 억제하는 race 해소
+* 구현 명세:
+    - `PaidAppManager.openSettings()` 신규: consent 체크 없이 fresh status 평가 후 분기
+    - `launchAndOpenSettings()`: `activatePaidApp()` 호출 제거 (URL scheme activates=true 의존)
+    - `SettingsWindowManager.showSettings()`: `handlePaidFeature()` → `openSettings()` 교체
+
 ## Issue143: [cliApp] openSettings() 중복 요청 방지 플래그 추가 (등록: 2026-05-26) (✅ 완료, f51f4e0) ✅
 * 목적: paidApp Issue899와 연계하여 cliApp 측에서도 settings 열기 요청을 1회로 제한, 빠른 연속 클릭에 의한 paidApp 플래그 경쟁 조건 방지
 * 상세:
