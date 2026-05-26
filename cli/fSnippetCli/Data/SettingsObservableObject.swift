@@ -834,7 +834,7 @@ class SettingsObservableObject: ObservableObject {
         self.historyShowPreview = coreSettings.historyShowPreview  // CL042
         self.historyPreviewHotkey = coreSettings.historyPreviewHotkey  // CL042
         self.historyRegisterSnippetHotkey = coreSettings.historyRegisterSnippetHotkey  // CL042
-        self.historyImageDetailIsFloating = defaults.bool(forKey: "history.imageDetail.isFloating")  // CL067
+        self.historyImageDetailIsFloating = prefs.bool(forKey: "history.imageDetail.isFloating", defaultValue: false)  // CL067 fix: load from PreferencesManager (saved to _config.yml), not UserDefaults
 
         // Issue Fix: Load History Widths from Core Settings
         self.historyViewerWidth = coreSettings.historyViewerWidth
