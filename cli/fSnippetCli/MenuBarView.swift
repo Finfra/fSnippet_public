@@ -257,8 +257,10 @@ struct MenuBarView: View {
     }
 
     private func openConfigFile() {
-        let url = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Documents/finfra/fSnippetData/_config.yml")
+        // Issue146: resolve via PreferencesManager so the menu follows the active data root
+        // (Application Support after migration, not the legacy Documents folder).
+        let root = URL(fileURLWithPath: PreferencesManager.resolveAppRootPath())
+        let url = root.appendingPathComponent("_config.yml")
         if FileManager.default.fileExists(atPath: url.path) {
             NSWorkspace.shared.open(url)
         } else {
@@ -290,8 +292,8 @@ struct MenuBarView: View {
     }
 
     private func openDataFolder() {
-        let url = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Documents/finfra/fSnippetData")
+        // Issue146: use the resolved data root (Application Support post-migration).
+        let url = URL(fileURLWithPath: PreferencesManager.resolveAppRootPath())
         if FileManager.default.fileExists(atPath: url.path) {
             NSWorkspace.shared.open(url)
         } else {
@@ -300,8 +302,9 @@ struct MenuBarView: View {
     }
 
     private func openLogDirectory() {
-        let url = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Documents/finfra/fSnippetData/logs")
+        // Issue146: logs live under <data root>/logs.
+        let url = URL(fileURLWithPath: PreferencesManager.resolveAppRootPath())
+            .appendingPathComponent("logs")
         if FileManager.default.fileExists(atPath: url.path) {
             NSWorkspace.shared.open(url)
         } else {
