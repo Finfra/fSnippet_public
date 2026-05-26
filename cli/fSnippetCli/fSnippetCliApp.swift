@@ -268,8 +268,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if trusted {
             logI("접근성 권한: 승인됨")
         } else {
-            logW("접근성 권한: 미승인")
-            showAccessibilityAlert()
+            // Issue148: revoke 직후 launchd 가 KeepAlive 로 재시작했을 때 boot alert 를 1회 skip.
+            // 직전 인스턴스의 handleAccessibilityRevoked() 가 alert 를 이미 노출했으므로
+            // respawn 후 동일 anlert 가 또 뜨면 사용자에게 같은 다이얼로그가 두 번 보임.
+            let suppressKey = "suppressBootAlertOnce"
+            let shouldSuppress = UserDefaults.standard.bool(forKey: suppressKey)
+            if shouldSuppress {
+                UserDefaults.standard.removeObject(forKey: suppressKey)
+                logW("접근성 권한: 미승인 — Issue148 suppressBootAlertOnce 마커로 boot alert skip")
+            } else {
+                logW("접근성 권한: 미승인")
+                showAccessibilityAlert()
+            }
         }
         // Issue117: 시작 상태와 무관하게 양방향 모니터 가동 (grant/revoke 모두 감지)
         startAccessibilityMonitoring()
@@ -335,6 +345,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         keyEventMonitor?.cleanup()
         keyEventMonitor = nil
         logI("🛑 KeyEventMonitor 정리 완료 — CGEventTap 재시도 루프 차단")
+
+        // Issue148: launchd KeepAlive 가 재시작할 때 boot alert 가 또 표시되는 것을 차단.
+        // checkAccessibilityPermission() 이 이 마커를 보면 alert 를 1회 skip 하고 마커를 지움.
+        UserDefaults.standard.set(true, forKey: "suppressBootAlertOnce")
 
         // 2. 사용자 안내 NSAlert
         let alert = NSAlert()
