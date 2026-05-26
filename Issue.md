@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 142
+* Issue HWM: 143
 * Save Point :
       - 2026.05.25: ba25957 (Feat(Issue140): 클립보드 히스토리 셀 단순화 + 복사 누락 캡처 보강)
       - 2026.05.24: cd95b0f (Close Issue139)
@@ -21,6 +21,17 @@ date: 2026-04-07
 1.
 
 # 🚧 진행중
+
+## Issue143: [cliApp] openSettings() 중복 요청 방지 플래그 추가 (등록: 2026-05-26)
+* 목적: paidApp Issue899와 연계하여 cliApp 측에서도 settings 열기 요청을 1회로 제한, 빠른 연속 클릭에 의한 paidApp 플래그 경쟁 조건 방지
+* 상세:
+    - `PaidAppDetector.openSettings()` 호출 시 1초 이내 중복 요청 무시
+    - `lastSettingsOpenTime` 타임스탬프 기반 디바운스 구현
+    - 롤백(disableUrlScheme) 경로와 URL scheme 경로 모두 포함
+* 구현 명세:
+    - PaidAppDetector.swift: `lastSettingsOpenTime: Date?` static 저장 (enum 특성상 별도 class 상태 활용)
+    - `openSettings()` 진입 시 1초 이내면 logD 후 return
+    - 호출 성공 시 `lastSettingsOpenTime = Date()` 갱신
 
 # 📕 중요
 
