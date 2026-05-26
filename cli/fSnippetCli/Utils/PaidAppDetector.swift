@@ -34,27 +34,17 @@ enum PaidAppDetector {
     return true
   }
 
-  // MARK: - [Issue143] openSettings 중복 요청 방지 디바운스 상태
-  private static var lastSettingsOpenTime: Date?
-  /// 동일 요청이 이 간격 이내에 반복되면 무시 (빠른 연속 클릭, paidApp 플래그 경쟁 방지)
-  private static let settingsOpenDebounceInterval: TimeInterval = 1.0
-
   /// paidApp 설정창 열기 — Issue827 Phase B / Issue111
   /// URL Scheme 우선 (fsnippet://command?action=settings&source=cliApp),
   /// 롤백 플래그(fsc.disableUrlScheme) 활성 시 SettingsWindowManager fallback.
   ///
   /// paid_cli_protocol §3.5: REST register `bundlePath`가 있으면 1차 채널로 사용해
   /// LaunchServices의 잘못된 URL Scheme 매핑(옛 Bundle ID/백업 경로 등)을 우회.
-  /// [Issue143] 1초 이내 중복 호출 무시 (paidApp initialActivationHandled 경쟁 조건 방지)
+  ///
+  /// Note (Issue903): For already-running paidApp, use DistributedNotification "fSnippetOpenSettings"
+  /// via PaidAppManager.openSettings(). This method is now primarily called for the .stopped case
+  /// (paidApp not running) to launch and then open settings via URL scheme.
   static func openSettings() {
-    // [Issue143] 디바운스: 1초 이내 중복 요청 무시
-    let now = Date()
-    if let last = lastSettingsOpenTime, now.timeIntervalSince(last) < settingsOpenDebounceInterval {
-      logD("🪟 [Settings] 1초 이내 중복 요청 무시 (Issue143)")
-      return
-    }
-    lastSettingsOpenTime = now
-
     let disableUrlScheme = UserDefaults.standard.bool(forKey: "fsc.disableUrlScheme")
     guard !disableUrlScheme, let schemeURL = URL(string: "fsnippet://command?action=settings&source=cliApp") else {
       // rollback: 기존 REST 기반 경로

@@ -132,7 +132,7 @@ class PaidAppManager {
     private func activatePaidApp() {
         let apps = NSRunningApplication.runningApplications(withBundleIdentifier: paidBundleID)
         if let app = apps.first {
-            app.activate(options: [.activateIgnoringOtherApps])
+            app.activate()
             logI("🏷️ [PaidApp] activate (PID: \(app.processIdentifier))")
         }
     }
@@ -223,12 +223,13 @@ class PaidAppManager {
 
     /// 설정창 직접 열기 — consent 우회 (Issue144)
     /// 단축키/메뉴바 트리거 전용. autoLaunchConsent 무관하게 무조건 settings 진입.
-    /// - .started → activatePaidApp + openSettings (Issue145: waitForPaidAppRegistration 제거,
-    ///             cliApp 재시작 후 paidApp 미등록 시 5초 블로킹 방지. paidApp 실행 중이므로 대기 불필요)
+    /// - .started → DistributedNotification "fSnippetOpenSettings" (paidApp already listening)
     /// - .stopped → launchAndOpenSettings (consent 체크 없이 바로 기동)
     /// - .notInstall → showPaidOnlyAlert
     ///
-    /// Note: activatePaidApp() is safe here — paidApp.applicationDidBecomeActive is empty (Issue144)
+    /// Issue903: URL scheme + activate() was unreliable when paidApp is already frontmost.
+    /// paidApp registers "fSnippetOpenSettings" DistributedNotification in setupDistributedNotificationListeners()
+    /// and calls showSettings() — works regardless of activation state or frontmost status.
     func openSettings() {
         let freshStatus: PaidAppStatus = {
             if isRunning() { return .started }
@@ -237,13 +238,16 @@ class PaidAppManager {
         }()
         switch freshStatus {
         case .started:
-            // Issue145: paidApp is already running — no registration wait needed.
-            // activatePaidApp() is safe (applicationDidBecomeActive is empty in paidApp after Issue144).
-            // PaidAppDetector.openSettings() uses 1st channel if registered, LaunchServices fallback if not.
-            activatePaidApp()
-            DispatchQueue.main.async {
-                PaidAppDetector.openSettings()
-            }
+            // paidApp is running — post distributed notification.
+            // paidApp's handleOpenSettingsNotification calls showSettings() which handles
+            // policy restoration and activation internally.
+            logI("🏷️ [PaidApp] 설정창 열기 — DistributedNotification")
+            DistributedNotificationCenter.default().postNotificationName(
+                NSNotification.Name("fSnippetOpenSettings"),
+                object: nil,
+                userInfo: nil,
+                deliverImmediately: true
+            )
         case .stopped:
             logI("🏷️ [PaidApp] 설정창 직접 기동 — consent 우회 (Issue144)")
             launchAndOpenSettings()
