@@ -2631,6 +2631,7 @@ class APIRouter {
       historyShowStatusBar: prefs.bool(forKey: "history.showStatusBar", defaultValue: true),
       historyForceInputSource: prefs.get("history.forceInputSource"),
       historyShowPreview: prefs.bool(forKey: "history.showPreview", defaultValue: true),
+      historyImageDetailIsFloating: prefs.bool(forKey: "history.imageDetail.isFloating", defaultValue: false),  // Issue901
       historyViewerWidth: prefs.get("history.viewer.width") ?? 350.0,
       historyPreviewWidth: prefs.get("history.viewer_preview.width") ?? 400.0,
       historyViewerHotkey: prefs.get("history.viewer.hotkey") ?? "",

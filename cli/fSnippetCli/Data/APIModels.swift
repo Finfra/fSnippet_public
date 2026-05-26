@@ -654,6 +654,7 @@ struct APIV2HistorySettings: Codable {
   let historyShowStatusBar: Bool
   let historyForceInputSource: String?
   let historyShowPreview: Bool
+  let historyImageDetailIsFloating: Bool  // Issue901
   let historyViewerWidth: Double
   let historyPreviewWidth: Double
   let historyViewerHotkey: String
