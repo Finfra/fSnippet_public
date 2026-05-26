@@ -6,8 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 148
+* Issue HWM: 149
 * Save Point :
+      - 2026.05.26: fde04ae (Fix(Issue149): TCC mismatch — alert 메시지 보강 + grant 전이 시 자동 dismiss)
       - 2026.05.26: 32a9591 (Fix(Issue148): 권한 OFF 시 revoke alert + respawn boot alert 두 번 노출 차단)
       - 2026.05.26: b52a39d (Fix(Issue147): 권한 OFF 시 NSAlert 두 번 노출 — ErrorRecoveryManager alert 경로 제거)
       - 2026.05.26: fc0905c (Fix(Issue146): 권한 다이얼로그 반복 노출 영구 fix — Application Support 이전 + 가드)
@@ -32,6 +33,15 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue149: [cliApp] TCC mismatch — 시스템 설정 토글 ON 인데 alert 표시 + 토글 ON 직후 alert 자동 dismiss 미동작 (등록: 2026-05-26) (✅ 완료, fde04ae) ✅
+* 목적: brew 재서명 후 TCC csreq 불일치로 토글 ON 상태에서도 alert 표시되는 문제 + 토글 OFF→ON 으로 권한 회복 시 alert 자동 닫힘 동시 해소
+* 상세: Apple Development 인증서 ad-hoc 서명 → CDHash 매 빌드 변동 → TCC entry 와 csreq 매칭 깨짐. 시스템 설정 UI 는 ON 으로 보이지만 실제 매칭 X
+* 구현 명세:
+    - `pendingAccessibilityAlert` ivar 추가 — 표시 중인 NSAlert 보관
+    - showAccessibilityAlert 메시지 보강: "brew 재배포 직후 권한 매칭이 깨졌을 수 있습니다. 토글 OFF → ON 다시 누르세요" 안내
+    - polling grant 전이 시 `NSApplication.shared.abortModal()` + ivar clear → alert 자동 dismiss
+* 검증: 빌드·brew local 9/9 PASS
+
 ## Issue148: [cliApp] 권한 OFF → revoke alert + launchd 재시작 boot alert 두 번 노출 (등록: 2026-05-26) (✅ 완료, 32a9591) ✅
 * 목적: revoke alert 표시 후 cliApp terminate → launchd KeepAlive 재시작 → boot 시 showAccessibilityAlert 가 또 표시되는 두 alert 시퀀스 차단
 * 상세: Issue147 은 키 이벤트 실패 경로 alert 만 차단. revoke + respawn 경로는 별개 — KeepAlive.SuccessfulExit=false 로 정상 종료도 재시작
