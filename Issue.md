@@ -22,17 +22,6 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue143: [cliApp] openSettings() 중복 요청 방지 플래그 추가 (등록: 2026-05-26)
-* 목적: paidApp Issue899와 연계하여 cliApp 측에서도 settings 열기 요청을 1회로 제한, 빠른 연속 클릭에 의한 paidApp 플래그 경쟁 조건 방지
-* 상세:
-    - `PaidAppDetector.openSettings()` 호출 시 1초 이내 중복 요청 무시
-    - `lastSettingsOpenTime` 타임스탬프 기반 디바운스 구현
-    - 롤백(disableUrlScheme) 경로와 URL scheme 경로 모두 포함
-* 구현 명세:
-    - PaidAppDetector.swift: `lastSettingsOpenTime: Date?` static 저장 (enum 특성상 별도 class 상태 활용)
-    - `openSettings()` 진입 시 1초 이내면 logD 후 return
-    - 호출 성공 시 `lastSettingsOpenTime = Date()` 갱신
-
 # 📕 중요
 
 # 📙 일반
@@ -40,6 +29,13 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue143: [cliApp] openSettings() 중복 요청 방지 플래그 추가 (등록: 2026-05-26) (✅ 완료, f51f4e0) ✅
+* 목적: paidApp Issue899와 연계하여 cliApp 측에서도 settings 열기 요청을 1회로 제한, 빠른 연속 클릭에 의한 paidApp 플래그 경쟁 조건 방지
+* 상세:
+    - `PaidAppDetector.openSettings()` 호출 시 1초 이내 중복 요청 무시
+    - `lastSettingsOpenTime` 타임스탬프 기반 디바운스 구현
+    - PaidAppDetector.swift: 1초 디바운스 가드 추가
+
 ## Issue142: [paidApp 연동] 첫 클릭 설정창 미표시 — `.started` 경로 URL scheme LaunchServices 폴백 신뢰성 (등록: 2026-05-25, 완료: 2026-05-25) (Hash: 4ab95f5) ✅
 * 목적: cliApp 자동기동 직후 첫 클릭 시 설정창이 여전히 열리지 않는 문제 해소 (Issue141 cliApp-side fix 불완전)
 * 상세:
