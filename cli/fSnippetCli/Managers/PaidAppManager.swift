@@ -196,11 +196,18 @@ class PaidAppManager {
         }()
         switch freshStatus {
         case .started:
-            // Issue113: URL Scheme만으로는 foreground 보장이 약하므로 명시적 activate 선행
-            // Delay openSettings to allow paidApp to process activation before receiving URL scheme.
+            // Issue113: explicit activate before URL scheme to guarantee foreground
+            // Issue142: wait for paidApp registration before openSettings to ensure 1st channel
+            // (bundlePath-routed URL scheme) instead of unreliable LaunchServices fallback.
+            // Mirrors launchAndOpenSettings() pattern; waitForPaidAppRegistration returns
+            // immediately if already registered.
             activatePaidApp()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                PaidAppDetector.openSettings()
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                guard let self else { return }
+                _ = self.waitForPaidAppRegistration()
+                DispatchQueue.main.async {
+                    PaidAppDetector.openSettings()
+                }
             }
         case .stopped:
             if autoLaunchConsent {
