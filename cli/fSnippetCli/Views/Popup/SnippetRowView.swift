@@ -12,52 +12,46 @@ struct SnippetRowView: View {
     @State private var isHovered: Bool = false
     
     var body: some View {
-        HStack(spacing: 12) {
+        // ✅ Issue151: 1행 HStack 단순화 (Issue140 클립보드 패턴 차용)
+        HStack(spacing: 8) {
             // 1. 폴더 아이콘 (좌측 끝)
-            // 정렬을 위한 고정 프레임 컨테이너
             ZStack(alignment: .center) {
                 SnippetIconProvider.createIcon(for: snippet, isSelected: isSelected)
             }
             .frame(width: 20, height: 20)
-            
-            // 2. 스니펫 정보
-            VStack(alignment: .leading, spacing: 2) {
-                HStack {
-                    Text(KeyRenderingManager.shared.replaceKeyNamesWithSymbols(in: snippet.abbreviation))
-                        .font(.system(size: 14, weight: .semibold, design: .monospaced))
-                        .foregroundColor(isSelected ? .white : .primary)
-                    
-                    Spacer()
-                    
-                    Text(snippet.folderName)
-                        .font(.system(size: 11))
-                        .foregroundColor(isSelected ? Color.white.opacity(0.8) : .secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(isSelected ? Color.white.opacity(0.2) : Color.secondary.opacity(0.1))
-                        )
-                }
-                
-                HStack(spacing: 6) {
-                    // 스니펫 설명 (Issue 219_3)
-                    let displayName = snippet.snippetDescription.isEmpty 
-                        ? (snippet.fileName as NSString).deletingPathExtension 
-                        : snippet.snippetDescription
-                    
-                    Text(displayName)
-                        .font(.system(size: 12))
-                        .foregroundColor(isSelected ? Color.white.opacity(0.9) : .primary)
-                        .lineLimit(1)
-                    
-                    Spacer()
-                }
-            }
-            
-            Spacer() // 후행 컨텐츠 밀기
-            
-            // 3. 단축키 표시기 (우측)
+
+            // 2. abbreviation (monospaced)
+            Text(KeyRenderingManager.shared.replaceKeyNamesWithSymbols(in: snippet.abbreviation))
+                .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                .foregroundColor(isSelected ? .white : .primary)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+
+            // 3. displayName (스니펫 설명, 1줄 truncate)
+            let displayName = snippet.snippetDescription.isEmpty
+                ? (snippet.fileName as NSString).deletingPathExtension
+                : snippet.snippetDescription
+            Text(displayName)
+                .font(.system(size: 12))
+                .foregroundColor(isSelected ? Color.white.opacity(0.85) : .secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+
+            Spacer(minLength: 4)
+
+            // 4. 폴더 배지 (우측)
+            Text(snippet.folderName)
+                .font(.system(size: 11))
+                .foregroundColor(isSelected ? Color.white.opacity(0.85) : .secondary)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(isSelected ? Color.white.opacity(0.2) : Color.secondary.opacity(0.1))
+                )
+                .fixedSize(horizontal: true, vertical: false)
+
+            // 5. 단축키 표시기
             if let shortcut = shortcut {
                 Text(shortcut)
                     .font(.system(size: 12, weight: .bold, design: .monospaced))
@@ -69,8 +63,8 @@ struct SnippetRowView: View {
                             .fill(isSelected ? Color.white.opacity(0.15) : Color.clear)
                     )
             }
-            
-            // 4. 편집 버튼 (우측 끝)
+
+            // 6. 편집 버튼 (selected/hover 시에만)
             if isSelected || isHovered {
                 Button(action: onEdit) {
                     Image(systemName: "pencil")
@@ -78,11 +72,10 @@ struct SnippetRowView: View {
                         .foregroundColor(isSelected ? .white : .secondary)
                 }
                 .buttonStyle(PlainButtonStyle())
-                .padding(4)
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 4) // 44px에 맞추기 위해 패딩 축소
+        .padding(.horizontal, 10)
+        .padding(.vertical, 2)
         // ✅ Issue 245 리팩토링: 중앙 집중식 상수 사용
         .frame(height: PopupUIConstants.rowHeight)
         .background(
