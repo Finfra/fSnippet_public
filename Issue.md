@@ -8,6 +8,7 @@ date: 2026-04-07
 
 * Issue HWM: 146
 * Save Point :
+      - 2026.05.26: fc0905c (Fix(Issue146): 권한 다이얼로그 반복 노출 영구 fix — Application Support 이전 + 가드)
       - 2026.05.25: ba25957 (Feat(Issue140): 클립보드 히스토리 셀 단순화 + 복사 누락 캡처 보강)
       - 2026.05.24: cd95b0f (Close Issue139)
       - 2026.05.21: 3eb736d (Docs(Issue138): by-design 결론 철회 — 하니스 결함 수정으로 35/35 달성 (Hash: 0a043a2))
@@ -23,41 +24,23 @@ date: 2026-04-07
 # 🚧 진행중
 
 # 📕 중요
-## Issue146: [cliApp] 권한 다이얼로그 반복 노출 영구 fix — 데이터 폴더 이전 + 다이얼로그 표시 조건 완화 (등록: 2026-05-26)
-* 목적: brew 재빌드·launchd respawn 시마다 macOS Documents folder TCC 다이얼로그 + 앱 내 접근성 권한 NSAlert 가 반복 표시되는 사용자 경험 문제를 영구 차단
-* 상세:
-    - **현상**: `~/Documents/finfra/fSnippetData/` 접근 시 macOS TCC 가 매번 "fSnippetCli would like to access files in your Documents folder" 다이얼로그 표시. 동시에 ErrorRecoveryManager 가 "접근성 권한 필요" NSAlert 노출
-    - **근본 원인 1 (TCC csreq mismatch)**: Apple Development 인증서로 서명된 binary 는 brew 재빌드마다 CDHash 변동. TCC.db 의 csreq blob 매칭이 깨져 grant 가 무효화됨. launchd 가 spawn 한 daemon 컨텍스트에서는 GUI 세션 grant 미인식
-    - **근본 원인 2 (Documents folder 의존)**: 데이터 폴더 위치가 `~/Documents/` 하위 → DocumentsFolder TCC 권한 필요 → 다이얼로그 트리거. macOS Application Support 폴더는 TCC sandbox 대상 아님
-    - **재현 절차**: `brew services restart fsnippet-cli` 후 메뉴바 아이콘 클릭 → 다이얼로그 2종 등장
-    - **영향**: 사용자 매 재시작 시 권한 클릭 강제. 디버깅 워크플로우 마찰
-* 구현 명세:
-    - **A안 (데이터 폴더 이전)**:
-        - `PreferencesManager.resolveAppRootPath()` 게이트웨이의 하드코드 시드 변경: `~/Documents/finfra/fSnippetData` → `~/Library/Application Support/kr.finfra.fSnippetCli/data`
-        - 마이그레이션 로직 추가: 첫 부팅 시 기존 `~/Documents/finfra/fSnippetData/` 존재하면 신규 경로로 일괄 복사 (snippets/, _config.yml, clipboard.sqlite, logs/, _data/)
-        - 마이그레이션 완료 후 UserDefaults `appRootPath` 갱신 + 기존 폴더는 보존 (사용자가 수동 삭제 결정)
-        - 영향 모듈 (모두 `resolveAppRootPath()` 경유 — 직접 변경 불필요): Logger, SettingsManager, SnippetFileManager, AppSettingManager, PaidAppStateLogger, APIRouter
-        - paidApp 영향: paidApp 압축 상태이므로 cliApp 단독 이전 가능. paidApp 재개 시 별도 sync 메커니즘 설계 필요 (별도 이슈)
-    - **B안 (다이얼로그 표시 조건 완화)**:
-        - `Info.plist` 에 `NSDocumentsFolderUsageDescription` 한국어 메시지 추가 (잔여 다이얼로그 메시지 명확화)
-        - `ErrorRecoveryManager.handleAccessibilityPermission()` (라인 230-245) NSAlert 표시 조건 수정: UserDefaults `accessibilityAlertShownVersion` 키 체크 → 현재 버전에서 이미 표시했으면 skip. 사용자가 시스템 설정에서 권한 토글 OFF 시 다시 표시되도록 `AXIsProcessTrusted()` polling 결과 변화 시점만 alert
-        - `fSnippetCliApp.swift` 의 5초 polling 주기는 유지 (양방향 전이 감지 목적)
-* 검증 절차:
-    - 1차: 신규 build → `brew services start` → 로그에서 "Operation not permitted" 0건 확인
-    - 2차: `brew services restart` 5회 반복 → 다이얼로그 미표시 확인
-    - 3차: 기존 `~/Documents/finfra/fSnippetData/` 가 있는 환경에서 마이그레이션 정상 동작 확인 (스니펫 N개 로드, clipboard DB 정상)
-    - 4차: 시스템 설정 > 접근성에서 fSnippetCli 토글 OFF → 5초 후 alert 표시 확인 (B안 회귀 방지)
-* 관련 파일:
-    - `cli/fSnippetCli/Info.plist`
-    - `cli/fSnippetCli/Managers/PreferencesManager.swift` (resolveAppRootPath)
-    - `cli/fSnippetCli/Data/ErrorRecoveryManager.swift:230-245, 412`
-    - `cli/fSnippetCli/fSnippetCliApp.swift:262-310`
 
 # 📙 일반
 
 # 📗 선택
 
 # ✅ 완료
+## Issue146: [cliApp] 권한 다이얼로그 반복 노출 영구 fix — 데이터 폴더 이전 + 다이얼로그 표시 조건 완화 (등록: 2026-05-26) (✅ 완료, fc0905c) ✅
+* 목적: brew 재빌드·launchd respawn 시 Documents TCC 다이얼로그 + 접근성 NSAlert 반복 노출 차단
+* 구현 명세:
+    - **A안 (데이터 폴더 이전)**: `PreferencesManager.resolveAppRootPath()` seed → `~/Library/Application Support/kr.finfra.fSnippetCli/data`. legacy `~/Documents/finfra/fSnippetData` 존재 시 1회 copyItem + UserDefaults 재기록 (legacy 보존)
+    - **B안 (다이얼로그 표시 조건 완화)**: `Info.plist` `NSDocumentsFolderUsageDescription` 추가. `ErrorRecoveryManager.handleAccessibilityPermission()` 버전별 1회 alert 가드 (UserDefaults `accessibilityAlertShownVersion`). polling 양방향 전이 감지는 `fSnippetCliApp.swift` 5초 polling 그대로 유지
+    - **재진입 회피**: `resolveAppRootPath`/`migrateLegacyData` 내부 로그를 `NSLog`로 한정. Logger lazy init 도중 `logI` 호출 시 `AppSettingManager.shared` dispatch_once 재진입으로 SIGTRAP 발생하던 크래시 회피
+* 검증:
+    - brew local 재배포 후 cliApp 정상 기동, REST API 3015 응답 OK, snippet 2034개 로드
+    - `brew services restart` 5회 연속 무크래시 (이전 빌드 18:10 SIGTRAP 이후 0건)
+    - UserDefaults `appRootPath` → newSeed 자동 갱신, 로그 파일 새 경로(`~/Library/Application Support/...`)에서 활발히 기록 중
+
 ## Issue145: [cliApp] paidApp 실행 중 설정창 열기 실패 — .started 경로 5초 블로킹 해소 (등록: 2026-05-26) (✅ 완료, 2934048) ✅
 * 목적: paidApp이 이미 실행 중일 때 메뉴바/단축키로 설정창을 즉시 열기
 * 상세:
