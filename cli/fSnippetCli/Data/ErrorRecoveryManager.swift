@@ -226,18 +226,29 @@ class ErrorRecoveryManager {
     
     private func handleAccessibilityPermission(completion: @escaping (Bool) -> Void) {
         logV("🔫 접근성 권한 확인 중...")
-        
+
         // 권한 상태 재확인
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: false]
         let hasPermission = AXIsProcessTrustedWithOptions(options as CFDictionary)
-        
+
         if hasPermission {
             logV("🔫 접근성 권한 확인됨")
             completion(true)
         } else {
             logW("🔫 접근성 권한이 여전히 없음")
-            // 사용자에게 권한 설정 안내
-            showAccessibilityPermissionAlert()
+            // Issue146: Show alert at most once per app version.
+            // Revocation via System Settings is handled by the polling monitor in
+            // fSnippetCliApp.swift (양방향 전이 감지), so suppressing the recovery-path
+            // alert avoids dialog spam on brew restart / launchd respawn loops.
+            let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+            let shownKey = "accessibilityAlertShownVersion"
+            let lastShown = UserDefaults.standard.string(forKey: shownKey)
+            if lastShown != currentVersion {
+                UserDefaults.standard.set(currentVersion, forKey: shownKey)
+                showAccessibilityPermissionAlert()
+            } else {
+                logI("🔫 Issue146: accessibility alert suppressed (already shown for \(currentVersion))")
+            }
             completion(false)
         }
     }
