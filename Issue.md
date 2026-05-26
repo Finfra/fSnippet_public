@@ -6,8 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 149
+* Issue HWM: 150
 * Save Point :
+      - 2026.05.26: 2afc508 (Refactor(Issue150): pairApp 패턴 차용 — 권한 처리 simplify)
       - 2026.05.26: fde04ae (Fix(Issue149): TCC mismatch — alert 메시지 보강 + grant 전이 시 자동 dismiss)
       - 2026.05.26: 32a9591 (Fix(Issue148): 권한 OFF 시 revoke alert + respawn boot alert 두 번 노출 차단)
       - 2026.05.26: b52a39d (Fix(Issue147): 권한 OFF 시 NSAlert 두 번 노출 — ErrorRecoveryManager alert 경로 제거)
@@ -33,6 +34,16 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue150: [cliApp] pairApp 패턴 차용 — 권한 처리 simplify (등록: 2026-05-26) (✅ 완료, 2afc508) ✅
+* 목적: pairApp(fWarrangeCli) 의 단순한 권한 처리 패턴(AccessibilityService + AccessibilityGuidePresenter)을 이식. 폴링·revoke·abortModal·마커 등 누적된 복잡성 제거
+* 구현 명세:
+    - 신규 `Services/AccessibilityService.swift` (protocol + SystemAccessibilityService impl)
+    - 신규 `Services/AccessibilityGuidePresenter.swift` (NSAlert enum)
+    - fSnippetCliApp.swift simplify — checkAccessibilityPermission 만 남김. polling timer/revoke handler/reinitialize/abortModal/suppressBootAlertOnce 마커 전부 제거
+    - Issue42/117/148/149 명세 철회 — 동일 영역 누적된 복잡성 일괄 단순화
+* trade-off: revoke 시 자동 cleanup 없음 → `handleTapDisabled` 자체 fallback 에 위임. 권한 부여 후 사용자가 cliApp 재시작 (brew services restart 또는 메뉴바) 필요
+* 검증: 빌드·brew local 9/9 PASS
+
 ## Issue149: [cliApp] TCC mismatch — 시스템 설정 토글 ON 인데 alert 표시 + 토글 ON 직후 alert 자동 dismiss 미동작 (등록: 2026-05-26) (✅ 완료, fde04ae) ✅
 * 목적: brew 재서명 후 TCC csreq 불일치로 토글 ON 상태에서도 alert 표시되는 문제 + 토글 OFF→ON 으로 권한 회복 시 alert 자동 닫힘 동시 해소
 * 상세: Apple Development 인증서 ad-hoc 서명 → CDHash 매 빌드 변동 → TCC entry 와 csreq 매칭 깨짐. 시스템 설정 UI 는 ON 으로 보이지만 실제 매칭 X
