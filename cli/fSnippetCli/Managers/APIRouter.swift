@@ -1413,11 +1413,14 @@ class APIRouter {
       }
     }
 
+    // Issue155: deleteCount 는 visual length (atomic token 1글자 카운트) 기준.
+    // raw String.count 사용 시 `,ant{keypad_comma}` = 18 (실제 시각 길이 5) 로 과다 삭제 발생.
+    let visualDeleteCount = DeleteLengthManager.shared.getVisualLength(of: entry.abbreviation)
     let data = APIExpandData(
       originalAbbreviation: expandReq.abbreviation,
       snippetId: entry.id,
       expandedText: expandedText,
-      deleteCount: entry.abbreviation.count,
+      deleteCount: visualDeleteCount,
       placeholdersResolved: resolvedPlaceholders
     )
     return jsonResponse(APIExpandResponse(ok: true, data: data))
