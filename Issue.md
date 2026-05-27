@@ -16,6 +16,9 @@ date: 2026-04-07
       - 2026.05.27: 62853ff (Revert(Issue152): Issue146 revert — appRootPath seed → ~/Documents/finfra/fSnippetData)
       - 2026.05.26: 2afc508 (Refactor(Issue150): pairApp 패턴 차용 — 권한 처리 simplify)
       - 2026.05.26: fde04ae (Fix(Issue149): TCC mismatch — alert 메시지 보강 + grant 전이 시 자동 dismiss)
+      - 2026.05.28: fc4c7cc (Test(Issue155): runtime collision XCTest 추가 — 82a7f8e fix 검증)
+      - 2026.05.28: 3700aa3 (Test(Issue155): testTable 38-case 확장 — case 36-38 keypad_comma 변형)
+      - 2026.05.27: 82a7f8e (Fix(Issue155-re): checkForSuffixMatches prefix collision delay — modifier trigger 회귀 복구)
       - 2026.05.26: 32a9591 (Fix(Issue148): 권한 OFF 시 revoke alert + respawn boot alert 두 번 노출 차단)
       - 2026.05.26: b52a39d (Fix(Issue147): 권한 OFF 시 NSAlert 두 번 노출 — ErrorRecoveryManager alert 경로 제거)
       - 2026.05.26: fc0905c (Fix(Issue146): 권한 다이얼로그 반복 노출 영구 fix — Application Support 이전 + 가드)
@@ -33,26 +36,6 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue155 (재오픈): [Runtime/Match] `,ant{keypad_comma}` 매칭 실패 회귀 — exact match 우선 fix 미동작 (등록: 2026-05-27, 재오픈: 2026-05-27)
-* 목적: noteForHuman.md L28 — fb1a9dc 정밀 fix 적용 후에도 사용자 라이브 입력에서 여전히 짧은 `t{right_command}` 매칭 채택 (회귀)
-* 재현 (flog `2026-05-27 23:29:21` 라이브 로그):
-    - 사용자 입력: `,ant` + `{right_command}` trigger
-    - buffer: `,ant{right_command}`
-    - 로그: `Matching found: 't{right_command}' in ',ant{right_command}' (MatchedLen: 16)` → delay 없이 즉시 매칭
-    - 기대 동작: cleanBuffer `,ant` 가 `,ant{keypad_comma}` abbreviation 의 prefix → delay 발동 → keypad_comma 대기
-    - 실제: prefix collision delay 미발동 → 짧은 `t{right_command}` 채택 → 오확장 `,an` + expansion
-* 원인 분석 (확인 필요):
-    - fb1a9dc 의 정밀 fix 로직이 modifier trigger(`{right_command}`) 케이스에서 prefix 검사 우회
-    - 또는 hasLongerMatches 가 trigger 가 다른 abbreviation 도 prefix 로 검사해야 하는데, 같은 trigger 만 검사
-    - `t{right_command}` 가 exact match 로 인식되어 prefix 검사 skip 한 후 즉시 expansion 진행하는 경로 의심
-* 구현 명세 (TBD):
-    - `TriggerProcessor.processTriggerKey` 의 exact match 분기 + prefix 검사 분기 재검토
-    - cleanBuffer prefix 검사 시 모든 trigger 변형 abbreviation 까지 포함
-    - XCTest 회귀 case 추가: `,ant{right_command}` → 확장 안 됨 (또는 delay) 보장
-* 관련 파일:
-    - `cli/fSnippetCli/Core/TriggerProcessor.swift`
-    - `cli/fSnippetCli/Core/AbbreviationMatcher.swift`
-
 ## Issue156: [Runtime/Karabiner] `..0{keypad_comma}` 입력 차단 — bufferClear `.` 충돌 (등록: 2026-05-27)
 * 목적: noteForHuman.md line 31 — 매칭 실패
 * 상세:
@@ -67,6 +50,20 @@ date: 2026-04-07
 # 📙 일반
 
 # ✅ 완료
+## Issue155 (재오픈→완료): [Runtime/Match] `,ant{right_command}` modifier trigger 경로 회귀 — checkForSuffixMatches 도 collision delay 적용 (등록: 2026-05-27, 완료: 2026-05-28) (✅ 완료, 82a7f8e + 3700aa3 + fc4c7cc) ✅
+* 목적: fb1a9dc fix 후에도 라이브 `,ant + right_command` 회귀 → checkForSuffixMatches 경로 미보호 발견 → fix + XCTest 회귀 보호 추가
+* 원인 (라이브 로그 추적):
+    - modifier trigger 가 `case .triggerKey` 가 아닌 일반 key 경로로 진입 → processTriggerKey 미호출 → Issue155 fix 우회
+    - 일반 key 경로의 `checkForSuffixMatches` 는 collision delay 검사 없이 짧은 매칭 즉시 채택
+* 구현:
+    - **82a7f8e**: `checkForSuffixMatches` 의 `findBestMatch` 직후에 cleanBuffer prefix collision 검사 추가. matched.matchedLength < searchBuffer.count 인 short match 시 cleanBuffer 가 longer abbreviation prefix 면 candidate reject (continue)
+    - **3700aa3**: testTable 38-case 확장 — case 36 (`{keypad_comma}test{keypad_comma}`), case 37 (`,test{keypad_comma}`), case 38 (`,,test{keypad_comma}`) 추가하여 abbreviation generation 회귀 보호
+    - **fc4c7cc**: `testIssue155RuntimeCollision` XCTest — TriggerProcessor.checkForSuffixMatches 직접 호출하여 runtime collision 검증. 3 시나리오 모두 PASS
+* 검증:
+    - testAllFolderCases 38/38 PASS (abbreviation generation)
+    - testIssue155RuntimeCollision PASS — exact match `test{right_command}` → .consumed, `,test{right_command}` → .none (reject), `,,test{right_command}` → .none (reject)
+    - brew local 재배포 9/9 PASS, REST API 정상
+
 
 ## Issue154: [Calculator/Rule] noteForHuman 오동작 — Initcap `_` strip + Initcap suffix 유지 + 룰 케이스 매칭 (등록: 2026-05-27, 완료: 2026-05-27) (Hash: 9144475) ✅
 * 목적: noteForHuman.md x표시 라인 6건 중 4건 fix (line 14·20·21·22)
