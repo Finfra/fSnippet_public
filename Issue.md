@@ -8,6 +8,7 @@ date: 2026-04-07
 
 * Issue HWM: 156
 * Save Point :
+      - 2026.05.27: ec066b7 (Fix(Issue155 부분): expand API delete_count raw String.count → visual length)
       - 2026.05.27: 9144475 (Fix(Issue154): noteForHuman 오동작 — Initcap `_` strip + Initcap suffix 유지 + 룰 케이스 매칭)
       - 2026.05.27: d2580d9 (Fix(Issue153): paidApp 설정창 열기 — DistributedNotification 채널 전환)
       - 2026.05.27: 62853ff (Revert(Issue152): Issue146 revert — appRootPath seed → ~/Documents/finfra/fSnippetData)
@@ -30,15 +31,17 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue155: [Runtime/Match] `,ant{keypad_comma}` 런타임 매칭 실패 (등록: 2026-05-27)
+## Issue155: [Runtime/Match] `,ant{keypad_comma}` 런타임 매칭 실패 (등록: 2026-05-27, 부분 완료)
 * 목적: noteForHuman.md line 27 — 맵에는 등록되어 있으나 입력 시 매칭 실패
-* 상세:
-    - `_emoji/ant===ant.txt` → 약어 `,ant{keypad_comma}` 정상 저장 (API 확인)
-    - 가설 1: `,` prefix 입력 후 _emoji 룰 trigger 가 keypad-comma 인데 일반 콤마와 혼동
-    - 가설 2: `findBestMatch` 의 atomic range 처리(`{keypad_comma}`) 가 prefix `,` 와 충돌
+* 진행:
+    - **부분 fix (Hash: ec066b7)**: expand API `deleteCount` 가 raw `String.count` 사용 → atomic token `{keypad_comma}` 14자 포함 시 deleteCount=18 (정상 visual=4). `DeleteLengthManager.getVisualLength` 적용. 외부 REST 클라이언트(paidApp 등) 텍스트 오프셋 정확성 회복.
+    - 사용자 noteForHuman 케이스(키보드 직접 입력) 가 expand API path 인지 KeyEventMonitor path 인지 미확정 — 후자라면 본 fix 와 별개 원인.
+* 잔여:
+    - 키보드 직접 입력(KeyEventMonitor → TriggerProcessor → AbbreviationMatcher) path 라이브 추적 필요
+    - `log_level: VERBOSE` 설정 완료, 사용자 실제 입력 + flog 회수 후 분석 가능
 * 구현 명세:
     - flog_cliApp.log 에서 `,ant` 입력 시 매칭 로그 추적
-    - AbbreviationMatcher.findBestMatch / SnippetIndexManager.search 호출 흐름 확인
+    - AbbreviationMatcher.findBestMatch / TriggerProcessor.checkForSuffixMatches 호출 흐름 확인
 
 ## Issue156: [Runtime/Karabiner] `..0{keypad_comma}` 입력 차단 — bufferClear `.` 충돌 (등록: 2026-05-27)
 * 목적: noteForHuman.md line 31 — 매칭 실패
