@@ -42,3 +42,6 @@ date: 2026-05-20
 | 33  | _case33 | ¿¿                | t33, test | {right_option}    | ¿¿test{right_option}                   |
 | 34  | _case34 |                   | t34, test | {right_control}   | test{right_control}                    |
 | 35  | _case35 | {right_control}   | t35, test |                   | {right_control}test                    |
+| 36  | _case36 | {keypad_comma}    | t36, test | {keypad_comma}    | {keypad_comma}test{keypad_comma}       |
+| 37  | _case37 | ,                 | t37, test | {keypad_comma}    | ,test{keypad_comma}                    |
+| 38  | _case38 | ,,                | t38, test | {keypad_comma}    | ,,test{keypad_comma}                   |

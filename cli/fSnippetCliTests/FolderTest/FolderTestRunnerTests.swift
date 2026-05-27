@@ -107,7 +107,7 @@ final class FolderTestRunnerTests: XCTestCase {
   /// 기대 abbreviation 이 snippetMap 에 등록되는지 검증.
   func testAllFolderCases() throws {
     let cases = try Self.parseTestTable()
-    XCTAssertEqual(cases.count, 35, "testTable_org.md 에서 35-case 파싱 기대")
+    XCTAssertEqual(cases.count, 38, "testTable_org.md 에서 38-case 파싱 기대 (Issue155 회귀 case 36-38)")
 
     // 1. _rule.yml 생성
     let ruleYAML = Self.buildRuleYAML(from: cases)
