@@ -30,5 +30,5 @@ collections:
     suffix: ",,"
   - name: "_symbol_space"
     suffix: " "
-  - name: "Ansible"
+  - name: "ANsible"
     suffix: "!"

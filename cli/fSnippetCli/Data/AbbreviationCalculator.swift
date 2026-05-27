@@ -122,6 +122,15 @@ class AbbreviationCalculator {
       // 기존 방식: 파일명 전체를 키워드로 사용
       keyword = baseFileName
       keyword = replaceSpecialCharacters(keyword)  // Issue56
+
+      // Initcap convention: non-=== file ending with `_` (예: Cf_.txt, A_.txt)
+      // 대문자로 시작하면서 `_` suffix 가 있으면 filename-disambiguator 로 간주, strip
+      if keyword.count > 1, keyword.hasSuffix("_"),
+        let first = keyword.first, first.isLetter, first.isUppercase
+      {
+        keyword = String(keyword.dropLast())
+      }
+
       useFolderPrefix = true
     }
 
@@ -135,7 +144,9 @@ class AbbreviationCalculator {
       let useDefaultTrigger = rule.suffix.isEmpty && rule.prefix.isEmpty
       let triggerKey = useDefaultTrigger ? settings.defaultSymbol : ""
 
-      let suffixToAdd = (isInitcapFile || rule.suffix == " ") ? "" : rule.suffix
+      // Issue154: Initcap variant (`===Name_.txt`) 도 룰 suffix 유지해야 trigger 동작.
+      // 과거 `isInitcapFile`로 suffix 를 제거하면 `===An_.txt` → `An` (트리거 없음) 로 저장되어 매칭 불가.
+      let suffixToAdd = (rule.suffix == " ") ? "" : rule.suffix
       let textSuffix = sanitizeSuffix(suffixToAdd)
 
       var finalPrefix = rule.prefix
