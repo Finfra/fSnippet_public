@@ -199,6 +199,15 @@ final class FolderTestRunnerTests: XCTestCase {
     )
     XCTAssertEqual(collide38, .none,
                    "',,test{right_command}' 는 cleanBuffer ',,test' 가 case 38 prefix 이므로 reject (.none) 기대")
+
+    // Issue155 fix 검증 4 (재재오픈 2026-05-28): modifier press + release 시 token 중복.
+    // searchBuffer 가 ',ant{right_command}{right_command}' 가 되어도 trailing trigger token 모두 제거하여
+    // cleanBuffer = ',ant' 까지 도달 → case 37 prefix 매칭 → reject 보장.
+    let doubleTok = TriggerProcessor.shared.checkForSuffixMatches(
+      buffer: ",test{right_command}{right_command}", keyInfo: rightCmdInfo
+    )
+    XCTAssertEqual(doubleTok, .none,
+                   "modifier 중복 token 케이스 ',test{right_command}{right_command}' 도 reject 기대 (trailing token loop 제거)")
   }
 
   // MARK: - testTable_org.md 파싱

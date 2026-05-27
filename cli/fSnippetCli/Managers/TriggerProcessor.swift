@@ -330,12 +330,17 @@ class TriggerProcessor {
                     //
                     // 예: searchBuffer=",ant{right_command}", matched="t{right_command}" (MatchedLen=16)
                     //   → cleanBuffer=",ant", hasLongerMatches → ",ant{keypad_comma}" 발견 → 짧은 't{right_command}' 매칭 reject
+                    //
+                    // Issue155 (재재오픈 2026-05-28): modifier press + release 시 token literal 이 buffer 에
+                    // 중복 추가되어 searchBuffer 가 ",ant{right_command}{right_command}" 가 되는 케이스 대응.
+                    // cleanBuffer 추출 시 trailing trigger token 들을 모두 제거(while loop) 하여 진짜 raw buffer
+                    // (",ant") 까지 도달해야 collision 검사가 정확히 발동.
                     if match.matchedLength < searchBuffer.count {
-                        let cleanBuffer: String
-                        if !effectiveSuffix.isEmpty && searchBuffer.hasSuffix(effectiveSuffix) {
-                            cleanBuffer = String(searchBuffer.dropLast(effectiveSuffix.count))
-                        } else {
-                            cleanBuffer = searchBuffer
+                        var cleanBuffer = searchBuffer
+                        if !effectiveSuffix.isEmpty {
+                            while cleanBuffer.hasSuffix(effectiveSuffix) {
+                                cleanBuffer = String(cleanBuffer.dropLast(effectiveSuffix.count))
+                            }
                         }
                         if !cleanBuffer.isEmpty,
                            abbreviationMatcher.hasLongerMatches(for: cleanBuffer)
