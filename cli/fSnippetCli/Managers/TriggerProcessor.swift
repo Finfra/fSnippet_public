@@ -38,7 +38,14 @@ class TriggerProcessor {
             cleanBuffer = buffer
         }
 
-        let checkBufferForCollision = cleanBuffer + (triggerChar.isEmpty ? triggerSeq : triggerChar)
+        // Issue155 회귀 fix: Issue 550_1 (261f9017) 가 `triggerChar.isEmpty ? triggerSeq : triggerChar`
+        // 도입하여 Issue479 (168e45c7) 원본 동작을 깨뜨림. modifier key trigger 시 displayChar="" 일 때
+        // sequence(`{right_command}` 같은 토큰 문자열) 을 buffer 에 붙이면 hasLongerMatches 가
+        // 토큰 문자열로 시작하는 키만 검사 → 실제 longer abbreviation prefix 검사 실패.
+        // 예: buffer=`,ant`, modifier trigger → checkBuffer=`,ant{right_command}` →
+        // `,ant{keypad_comma}` prefix 매칭 안 됨 → delay 미발동 → 짧은 `t{right_command}` 오확장.
+        // 원본 Issue479 동작 (cleanBuffer + displayCharacter, modifier 면 빈 → cleanBuffer 그대로) 복구.
+        let checkBufferForCollision = cleanBuffer + triggerChar
 
         if abbreviationMatcher.hasLongerMatches(for: checkBufferForCollision) {
             logI(
