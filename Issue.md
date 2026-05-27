@@ -6,8 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 153
+* Issue HWM: 156
 * Save Point :
+      - 2026.05.27: 9144475 (Fix(Issue154): noteForHuman 오동작 — Initcap `_` strip + Initcap suffix 유지 + 룰 케이스 매칭)
       - 2026.05.27: d2580d9 (Fix(Issue153): paidApp 설정창 열기 — DistributedNotification 채널 전환)
       - 2026.05.27: 62853ff (Revert(Issue152): Issue146 revert — appRootPath seed → ~/Documents/finfra/fSnippetData)
       - 2026.05.26: 2afc508 (Refactor(Issue150): pairApp 패턴 차용 — 권한 처리 simplify)
@@ -29,11 +30,43 @@ date: 2026-04-07
 
 # 🚧 진행중
 
+## Issue155: [Runtime/Match] `,ant{keypad_comma}` 런타임 매칭 실패 (등록: 2026-05-27)
+* 목적: noteForHuman.md line 27 — 맵에는 등록되어 있으나 입력 시 매칭 실패
+* 상세:
+    - `_emoji/ant===ant.txt` → 약어 `,ant{keypad_comma}` 정상 저장 (API 확인)
+    - 가설 1: `,` prefix 입력 후 _emoji 룰 trigger 가 keypad-comma 인데 일반 콤마와 혼동
+    - 가설 2: `findBestMatch` 의 atomic range 처리(`{keypad_comma}`) 가 prefix `,` 와 충돌
+* 구현 명세:
+    - flog_cliApp.log 에서 `,ant` 입력 시 매칭 로그 추적
+    - AbbreviationMatcher.findBestMatch / SnippetIndexManager.search 호출 흐름 확인
+
+## Issue156: [Runtime/Karabiner] `..0{keypad_comma}` 입력 차단 — bufferClear `.` 충돌 (등록: 2026-05-27)
+* 목적: noteForHuman.md line 31 — 매칭 실패
+* 상세:
+    - `appSetting.json` bufferClearKeys 에 `.` 포함 → `.` 입력 시 버퍼 클리어. `..0` 시퀀스 입력 자체 불가
+    - doc `..` 은 Karabiner remap (`.` → `,`) 입력 시각화 추정. 매칭 대상은 `_Bullets/0===0.txt` (룰 prefix=`,,` suffix=`{keypad_comma}`) → `,,0{keypad_comma}`
+* 구현 명세:
+    - Karabiner 설정 확인 (`~/.config/karabiner/karabiner.json`)
+    - remap 작동 시 매칭 실패 원인 별도 조사. 미작동 시 doc 표기 수정 또는 bufferClear 정책 재검토
+
 # 📕 중요
 
 # 📙 일반
 
 # ✅ 완료
+## Issue154: [Calculator/Rule] noteForHuman 오동작 — Initcap `_` strip + Initcap suffix 유지 + 룰 케이스 매칭 (등록: 2026-05-27, 완료: 2026-05-27) (Hash: 9144475) ✅
+* 목적: noteForHuman.md x표시 라인 6건 중 4건 fix (line 14·20·21·22)
+* 상세:
+    - B1: `_FUNDAMENTAL/Cf_.txt`·`A_.txt`·`An_.txt` 등 `===` 없는 `_` suffix 파일이 keyword 에 `_` 포함 → `Cf_∆`·`A_∆`·`An_∆` 로 저장. 사용자 입력 `Cf∆`·`A∆`·`An∆` 와 불일치. 66개 파일 영향.
+    - B2: 디스크 폴더 `ANsible` vs `_rule.yml` 룰 키 `Ansible` 케이스 불일치 → `RuleManager.getRule` nil 반환 → 디폴트 트리거 `{right_command}` 적용. doc 기대 `an!`·`An!` 미생성.
+    - 추가: `===Name_.txt` Initcap 케이스의 suffix 누락 fix — 룰 suffix 유지 (트리거 동작 보장). `An!`·`Ag∆` 정상 생성.
+* 구현 명세:
+    - `cli/fSnippetCli/Data/AbbreviationCalculator.swift` else branch 에 Initcap `_` strip 로직 추가 (uppercase first char + `_` suffix → strip). Initcap suffix 유지로 변경 (`(rule.suffix == " ") ? "" : rule.suffix`).
+    - `cli/fSnippetCli/_rule_for_import.yml` line 33 `Ansible` → `ANsible`
+    - `~/Documents/finfra/fSnippetData/snippets/_rule.yml` line 44 `Ansible` → `ANsible`
+    - brew 로컬 재배포 후 by-abbreviation API 검증: `Cf∆`·`A∆`·`an!`·`An!`·`Ag∆`·`ag∆` 모두 통과
+    - 회귀 검증: case1~35 트리거 패턴 영향 없음
+
 ## Issue153: [cliApp] paidApp 설정창 열기 — DistributedNotification 채널 전환 (등록: 2026-05-27, 완료: 2026-05-27) (Hash: d2580d9) ✅
 * 목적: paidApp 이미 실행 중일 때 URL scheme + activate() 경로가 unreliable (paidApp frontmost 상태에서 설정창 미표시). DistributedNotification 채널로 안정화.
 * 상세:
