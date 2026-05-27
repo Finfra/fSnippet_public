@@ -8,6 +8,7 @@ date: 2026-04-07
 
 * Issue HWM: 156
 * Save Point :
+      - 2026.05.27: 0f118db (Fix(Issue155): greedy collision delay 회귀 복구 — Issue479 동작 복원)
       - 2026.05.27: ec066b7 (Fix(Issue155 부분): expand API delete_count raw String.count → visual length)
       - 2026.05.27: 9144475 (Fix(Issue154): noteForHuman 오동작 — Initcap `_` strip + Initcap suffix 유지 + 룰 케이스 매칭)
       - 2026.05.27: d2580d9 (Fix(Issue153): paidApp 설정창 열기 — DistributedNotification 채널 전환)
@@ -31,18 +32,6 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue155: [Runtime/Match] `,ant{keypad_comma}` 런타임 매칭 실패 (등록: 2026-05-27, 부분 완료)
-* 목적: noteForHuman.md line 27 — 맵에는 등록되어 있으나 입력 시 매칭 실패
-* 진행:
-    - **부분 fix (Hash: ec066b7)**: expand API `deleteCount` 가 raw `String.count` 사용 → atomic token `{keypad_comma}` 14자 포함 시 deleteCount=18 (정상 visual=4). `DeleteLengthManager.getVisualLength` 적용. 외부 REST 클라이언트(paidApp 등) 텍스트 오프셋 정확성 회복.
-    - 사용자 noteForHuman 케이스(키보드 직접 입력) 가 expand API path 인지 KeyEventMonitor path 인지 미확정 — 후자라면 본 fix 와 별개 원인.
-* 잔여:
-    - 키보드 직접 입력(KeyEventMonitor → TriggerProcessor → AbbreviationMatcher) path 라이브 추적 필요
-    - `log_level: VERBOSE` 설정 완료, 사용자 실제 입력 + flog 회수 후 분석 가능
-* 구현 명세:
-    - flog_cliApp.log 에서 `,ant` 입력 시 매칭 로그 추적
-    - AbbreviationMatcher.findBestMatch / TriggerProcessor.checkForSuffixMatches 호출 흐름 확인
-
 ## Issue156: [Runtime/Karabiner] `..0{keypad_comma}` 입력 차단 — bufferClear `.` 충돌 (등록: 2026-05-27)
 * 목적: noteForHuman.md line 31 — 매칭 실패
 * 상세:
@@ -57,6 +46,17 @@ date: 2026-04-07
 # 📙 일반
 
 # ✅ 완료
+## Issue155: [Runtime/Match] `,ant{keypad_comma}` 런타임 매칭 실패 — greedy collision delay 회귀 (등록: 2026-05-27, 완료: 2026-05-27) (Hash: ec066b7, 0f118db) ✅
+* 목적: noteForHuman.md line 27 — `,ant` 입력 후 trigger 누르면 짧은 `t{right_command}` 가 매칭되어 `,an` + `torch` 오확장
+* 원인 (flog 라이브 추적으로 확정):
+    - User 가 modifier trigger (`right_command`, displayChar="") 누름
+    - Issue 550_1 (메인 레포 261f9017) 에서 도입된 `cleanBuffer + (triggerChar.isEmpty ? triggerSeq : triggerChar)` 가 Issue479 (메인 레포 168e45c7) 원본 collision delay 동작을 깨뜨림
+    - modifier trigger 시 token sequence (`{right_command}`) 가 buffer 에 붙어 hasLongerMatches 가 literal prefix 만 검색 → 실제 longer abbreviation (`,ant{keypad_comma}`) 매칭 안 됨 → delay 미발동
+* 구현:
+    - **Hash ec066b7**: expand API deleteCount raw String.count → visual length (atomic token 18 → 4)
+    - **Hash 0f118db**: `TriggerProcessor.processTriggerKey` line 41 `checkBufferForCollision = cleanBuffer + triggerChar` 로 복원. modifier key trigger 시 cleanBuffer 자체로 collision 검사 → `,ant{keypad_comma}` 발견 → delay 정상 발동
+* 검증: brew 로컬 재배포 완료. 사용자 라이브 입력 재테스트 권장.
+
 ## Issue154: [Calculator/Rule] noteForHuman 오동작 — Initcap `_` strip + Initcap suffix 유지 + 룰 케이스 매칭 (등록: 2026-05-27, 완료: 2026-05-27) (Hash: 9144475) ✅
 * 목적: noteForHuman.md x표시 라인 6건 중 4건 fix (line 14·20·21·22)
 * 상세:
