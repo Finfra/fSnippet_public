@@ -8,6 +8,7 @@ date: 2026-04-07
 
 * Issue HWM: 156
 * Save Point :
+      - 2026.05.27: fb1a9dc (Fix(Issue155): collision delay 정밀화 — exact match 우선 + cleanBuffer prefix 검사)
       - 2026.05.27: 0f118db (Fix(Issue155): greedy collision delay 회귀 복구 — Issue479 동작 복원)
       - 2026.05.27: ec066b7 (Fix(Issue155 부분): expand API delete_count raw String.count → visual length)
       - 2026.05.27: 9144475 (Fix(Issue154): noteForHuman 오동작 — Initcap `_` strip + Initcap suffix 유지 + 룰 케이스 매칭)
@@ -46,7 +47,7 @@ date: 2026-04-07
 # 📙 일반
 
 # ✅ 완료
-## Issue155: [Runtime/Match] `,ant{keypad_comma}` 런타임 매칭 실패 — greedy collision delay 회귀 (등록: 2026-05-27, 완료: 2026-05-27) (Hash: ec066b7, 0f118db) ✅
+## Issue155: [Runtime/Match] `,ant{keypad_comma}` 런타임 매칭 실패 — greedy collision delay 회귀 (등록: 2026-05-27, 완료: 2026-05-27) (Hash: ec066b7, 0f118db, fb1a9dc) ✅
 * 목적: noteForHuman.md line 27 — `,ant` 입력 후 trigger 누르면 짧은 `t{right_command}` 가 매칭되어 `,an` + `torch` 오확장
 * 원인 (flog 라이브 추적으로 확정):
     - User 가 modifier trigger (`right_command`, displayChar="") 누름
@@ -55,7 +56,10 @@ date: 2026-04-07
 * 구현:
     - **Hash ec066b7**: expand API deleteCount raw String.count → visual length (atomic token 18 → 4)
     - **Hash 0f118db**: `TriggerProcessor.processTriggerKey` line 41 `checkBufferForCollision = cleanBuffer + triggerChar` 로 복원. modifier key trigger 시 cleanBuffer 자체로 collision 검사 → `,ant{keypad_comma}` 발견 → delay 정상 발동
-* 검증: brew 로컬 재배포 완료. 사용자 라이브 입력 재테스트 권장.
+    - **Hash fb1a9dc**: 단순 복구가 case13~17 회귀(`test` keyword + 다른 trigger 변형 다수) 일으킴. 정밀 fix — exact match 우선 + cleanBuffer prefix 검사. `test{right_command}` 정확 매칭 존재 시 즉시 expansion, 정확 매칭 없을 때만 cleanBuffer 가 longer 약어 prefix 인지 검사
+* 검증:
+    - XCTest FolderTestRunnerTests.testAllFolderCases 35/35 PASS
+    - brew 로컬 재배포 완료. 사용자 라이브 입력 재테스트 권장.
 
 ## Issue154: [Calculator/Rule] noteForHuman 오동작 — Initcap `_` strip + Initcap suffix 유지 + 룰 케이스 매칭 (등록: 2026-05-27, 완료: 2026-05-27) (Hash: 9144475) ✅
 * 목적: noteForHuman.md x표시 라인 6건 중 4건 fix (line 14·20·21·22)
