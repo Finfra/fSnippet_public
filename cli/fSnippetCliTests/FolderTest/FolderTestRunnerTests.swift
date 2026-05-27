@@ -10,6 +10,7 @@
 //
 
 import XCTest
+import Cocoa
 
 @testable import fSnippetCli
 
@@ -149,6 +150,55 @@ final class FolderTestRunnerTests: XCTestCase {
       failures.isEmpty,
       "FolderTest 35-case 회귀: \(failures.count)건 실패. 상세는 result_latest.md 참조"
     )
+  }
+
+  // MARK: - Issue155 — Runtime Trigger Collision Tests
+
+  /// Issue155: cleanBuffer 가 다른 longer abbreviation 의 prefix 일 때 짧은 매칭 reject 검증.
+  ///
+  /// 시나리오:
+  ///   - `test{right_command}` (case 13) 와 `,test{keypad_comma}` (case 37) 가 모두 등록된 환경
+  ///   - 사용자가 `test` + right_command → exact match 채택, expansion 정상 (정확 매칭 우선)
+  ///   - 사용자가 `,test` + right_command → exact match 없음, cleanBuffer `,test` 가 case 37 prefix → reject
+  ///   - 사용자가 `,,test` + right_command → cleanBuffer `,,test` 가 case 38 prefix → reject
+  func testIssue155RuntimeCollision() throws {
+    let cases = try Self.parseTestTable()
+    let ruleYAML = Self.buildRuleYAML(from: cases)
+    try utils.createRuleFile(content: ruleYAML)
+    for c in cases {
+      try utils.createFile(path: "\(c.folder)/test.txt", content: "Snippet for \(c.id)")
+    }
+    XCTAssertTrue(RuleManager.shared.loadRuleFile(at: sandbox.path), "_rule.yml 로드 실패")
+    SnippetRepository.shared.loadAllSnippets(reason: "Issue155-Collision", force: true)
+
+    // right_command (Code 54) trigger KeyEventInfo 시뮬레이션
+    let rightCmdInfo = KeyEventInfo(
+      type: .regular,
+      character: "{right_command}",
+      keyCode: 54,
+      modifiers: []
+    )
+
+    // Sanity 1: exact match (test + right_command) → expansion 채택
+    let exactAction = TriggerProcessor.shared.checkForSuffixMatches(
+      buffer: "test{right_command}", keyInfo: rightCmdInfo
+    )
+    XCTAssertEqual(exactAction, .consumed,
+                   "exact match 'test{right_command}' 는 .consumed 기대")
+
+    // Issue155 fix 검증 2: cleanBuffer ',test' → ',test{keypad_comma}' (case 37) prefix → reject
+    let collide37 = TriggerProcessor.shared.checkForSuffixMatches(
+      buffer: ",test{right_command}", keyInfo: rightCmdInfo
+    )
+    XCTAssertEqual(collide37, .none,
+                   "',test{right_command}' 는 cleanBuffer ',test' 가 case 37 prefix 이므로 reject (.none) 기대")
+
+    // Issue155 fix 검증 3: cleanBuffer ',,test' → ',,test{keypad_comma}' (case 38) prefix → reject
+    let collide38 = TriggerProcessor.shared.checkForSuffixMatches(
+      buffer: ",,test{right_command}", keyInfo: rightCmdInfo
+    )
+    XCTAssertEqual(collide38, .none,
+                   "',,test{right_command}' 는 cleanBuffer ',,test' 가 case 38 prefix 이므로 reject (.none) 기대")
   }
 
   // MARK: - testTable_org.md 파싱
