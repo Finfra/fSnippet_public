@@ -38,18 +38,27 @@ class TriggerProcessor {
             cleanBuffer = buffer
         }
 
-        // Issue155 회귀 fix: Issue 550_1 (261f9017) 가 `triggerChar.isEmpty ? triggerSeq : triggerChar`
-        // 도입하여 Issue479 (168e45c7) 원본 동작을 깨뜨림. modifier key trigger 시 displayChar="" 일 때
-        // sequence(`{right_command}` 같은 토큰 문자열) 을 buffer 에 붙이면 hasLongerMatches 가
-        // 토큰 문자열로 시작하는 키만 검사 → 실제 longer abbreviation prefix 검사 실패.
-        // 예: buffer=`,ant`, modifier trigger → checkBuffer=`,ant{right_command}` →
-        // `,ant{keypad_comma}` prefix 매칭 안 됨 → delay 미발동 → 짧은 `t{right_command}` 오확장.
-        // 원본 Issue479 동작 (cleanBuffer + displayCharacter, modifier 면 빈 → cleanBuffer 그대로) 복구.
-        let checkBufferForCollision = cleanBuffer + triggerChar
+        // Issue155: Issue479 (168e45c7) collision delay 복구 — Issue 550_1 (261f9017) 가 modifier trigger
+        // 시 sequence(`{right_command}`) literal 을 buffer 에 붙여 hasLongerMatches 가 token 문자열
+        // prefix 만 검사하게 만들어 무력화됨. 그러나 단순 복구는 case13~17 같이 동일 keyword + 다른
+        // trigger 변형 다수 케이스에서 회귀 (`test` 입력 + modifier → `test{right_option}` 등 longer
+        // 매칭으로 delay 발동 → expansion 실패).
+        //
+        // 정밀 fix: 현재 trigger 와 정확 매칭되는 abbreviation 이 존재하면 그대로 expansion 진행.
+        // 정확 매칭 없을 때만 cleanBuffer 가 다른 약어의 prefix 인지 확인 → 있으면 delay.
+        // 예: buffer=`,ant`, modifier trigger=right_command
+        //     - exactMatchKey = `,ant{right_command}` → 없음
+        //     - hasLongerMatches(`,ant`) → `,ant{keypad_comma}` 발견 → delay ✓
+        // 예: buffer=`test`, modifier trigger=right_command
+        //     - exactMatchKey = `test{right_command}` → 존재 → 즉시 expansion ✓ (case13 통과)
+        let triggerToken = !triggerSeq.isEmpty ? triggerSeq : triggerChar
+        let exactMatchKey = cleanBuffer + triggerToken
+        let snippetMapKeys = SnippetFileManager.shared.snippetMap.keys
+        let hasExactMatch = snippetMapKeys.contains(exactMatchKey)
 
-        if abbreviationMatcher.hasLongerMatches(for: checkBufferForCollision) {
+        if !hasExactMatch && abbreviationMatcher.hasLongerMatches(for: cleanBuffer) {
             logI(
-                "⚡️ [Issue479] Longer match found for '\(checkBufferForCollision)'. Delaying trigger via Collision Logic."
+                "⚡️ [Issue479] Longer match found for cleanBuffer '\(cleanBuffer)' (no exact match for '\(exactMatchKey)'). Delaying trigger via Collision Logic."
             )
             return false
         }
