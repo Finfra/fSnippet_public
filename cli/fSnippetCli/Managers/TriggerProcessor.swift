@@ -324,6 +324,29 @@ class TriggerProcessor {
                         "⚡️ [TriggerProcessor] Matching found: '\(match.snippet.abbreviation)' in '\(searchBuffer)' (MatchedLen: \(match.matchedLength))"
                     )
 
+                    // Issue155 (재오픈): modifier trigger 가 일반 key 경로(checkForSuffixMatches) 로 처리되는 케이스도
+                    // prefix collision delay 적용. 매칭이 searchBuffer 전체보다 짧으면(suffix 매칭) cleanBuffer 가
+                    // 다른 longer abbreviation 의 prefix 인지 확인하여 짧은 매칭 reject.
+                    //
+                    // 예: searchBuffer=",ant{right_command}", matched="t{right_command}" (MatchedLen=16)
+                    //   → cleanBuffer=",ant", hasLongerMatches → ",ant{keypad_comma}" 발견 → 짧은 't{right_command}' 매칭 reject
+                    if match.matchedLength < searchBuffer.count {
+                        let cleanBuffer: String
+                        if !effectiveSuffix.isEmpty && searchBuffer.hasSuffix(effectiveSuffix) {
+                            cleanBuffer = String(searchBuffer.dropLast(effectiveSuffix.count))
+                        } else {
+                            cleanBuffer = searchBuffer
+                        }
+                        if !cleanBuffer.isEmpty,
+                           abbreviationMatcher.hasLongerMatches(for: cleanBuffer)
+                        {
+                            logI(
+                                "⚡️ [Issue155-re] Longer match found for cleanBuffer '\(cleanBuffer)' — rejecting short match '\(match.snippet.abbreviation)' in checkForSuffixMatches"
+                            )
+                            continue
+                        }
+                    }
+
                     // ✅ Simplified Logic: All validation moved to DeleteLengthManager (Issue 503 Refactor)
                     // We just pass the context: triggerKeyLabel and hasLongerMatches.
 

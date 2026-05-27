@@ -33,6 +33,26 @@ date: 2026-04-07
 
 # 🚧 진행중
 
+## Issue155 (재오픈): [Runtime/Match] `,ant{keypad_comma}` 매칭 실패 회귀 — exact match 우선 fix 미동작 (등록: 2026-05-27, 재오픈: 2026-05-27)
+* 목적: noteForHuman.md L28 — fb1a9dc 정밀 fix 적용 후에도 사용자 라이브 입력에서 여전히 짧은 `t{right_command}` 매칭 채택 (회귀)
+* 재현 (flog `2026-05-27 23:29:21` 라이브 로그):
+    - 사용자 입력: `,ant` + `{right_command}` trigger
+    - buffer: `,ant{right_command}`
+    - 로그: `Matching found: 't{right_command}' in ',ant{right_command}' (MatchedLen: 16)` → delay 없이 즉시 매칭
+    - 기대 동작: cleanBuffer `,ant` 가 `,ant{keypad_comma}` abbreviation 의 prefix → delay 발동 → keypad_comma 대기
+    - 실제: prefix collision delay 미발동 → 짧은 `t{right_command}` 채택 → 오확장 `,an` + expansion
+* 원인 분석 (확인 필요):
+    - fb1a9dc 의 정밀 fix 로직이 modifier trigger(`{right_command}`) 케이스에서 prefix 검사 우회
+    - 또는 hasLongerMatches 가 trigger 가 다른 abbreviation 도 prefix 로 검사해야 하는데, 같은 trigger 만 검사
+    - `t{right_command}` 가 exact match 로 인식되어 prefix 검사 skip 한 후 즉시 expansion 진행하는 경로 의심
+* 구현 명세 (TBD):
+    - `TriggerProcessor.processTriggerKey` 의 exact match 분기 + prefix 검사 분기 재검토
+    - cleanBuffer prefix 검사 시 모든 trigger 변형 abbreviation 까지 포함
+    - XCTest 회귀 case 추가: `,ant{right_command}` → 확장 안 됨 (또는 delay) 보장
+* 관련 파일:
+    - `cli/fSnippetCli/Core/TriggerProcessor.swift`
+    - `cli/fSnippetCli/Core/AbbreviationMatcher.swift`
+
 ## Issue156: [Runtime/Karabiner] `..0{keypad_comma}` 입력 차단 — bufferClear `.` 충돌 (등록: 2026-05-27)
 * 목적: noteForHuman.md line 31 — 매칭 실패
 * 상세:
@@ -47,19 +67,6 @@ date: 2026-04-07
 # 📙 일반
 
 # ✅ 완료
-## Issue155: [Runtime/Match] `,ant{keypad_comma}` 런타임 매칭 실패 — greedy collision delay 회귀 (등록: 2026-05-27, 완료: 2026-05-27) (Hash: ec066b7, 0f118db, fb1a9dc) ✅
-* 목적: noteForHuman.md line 27 — `,ant` 입력 후 trigger 누르면 짧은 `t{right_command}` 가 매칭되어 `,an` + `torch` 오확장
-* 원인 (flog 라이브 추적으로 확정):
-    - User 가 modifier trigger (`right_command`, displayChar="") 누름
-    - Issue 550_1 (메인 레포 261f9017) 에서 도입된 `cleanBuffer + (triggerChar.isEmpty ? triggerSeq : triggerChar)` 가 Issue479 (메인 레포 168e45c7) 원본 collision delay 동작을 깨뜨림
-    - modifier trigger 시 token sequence (`{right_command}`) 가 buffer 에 붙어 hasLongerMatches 가 literal prefix 만 검색 → 실제 longer abbreviation (`,ant{keypad_comma}`) 매칭 안 됨 → delay 미발동
-* 구현:
-    - **Hash ec066b7**: expand API deleteCount raw String.count → visual length (atomic token 18 → 4)
-    - **Hash 0f118db**: `TriggerProcessor.processTriggerKey` line 41 `checkBufferForCollision = cleanBuffer + triggerChar` 로 복원. modifier key trigger 시 cleanBuffer 자체로 collision 검사 → `,ant{keypad_comma}` 발견 → delay 정상 발동
-    - **Hash fb1a9dc**: 단순 복구가 case13~17 회귀(`test` keyword + 다른 trigger 변형 다수) 일으킴. 정밀 fix — exact match 우선 + cleanBuffer prefix 검사. `test{right_command}` 정확 매칭 존재 시 즉시 expansion, 정확 매칭 없을 때만 cleanBuffer 가 longer 약어 prefix 인지 검사
-* 검증:
-    - XCTest FolderTestRunnerTests.testAllFolderCases 35/35 PASS
-    - brew 로컬 재배포 완료. 사용자 라이브 입력 재테스트 권장.
 
 ## Issue154: [Calculator/Rule] noteForHuman 오동작 — Initcap `_` strip + Initcap suffix 유지 + 룰 케이스 매칭 (등록: 2026-05-27, 완료: 2026-05-27) (Hash: 9144475) ✅
 * 목적: noteForHuman.md x표시 라인 6건 중 4건 fix (line 14·20·21·22)
