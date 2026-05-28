@@ -16,6 +16,7 @@ date: 2026-04-07
       - 2026.05.27: 62853ff (Revert(Issue152): Issue146 revert — appRootPath seed → ~/Documents/finfra/fSnippetData)
       - 2026.05.26: 2afc508 (Refactor(Issue150): pairApp 패턴 차용 — 권한 처리 simplify)
       - 2026.05.26: fde04ae (Fix(Issue149): TCC mismatch — alert 메시지 보강 + grant 전이 시 자동 dismiss)
+      - 2026.05.28: d363b3c (Chore(Issue155): TextBuffer debug log → verbose 강등 — Issue155 종결)
       - 2026.05.28: f6f4fe7 (Fix(Issue155-re³): hasLongerMatches folderPrefix 변형 검사 추가 — buffer 에 prefix char 빠진 케이스 대응)
       - 2026.05.28: 24a546b (Fix(Issue155-re²): modifier press+release token 중복 시 cleanBuffer 추출 보강)
       - 2026.05.28: fc4c7cc (Test(Issue155): runtime collision XCTest 추가 — 82a7f8e fix 검증)
