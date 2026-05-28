@@ -33,10 +33,10 @@ class TextBuffer {
                 self.buffer.removeFirst(removeCount)
             }
 
-            // Issue155 디버그: append 후 buffer 상태 추적
+            // Issue155: append 후 buffer snapshot trace (logV 로 강등 — DEBUG 시 노이즈 방지)
             let snapshot = String(self.buffer)
             DispatchQueue.main.async {
-                logD("📝 [TextBuffer] append('\(text.replacingOccurrences(of: "\n", with: "\\n"))') → '\(snapshot)'")
+                logV("📝 [TextBuffer] append('\(text.replacingOccurrences(of: "\n", with: "\\n"))') → '\(snapshot)'")
             }
         }
     }
