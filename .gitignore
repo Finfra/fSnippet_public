@@ -59,6 +59,7 @@ cli/_tool/.last_build_path
 
 # Issue137: qa_run_batch.sh 실행 산출물 (run-specific reports)
 cli/_tool/qa/results/
+cli/_tool/testBoard.txt
 
 # Python
 __pycache__/
