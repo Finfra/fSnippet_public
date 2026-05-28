@@ -200,29 +200,40 @@ class AbbreviationMatcher {
 
     /// Issue Fix: 지정된 약어에 대해 더 긴 매칭이 있는지 확인
     /// "충돌 시 지연 트리거(Delayed Trigger on Collision)" 로직 구현에 사용됨.
+    ///
+    /// Issue155 (재재재오픈 2026-05-28): folderPrefix shortcut 처리 시 prefix char 가
+    /// buffer 에서 제거되어 cleanBuffer 가 prefix 빠진 형태(예: `ant`)가 될 수 있음.
+    /// 이 경우 raw key (`,ant{keypad_comma}`) 매칭 검사를 위해 모든 folderPrefix 변형까지 검사한다.
     func hasLongerMatches(for abbreviation: String) -> Bool {
         let fileManagerMap = snippetFileManager.snippetMap
-
-        // 맵의 키 중 약어로 시작하지만 더 긴 것이 있는지 확인
-        // 최적화: Trie를 사용하거나 맵 크기가 관리 가능하므로(수백/수천) 반복할 수 있음
-        // 일반적으로 2000개 미만의 스니펫이므로 반복은 허용 가능(약 0.1ms)
-        // 엄격한 필터링: 약어로 시작하고 길이가 더 긴 경우
-
-        // 참고: 여기서 abbreviation은 전체 키(예: ",c")입니다.
-        // ",cat", ",could" 등을 찾습니다.
 
         // 빠른 종료: 비어있는 경우
         if abbreviation.isEmpty { return false }
 
-        // 대소문자 구분 체크? 트리거는 주로 대소문자를 구분합니다(매처에 따라 다름).
-        // AbbreviationMatcher는 주로 정확한 키 조회를 사용합니다.
-        // 접두사에 대해 정확한 일치가 필요하다고 가정합시다.
-
-        // 성능: 파일 관리자 맵(메모리) 우선 확인
+        // 1. literal prefix 매칭 (기존 로직)
         for key in fileManagerMap.keys {
             if key.count > abbreviation.count && key.hasPrefix(abbreviation) {
                 logV("🧩 [AbbreviationMatcher] Found longer match for '\(abbreviation)': '\(key)'")
                 return true
+            }
+        }
+
+        // 2. folderPrefix 변형 매칭 (Issue155 재재재오픈)
+        // cleanBuffer 에서 folder prefix shortcut 제거되었을 가능성 대응.
+        // 예: cleanBuffer=`ant`, 등록된 abbreviation=`,ant{keypad_comma}` (_emoji prefix=`,`)
+        //   → `,ant{keypad_comma}` 가 `,` + `ant` 형태이므로 cleanBuffer prefix 변형 검사로 발견
+        let activeRules = RuleManager.shared.getEffectiveRules()
+        var seenPrefixes: Set<String> = [""]
+        for rule in activeRules {
+            let prefix = rule.prefix
+            if prefix.isEmpty || seenPrefixes.contains(prefix) { continue }
+            seenPrefixes.insert(prefix)
+            let prefixedBuffer = prefix + abbreviation
+            for key in fileManagerMap.keys {
+                if key.count > prefixedBuffer.count && key.hasPrefix(prefixedBuffer) {
+                    logV("🧩 [AbbreviationMatcher] Found longer folder-prefix match for '\(abbreviation)' + prefix '\(prefix)': '\(key)'")
+                    return true
+                }
             }
         }
 

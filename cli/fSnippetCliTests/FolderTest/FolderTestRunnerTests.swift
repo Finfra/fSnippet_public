@@ -108,15 +108,17 @@ final class FolderTestRunnerTests: XCTestCase {
   /// 기대 abbreviation 이 snippetMap 에 등록되는지 검증.
   func testAllFolderCases() throws {
     let cases = try Self.parseTestTable()
-    XCTAssertEqual(cases.count, 38, "testTable_org.md 에서 38-case 파싱 기대 (Issue155 회귀 case 36-38)")
+    XCTAssertEqual(cases.count, 39, "testTable_org.md 에서 39-case 파싱 기대 (Issue155 회귀 case 36-39)")
 
     // 1. _rule.yml 생성
     let ruleYAML = Self.buildRuleYAML(from: cases)
     try utils.createRuleFile(content: ruleYAML)
 
-    // 2. 각 case 폴더 + test.txt 생성
+    // 2. 각 case 폴더 + {keyword}.txt 생성
+    // Issue155 (재재재오픈): case 39 는 keyword='ant' (다른 case 는 'test'). c.keys 두 번째 항목이 keyword.
     for c in cases {
-      try utils.createFile(path: "\(c.folder)/test.txt", content: "Snippet for \(c.id)")
+      let keyword = c.keys.count >= 2 ? c.keys[1] : "test"
+      try utils.createFile(path: "\(c.folder)/\(keyword).txt", content: "Snippet for \(c.id)")
     }
 
     // 3. RuleManager 로드
@@ -208,6 +210,16 @@ final class FolderTestRunnerTests: XCTestCase {
     )
     XCTAssertEqual(doubleTok, .none,
                    "modifier 중복 token 케이스 ',test{right_command}{right_command}' 도 reject 기대 (trailing token loop 제거)")
+
+    // Issue155 fix 검증 5 (재재재오픈 2026-05-28): folderPrefix shortcut 처리로 prefix char 가 buffer 에서
+    // 제거된 라이브 케이스. _case39 = (,ant{keypad_comma}) 만 추가. buffer='ant{right_command}' (folderPrefix `,`
+    // 제거된 raw form) 일 때 hasLongerMatches 가 folderPrefix 변형 `,` + `ant` = `,ant` 발견 → reject.
+    // (Torch sandbox 폴더 없으니 short match 후보로 ',ant{keypad_comma}' 자체가 사용됨 — 검증 가능)
+    let folderPrefixCase = TriggerProcessor.shared.checkForSuffixMatches(
+      buffer: "ant{right_command}", keyInfo: rightCmdInfo
+    )
+    XCTAssertEqual(folderPrefixCase, .none,
+                   "folderPrefix 제거 라이브 케이스 'ant{right_command}' 도 reject 기대 (hasLongerMatches 의 folderPrefix 변형 검사로 ',ant{keypad_comma}' 발견)")
   }
 
   // MARK: - testTable_org.md 파싱

@@ -45,3 +45,4 @@ date: 2026-05-20
 | 36  | _case36 | {keypad_comma}    | t36, test | {keypad_comma}    | {keypad_comma}test{keypad_comma}       |
 | 37  | _case37 | ,                 | t37, test | {keypad_comma}    | ,test{keypad_comma}                    |
 | 38  | _case38 | ,,                | t38, test | {keypad_comma}    | ,,test{keypad_comma}                   |
+| 39  | _case39 | ,                 | a39, ant  | {keypad_comma}    | ,ant{keypad_comma}                     |
