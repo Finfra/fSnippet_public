@@ -24,8 +24,6 @@ class TextBuffer {
         queue.sync(flags: .barrier) { [weak self] in
             guard let self = self else { return }
 
-
-
             // 문자들을 하나씩 추가
             self.buffer.append(contentsOf: text)
 
@@ -35,7 +33,10 @@ class TextBuffer {
                 self.buffer.removeFirst(removeCount)
             }
 
+            // Issue155 디버그: append 후 buffer 상태 추적
+            let snapshot = String(self.buffer)
             DispatchQueue.main.async {
+                logD("📝 [TextBuffer] append('\(text.replacingOccurrences(of: "\n", with: "\\n"))') → '\(snapshot)'")
             }
         }
     }
