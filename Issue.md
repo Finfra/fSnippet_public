@@ -16,6 +16,7 @@ date: 2026-04-07
       - 2026.05.27: 62853ff (Revert(Issue152): Issue146 revert — appRootPath seed → ~/Documents/finfra/fSnippetData)
       - 2026.05.26: 2afc508 (Refactor(Issue150): pairApp 패턴 차용 — 권한 처리 simplify)
       - 2026.05.26: fde04ae (Fix(Issue149): TCC mismatch — alert 메시지 보강 + grant 전이 시 자동 dismiss)
+      - 2026.05.28: f6f4fe7 (Fix(Issue155-re³): hasLongerMatches folderPrefix 변형 검사 추가 — buffer 에 prefix char 빠진 케이스 대응)
       - 2026.05.28: 24a546b (Fix(Issue155-re²): modifier press+release token 중복 시 cleanBuffer 추출 보강)
       - 2026.05.28: fc4c7cc (Test(Issue155): runtime collision XCTest 추가 — 82a7f8e fix 검증)
       - 2026.05.28: 3700aa3 (Test(Issue155): testTable 38-case 확장 — case 36-38 keypad_comma 변형)
@@ -51,7 +52,7 @@ date: 2026-04-07
 # 📙 일반
 
 # ✅ 완료
-## Issue155 (재오픈→완료): [Runtime/Match] modifier trigger 경로 + token 중복 회귀 — checkForSuffixMatches collision delay 보강 (등록: 2026-05-27, 완료: 2026-05-28) (✅ 완료, 82a7f8e + 3700aa3 + fc4c7cc + 24a546b) ✅
+## Issue155 (3회 재오픈→완료): [Runtime/Match] folderPrefix shortcut 처리로 cleanBuffer 에서 prefix char 누락 — hasLongerMatches 변형 검사 추가 (등록: 2026-05-27, 완료: 2026-05-28) (✅ 완료, 82a7f8e + 3700aa3 + fc4c7cc + 24a546b + f6f4fe7) ✅
 * 목적: fb1a9dc fix 후에도 라이브 `,ant + right_command` 회귀 → checkForSuffixMatches 경로 미보호 + modifier press/release 시 token 중복 누적 발견 → fix + XCTest 회귀 보호 추가
 * 원인 (라이브 로그 01:57:27 추적):
     - **1차 (82a7f8e)**: modifier trigger 가 `case .triggerKey` 가 아닌 일반 key 경로로 진입 → processTriggerKey 미호출 → Issue155 fix 우회. checkForSuffixMatches 는 collision delay 없이 짧은 매칭 즉시 채택
@@ -61,9 +62,10 @@ date: 2026-04-07
     - **3700aa3**: testTable 38-case 확장 — case 36 (`{keypad_comma}test{keypad_comma}`), case 37 (`,test{keypad_comma}`), case 38 (`,,test{keypad_comma}`) 추가
     - **fc4c7cc**: `testIssue155RuntimeCollision` XCTest 추가 (3 시나리오)
     - **24a546b**: cleanBuffer 추출을 while loop 로 변경 — trailing trigger token 들을 모두 제거하여 진짜 raw buffer 도달. modifier press+release 중복 token 케이스 대응. XCTest 에 `,test{right_command}{right_command}` reject 케이스 추가
+    - **f6f4fe7** (진짜 root cause): `AbbreviationMatcher.hasLongerMatches` 에 folderPrefix 변형 검사 추가. _emoji prefix `,` shortcut 처리 시 buffer 에서 `,` 가 제거되어 cleanBuffer=`ant` 가 되더라도, 모든 활성 룰의 prefix 변형 (`,` + `ant` = `,ant`) 로 snippetMap 검사 → `,ant{keypad_comma}` 발견 → reject. testTable case 39 (`,ant{keypad_comma}`) 추가 + XCTest 5번째 케이스 (`ant{right_command}` reject)
 * 검증:
-    - testAllFolderCases 38/38 PASS (abbreviation generation)
-    - testIssue155RuntimeCollision PASS — exact match `test{right_command}` → .consumed, `,test{right_command}` → .none (reject), `,,test{right_command}` → .none, `,test{right_command}{right_command}` → .none (중복 token reject)
+    - testAllFolderCases 39/39 PASS (abbreviation generation 포함 case 39)
+    - testIssue155RuntimeCollision 5 assertion PASS — exact + 3 collision + 중복 token + folderPrefix 변형
     - brew local 재배포 9/9 PASS, REST API 정상
 
 
