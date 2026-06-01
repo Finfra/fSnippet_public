@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 156
+* Issue HWM: 158
 * Save Point :
       - 2026.05.27: fb1a9dc (Fix(Issue155): collision delay 정밀화 — exact match 우선 + cleanBuffer prefix 검사)
       - 2026.05.27: 0f118db (Fix(Issue155): greedy collision delay 회귀 복구 — Issue479 동작 복원)
@@ -39,6 +39,22 @@ date: 2026-04-07
 
 # 🚧 진행중
 
+
+# 📕 중요
+
+# 📙 일반
+
+# 📗 선택
+
+# ✅ 완료
+## Issue158: [cliApp] Placeholder 입력창 — 초기 선택 상태 텍스트가 paste 시 교체되지 않고 prepend됨 (등록: 2026-05-31) (✅ 완료, b0b9872) ✅
+* 목적: PlaceholderInputWindow 첫 paste 시 초기값 전체 교체 (append 버그 수정)
+* 수정: `initialValues` 스냅샷 추가 → `insertTextIntoFocusedField`에서 미편집 시 전체 교체 분기 (Method B)
+
+## Issue157: [cliApp] 팝업 "Create" 버튼 → URL Scheme으로 paidApp 스니펫 추가 창 열기 (등록: 2026-05-31) (✅ 완료, b0b9872) ✅
+* 목적: Create 버튼 → handleNewSnippet() → URL Scheme fsnippet://command?action=new-snippet&keyword=
+* 수정: SnippetPopupView 버튼 액션 + PaidAppManager.handleNewSnippet() + PaidAppDetector.openNewSnippet()
+* 연동: prj15#Issue907 (paidApp new-snippet 핸들러)
 ## Issue156: [Runtime/Karabiner] `..0{keypad_comma}` 입력 차단 — bufferClear `.` 충돌 (등록: 2026-05-27)
 * 목적: noteForHuman.md line 31 — 매칭 실패
 * 상세:
@@ -47,10 +63,6 @@ date: 2026-04-07
 * 구현 명세:
     - Karabiner 설정 확인 (`~/.config/karabiner/karabiner.json`)
     - remap 작동 시 매칭 실패 원인 별도 조사. 미작동 시 doc 표기 수정 또는 bufferClear 정책 재검토
-
-# 📕 중요
-
-# 📙 일반
 
 # ✅ 완료
 ## Issue155 (3회 재오픈→완료): [Runtime/Match] folderPrefix shortcut 처리로 cleanBuffer 에서 prefix char 누락 — hasLongerMatches 변형 검사 추가 (등록: 2026-05-27, 완료: 2026-05-28) (✅ 완료, 82a7f8e + 3700aa3 + fc4c7cc + 24a546b + f6f4fe7) ✅
