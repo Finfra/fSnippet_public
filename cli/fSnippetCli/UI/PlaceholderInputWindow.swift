@@ -301,6 +301,9 @@ class PlaceholderInputViewModel: ObservableObject {
     // ✅ 삽입을 위한 포커스된 필드 인덱스 추적
     var currentFocusedIndex: Int = 0
 
+    // Issue158: initial values snapshot to detect unedited fields (replace vs. append)
+    private var initialValues: [String: String] = [:]
+
     private var templateContent: String = ""
     private var previewSegments: [PreviewSegment] = []
 
@@ -330,6 +333,8 @@ class PlaceholderInputViewModel: ObservableObject {
             let cachedValue = PlaceholderCache.shared.getValue(for: placeholder.name)
             self.results[placeholder.name] = cachedValue ?? placeholder.defaultValue ?? ""
         }
+        // Issue158: snapshot initial values to detect first-edit (replace vs. append)
+        self.initialValues = self.results
 
         logD("🌫️ [PlaceholderInputViewModel] 설정 완료 - placeholders: \(placeholders.count)개")
 
@@ -361,9 +366,10 @@ class PlaceholderInputViewModel: ObservableObject {
         let placeholder = placeholders[currentFocusedIndex]
         let currentText = results[placeholder.name] ?? ""
 
-        // 현재는 추가(Append) (NSTextView에 직접 접근하지 않고 커서 위치에 삽입하기는 어려움)
-        // 이상적으로는 커서 위치에 삽입해야 하지만, 대체보다는 추가가 더 안전함.
-        let newText = currentText + text
+        // Issue158: if field still holds its initial (unedited) value, replace it entirely.
+        // Otherwise append at the logical end (cursor-position replacement not supported via VM).
+        let initial = initialValues[placeholder.name] ?? ""
+        let newText = (currentText == initial) ? text : currentText + text
 
         results[placeholder.name] = newText
         generatePreview()

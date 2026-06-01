@@ -51,12 +51,43 @@ enum PaidAppDetector {
       SettingsWindowManager.shared.showSettings()
       return
     }
+    route(schemeURL, label: "Settings")
+  }
 
+  /// paidApp 새 스니펫 추가 창 열기 — Issue157 (paid_cli_protocol §1.2 new-snippet)
+  /// URL Scheme: fsnippet://command?action=new-snippet&keyword=<sanitized>&source=cliApp
+  static func openNewSnippet(keyword: String) {
+    let sanitized = sanitizeKeyword(keyword)
+    var comps = URLComponents(string: "fsnippet://command")!
+    comps.queryItems = [
+      URLQueryItem(name: "action", value: "new-snippet"),
+      URLQueryItem(name: "source", value: "cliApp"),
+    ]
+    if !sanitized.isEmpty {
+      comps.queryItems?.append(URLQueryItem(name: "keyword", value: sanitized))
+    }
+    guard let schemeURL = comps.url else {
+      logW("🆕 [NewSnippet] URL 생성 실패 — keyword=\(keyword)")
+      return
+    }
+    route(schemeURL, label: "NewSnippet")
+  }
+
+  /// §1.2 keyword 검증: 화이트리스트 [a-z0-9A-Z\-_.], 64자(ASCII 1byte) 제한
+  private static func sanitizeKeyword(_ raw: String) -> String {
+    let allowed = CharacterSet(
+      charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.")
+    let filtered = String(raw.unicodeScalars.filter { allowed.contains($0) })
+    return String(filtered.prefix(64))
+  }
+
+  /// URL Scheme 라우팅 공통 경로 — register된 bundlePath 1차, LaunchServices 2차 안전망.
+  private static func route(_ schemeURL: URL, label: String) {
     // 1차 채널 — register된 bundlePath로 URL을 강제 라우팅 (LaunchServices 캐시 우회)
     if let registered = PaidAppStateStore.shared.status(),
        FileManager.default.fileExists(atPath: registered.bundlePath) {
       let bundleURL = URL(fileURLWithPath: registered.bundlePath)
-      logI("🪟 [Settings] register bundlePath 사용: \(registered.bundlePath)")
+      logI("🪟 [\(label)] register bundlePath 사용: \(registered.bundlePath)")
       let schemeURLCapture = schemeURL
       NSWorkspace.shared.open(
         [schemeURL],
@@ -64,7 +95,7 @@ enum PaidAppDetector {
         configuration: NSWorkspace.OpenConfiguration()
       ) { _, error in
         if let error {
-          logW("🪟 [Settings] 1차 채널 실패: \(error.localizedDescription) — LaunchServices 폴백")
+          logW("🪟 [\(label)] 1차 채널 실패: \(error.localizedDescription) — LaunchServices 폴백")
           DispatchQueue.main.async {
             NSWorkspace.shared.open(schemeURLCapture)
           }
@@ -74,7 +105,7 @@ enum PaidAppDetector {
     }
 
     // 2차 안전망 — LaunchServices 기본 라우팅
-    logI("🪟 [Settings] LaunchServices 라우팅 폴백")
+    logI("🪟 [\(label)] LaunchServices 라우팅 폴백")
     if isRunning() {
       NSWorkspace.shared.open(schemeURL)
     } else {

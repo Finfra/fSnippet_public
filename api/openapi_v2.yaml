@@ -1864,6 +1864,59 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /cli/pause:
+    post:
+      summary: Pause API (snippet expansion suspended)
+      description: |
+        Suspend snippet expansion engine. REST `cli/*` endpoints remain available.
+        Use `POST /cli/resume` to resume.
+      operationId: pauseCli
+      tags:
+        - CLI
+      responses:
+        '200':
+          description: API paused successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      isApiPaused:
+                        type: boolean
+                      message:
+                        type: string
+
+  /cli/resume:
+    post:
+      summary: Resume API (snippet expansion restored)
+      description: |
+        Resume snippet expansion engine that was paused via `POST /cli/pause`.
+      operationId: resumeCli
+      tags:
+        - CLI
+      responses:
+        '200':
+          description: API resumed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      isApiPaused:
+                        type: boolean
+                      message:
+                        type: string
+
   /reload:
     post:
       summary: Reload all resources

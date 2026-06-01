@@ -175,6 +175,21 @@ class PaidAppManager {
         }
     }
 
+    /// Issue157: paidApp 새 스니펫 추가 창 기동 — launchAndOpenSettings 의 new-snippet 변형
+    private func launchAndOpenNewSnippet(keyword: String) {
+        guard launchPaidApp() else {
+            logW("🆕 [NewSnippet] launch 실패 — 새 스니펫 창 열기 중단")
+            return
+        }
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self else { return }
+            _ = self.waitForPaidAppRegistration()
+            DispatchQueue.main.async {
+                PaidAppDetector.openNewSnippet(keyword: keyword)
+            }
+        }
+    }
+
     // MARK: - paid 전용 기능 핸들링
 
     /// paid 전용 기능 시도 시 호출 (paid_cli_protocol §4.2 준수)
@@ -221,6 +236,41 @@ class PaidAppManager {
         }
     }
 
+    /// Issue157: Create 버튼 → paidApp 새 스니펫 추가 창.
+    /// handlePaidFeature 와 동일한 상태 라우팅이되, openSettings 대신 openNewSnippet(keyword:) 호출.
+    /// - .started → activate + URL Scheme(new-snippet&keyword)
+    /// - .stopped → consent 기반 launchAndOpenNewSnippet 또는 require 다이얼로그
+    /// - .notInstall → showPaidOnlyAlert
+    func handleNewSnippet(keyword: String) {
+        let freshStatus: PaidAppStatus = {
+            if isRunning() { return .started }
+            if isInstalled() { return .stopped }
+            return .notInstall
+        }()
+        switch freshStatus {
+        case .started:
+            activatePaidApp()
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                guard let self else { return }
+                _ = self.waitForPaidAppRegistration()
+                DispatchQueue.main.async {
+                    PaidAppDetector.openNewSnippet(keyword: keyword)
+                }
+            }
+        case .stopped:
+            if autoLaunchConsent {
+                logI("🆕 [NewSnippet] 동의 기반 자동 기동 (Issue112)")
+                launchAndOpenNewSnippet(keyword: keyword)
+            } else {
+                showRequirePaidAlert { [weak self] in
+                    self?.launchAndOpenNewSnippet(keyword: keyword)
+                }
+            }
+        case .notInstall:
+            showPaidOnlyAlert()
+        }
+    }
+
     /// 설정창 직접 열기 — consent 우회 (Issue144)
     /// 단축키/메뉴바 트리거 전용. autoLaunchConsent 무관하게 무조건 settings 진입.
     /// - .started → DistributedNotification "fSnippetOpenSettings" (paidApp already listening)
@@ -258,7 +308,7 @@ class PaidAppManager {
 
     /// "fSnippet이 필요합니다" 안내 NSAlert (Issue70 도입, Issue112에서 1회 동의 정책으로 확장)
     /// [열기] 클릭 시 autoLaunchConsent=true 저장 후 launchAndOpenSettings() 흐름으로 위임
-    private func showRequirePaidAlert() {
+    private func showRequirePaidAlert(onConsent: (() -> Void)? = nil) {
         NSApplication.shared.activate(ignoringOtherApps: true)
         let alert = NSAlert()
         alert.messageText = "fSnippet이 필요합니다"
@@ -274,7 +324,12 @@ class PaidAppManager {
             // Issue112: persist explicit consent so future .stopped routes skip the dialog
             autoLaunchConsent = true
             logI("🏷️ [PaidApp] 사용자 동의 저장 — 이후 .stopped 시 자동 기동")
-            launchAndOpenSettings()
+            // Issue157: consent 후 동작은 호출처 지정 (기본 settings, new-snippet 시 override)
+            if let onConsent {
+                onConsent()
+            } else {
+                launchAndOpenSettings()
+            }
         }
     }
 

@@ -290,9 +290,9 @@ struct SnippetPopupView: View {
                 // ✅ Issue 356 & 357: 제안된 생성 용어가 있으면 상단에 표시
                 if let suggestedTerm = viewModel.suggestedCreateTerm {
                     Button(action: {
-                        // ✅ Issue9: 스니펫 생성 → 유료 버전 전용 안내
-                        logI("🗯️ [Issue9] Create New Snippet blocked - Paid version only: \(suggestedTerm)")
-                        PaidAppManager.shared.handlePaidFeature()
+                        // ✅ Issue157: 스니펫 생성 → paidApp 새 스니펫 추가 창 (URL Scheme new-snippet)
+                        logI("🗯️ [Issue157] Create New Snippet → paidApp new-snippet 창: \(suggestedTerm)")
+                        PaidAppManager.shared.handleNewSnippet(keyword: suggestedTerm)
                     }) {
                         HStack(spacing: 8) {
                             Image(systemName: "plus.circle.fill")
