@@ -9,26 +9,6 @@ date: 2026-04-07
 * Issue HWM: 158
 * Save Point :
       - 2026.05.27: fb1a9dc (Fix(Issue155): collision delay 정밀화 — exact match 우선 + cleanBuffer prefix 검사)
-      - 2026.05.27: 0f118db (Fix(Issue155): greedy collision delay 회귀 복구 — Issue479 동작 복원)
-      - 2026.05.27: ec066b7 (Fix(Issue155 부분): expand API delete_count raw String.count → visual length)
-      - 2026.05.27: 9144475 (Fix(Issue154): noteForHuman 오동작 — Initcap `_` strip + Initcap suffix 유지 + 룰 케이스 매칭)
-      - 2026.05.27: d2580d9 (Fix(Issue153): paidApp 설정창 열기 — DistributedNotification 채널 전환)
-      - 2026.05.27: 62853ff (Revert(Issue152): Issue146 revert — appRootPath seed → ~/Documents/finfra/fSnippetData)
-      - 2026.05.26: 2afc508 (Refactor(Issue150): pairApp 패턴 차용 — 권한 처리 simplify)
-      - 2026.05.26: fde04ae (Fix(Issue149): TCC mismatch — alert 메시지 보강 + grant 전이 시 자동 dismiss)
-      - 2026.05.28: d363b3c (Chore(Issue155): TextBuffer debug log → verbose 강등 — Issue155 종결)
-      - 2026.05.28: f6f4fe7 (Fix(Issue155-re³): hasLongerMatches folderPrefix 변형 검사 추가 — buffer 에 prefix char 빠진 케이스 대응)
-      - 2026.05.28: 24a546b (Fix(Issue155-re²): modifier press+release token 중복 시 cleanBuffer 추출 보강)
-      - 2026.05.28: fc4c7cc (Test(Issue155): runtime collision XCTest 추가 — 82a7f8e fix 검증)
-      - 2026.05.28: 3700aa3 (Test(Issue155): testTable 38-case 확장 — case 36-38 keypad_comma 변형)
-      - 2026.05.27: 82a7f8e (Fix(Issue155-re): checkForSuffixMatches prefix collision delay — modifier trigger 회귀 복구)
-      - 2026.05.26: 32a9591 (Fix(Issue148): 권한 OFF 시 revoke alert + respawn boot alert 두 번 노출 차단)
-      - 2026.05.26: b52a39d (Fix(Issue147): 권한 OFF 시 NSAlert 두 번 노출 — ErrorRecoveryManager alert 경로 제거)
-      - 2026.05.26: fc0905c (Fix(Issue146): 권한 다이얼로그 반복 노출 영구 fix — Application Support 이전 + 가드)
-      - 2026.05.25: ba25957 (Feat(Issue140): 클립보드 히스토리 셀 단순화 + 복사 누락 캡처 보강)
-      - 2026.05.24: cd95b0f (Close Issue139)
-      - 2026.05.21: 3eb736d (Docs(Issue138): by-design 결론 철회 — 하니스 결함 수정으로 35/35 달성 (Hash: 0a043a2))
-      - 2026.05.16: e78f9da (Fix(Issue127): 기본 단축키 글로벌 등록 차단 회귀 복구 — context-only 면제 제거 + 폴더 단축키 가드)
 
 # 🤔 결정사항
 * `~/_git/__all/fSnippet/_doc_arch/paid_cli_protocol.md` 기준 진행(상위 메인 레포, paidApp앱과 연동)
