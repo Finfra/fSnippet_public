@@ -26,7 +26,7 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
-## Issue159: [Runtime/Snippet] 세벌속기 자! 입력 시 ⌘; 글로벌 단축키 오발동 — 실제 원인은 스니펫 파일 부재 (등록: 2026-06-03, 완료: 2026-06-03) (Hash: 1f18954) ✅
+## Issue159: [Runtime/Snippet] 세벌속기 자! 입력 시 ⌘; 글로벌 단축키 오발동 — 실제 원인은 스니펫 파일 부재 (등록: 2026-06-03, 완료: 2026-06-03) (Hash: 7e49d19) ✅
 * 증상: 세벌속기 `자!`(물리 command+`;`·`'` 동시타) 입력 시 글자 미입력 + 클립보드 뷰어 `⌘;`(history.viewer.hotkey) 발동 (5회 반복). `cmd+o;`은 정상 → "콤보키에서만 오작동"처럼 보임
 * 1차 가설(틀림): Karabiner 3set390 manipulator [183] command leak → ⌘; 오발동. flog 상 `{⌘;}` Registered Shortcut 발동은 사실이나 증상이었음
 * 진짜 root cause: `자!` abbreviation 에 매칭되는 **스니펫 파일이 폴더에 존재하지 않았음**. 스니펫 부재 → `AbbreviationMatcher` 매칭 실패 → 확장 안 됨, ⌘; 발동은 매칭 실패의 부수 증상. **스니펫 생성으로 해결**
