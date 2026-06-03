@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 158
+* Issue HWM: 159
 * Save Point :
       - 2026.05.27: fb1a9dc (Fix(Issue155): collision delay 정밀화 — exact match 우선 + cleanBuffer prefix 검사)
 
@@ -15,8 +15,6 @@ date: 2026-04-07
 * `cli/_doc_arch/menuBar_enhance.md` 기준 진행(메뉴바, 로컬 SSOT — gitignored)
 
 # 🌱 이슈후보
-1. "cmd+;+'" 단축키에 글로벌 단축키 "cmd+;"이 작동함. 글로벌 단축키는 콤보키에 작동하면 않됨.[자! === 세벌 속기 cmd+;+'임.] 그런데 "cmd+o;"은 "cmd+;"으로 잘 동작함.
-2.
 
 # 🚧 진행중
 
@@ -24,6 +22,17 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
+## Issue159: [Runtime/Shortcut] `⌘;` 글로벌 단축키가 `⌘;'` 세벌속기 콤보 입력 도중 발동 — chord 미완성 즉시 매칭 (등록: 2026-06-03)
+* 목적: 세벌식 속기 입력 `⌘+;+'` (= `자!` 스니펫, `===` 좌측 abbreviation) 도중, ⌘ 유지 상태에서 `;` 입력 순간 글로벌 단축키 `⌘;`이 즉시 발동되어 `'` 입력 전에 가로챔. 콤보(chord) 입력 컨텍스트에서는 더 긴 매칭이 존재하면 글로벌 단축키 발동을 보류해야 함.
+* 상세:
+    - 재현: 사용자가 `⌘;`을 글로벌 단축키로 설정. 세벌속기로 `⌘+;+'` (자!) 입력 시 `;` 단계에서 `⌘;`이 소비되어 콤보 완성 불가
+    - 정상 케이스 (별개): `⌘+o;`은 `⌘;`으로 정상 동작 — `o`가 일반키라 modifier chord 컨텍스트가 다름. 본 이슈 fix 시 이 케이스 회귀 없어야 함
+    - 추정 원인: `ShortcutMgr` 글로벌 모니터(`setupMonitors` L224, keySpec resolve L369)가 `⌘;` keyDown 매칭 시, 동일 modifier 유지로 이어질 수 있는 chord/세벌속기 시퀀스 존재 여부를 검사하지 않고 즉시 발동. Issue155 `AbbreviationMatcher.hasLongerMatches` collision 검사와 유사한 "더 긴 매칭 우선" 보호 부재
+* 구현 명세 (분석 단계에서 확정):
+    - `ShortcutMgr` 글로벌 단축키 매칭 경로에 chord 컨텍스트 인식 추가 검토 — `⌘;` 매칭 후 짧은 지연 내 동일 modifier + 후속 키(`'`) 도달 시 단축키 발동 취소·롤백, 또는 세벌속기 abbreviation prefix 와 충돌 시 보류
+    - `⌘+o;` 정상 경로 회귀 방지 검증 (일반키 chord 와 modifier chord 구분)
+    - 수정 후보 파일: `cli/fSnippetCli/Managers/ShortcutMgr.swift`, `cli/fSnippetCli/Managers/TriggerKeyManager.swift`, `cli/fSnippetCli/Core/KeyEventProcessor.swift`
+    - 검증: 빌드 + brew local 재배포 + 실제 키 입력으로 `자!` 확장 확인 + `⌘;` 단독 단축키·`⌘o;` 회귀 확인
 
 # 📗 선택
 
