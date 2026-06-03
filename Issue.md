@@ -22,21 +22,18 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
-## Issue159: [Runtime/Shortcut] `⌘;` 글로벌 단축키가 `⌘;'` 세벌속기 콤보 입력 도중 발동 — chord 미완성 즉시 매칭 (등록: 2026-06-03)
-* 목적: 세벌식 속기 입력 `⌘+;+'` (= `자!` 스니펫, `===` 좌측 abbreviation) 도중, ⌘ 유지 상태에서 `;` 입력 순간 글로벌 단축키 `⌘;`이 즉시 발동되어 `'` 입력 전에 가로챔. 콤보(chord) 입력 컨텍스트에서는 더 긴 매칭이 존재하면 글로벌 단축키 발동을 보류해야 함.
-* 상세:
-    - 재현: 사용자가 `⌘;`을 글로벌 단축키로 설정. 세벌속기로 `⌘+;+'` (자!) 입력 시 `;` 단계에서 `⌘;`이 소비되어 콤보 완성 불가
-    - 정상 케이스 (별개): `⌘+o;`은 `⌘;`으로 정상 동작 — `o`가 일반키라 modifier chord 컨텍스트가 다름. 본 이슈 fix 시 이 케이스 회귀 없어야 함
-    - 추정 원인: `ShortcutMgr` 글로벌 모니터(`setupMonitors` L224, keySpec resolve L369)가 `⌘;` keyDown 매칭 시, 동일 modifier 유지로 이어질 수 있는 chord/세벌속기 시퀀스 존재 여부를 검사하지 않고 즉시 발동. Issue155 `AbbreviationMatcher.hasLongerMatches` collision 검사와 유사한 "더 긴 매칭 우선" 보호 부재
-* 구현 명세 (분석 단계에서 확정):
-    - `ShortcutMgr` 글로벌 단축키 매칭 경로에 chord 컨텍스트 인식 추가 검토 — `⌘;` 매칭 후 짧은 지연 내 동일 modifier + 후속 키(`'`) 도달 시 단축키 발동 취소·롤백, 또는 세벌속기 abbreviation prefix 와 충돌 시 보류
-    - `⌘+o;` 정상 경로 회귀 방지 검증 (일반키 chord 와 modifier chord 구분)
-    - 수정 후보 파일: `cli/fSnippetCli/Managers/ShortcutMgr.swift`, `cli/fSnippetCli/Managers/TriggerKeyManager.swift`, `cli/fSnippetCli/Core/KeyEventProcessor.swift`
-    - 검증: 빌드 + brew local 재배포 + 실제 키 입력으로 `자!` 확장 확인 + `⌘;` 단독 단축키·`⌘o;` 회귀 확인
 
 # 📗 선택
 
 # ✅ 완료
+## Issue159: [Runtime/Snippet] 세벌속기 자! 입력 시 ⌘; 글로벌 단축키 오발동 — 실제 원인은 스니펫 파일 부재 (등록: 2026-06-03, 완료: 2026-06-03) (Hash: 1f18954) ✅
+* 증상: 세벌속기 `자!`(물리 command+`;`·`'` 동시타) 입력 시 글자 미입력 + 클립보드 뷰어 `⌘;`(history.viewer.hotkey) 발동 (5회 반복). `cmd+o;`은 정상 → "콤보키에서만 오작동"처럼 보임
+* 1차 가설(틀림): Karabiner 3set390 manipulator [183] command leak → ⌘; 오발동. flog 상 `{⌘;}` Registered Shortcut 발동은 사실이나 증상이었음
+* 진짜 root cause: `자!` abbreviation 에 매칭되는 **스니펫 파일이 폴더에 존재하지 않았음**. 스니펫 부재 → `AbbreviationMatcher` 매칭 실패 → 확장 안 됨, ⌘; 발동은 매칭 실패의 부수 증상. **스니펫 생성으로 해결**
+* 조치: 누락 스니펫 파일 생성 (cliApp 코드·Karabiner 룰 변경 불필요)
+* 기록: `cli/_doc_work/debug_TECH.md` "세벌속기 자! 입력 시 ⌘; 글로벌 단축키 오발동" 사례 — 교훈: 단축키 충돌 증상이 스니펫 부재를 가림, 대상 스니펫 파일 존재 먼저 확인
+* 참고: 조사 중 작성한 Karabiner 수정 가이드 `cli/_doc_work/z_htm/hub_htm_20260603_193247_a_issue159-guide.htm` (불필요해짐, 참고용 보존)
+
 ## Issue158: [cliApp] Placeholder 입력창 — 초기 선택 상태 텍스트가 paste 시 교체되지 않고 prepend됨 (등록: 2026-05-31) (✅ 완료, b0b9872) ✅
 * 목적: PlaceholderInputWindow 첫 paste 시 초기값 전체 교체 (append 버그 수정)
 * 수정: `initialValues` 스냅샷 추가 → `insertTextIntoFocusedField`에서 미편집 시 전체 교체 분기 (Method B)
