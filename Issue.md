@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 159
+* Issue HWM: 160
 * Save Point :
       - 2026.05.27: fb1a9dc (Fix(Issue155): collision delay 정밀화 — exact match 우선 + cleanBuffer prefix 검사)
 
@@ -15,6 +15,7 @@ date: 2026-04-07
 * `cli/_doc_arch/menuBar_enhance.md` 기준 진행(메뉴바, 로컬 SSOT — gitignored)
 
 # 🌱 이슈후보
+1. 
 
 # 🚧 진행중
 
@@ -22,6 +23,28 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
+## Issue160: [Runtime/Snippet] `gcfg` 스니펫 확장 시 값 중간에 불필요한 개행 삽입 (등록: 2026-06-05)
+* 목적: 멀티라인 스니펫 `gcfg` 확장 시 따옴표로 감싼 값(`user.name`·`user.email`) **중간에 엔터가 끼어** 한 줄이 여러 줄로 깨짐. 기대 출력대로 라인당 한 문장이 나와야 함.
+* 증상:
+    - 기대:
+      ```
+      git config --global user.name "Steve J. South(Steve J. South) "
+      git config --global user.email "nowage@gmail.com"
+      ```
+    - 실제 (개행 오삽입):
+      ```
+      git config --global user.name "Steve J. South
+      (Steve J. South
+      ) "
+      git config --global user.email "nowage@gmail.com
+      "
+      ```
+* 분석 단서 (구현 시 확인):
+    - 개행이 끼는 위치가 따옴표 값 내부 → 스니펫 본문 자체에 `\n`/`\r` 가 들어있는지(파일 content) vs 확장 엔진(`TextReplacer`)이 paste 시 개행을 추가 주입하는지 먼저 구분
+    - `_rule.yml`/폴더 규칙 suffix 와 무관한 일반 멀티라인 스니펫인지 확인
+    - 스니펫 파일 인코딩·줄바꿈 코드(CRLF vs LF) 점검 — CR(`\r`) 이 별도 개행으로 처리될 가능성
+    - 확장 경로: `cli/fSnippetCli/Core/TextReplacer.swift` (텍스트 대체), `cli/fSnippetCli/Data/SnippetFileManager.swift` (파일 로드)
+* 재현: `gcfg` + 트리거키 입력 후 출력 확인
 
 # 📗 선택
 
