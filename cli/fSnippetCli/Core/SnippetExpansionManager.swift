@@ -87,7 +87,13 @@ class SnippetExpansionManager {
             if let fileContent = readFileContent(at: expandedPath) {
                 // 읽은 내용에 대해 재귀적 확장 수행 (새로운 파일 경로를 basePath로 전달)
                 let resolvedContent = resolveReferences(fileContent, stack: stack + [expandedPath], basePath: expandedPath)
-                result.replaceSubrange(fullRange, with: resolvedContent)
+                // Issue160: A value file referenced via {{~/path/file.txt}} normally ends with a
+                // trailing newline (e.g. ~/.info/namee.txt = "Steve J. South\n"). Inlining that LF
+                // breaks the surrounding template onto extra lines. Strip trailing CR/LF only —
+                // internal newlines and trailing spaces are preserved. Snippet references
+                // ({{Folder/Snippet}}) are intentionally left untouched for composition use.
+                let trimmedContent = stripTrailingNewlines(resolvedContent)
+                result.replaceSubrange(fullRange, with: trimmedContent)
                 logV("🔄 [Expansion] Included file: \(expandedPath)")
             } else {
                 logW("🔄 [Expansion] Failed to read file: \(expandedPath)")
@@ -167,6 +173,16 @@ class SnippetExpansionManager {
         return result
     }
     
+    /// Removes only trailing carriage-return / line-feed characters.
+    /// Internal newlines and trailing spaces are preserved (Issue160).
+    private func stripTrailingNewlines(_ text: String) -> String {
+        var result = text
+        while let last = result.last, last == "\n" || last == "\r" {
+            result.removeLast()
+        }
+        return result
+    }
+
     private func readFileContent(at path: String) -> String? {
         let url = URL(fileURLWithPath: path)
         
