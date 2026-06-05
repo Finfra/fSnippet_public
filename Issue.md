@@ -23,32 +23,27 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
-## Issue160: [Runtime/Snippet] `gcfg` 스니펫 확장 시 값 중간에 불필요한 개행 삽입 (등록: 2026-06-05)
-* 목적: 멀티라인 스니펫 `gcfg` 확장 시 따옴표로 감싼 값(`user.name`·`user.email`) **중간에 엔터가 끼어** 한 줄이 여러 줄로 깨짐. 기대 출력대로 라인당 한 문장이 나와야 함.
-* 증상:
-    - 기대:
-      ```
-      git config --global user.name "Steve J. South(Steve J. South) "
-      git config --global user.email "nowage@gmail.com"
-      ```
-    - 실제 (개행 오삽입):
-      ```
-      git config --global user.name "Steve J. South
-      (Steve J. South
-      ) "
-      git config --global user.email "nowage@gmail.com
-      "
-      ```
-* 분석 단서 (구현 시 확인):
-    - 개행이 끼는 위치가 따옴표 값 내부 → 스니펫 본문 자체에 `\n`/`\r` 가 들어있는지(파일 content) vs 확장 엔진(`TextReplacer`)이 paste 시 개행을 추가 주입하는지 먼저 구분
-    - `_rule.yml`/폴더 규칙 suffix 와 무관한 일반 멀티라인 스니펫인지 확인
-    - 스니펫 파일 인코딩·줄바꿈 코드(CRLF vs LF) 점검 — CR(`\r`) 이 별도 개행으로 처리될 가능성
-    - 확장 경로: `cli/fSnippetCli/Core/TextReplacer.swift` (텍스트 대체), `cli/fSnippetCli/Data/SnippetFileManager.swift` (파일 로드)
-* 재현: `gcfg` + 트리거키 입력 후 출력 확인
 
 # 📗 선택
 
 # ✅ 완료
+## Issue160: [Runtime/Snippet] `gcfg` 확장 시 값 중간 개행 오삽입 — file-ref placeholder trailing newline 미제거 (등록: 2026-06-05, 완료: 2026-06-05) (Hash: 053ec2a) ✅
+* 증상: `gcfg` 확장 시 따옴표 값(`user.name`·`user.email`) 중간에 엔터가 끼어 한 줄이 여러 줄로 깨짐
+* 근본 원인:
+    - `Git/cfg===gcfg.txt` 본문은 CRLF 없이 깔끔(LF only). 값은 **파일 참조 placeholder** `{{~/.info/namee.txt}}`·`{{~/.info/mail1.txt}}`
+    - 참조 파일이 trailing LF 보유: `namee.txt`=`Steve J. South\n`, `mail1.txt`=`nowage@gmail.com\n`
+    - `SnippetExpansionManager.readFileContent` → `String(contentsOf:)` 가 trailing newline 포함 통째 반환 → file-ref 가 값 끝의 `\n` 을 그대로 inline → 따옴표 중간 개행
+* 구현:
+    - `cli/fSnippetCli/Core/SnippetExpansionManager.swift`: `stripTrailingNewlines()` 추가, `expandFileReferences` 의 재귀 resolve 직후 적용. trailing CR/LF만 제거(내부 개행·trailing space 보존)
+    - **scope 결정**: file 참조(`{{~/path}}`) 경로만 strip. snippet 참조(`{{Folder/Snippet}}`) 는 composition 용도 — 멀티라인 의도 보존 위해 미적용 (회귀 방지). shell `$(cat file)` 의 trailing newline strip 관례와 일치
+    - `cli/fSnippetCliTests/SnippetExpansionTrailingNewlineTests.swift` 신규 4 case (단일 값·gcfg 정확 레이아웃·내부 개행 보존·다중 trailing strip)
+    - xcodeproj 재생성(xcodegen) — 새 테스트 파일 포함
+* 검증:
+    - XCTest 4/4 PASS (gcfg 정확 레이아웃 재현 케이스 포함)
+    - brew local 재배포 9/9 PASS, REST 3015 정상, snippet 1963 로드
+    - runtime 경로 확인: `TextReplacer.swift:1020` → `SnippetExpansionManager.shared.expand` (paste 시 동일 resolver)
+* 참고: `/api/v2/snippets/expand` 엔드포인트는 SnippetExpansionManager 미경유(raw + 단순 placeholder) — 파일 참조 검증 불가, 실 검증은 unit test + runtime 경로 일치로 대체
+
 ## Issue159: [Runtime/Snippet] 세벌속기 자! 입력 시 ⌘; 글로벌 단축키 오발동 — 실제 원인은 스니펫 파일 부재 (등록: 2026-06-03, 완료: 2026-06-03) (Hash: 7e49d19) ✅
 * 증상: 세벌속기 `자!`(물리 command+`;`·`'` 동시타) 입력 시 글자 미입력 + 클립보드 뷰어 `⌘;`(history.viewer.hotkey) 발동 (5회 반복). `cmd+o;`은 정상 → "콤보키에서만 오작동"처럼 보임
 * 1차 가설(틀림): Karabiner 3set390 manipulator [183] command leak → ⌘; 오발동. flog 상 `{⌘;}` Registered Shortcut 발동은 사실이나 증상이었음
