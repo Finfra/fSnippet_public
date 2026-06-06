@@ -24,21 +24,18 @@ date: 2026-04-07
 
 # 📙 일반
 
-## Issue161: [cliApp+paidApp] Create 버튼 → 스탠드얼론 스니펫 추가 창 (설정창 미경유, REST 저장) (등록: 2026-06-05)
-* 목적: 팝업 "Create 'xxx'" 클릭 시 paidApp 설정창(Snippets 탭 + 시트)이 아닌 독립적인 스니펫 추가 창으로 직접 진입. 사용자가 설정 UI를 거치지 않고 빠르게 스니펫 생성 가능.
-* 현재 동작: Create 버튼 → URL Scheme `new-snippet` → paidApp 설정창 열기 → Snippets 탭 전환 → 추가 시트 표시 (설정창 전체가 열려 UX 노이즈)
-* 목표 동작: Create 버튼 → paidApp 경량 스니펫 추가 오버레이 창 (설정창 미경유)
-* Sandbox 제약: 스니펫 파일 쓰기는 반드시 `POST /api/v2/snippets` REST 경유 (paidApp 직접 파일 쓰기 불가)
-* 팝업 단축키: 현재 `⌃⇧Space` (ctrl+shift+space) — 다른 방식 가능하면 추가 검토
-* 구현 방향:
-    - cliApp: `⌃⇧Space` 또는 별도 단축키 인식 → paidApp 설치 여부 확인 (기존 `PaidAppDetector.isInstalled()` 활용) → 미연결 시 기존 안내 메세지 표시 → 연결 시 URL Scheme `new-snippet` 발송
-    - paidApp: `new-snippet` URL Scheme 수신 시 설정창 대신 `SnippetQuickAddWindow` (독립 플로팅 창) 표시 → 사용자 입력 완료 → `RESTBaseClient.post("/api/v2/snippets")` 로 cliApp에 저장 위임
-    - 저장 API: `POST /api/v2/snippets` (cliApp이 파일시스템에 저장, API 명세 `openapi_v2.yaml` 확인 필요)
-* 의존: prj15#Issue909 (paidApp SnippetQuickAddWindow 구현)
-
 # 📗 선택
 
 # ✅ 완료
+## Issue161: [cliApp+paidApp] Create 버튼 → 스탠드얼론 스니펫 추가 창 (설정창 미경유, REST 저장) (등록: 2026-06-05, 완료: 2026-06-06) ✅
+* 목적: 팝업 "Create 'xxx'" 클릭 시 paidApp 설정창이 아닌 독립 스니펫 추가 창으로 직접 진입
+* 분담·종결 근거:
+    - **cliApp 측 (본 레포): 코드 변경 없음** — Issue157(Hash b0b9872) 이 이미 `Create → handleNewSnippet() → PaidAppDetector.openNewSnippet()` 로 `fsnippet://command?action=new-snippet&keyword=…&source=cliApp` URL Scheme 을 발송. Issue161 의 cliApp 작업분(단축키 인식 → 설치 확인 → URL Scheme 발송)은 Issue157 로 충족. 별도 cliApp 변경 불필요
+    - **paidApp 측 (prj15#Issue909): 사용자 직접 구현·테스트 완료** — `new-snippet` 수신 시 설정창 대신 `SnippetQuickAddWindow`(독립 플로팅 창) 표시 + `POST /api/v2/snippets` REST 저장. 동작은 paidApp 의 URL Scheme 핸들링이 결정하므로 목표 동작(독립창)은 paidApp 구현으로 실현
+* 검증: 사용자 실 테스트 완료 ("테스트 완료함. paidApp은 내가 직접함")
+* Hash: 코드 변경 없음 — 본 종결은 doc 커밋(Issue.md)으로 기록
+* 의존: prj15#Issue909 (paidApp `SnippetQuickAddWindow` — 해소됨)
+
 ## Issue160: [Runtime/Snippet] `gcfg` 확장 시 값 중간 개행 오삽입 — file-ref placeholder trailing newline 미제거 (등록: 2026-06-05, 완료: 2026-06-05) (Hash: 053ec2a) ✅
 * 증상: `gcfg` 확장 시 따옴표 값(`user.name`·`user.email`) 중간에 엔터가 끼어 한 줄이 여러 줄로 깨짐
 * 근본 원인:
