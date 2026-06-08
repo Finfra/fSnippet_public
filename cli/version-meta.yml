@@ -1,0 +1,15 @@
+# fSnippetCli Homebrew 배포 메타데이터
+#
+# 버전 번호 SSOT 는 루트 VERSION 파일 (단일 줄 plain text, ex: 1.0.1).
+# 여기에 version 값을 중복 보관하지 말 것 — drift 방지.
+# 모든 배포 도구는 brew formula 버전을 VERSION 에서 읽고,
+# tap/formula/service 식별자는 본 파일에서 읽음.
+
+brew:
+  tap: finfra/tap
+  formula: fsnippet-cli
+  service: fsnippet-cli
+  install: brew install finfra/tap/fsnippet-cli
+  start: brew services start fsnippet-cli
+  repo: https://github.com/Finfra/fSnippet_public
+  formula_path: cli/Formula/fsnippet-cli.rb
