@@ -6,8 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 161
+* Issue HWM: 162
 * Save Point :
+      - 2026.06.09: 20e59d6 (Fix(Issue162): 모디파이어 트리거 combo-breaker 위치 이동 — 오른쪽 ⌘+Tab 오발동 차단)
       - 2026.05.27: fb1a9dc (Fix(Issue155): collision delay 정밀화 — exact match 우선 + cleanBuffer prefix 검사)
 
 # 🤔 결정사항
@@ -27,6 +28,19 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue162: [Core/KeyEvent] 모디파이어 트리거(오른쪽 ⌘)가 ⌘+Tab 앱 전환을 잡아먹음 — combo-breaker 누락 (등록: 2026-06-09, 완료: 2026-06-09) (Hash: 20e59d6) ✅
+* 증상: 트리거 키를 `{right_command}`(오른쪽 ⌘)로 쓰는 환경에서 네이티브 ⌘+Tab 앱 전환이 동작하지 않음("alt_tab 잡아먹힘"). 오른쪽 ⌘로 Cmd+Tab 시 발생.
+* 근본 원인:
+    - 모디파이어 트리거는 modifier down(`.flagsChanged`) 시 `pendingModifierTriggerKeyCode` 설정 → modifier up 시 단독 탭이면 FIRE(확장)하는 구조.
+    - combo-breaker(`pending` 취소)가 [CGEventTapManager.swift](cli/fSnippetCli/Core/CGEventTapManager.swift) line 306 위치 → **bufferClear(Tab/Space/Enter/`,`/`.`) 단축키 early-return(line 285)에 가려 도달 못 함**.
+    - 결과: 오른쪽 ⌘ 누른 채 Tab → pending 취소 안 됨 → ⌘ 릴리스 시 spurious FIRE → 엉뚱한 확장/`isReplacing` → ⌘+Tab 전환 먹힘.
+    - 실로그(18:16:44 `Pending Modifier Trigger Set: 54` → `FIRE`)로 메커니즘 존재 확인. left ⌘(55)는 트리거 아님 → 증상 발생 = 오른쪽 ⌘ 사용 확정.
+* 구현 명세:
+    - combo-breaker(`type == .keyDown && pendingModifierTriggerKeyCode != nil → cancelPendingModifierTrigger()`)를 **PID 필터 직후**(모든 단축키/bufferClear early-return 앞)로 이동.
+    - 기존 line 306 블록은 주석으로 비움.
+    - 정상 확장(텍스트 타이핑 후 ⌘ 단독 탭)은 pending 설정 전 keyDown만 존재하므로 영향 없음.
+* 검증: Release 빌드 + brew 재배포 후 실제 오른쪽 ⌘+Tab → 앱 전환 정상(사용자 확인) + 로그 `FIRE Pending Modifier: 54` 0건.
+
 ## Issue161: [cliApp+paidApp] Create 버튼 → 스탠드얼론 스니펫 추가 창 (설정창 미경유, REST 저장) (등록: 2026-06-05, 완료: 2026-06-06) ✅
 * 목적: 팝업 "Create 'xxx'" 클릭 시 paidApp 설정창이 아닌 독립 스니펫 추가 창으로 직접 진입
 * 분담·종결 근거:
