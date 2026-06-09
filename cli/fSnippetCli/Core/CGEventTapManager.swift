@@ -199,6 +199,15 @@ class CGEventTapManager {
             return Unmanaged.passUnretained(event)
         }
 
+        // 콤보 중단 (Combo Breaker) — 모든 단축키/bufferClear 조기 반환보다 먼저 실행되어야 함.
+        // 모디파이어 트리거(예: 오른쪽 ⌘) pending 중 다른 키(Tab/Space/Enter 등 bufferClear 포함)가
+        // 눌리면 콤보(예: ⌘+Tab 앱 전환)로 간주하여 pending 을 취소한다. 이를 누락하면 모디파이어
+        // 릴리스 시 트리거가 오발동(spurious FIRE)하여 ⌘+Tab 같은 시스템 조합을 잡아먹는다.
+        // (이전에는 line 306 위치라 bufferClear early-return 에 가려 도달하지 못했음.)
+        if type == .keyDown && pendingModifierTriggerKeyCode != nil {
+            cancelPendingModifierTrigger()
+        }
+
         // Issue863: key-capture mode — consume the event for REST API session.
         // Issue865-fix: fast lockless check first to avoid the expensive NSEvent(cgEvent:)
         // construction on every keystroke when no capture session is pending. The previous
@@ -302,10 +311,9 @@ class CGEventTapManager {
             return Unmanaged.passUnretained(event)
         }
 
-        // 콤보 중단 (Combo Breaker)
-        if type == .keyDown && pendingModifierTriggerKeyCode != nil {
-            cancelPendingModifierTrigger()
-        }
+        // 콤보 중단 (Combo Breaker) — 위쪽(PID 필터 직후)으로 이동됨.
+        // bufferClear/단축키 early-return 보다 먼저 실행되어야 ⌘+Tab 등 조합에서
+        // 모디파이어 트리거 오발동을 막을 수 있어 위치를 옮겼다.
 
         // 플래그 변경 (Modifier 트리거)
         if type == .flagsChanged {
