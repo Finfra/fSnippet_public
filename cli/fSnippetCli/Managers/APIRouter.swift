@@ -85,6 +85,9 @@ class APIRouter {
       return handleV2PutGeneralQuickSelectModifier(request: request)
     case ("GET", "/api/v2/settings/general/permissions"):
       return handleV2GetGeneralPermissions()
+    // Issue916 — paidApp logging settings
+    case ("GET", "/api/v2/settings/general/logging"):
+      return handleV2GetLogging()
     // Issue78 Phase 2 — paths GET/PATCH
     case ("GET", "/api/v2/settings/general/paths"):
       return handleV2GetGeneralPaths()
@@ -298,6 +301,9 @@ class APIRouter {
       return handlePaidAppUnregister(request: request)
     case ("GET", "/api/v2/paidapp/status"):
       return handlePaidAppStatus()
+    // Issue916 — paidApp remote log ingestion
+    case ("POST", "/api/v2/log/paidapp"):
+      return handleV2PostPaidAppLog(request: request)
 
     // Reload
     case ("POST", "/api/v2/reload"):
@@ -989,6 +995,34 @@ class APIRouter {
 
   private func handleV2GetDebug() -> APIServer.HTTPResponse {
     return jsonResponse(buildV2Debug())
+  }
+
+  // Issue916: GET /api/v2/settings/general/logging
+  private func handleV2GetLogging() -> APIServer.HTTPResponse {
+    let prefs = PreferencesManager.shared
+    let rawLevel: String = prefs.get("log_level") ?? "verbose"
+    let settings = APIV2LoggingSettings(
+      logLevel: rawLevel.lowercased(),
+      debugLogging: prefs.bool(forKey: "debug_logging")
+    )
+    return jsonResponse(settings)
+  }
+
+  // Issue916: POST /api/v2/log/paidapp
+  private func handleV2PostPaidAppLog(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    let (req, err) = decodeV2Body(request, as: PaidAppLogRequest.self)
+    if let err = err { return err }
+    guard let req = req else {
+      return v2Error(code: "invalid_body", message: "Missing request body", statusCode: 400)
+    }
+    PaidAppRemoteLogger.write(
+      level: req.level,
+      message: req.message,
+      sessionId: req.sessionId,
+      timestamp: req.timestamp
+    )
+    struct Ack: Encodable { let ok: Bool }
+    return jsonResponse(Ack(ok: true))
   }
 
   private func handleV2GetPerformance() -> APIServer.HTTPResponse {

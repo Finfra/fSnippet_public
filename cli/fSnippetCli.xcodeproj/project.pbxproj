@@ -44,6 +44,7 @@
 		2FE508A768BD4C6C029F098A /* PaidAppDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6DD8602E19947CF3852588B /* PaidAppDetector.swift */; };
 		3315240656F1BDBDC3589AFB /* SQLiteDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFEB5912076E84E12F962005 /* SQLiteDatabase.swift */; };
 		3589452998B5DE657ADC7769 /* LocalizedStringManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 886489784139FC6063AFAEB4 /* LocalizedStringManager.swift */; };
+		36EAD17E29044B52A1A5CB57 /* PaidAppRemoteLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96018FEBCBA90D1A91040292 /* PaidAppRemoteLogger.swift */; };
 		3B0BD48A3AB699DC3770F1A9 /* HistoryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9349830613352652B062660 /* HistoryViewModel.swift */; };
 		3C24C45C5F88CD74296AF249 /* visual_key_definitions.json in Resources */ = {isa = PBXBuildFile; fileRef = 86F9FE58054BACD0F3510D1F /* visual_key_definitions.json */; };
 		41873E62968F2B8FDCB4B96B /* APIServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFE4E0741D23BD483DC13C42 /* APIServer.swift */; };
@@ -278,6 +279,7 @@
 		8F2497560590EF95E9EB33F1 /* HistoryViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryViewer.swift; sourceTree = "<group>"; };
 		90B5B82DA02507E782CD4858 /* .gitignore */ = {isa = PBXFileReference; path = .gitignore; sourceTree = "<group>"; };
 		94194E19A2FE81BE16A70227 /* TextReplacer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextReplacer.swift; sourceTree = "<group>"; };
+		96018FEBCBA90D1A91040292 /* PaidAppRemoteLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaidAppRemoteLogger.swift; sourceTree = "<group>"; };
 		9634515FE076860240809B9E /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
 		96DA9C992DD456AF681A4DC8 /* CIDRFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CIDRFilter.swift; sourceTree = "<group>"; };
 		974D6C882FE6C2805507BCCF /* UnifiedSnippetPopupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedSnippetPopupView.swift; sourceTree = "<group>"; };
@@ -646,6 +648,7 @@
 				5303BD02B2CA398B18A7FE15 /* ErrorRecoveryManager.swift */,
 				106EB42A6154CB1CEC250B9B /* FileUtilities.swift */,
 				9634515FE076860240809B9E /* Logger.swift */,
+				96018FEBCBA90D1A91040292 /* PaidAppRemoteLogger.swift */,
 				3DD21578E571498DB78C391E /* PaidAppStateLogger.swift */,
 				E75ECEC255BA9CF39F3DA4A9 /* PlaceholderCache.swift */,
 				06AC8EA4F53716FD36CA322A /* PreferencesManager.swift */,
@@ -892,6 +895,7 @@
 				90582A97B3BB90B8A7689E7C /* PSKeyManager.swift in Sources */,
 				2FE508A768BD4C6C029F098A /* PaidAppDetector.swift in Sources */,
 				E58FB81737DDC7FCCCEDDAC5 /* PaidAppManager.swift in Sources */,
+				36EAD17E29044B52A1A5CB57 /* PaidAppRemoteLogger.swift in Sources */,
 				FAF8E7FBEDD46BDA3C214F9C /* PaidAppStateLogger.swift in Sources */,
 				F228CA07EB8BF021511B8BD9 /* PaidAppStateStore.swift in Sources */,
 				E49D8CFD68172A0DB877A132 /* PlaceholderCache.swift in Sources */,

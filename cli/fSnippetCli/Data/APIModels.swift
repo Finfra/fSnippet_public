@@ -758,6 +758,27 @@ struct ShutdownResponse: Codable {
   let message: String
 }
 
+// MARK: - General Logging (Issue916)
+
+// GET /api/v2/settings/general/logging response
+struct APIV2LoggingSettings: Codable {
+  let logLevel: String
+  let debugLogging: Bool
+}
+
+// POST /api/v2/log/paidapp request body
+struct PaidAppLogRequest: Decodable {
+  let level: String       // "verbose" | "debug" | "info" | "warning" | "error" | "critical"
+  let message: String
+  let sessionId: String?  // archive file suffix (yyyy-MM-dd_HH-mm-ss)
+  let timestamp: String?  // ISO8601 (optional, cliApp uses current time if absent)
+  enum CodingKeys: String, CodingKey {
+    case level, message
+    case sessionId = "session_id"
+    case timestamp
+  }
+}
+
 // MARK: - Key Capture (Issue863)
 
 // Response for POST /api/v2/key-capture/start and DELETE /api/v2/key-capture/stop.
