@@ -259,6 +259,71 @@ paths:
         '200': { description: OK }
         '400': { $ref: '#/components/responses/BadRequest' }
 
+  /settings/general/logging:
+    get:
+      tags: [Settings General]
+      summary: paidApp용 로깅 설정 조회 (log_level, debug_logging)
+      description: |
+        paidApp이 기동 시 cliApp의 로깅 설정을 동기화하기 위해 호출한다 (Issue916).
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  logLevel:
+                    type: string
+                    example: "verbose"
+                    description: 현재 log_level (verbose/debug/info/warning/error/critical)
+                  debugLogging:
+                    type: boolean
+                    example: false
+                    description: debug_logging 설정 (파일 로그 마스터 스위치)
+
+  /log/paidapp:
+    post:
+      tags: [PaidApp]
+      summary: paidApp 로그 항목 수신 → 공유 경로 기록
+      description: |
+        paidApp(Sandbox)이 직접 쓸 수 없는 공유 경로(`~/Documents/finfra/fSnippetData/logs/`)에
+        로그를 기록하기 위해 cliApp 경유로 전송한다 (Issue916). cliApp은 수신한 항목을
+        `flog_paidApp.log` (최신) + `flog_paidApp_{session_id}.log` (아카이브)에 기록한다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [level, message]
+              properties:
+                level:
+                  type: string
+                  example: "info"
+                  description: 로그 레벨 (verbose/debug/info/warning/error/critical)
+                message:
+                  type: string
+                  example: "앱 초기화 완료"
+                session_id:
+                  type: string
+                  example: "2026-06-09_16-35-00"
+                  description: 아카이브 파일명 suffix (paidApp 기동 시점 고정)
+                timestamp:
+                  type: string
+                  example: "2026-06-09T16:35:00.000Z"
+                  description: ISO 8601 타임스탬프 (없으면 cliApp이 현재 시간 사용)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
   /settings/general/snippet-folder/rebuild-index:
     post:
       tags: [Settings General]
