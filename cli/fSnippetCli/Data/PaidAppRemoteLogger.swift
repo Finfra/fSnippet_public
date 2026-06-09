@@ -22,8 +22,11 @@ public enum PaidAppRemoteLogger {
     // MARK: - Public API
 
     /// Write a log entry received from paidApp to the shared log path.
+    /// Respects cliApp's debug_logging setting — if false, silently discard.
     public static func write(level: String, message: String, sessionId: String?, timestamp: String?) {
         serialQueue.async {
+            // Issue916: respect debug_logging — same gate as cliApp file logging
+            guard PreferencesManager.shared.bool(forKey: "debug_logging") else { return }
             guard let logsURL = resolveLogsDirectory() else { return }
 
             let line = formatLine(level: level, message: message, timestamp: timestamp)
