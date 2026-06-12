@@ -125,42 +125,60 @@ class SnippetIndexManager {
     /// 개별 파일 추가 및 수정 시 호출 (O(N) 리빌드 방지)
     func addOrUpdateEntry(fileURL: URL, folderName: String) {
         indexQueue.async { [weak self] in
-            guard let self = self else { return }
-            
-            var folderDesc: String? = nil
-            let folderURL = fileURL.deletingLastPathComponent()
-            let readmeURL = folderURL.appendingPathComponent("README.md")
-            if FileManager.default.fileExists(atPath: readmeURL.path) {
-                folderDesc = self.indexBuilder.extractDescriptionFromReadme(readmeURL)
-            }
-            
-            if let newEntry = self.indexBuilder.createSnippetEntry(fileURL: fileURL, folderName: folderName, folderDescription: folderDesc) {
-                if let idx = self.entries.firstIndex(where: { $0.filePath.path == fileURL.path }) {
-                    let oldEntry = self.entries[idx]
-                    if oldEntry.abbreviation != newEntry.abbreviation {
-                        if self.snippetMap[oldEntry.abbreviation] == oldEntry.filePath.path {
-                            self.snippetMap.removeValue(forKey: oldEntry.abbreviation)
-                        }
-                    }
-                    self.entries[idx] = newEntry
-                } else {
-                    self.entries.append(newEntry)
-                }
-                
-                self.snippetMap[newEntry.abbreviation] = newEntry.filePath.path
-                self.searchEngine.buildIndices(from: self.entries)
-                self.cacheManager.clearCache()
-                logV("📌 [SnippetIndexManager] 스니펫 증분 갱신: \(fileURL.lastPathComponent)")
-            } else {
-                // 파싱에 실패한 경우 기존 인덱스에서 제거 시도 (제외 항목으로 변경된 경우 대응)
-                self._removeEntrySync(fileURL: fileURL)
-            }
+            self?._addOrUpdateEntrySync(fileURL: fileURL, folderName: folderName)
         }
     }
-    
+
+    /// Issue163: synchronous upsert — caller blocks until the entry is visible
+    /// to readers. Use from API mutation handlers so a follow-up GET issued
+    /// right after the HTTP response already sees the change.
+    func addOrUpdateEntrySync(fileURL: URL, folderName: String) {
+        indexQueue.sync { [weak self] in
+            self?._addOrUpdateEntrySync(fileURL: fileURL, folderName: folderName)
+        }
+    }
+
+    private func _addOrUpdateEntrySync(fileURL: URL, folderName: String) {
+        var folderDesc: String? = nil
+        let folderURL = fileURL.deletingLastPathComponent()
+        let readmeURL = folderURL.appendingPathComponent("README.md")
+        if FileManager.default.fileExists(atPath: readmeURL.path) {
+            folderDesc = self.indexBuilder.extractDescriptionFromReadme(readmeURL)
+        }
+
+        if let newEntry = self.indexBuilder.createSnippetEntry(fileURL: fileURL, folderName: folderName, folderDescription: folderDesc) {
+            if let idx = self.entries.firstIndex(where: { $0.filePath.path == fileURL.path }) {
+                let oldEntry = self.entries[idx]
+                if oldEntry.abbreviation != newEntry.abbreviation {
+                    if self.snippetMap[oldEntry.abbreviation] == oldEntry.filePath.path {
+                        self.snippetMap.removeValue(forKey: oldEntry.abbreviation)
+                    }
+                }
+                self.entries[idx] = newEntry
+            } else {
+                self.entries.append(newEntry)
+            }
+
+            self.snippetMap[newEntry.abbreviation] = newEntry.filePath.path
+            self.searchEngine.buildIndices(from: self.entries)
+            self.cacheManager.clearCache()
+            logV("📌 [SnippetIndexManager] 스니펫 증분 갱신: \(fileURL.lastPathComponent)")
+        } else {
+            // 파싱에 실패한 경우 기존 인덱스에서 제거 시도 (제외 항목으로 변경된 경우 대응)
+            self._removeEntrySync(fileURL: fileURL)
+        }
+    }
+
     /// 개별 파일 삭제 시 호출
     func removeEntry(fileURL: URL) {
         indexQueue.async { [weak self] in
+            self?._removeEntrySync(fileURL: fileURL)
+        }
+    }
+
+    /// Issue163: synchronous removal — see addOrUpdateEntrySync.
+    func removeEntrySync(fileURL: URL) {
+        indexQueue.sync { [weak self] in
             self?._removeEntrySync(fileURL: fileURL)
         }
     }

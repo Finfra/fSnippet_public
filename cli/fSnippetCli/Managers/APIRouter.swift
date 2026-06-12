@@ -2289,6 +2289,10 @@ class APIRouter {
       let snippetId = "\(folder)/\(fileName)"
       logI("🌐 스니펫 생성 완료: \(snippetId)")
 
+      // Issue163: synchronous incremental upsert — a GET issued immediately
+      // after this response must already see the new snippet.
+      SnippetIndexManager.shared.addOrUpdateEntrySync(fileURL: fileURL, folderName: folder)
+
       // 스니펫 인덱스 리로드
       SnippetFileManager.shared.loadAllSnippets(reason: "API/createSnippet", force: true)
       let settings = SettingsManager.shared.load()
@@ -2331,6 +2335,10 @@ class APIRouter {
     do {
       try FileManager.default.removeItem(at: fileURL)
       logI("🌐 스니펫 삭제 완료: \(trimmedId)")
+
+      // Issue163: synchronous incremental removal — a GET issued immediately
+      // after this response must no longer see the deleted snippet.
+      SnippetIndexManager.shared.removeEntrySync(fileURL: fileURL)
 
       // 스니펫 인덱스 리로드 (캐시 무효화)
       SnippetFileManager.shared.loadAllSnippets(reason: "API/deleteSnippet", force: true)
