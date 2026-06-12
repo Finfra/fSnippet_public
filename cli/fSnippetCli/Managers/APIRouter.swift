@@ -1625,8 +1625,16 @@ class APIRouter {
     let allEntries = SnippetIndexManager.shared.entries
     let folderEntries = allEntries.filter { $0.folderName == name }
 
-    guard !folderEntries.isEmpty else {
-      return errorResponse(code: "NOT_FOUND", message: "Folder not found: \(name)", statusCode: 404)
+    // Issue163: empty index entries can mean "rebuild in progress" or "empty
+    // folder" — 404 only when the folder directory is actually absent on disk.
+    if folderEntries.isEmpty {
+      let folderURL = SnippetFileManager.shared.rootFolderURL.appendingPathComponent(name)
+      var isDir: ObjCBool = false
+      let existsOnDisk = FileManager.default.fileExists(atPath: folderURL.path, isDirectory: &isDir)
+        && isDir.boolValue
+      guard existsOnDisk else {
+        return errorResponse(code: "NOT_FOUND", message: "Folder not found: \(name)", statusCode: 404)
+      }
     }
 
     let rule = RuleManager.shared.getRule(for: name)

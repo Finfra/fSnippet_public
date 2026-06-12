@@ -30,7 +30,8 @@ class SnippetIndexManager {
         indexQueue.async { [weak self] in
             guard let self = self else { return }
 
-            self.clearIndex()
+            // Issue163: do NOT clearIndex() here — _loadSnippets swaps entries
+            // atomically, so readers never observe an empty index mid-rebuild.
             self._loadSnippets(basePath: basePath)
 
             DispatchQueue.main.async {
