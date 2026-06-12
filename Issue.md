@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 162
+* Issue HWM: 163
 * Save Point :
       - 2026.06.09: 20e59d6 (Fix(Issue162): 모디파이어 트리거 combo-breaker 위치 이동 — 오른쪽 ⌘+Tab 오발동 차단)
       - 2026.05.27: fb1a9dc (Fix(Issue155): collision delay 정밀화 — exact match 우선 + cleanBuffer prefix 검사)
@@ -20,7 +20,6 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-
 # 📕 중요
 
 # 📙 일반
@@ -28,6 +27,17 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue163: [API/Index] 스니펫 생성 직후 GET /api/v2/folders/{name} 404 — rebuildIndex clearIndex race (등록: 2026-06-12, 완료: 2026-06-12) (Hash: f600e0c) ✅
+* 목적: paidApp이 스니펫 저장 직후 목록 reload 시 일시적 404를 받아 빈 목록이 표시되는 race 제거
+* 상세:
+    - 재현: POST /api/v2/snippets 201 → 즉시(60ms) GET /api/v2/folders/ANsible → 404 (NOT_FOUND)
+    - 원인 1: `handleCreateSnippet` → `SnippetFileManager.loadAllSnippets` → `SnippetRepository.loadAllSnippets` 말미 `SnippetIndexManager.rebuildIndex` 호출 → `clearIndex()` 후 재구축 — 재구축 동안 `entries`가 빈 상태(수백 ms 창)
+    - 원인 2: `handleGetFolderDetail`이 `entries.filter(folderName).isEmpty`만으로 404 판정 — 인덱스 재구축 중이거나 빈 폴더면 실제 폴더가 존재해도 404
+* 구현 명세:
+    - `SnippetIndexManager.rebuildIndex`: `clearIndex()` 제거 — `_loadSnippets`의 `self.entries = newEntries` 원자적 교체만 사용 (빈 창 제거)
+    - `handleGetFolderDetail`: folderEntries 빈 경우 디스크에 폴더 존재하면 200 + 빈 snippets 반환, 디렉토리 부재 시에만 404
+* 검증: Release 재빌드·재배포 후 POST 201 → 즉시 GET 8연타 전부 200 (수정 전: 전부 404)
+
 ## Issue162: [Core/KeyEvent] 모디파이어 트리거(오른쪽 ⌘)가 ⌘+Tab 앱 전환을 잡아먹음 — combo-breaker 누락 (등록: 2026-06-09, 완료: 2026-06-09) (Hash: 20e59d6) ✅
 * 증상: 트리거 키를 `{right_command}`(오른쪽 ⌘)로 쓰는 환경에서 네이티브 ⌘+Tab 앱 전환이 동작하지 않음("alt_tab 잡아먹힘"). 오른쪽 ⌘로 Cmd+Tab 시 발생.
 * 근본 원인:
