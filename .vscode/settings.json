@@ -1,5 +1,5 @@
 {
-  "window.title": "🚀⌨️  ${rootName}${separator}${activeEditorShort}",
+  "window.title": "🚀⌨️ ${rootName}${separator}${activeEditorShort}",
   "workbench.colorCustomizations": {
     "activityBar.activeBackground": "#f9f7f6",
     "activityBar.background": "#f9f7f6",

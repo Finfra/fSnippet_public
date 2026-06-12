@@ -215,11 +215,20 @@ class CGEventTapManager {
         // tap timeout, triggering frequent .tapDisabledByTimeout events and intermittent
         // key processing.
         if KeyCaptureManager.shared.isPendingFast,
-           type == .keyDown || type == .flagsChanged,
-           let nsEv = NSEvent(cgEvent: event)
+           type == .keyDown || type == .flagsChanged
         {
-            let displayStr = nsEv.charactersIgnoringModifiers ?? ""
-            let nsMods = nsEv.modifierFlags.rawValue
+            // Issue912: NSEvent(cgEvent:) can return nil for certain flagsChanged events
+            // (e.g. right_command keyCode 54). Fall back to CGEvent flags to ensure
+            // modifier-only keys are captured correctly.
+            let displayStr: String
+            let nsMods: UInt
+            if let nsEv = NSEvent(cgEvent: event) {
+                displayStr = nsEv.charactersIgnoringModifiers ?? ""
+                nsMods = nsEv.modifierFlags.rawValue
+            } else {
+                displayStr = ""
+                nsMods = UInt(event.flags.rawValue)
+            }
             if KeyCaptureManager.shared.captureKeyIfActive(
                 keyCode: keyCode, nsModifiers: nsMods, displayString: displayStr)
             {

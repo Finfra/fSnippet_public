@@ -103,6 +103,12 @@ class SnippetRepository {
     if let settings = notification.object as? SnippetSettings {
       let newPath = (settings.basePath as NSString).expandingTildeInPath
       if newPath != self.rootFolderURL.path {
+        // Issue915_3: Skip update if new path does not exist — prevents sandbox path from
+        // overwriting the fallback-resolved correct rootFolderURL.
+        guard FileManager.default.fileExists(atPath: newPath) else {
+          logW("📂 ⚠️ [SnippetRepository] settingsDidChange: basePath does not exist, ignoring: \(newPath)")
+          return
+        }
         updateRootFolder(newPath)
       }
     }
