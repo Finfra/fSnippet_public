@@ -27,7 +27,7 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
-## Issue163: [API/Index] 스니펫 생성 직후 GET /api/v2/folders/{name} 404 — rebuildIndex clearIndex race (등록: 2026-06-12, 완료: 2026-06-12) (Hash: f600e0c) ✅
+## Issue163: [API/Index] 스니펫 생성 직후 GET /api/v2/folders/{name} 404·stale — rebuildIndex race (등록: 2026-06-12, 완료: 2026-06-12) (Hash: f600e0c, 8c3f357) ✅
 * 목적: paidApp이 스니펫 저장 직후 목록 reload 시 일시적 404를 받아 빈 목록이 표시되는 race 제거
 * 상세:
     - 재현: POST /api/v2/snippets 201 → 즉시(60ms) GET /api/v2/folders/ANsible → 404 (NOT_FOUND)
@@ -37,6 +37,9 @@ date: 2026-04-07
     - `SnippetIndexManager.rebuildIndex`: `clearIndex()` 제거 — `_loadSnippets`의 `self.entries = newEntries` 원자적 교체만 사용 (빈 창 제거)
     - `handleGetFolderDetail`: folderEntries 빈 경우 디스크에 폴더 존재하면 200 + 빈 snippets 반환, 디렉토리 부재 시에만 404
 * 검증: Release 재빌드·재배포 후 POST 201 → 즉시 GET 8연타 전부 200 (수정 전: 전부 404)
+* 후속 (stale, 8c3f357): 404 제거 후에도 비동기 전체 재구축 완료 전 GET이 신규 항목 누락된 이전 entries 반환 (paidApp 목록에 새 스니펫 미표시, 폴더 재진입 시에만 반영)
+    - 수정: `SnippetIndexManager.addOrUpdateEntrySync`/`removeEntrySync` 신설 (indexQueue.sync 단건 갱신) + `handleCreateSnippet`/`handleDeleteSnippet`이 응답 반환 전 호출
+    - 검증: POST 201 → 즉시 GET에 신규 항목 포함 / DELETE 200 → 즉시 GET에서 제거 확인
 
 ## Issue162: [Core/KeyEvent] 모디파이어 트리거(오른쪽 ⌘)가 ⌘+Tab 앱 전환을 잡아먹음 — combo-breaker 누락 (등록: 2026-06-09, 완료: 2026-06-09) (Hash: 20e59d6) ✅
 * 증상: 트리거 키를 `{right_command}`(오른쪽 ⌘)로 쓰는 환경에서 네이티브 ⌘+Tab 앱 전환이 동작하지 않음("alt_tab 잡아먹힘"). 오른쪽 ⌘로 Cmd+Tab 시 발생.
