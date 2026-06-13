@@ -31,9 +31,15 @@ struct SnippetPopupView: View {
                 onCancel: {
                     viewModel.onCancel?()
                 },
-                onEdit: {  // ✅ Issue9: Tab 키 편집/생성 → 유료 버전 전용 안내
-                    logI("🗯️️ [PopupView] Tab Key Edit blocked - Paid version only")
-                    PaidAppManager.shared.handlePaidFeature()
+                onEdit: {  // Issue911: Tab → new snippet (create row) or edit snippet (existing row)
+                    if let keyword = viewModel.suggestedCreateTerm {
+                        logI("🗯️️ [Issue911] Tab → new snippet: \(keyword)")
+                        PaidAppManager.shared.handleNewSnippet(keyword: keyword)
+                    } else if viewModel.selectedIndex >= 0 && viewModel.selectedIndex < viewModel.snippets.count {
+                        let snippet = viewModel.snippets[viewModel.selectedIndex]
+                        logI("🗯️️ [Issue911] Tab → edit snippet: \(snippet.abbreviation)")
+                        PaidAppManager.shared.handleEditSnippet(folderName: snippet.folderName, fileName: snippet.fileName)
+                    }
                 }
             ))
     }
@@ -559,9 +565,9 @@ struct SnippetPopupView: View {
     // Issue 219: Edit Feature
     // Issue 219: 편집 기능
     private func handleEdit(snippet: SnippetEntry) {
-        // ✅ Issue9: 스니펫 편집 → 유료 버전 전용 안내
-        logI("🗯️️ [Issue9] Edit blocked - Paid version only: \(snippet.abbreviation)")
-        PaidAppManager.shared.handlePaidFeature()
+        // Issue911: pencil button → open edit window in paidApp
+        logI("🗯️️ [Issue911] Edit snippet via pencil: \(snippet.abbreviation)")
+        PaidAppManager.shared.handleEditSnippet(folderName: snippet.folderName, fileName: snippet.fileName)
     }
 
     // Issue 219-1: 선택 기반 미리보기 (Hover 대체)

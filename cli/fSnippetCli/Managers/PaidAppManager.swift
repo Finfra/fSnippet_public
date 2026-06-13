@@ -271,6 +271,38 @@ class PaidAppManager {
         }
     }
 
+    /// Issue911: Tab key on existing snippet → open edit window in paidApp.
+    /// - .started → activate + URL Scheme(edit-snippet&folder&filename)
+    /// - .stopped → consent 기반 launchAndOpenSettings (edit window requires running app)
+    /// - .notInstall → showPaidOnlyAlert
+    func handleEditSnippet(folderName: String, fileName: String) {
+        let freshStatus: PaidAppStatus = {
+            if isRunning() { return .started }
+            if isInstalled() { return .stopped }
+            return .notInstall
+        }()
+        switch freshStatus {
+        case .started:
+            activatePaidApp()
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                guard let self else { return }
+                _ = self.waitForPaidAppRegistration()
+                DispatchQueue.main.async {
+                    PaidAppDetector.openEditSnippet(folderName: folderName, fileName: fileName)
+                }
+            }
+        case .stopped:
+            if autoLaunchConsent {
+                logI("✏️ [EditSnippet] 동의 기반 자동 기동")
+                launchAndOpenSettings()
+            } else {
+                showRequirePaidAlert()
+            }
+        case .notInstall:
+            showPaidOnlyAlert()
+        }
+    }
+
     /// 설정창 직접 열기 — consent 우회 (Issue144)
     /// 단축키/메뉴바 트리거 전용. autoLaunchConsent 무관하게 무조건 settings 진입.
     /// - .started → DistributedNotification "fSnippetOpenSettings" (paidApp already listening)

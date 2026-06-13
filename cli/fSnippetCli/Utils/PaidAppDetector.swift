@@ -73,6 +73,23 @@ enum PaidAppDetector {
     route(schemeURL, label: "NewSnippet")
   }
 
+  /// Tab key on existing snippet → open edit window in paidApp — Issue911
+  /// URL Scheme: fsnippet://command?action=edit-snippet&folder=<folderName>&filename=<fileName>&source=cliApp
+  static func openEditSnippet(folderName: String, fileName: String) {
+    var comps = URLComponents(string: "fsnippet://command")!
+    comps.queryItems = [
+      URLQueryItem(name: "action", value: "edit-snippet"),
+      URLQueryItem(name: "source", value: "cliApp"),
+      URLQueryItem(name: "folder", value: folderName),
+      URLQueryItem(name: "filename", value: fileName),
+    ]
+    guard let schemeURL = comps.url else {
+      logW("✏️ [EditSnippet] URL 생성 실패 — folder=\(folderName) filename=\(fileName)")
+      return
+    }
+    route(schemeURL, label: "EditSnippet")
+  }
+
   /// §1.2 keyword 검증: 화이트리스트 [a-z0-9A-Z\-_.], 64자(ASCII 1byte) 제한
   private static func sanitizeKeyword(_ raw: String) -> String {
     let allowed = CharacterSet(
