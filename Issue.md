@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 164
+* Issue HWM: 165
 * Save Point :
       - 2026.06.09: 20e59d6 (Fix(Issue162): 모디파이어 트리거 combo-breaker 위치 이동 — 오른쪽 ⌘+Tab 오발동 차단)
       - 2026.05.27: fb1a9dc (Fix(Issue155): collision delay 정밀화 — exact match 우선 + cleanBuffer prefix 검사)
@@ -19,6 +19,15 @@ date: 2026-04-07
 0. 관련 api문서 및 llm plugin update(prj20) 필요. 
 
 # 🚧 진행중
+## Issue165: [KeyCapture] right_command 키 캡처 실패 — KM 인터셉션 + CGEvent flags 누락 (등록: 2026-06-13)
+* 목적: paidApp ShortcutInputView에서 right_command(keyCode 54) 키를 캡처할 수 없는 버그 수정
+* 상세:
+    - paidApp 설정 → 트리거 키 버튼 클릭 후 right_command 누르면 캡처되지 않음 (F2 등 다른 키는 정상)
+    - 원인 1: Keyboard Maestro Engine(PID 84523)이 right_command의 flagsChanged 이벤트를 cliApp CGEventTap보다 먼저 가로채 ⌃⇧⌘F11로 변환. cliApp은 keyCode 54 이벤트를 수신 못 함
+    - 원인 2: CGEventTap 콜백에서 `NSEvent(cgEvent:event)`가 nil 반환 시 fallback으로 `event.flags.rawValue`를 쓰면 `.deviceRightCommand` 비트가 없음 → `toHotkeyString()`이 `{right_command}` 토큰 생성 불가
+* 구현 명세:
+    - `KeyCaptureManager.setKeyboardMaestroEnabled()`: AppleScript 명령 수정 `setenabled false` → `set enabled to false` (문법 오류 수정)
+    - `CGEventTapManager.swift` flagsChanged 분기 else 블록: keyCode 54/60/61/62 감지 시 `correctedMods`에 `.deviceRightCommand/.deviceRightShift/.deviceRightOption/.deviceRightControl` 삽입
 
 # 📕 중요
 

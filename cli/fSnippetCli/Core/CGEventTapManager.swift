@@ -227,11 +227,22 @@ class CGEventTapManager {
                 nsMods = nsEv.modifierFlags.rawValue
             } else {
                 displayStr = ""
-                nsMods = UInt(event.flags.rawValue)
+                // CGEvent flags lack .deviceRight* bits; derive from keyCode for modifier-only keys
+                var correctedMods = NSEvent.ModifierFlags(rawValue: UInt(event.flags.rawValue))
+                switch keyCode {
+                case 54: correctedMods.insert(.deviceRightCommand)
+                case 60: correctedMods.insert(.deviceRightShift)
+                case 61: correctedMods.insert(.deviceRightOption)
+                case 62: correctedMods.insert(.deviceRightControl)
+                default: break
+                }
+                nsMods = correctedMods.rawValue
             }
-            if KeyCaptureManager.shared.captureKeyIfActive(
+            logD("🎯 [CGEventTapManager] KeyCapture attempt — keyCode:\(keyCode) type:\(type.rawValue) displayStr:\"\(displayStr)\" nsMods:\(nsMods) flags:\(event.flags.rawValue)")
+            let captured = KeyCaptureManager.shared.captureKeyIfActive(
                 keyCode: keyCode, nsModifiers: nsMods, displayString: displayStr)
-            {
+            logD("🎯 [CGEventTapManager] captureKeyIfActive → \(captured)")
+            if captured {
                 return nil
             }
         }

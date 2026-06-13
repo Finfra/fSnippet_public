@@ -39,21 +39,29 @@ final class KeyCaptureManager {
 
     func startCapture() {
         lock.lock()
-        defer { lock.unlock() }
         _status = .pending
         _capturedKeyCode = nil
         _capturedNSModifiers = nil
         _capturedDisplayString = nil
         _captureStartTime = Date()
         _isPendingFast = true   // Issue865-fix: enable hot-path
+        lock.unlock()
+
         logI("🎯 [KeyCaptureManager] Capture session started")
+        // Issue912: Disable Keyboard Maestro Engine during capture to prevent it from
+        // intercepting modifier-only keys (e.g. right_command keyCode 54).
+        // KM intercepts the flagsChanged event and injects ⌃⇧⌘F11 instead, causing
+        // the wrong keyCode to reach the capture session.
+        setKeyboardMaestroEnabled(false)
     }
 
     func stopCapture() {
         lock.lock()
-        defer { lock.unlock() }
         _status = .idle
         _isPendingFast = false  // Issue865-fix: disable hot-path
+        lock.unlock()
+
+        setKeyboardMaestroEnabled(true)
         logI("🎯 [KeyCaptureManager] Capture session stopped")
     }
 
@@ -65,13 +73,17 @@ final class KeyCaptureManager {
     @discardableResult
     func captureKeyIfActive(keyCode: UInt16, nsModifiers: UInt, displayString: String) -> Bool {
         lock.lock()
-        defer { lock.unlock() }
 
-        guard _status == .pending else { return false }
+        guard _status == .pending else {
+            lock.unlock()
+            return false
+        }
 
         if let start = _captureStartTime, Date().timeIntervalSince(start) > timeout {
             _status = .idle
             _isPendingFast = false  // Issue865-fix
+            lock.unlock()
+            setKeyboardMaestroEnabled(true)
             logW("🎯 [KeyCaptureManager] Capture session timed out")
             return false
         }
@@ -81,6 +93,9 @@ final class KeyCaptureManager {
         _capturedDisplayString = displayString
         _status = .captured
         _isPendingFast = false      // Issue865-fix: capture done, exit hot-path
+        lock.unlock()
+
+        setKeyboardMaestroEnabled(true)
         logI("🎯 [KeyCaptureManager] Key captured — code:\(keyCode) nsMods:\(nsModifiers) display:\(displayString)")
         return true
     }
@@ -89,25 +104,60 @@ final class KeyCaptureManager {
 
     var result: [String: Any] {
         lock.lock()
-        defer { lock.unlock() }
 
         switch _status {
         case .idle:
+            lock.unlock()
             return ["status": "idle"]
         case .pending:
             if let start = _captureStartTime, Date().timeIntervalSince(start) > timeout {
                 _status = .idle
                 _isPendingFast = false   // Issue865-fix
+                lock.unlock()
+                setKeyboardMaestroEnabled(true)
                 return ["status": "idle"]
             }
+            lock.unlock()
             return ["status": "pending"]
         case .captured:
-            return [
+            let result: [String: Any] = [
                 "status": "captured",
                 "keyCode": _capturedKeyCode.map { Int($0) } as Any,
                 "modifiers": _capturedNSModifiers as Any,
                 "displayString": _capturedDisplayString as Any
             ]
+            lock.unlock()
+            return result
+        }
+    }
+
+    // MARK: - Emergency restore (called on app termination)
+
+    /// Re-enables Keyboard Maestro Engine in case cliApp exits during an active capture session.
+    func emergencyRestore() {
+        setKeyboardMaestroEnabled(true)
+    }
+
+    // MARK: - Private: Third-party interference mitigation
+
+    // Disable/enable Keyboard Maestro Engine during capture sessions.
+    // Silently succeeds if KM is not running.
+    private func setKeyboardMaestroEnabled(_ enabled: Bool) {
+        let state = enabled ? "true" : "false"
+        let script = "tell application \"Keyboard Maestro Engine\" to set enabled to \(state)"
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        task.arguments = ["-e", script]
+        do {
+            try task.run()
+            task.waitUntilExit()
+            if task.terminationStatus == 0 {
+                logD("🎯 [KeyCaptureManager] KM setenabled \(enabled)")
+            } else {
+                logD("🎯 [KeyCaptureManager] KM setenabled \(enabled) skipped (exit:\(task.terminationStatus))")
+            }
+        } catch {
+            logD("🎯 [KeyCaptureManager] KM toggle skipped — \(error.localizedDescription)")
         }
     }
 }
