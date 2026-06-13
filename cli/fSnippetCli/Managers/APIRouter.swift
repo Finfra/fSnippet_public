@@ -2391,6 +2391,7 @@ class APIRouter {
       if let v = patch.language { config["language"] = v }
       if let v = patch.appearance { config["appearance"] = v }
       if let v = patch.snippetFolder { config["snippet_base_path"] = v }
+      if let v = patch.triggerKey, !v.isEmpty { config["snippet_trigger_key"] = v }
       if let v = patch.triggerBias { config["snippet_trigger_bias"] = v }
       if let v = patch.quickSelectModifier { config["quick_select_modifier"] = v }
       if let v = patch.excludedFiles { config[APIRouter.v2GlobalExcludedKey] = v }

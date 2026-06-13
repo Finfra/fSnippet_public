@@ -543,6 +543,7 @@ struct APIV2GeneralSettingsPatch: Decodable {
   let appearance: String?
   let settingsFolder: String?
   let snippetFolder: String?
+  let triggerKey: String?
   let triggerBias: Int?
   let quickSelectModifier: String?
   let excludedFiles: [String]?
