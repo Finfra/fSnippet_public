@@ -6,18 +6,19 @@ date: 2026-03-26
 
 # 개요
 
-fSnippet은 macOS 텍스트 스니펫 확장 도구로, 내장 NWListener 기반 경량 HTTP 서버를 통해 REST API를 제공합니다.
+fSnippet은 macOS 텍스트 스니펫 확장 도구로, REST API는 **fSnippetCli** 헬퍼 — Homebrew로 배포되는 비샌드박스 macOS 에이전트 — 의 내장 NWListener 기반 경량 HTTP 서버가 제공합니다.
 스니펫 검색/확장, 클립보드 히스토리, 사용 통계, 트리거 키 정보 등을 API로 조회할 수 있습니다.
 
-| 항목      | 값                                                   |
-| :------ | :-------------------------------------------------- |
-| 서버 구현   | macOS 네이티브 앱 (Swift / Network.framework NWListener) |
-| 기본 포트   | 3015                                                |
-| API 활성화 | 기본 OFF (설정에서 명시적 활성화 필요)                            |
-| 바인딩     | 기본 `127.0.0.1` (localhost 전용)                       |
+| 항목      | 값                                                                       |
+| :------ | :---------------------------------------------------------------------- |
+| 서버 구현   | `fSnippetCli` 헬퍼 (Swift / Network.framework NWListener), Homebrew 배포    |
+| 설치      | `brew install finfra/tap/fsnippet-cli` → `brew services start finfra/tap/fsnippet-cli` |
+| 기본 포트   | 3015                                                                    |
+| API 활성화 | 기본 ON (localhost 전용)                                                    |
+| 바인딩     | 기본 `127.0.0.1` (localhost 전용)                                           |
 > OpenAPI 3.0 스펙:
-> - v1 (조회 중심): [openapi_v1.yaml](./openapi_v1.yaml)
-> - v2 (설정 CRUD): [openapi_v2.yaml](./openapi_v2.yaml)
+> - v2 (전체 API — 조회 + 설정 CRUD): [openapi_v2.yaml](./openapi_v2.yaml)
+> - v1 ([openapi_v1.yaml](./openapi_v1.yaml)) 은 **deprecated** — 모든 `/api/v1/*` 요청은 HTTP 410 Gone. 모든 호출은 `/api/v2/*` 사용
 
 ---
 
@@ -30,8 +31,8 @@ fSnippet은 macOS 텍스트 스니펫 확장 도구로, 내장 NWListener 기반
 
 | 설정                    | 기본값            | 비고                 |
 | :-------------------- | :------------- | :----------------- |
-| API enabled           | **OFF**        | 설정에서 명시적 활성화 필요    |
-| Port                  | `3015`         | 설정에서 변경 가능         |
+| API enabled           | **ON**         | fSnippetCli가 기본적으로 localhost에서 제공 |
+| Port                  | `3015`         | `_config.yml` 또는 paidApp 설정에서 변경 가능 |
 | Allowed CIDR          | `127.0.0.1/32` | localhost 전용       |
 | Allow external access | **OFF**        | 체크 해제 시 CIDR 필드 잠금 |
 ---
@@ -319,13 +320,13 @@ GET /api/triggers
 curl http://localhost:3015/
 
 # 스니펫 검색
-curl "http://localhost:3015/api/snippets/search?q=docker&limit=10"
+curl "http://localhost:3015/api/v2/snippets/search?q=docker&limit=10"
 
 # Abbreviation으로 스니펫 조회
-curl "http://localhost:3015/api/snippets/by-abbreviation/awsec2%E2%97%8A"
+curl "http://localhost:3015/api/v2/snippets/by-abbreviation/awsec2%7Bright_command%7D"
 
 # 스니펫 확장
-curl -X POST http://localhost:3015/api/snippets/expand \
+curl -X POST http://localhost:3015/api/v2/snippets/expand \
   -H "Content-Type: application/json" \
   -d '{"abbreviation": "bb{right_command}"}'
 

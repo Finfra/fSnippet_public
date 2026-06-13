@@ -6,15 +6,16 @@ date: 2026-03-26
 
 # Overview
 
-fSnippet is a macOS text snippet expansion tool that provides a REST API through a lightweight NWListener-based HTTP server embedded in the app.
+fSnippet is a macOS text snippet expansion tool. The REST API is served by the **fSnippetCli** helper — a non-sandboxed macOS agent distributed via Homebrew — through a lightweight NWListener-based HTTP server.
 The API exposes snippet search/expansion, clipboard history, usage statistics, and trigger key information.
 
-| Item         | Value                                                   |
-| :----------- | :------------------------------------------------------ |
-| Server       | macOS native app (Swift / Network.framework NWListener) |
-| Default Port | 3015                                                    |
-| API Enabled  | OFF by default (must be explicitly enabled in Settings) |
-| Binding      | `127.0.0.1` (localhost only) by default                 |
+| Item         | Value                                                                       |
+| :----------- | :-------------------------------------------------------------------------- |
+| Server       | `fSnippetCli` helper (Swift / Network.framework NWListener), via Homebrew   |
+| Install      | `brew install finfra/tap/fsnippet-cli` → `brew services start finfra/tap/fsnippet-cli` |
+| Default Port | 3015                                                                        |
+| API Enabled  | ON by default (localhost only)                                              |
+| Binding      | `127.0.0.1` (localhost only) by default                                     |
 > OpenAPI 3.0 specs:
 > - v2 (full API — read + settings CRUD): [openapi_v2.yaml](./openapi_v2.yaml)
 > - v1 ([openapi_v1.yaml](./openapi_v1.yaml)) is **deprecated** — all `/api/v1/*` requests return HTTP 410 Gone. Use `/api/v2/*` for everything.
@@ -28,12 +29,12 @@ The API exposes snippet search/expansion, clipboard history, usage statistics, a
 - When external access is enabled, the allowed CIDR field becomes editable (e.g. `192.168.0.0/24`).
 - Requests from IPs outside the configured CIDR range are rejected.
 
-| Setting               | Default        | Notes                                                |
-| :-------------------- | :------------- | :--------------------------------------------------- |
-| API enabled           | **OFF**        | Must be explicitly enabled in Settings               |
-| Port                  | `3015`         | Configurable in Settings                             |
-| Allowed CIDR          | `127.0.0.1/32` | Localhost only                                       |
-| Allow external access | **OFF**        | When unchecked, CIDR field is locked to 127.0.0.1/32 |
+| Setting               | Default        | Notes                                                          |
+| :-------------------- | :------------- | :------------------------------------------------------------- |
+| API enabled           | **ON**         | fSnippetCli serves on localhost by default                     |
+| Port                  | `3015`         | Configurable via `_config.yml` or paidApp Settings             |
+| Allowed CIDR          | `127.0.0.1/32` | Localhost only                                                 |
+| Allow external access | **OFF**        | When unchecked, CIDR field is locked to 127.0.0.1/32           |
 ---
 
 # Endpoints
@@ -442,7 +443,7 @@ curl http://localhost:3015/
 curl "http://localhost:3015/api/v2/snippets/search?q=docker&limit=10"
 
 # Get snippet by abbreviation
-curl "http://localhost:3015/api/v2/snippets/by-abbreviation/awsec2%E2%97%8A"
+curl "http://localhost:3015/api/v2/snippets/by-abbreviation/awsec2%7Bright_command%7D"
 
 # Expand snippet
 curl -X POST http://localhost:3015/api/v2/snippets/expand \
