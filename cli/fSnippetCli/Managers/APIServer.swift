@@ -163,13 +163,53 @@ class APIServer {
       return
     }
 
+    receiveHTTPRequest(connection: connection, remoteIP: remoteIP, accumulated: Data())
+  }
+
+  // Accumulate received data until the full HTTP request (headers + Content-Length body bytes)
+  // is present before processing. Defends against NWConnection partial reads (Issue923):
+  // receive(minimumIncompleteLength:1) fires on the first byte, so headers and body may
+  // arrive in separate callbacks — causing body == nil and HTTP 400 on re-register.
+  private func receiveHTTPRequest(connection: NWConnection, remoteIP: String, accumulated: Data) {
     connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self] data, _, _, error in
-      guard let self = self, let data = data, !data.isEmpty else {
-        connection.cancel()
+      guard let self = self else { return }
+
+      var buffer = accumulated
+      if let data = data, !data.isEmpty { buffer.append(data) }
+      guard !buffer.isEmpty else { connection.cancel(); return }
+
+      // Find header/body separator
+      let separator = Data([0x0D, 0x0A, 0x0D, 0x0A])
+      guard let sepRange = buffer.range(of: separator) else {
+        // Headers not yet complete — guard against oversized headers (>8 KB)
+        guard buffer.count < 8192 else { connection.cancel(); return }
+        self.receiveHTTPRequest(connection: connection, remoteIP: remoteIP, accumulated: buffer)
         return
       }
 
-      guard let requestString = String(data: data, encoding: .utf8) else {
+      // Parse Content-Length from headers
+      let headerData = buffer[..<sepRange.lowerBound]
+      let headerString = String(data: headerData, encoding: .utf8) ?? ""
+      let contentLength: Int = headerString
+        .components(separatedBy: "\r\n")
+        .compactMap { line -> Int? in
+          let lower = line.lowercased()
+          guard lower.hasPrefix("content-length:") else { return nil }
+          return Int(lower.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces))
+        }
+        .first ?? 0
+
+      // Check if body is fully received
+      let receivedBodyLength = buffer.count - sepRange.upperBound
+      if contentLength > 0 && receivedBodyLength < contentLength {
+        // Body not yet complete — guard against oversized bodies (>64 KB)
+        guard buffer.count < 65536 else { connection.cancel(); return }
+        self.receiveHTTPRequest(connection: connection, remoteIP: remoteIP, accumulated: buffer)
+        return
+      }
+
+      // Full request received — process it
+      guard let requestString = String(data: buffer, encoding: .utf8) else {
         connection.cancel()
         return
       }
