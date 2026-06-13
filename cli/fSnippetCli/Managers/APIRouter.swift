@@ -2592,14 +2592,25 @@ class APIRouter {
 
   private func handleV2PostSnippetFolderOpen(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
     if let denied = requireLocalWrite(request) { return denied }
-    let raw = currentSnippetFolder()
-    let expanded = (raw as NSString).expandingTildeInPath
-    let url = URL(fileURLWithPath: expanded)
+    let root = currentSnippetFolder()
+    var expanded = (root as NSString).expandingTildeInPath
+    // Resolve relative path (e.g. "./snippets") against settingsFolder
+    if !expanded.hasPrefix("/") {
+      let relative = expanded.hasPrefix("./") ? String(expanded.dropFirst(2)) : expanded
+      expanded = (currentSettingsFolder() as NSString).appendingPathComponent(relative)
+    }
+    // Issue920: optional subfolder from request body {"folder": "FolderName"}
+    var targetPath = expanded
+    if let bodyData = request.body,
+       let json = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any],
+       let folderName = json["folder"] as? String, !folderName.isEmpty {
+      targetPath = (expanded as NSString).appendingPathComponent(folderName)
+    }
+    let url = URL(fileURLWithPath: targetPath)
     DispatchQueue.main.async {
       NSWorkspace.shared.open(url)
     }
-    let body = "{\"ok\":true,\"data\":{\"action\":\"open\",\"status\":\"done\"}}"
-    return APIServer.HTTPResponse(statusCode: 200, body: body)
+    return v2ActionSuccess("open")
   }
 
   private func handleV2PostHistoryClear(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
