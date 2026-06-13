@@ -217,27 +217,36 @@ class CGEventTapManager {
         if KeyCaptureManager.shared.isPendingFast,
            type == .keyDown || type == .flagsChanged
         {
-            // Issue912: NSEvent(cgEvent:) can return nil for certain flagsChanged events
-            // (e.g. right_command keyCode 54). Fall back to CGEvent flags to ensure
-            // modifier-only keys are captured correctly.
+            // Issue912: For flagsChanged (modifier-only) events, skip NSEvent construction
+            // entirely. NSEvent(cgEvent:) blocks on certain flagsChanged events injected by
+            // Karabiner VirtualHIDKeyboard (e.g. right_command keyCode 54), causing the
+            // CGEventTap callback to exceed macOS's timeout threshold, which disables the
+            // tap before captureKeyIfActive() is ever reached.
+            // For keyDown, NSEvent is still needed for charactersIgnoringModifiers.
+            // Issue165/fix: Apply keyCode-based .deviceRight* patch unconditionally so both
+            // physical and remapped right-side modifiers are recognised correctly.
             let displayStr: String
-            let nsMods: UInt
-            if let nsEv = NSEvent(cgEvent: event) {
+            var rawMods: UInt
+            if type == .flagsChanged {
+                displayStr = ""
+                rawMods = UInt(event.flags.rawValue)
+            } else if let nsEv = NSEvent(cgEvent: event) {
                 displayStr = nsEv.charactersIgnoringModifiers ?? ""
-                nsMods = nsEv.modifierFlags.rawValue
+                rawMods = nsEv.modifierFlags.rawValue
             } else {
                 displayStr = ""
-                // CGEvent flags lack .deviceRight* bits; derive from keyCode for modifier-only keys
-                var correctedMods = NSEvent.ModifierFlags(rawValue: UInt(event.flags.rawValue))
-                switch keyCode {
-                case 54: correctedMods.insert(.deviceRightCommand)
-                case 60: correctedMods.insert(.deviceRightShift)
-                case 61: correctedMods.insert(.deviceRightOption)
-                case 62: correctedMods.insert(.deviceRightControl)
-                default: break
-                }
-                nsMods = correctedMods.rawValue
+                rawMods = UInt(event.flags.rawValue)
             }
+            // Patch .deviceRight* flags based on keyCode regardless of NSEvent availability
+            var patchedMods = NSEvent.ModifierFlags(rawValue: rawMods)
+            switch keyCode {
+            case 54: if patchedMods.contains(.command) { patchedMods.insert(.deviceRightCommand) }
+            case 60: if patchedMods.contains(.shift) { patchedMods.insert(.deviceRightShift) }
+            case 61: if patchedMods.contains(.option) { patchedMods.insert(.deviceRightOption) }
+            case 62: if patchedMods.contains(.control) { patchedMods.insert(.deviceRightControl) }
+            default: break
+            }
+            let nsMods = patchedMods.rawValue
             logD("🎯 [CGEventTapManager] KeyCapture attempt — keyCode:\(keyCode) type:\(type.rawValue) displayStr:\"\(displayStr)\" nsMods:\(nsMods) flags:\(event.flags.rawValue)")
             let captured = KeyCaptureManager.shared.captureKeyIfActive(
                 keyCode: keyCode, nsModifiers: nsMods, displayString: displayStr)

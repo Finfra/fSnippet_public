@@ -126,6 +126,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        // Issue912: Re-enable KM if cliApp exits during an active capture session.
+        KeyCaptureManager.shared.emergencyRestore()
+
         // 중복 인스턴스로 판정된 경우 정리 로직 불필요 (초기화 자체를 건너뜀)
         guard !isDuplicateInstance else { return }
 
