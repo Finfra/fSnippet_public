@@ -2387,6 +2387,7 @@ class APIRouter {
       UserDefaults.standard.set(v, forKey: "appRootPath")
       logI("🌐 [APIRouter] Issue122 appRootPath updated via v2 PATCH /general: \(v)")
     }
+    let triggerKeyChanged = patch.triggerKey != nil && !patch.triggerKey!.isEmpty
     PreferencesManager.shared.batchUpdate { config in
       if let v = patch.language { config["language"] = v }
       if let v = patch.appearance { config["appearance"] = v }
@@ -2396,6 +2397,8 @@ class APIRouter {
       if let v = patch.quickSelectModifier { config["quick_select_modifier"] = v }
       if let v = patch.excludedFiles { config[APIRouter.v2GlobalExcludedKey] = v }
     }
+    // Issue164: reload TriggerKeyManager immediately so new key takes effect without restart
+    if triggerKeyChanged { TriggerKeyManager.shared.reloadSettings() }
 
     return jsonResponse(buildV2General())
   }
@@ -2468,6 +2471,8 @@ class APIRouter {
       return v2Error(code: "invalid_argument", message: "token must not be empty", statusCode: 400)
     }
     PreferencesManager.shared.batchUpdate { config in config["snippet_trigger_key"] = body.token }
+    // Issue164: reload TriggerKeyManager immediately so new key takes effect without restart
+    TriggerKeyManager.shared.reloadSettings()
     return jsonResponse(APIV2TriggerKey(keyCode: body.keyCode, display: body.display, token: body.token))
   }
 

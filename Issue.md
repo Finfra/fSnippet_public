@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 163
+* Issue HWM: 164
 * Save Point :
       - 2026.06.09: 20e59d6 (Fix(Issue162): 모디파이어 트리거 combo-breaker 위치 이동 — 오른쪽 ⌘+Tab 오발동 차단)
       - 2026.05.27: fb1a9dc (Fix(Issue155): collision delay 정밀화 — exact match 우선 + cleanBuffer prefix 검사)
@@ -16,9 +16,18 @@ date: 2026-04-07
 * `cli/_doc_arch/menuBar_enhance.md` 기준 진행(메뉴바, 로컬 SSOT — gitignored)
 
 # 🌱 이슈후보
-1. 
+0. 관련 api문서 및 llm plugin update(prj20) 필요. 
 
 # 🚧 진행중
+## Issue164: [API] PATCH /general triggerKey 변경 후 TriggerKeyManager 미갱신 — 재시작 전까지 반영 안 됨 (등록: 2026-06-13)
+* 목적: paidApp 설정 UI에서 트리거 키 변경 시 즉시 적용되지 않는 버그 수정
+* 상세:
+    - `handleV2PatchGeneral` 및 `handleV2PutGeneralTriggerKey` — `batchUpdate`로 `_config.yml`의 `snippet_trigger_key` 기록 후 `TriggerKeyManager.shared.reloadSettings()` 호출 없음
+    - 결과: `_config.yml`은 갱신되나 cliApp 메모리의 트리거 키는 구 값 유지 → cliApp 재시작 전까지 새 키 미적용
+    - API 직접 테스트: `curl PATCH {"triggerKey":"{f1}"}` → `_config.yml` 갱신 ✅, 하지만 키 감지 동작은 변경 안 됨
+* 구현 명세:
+    - `APIRouter.swift` `handleV2PatchGeneral`: `batchUpdate` 후 `patch.triggerKey != nil` 일 때 `TriggerKeyManager.shared.reloadSettings()` 호출
+    - `APIRouter.swift` `handleV2PutGeneralTriggerKey`: `batchUpdate` 후 동일하게 `reloadSettings()` 호출
 
 # 📕 중요
 
