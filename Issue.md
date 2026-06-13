@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 165
+* Issue HWM: 166
 * Save Point :
       - 2026.06.09: 20e59d6 (Fix(Issue162): 모디파이어 트리거 combo-breaker 위치 이동 — 오른쪽 ⌘+Tab 오발동 차단)
       - 2026.05.27: fb1a9dc (Fix(Issue155): collision delay 정밀화 — exact match 우선 + cleanBuffer prefix 검사)
@@ -16,7 +16,6 @@ date: 2026-04-07
 * `cli/_doc_arch/menuBar_enhance.md` 기준 진행(메뉴바, 로컬 SSOT — gitignored)
 
 # 🌱 이슈후보
-0. 관련 api문서 및 llm plugin update(prj20) 필요. 
 
 # 🚧 진행중
 
@@ -27,6 +26,13 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue166: [Docs/Plugin] API 문서 + LLM plugin(prj20) 최신화 — cliApp/brew 전환 반영 (등록: 2026-06-13, 완료: 2026-06-13) (Hash: 4a08a5b, prj20 8ec2ade) ✅
+* 목적: 최근 API 작업(Issue163~165, paidApp 연동 920/921) 이후 공개 문서·prj20 LLM plugin 이 paidApp GUI 기준으로 stale. cliApp(fSnippetCli)/brew 운영 모델로 동기화
+* 구현:
+    - prj20 `f-claude-plugins/fSnippet/skills/fsnippet/SKILL.md` (8ec2ade): prereq `open -a fSnippet`+"Settings > Advanced > Enable REST API" → `brew install/services start finfra/tap/fsnippet-cli`. 트리거 심볼 `◊` → `{right_command}` (3곳). date bump
+    - `_public/api/README.md`·`README_ko.md` (4a08a5b): Server "macOS native app" → fSnippetCli helper(Homebrew), API enabled OFF→ON, 잔존 ◊ 인코딩(`%E2%97%8A`) → `%7Bright_command%7D`. README_ko 예제 `/api/snippets` → `/api/v2/snippets` 버전 정정 + v1 deprecated 스펙 노트 동기화
+    - `openapi_v2.yaml`: Issue916/921 로 이미 동기화 확인 (trigger-key 엔드포인트 존재) — 무수정
+* 검증: 잔존 `◊`/`%E2%97%8A`/`open -a` GUI런치 0건, brew명 하이픈(`fsnippet-cli`) 정확
 ## Issue165: [KeyCapture] right_command 키 캡처 실패 — KM 인터셉션 + CGEvent flags 누락 (등록: 2026-06-13, 완료: 2026-06-13) (Hash: 0fcb9bc) ✅
 * 목적: paidApp ShortcutInputView에서 right_command(keyCode 54) 키를 캡처할 수 없는 버그 수정
 * 상세:
