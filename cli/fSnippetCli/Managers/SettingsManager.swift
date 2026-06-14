@@ -911,10 +911,14 @@ class SettingsManager {
                 // Issue317: 주석 보존
                 let existingRule = currentRules[name]
 
-                // Regression Fix (Issue 606): Fallback to existing rule values if not present in settings
-                // This prevents overwriting existing rules with empty values when they are not in UserDefaults.
-                let prefix = settings.folderPrefixes[name] ?? existingRule?.prefix ?? ""
-                let suffix = settings.folderSymbols[name] ?? existingRule?.suffix ?? ""
+                // Issue926_1: _rule.yml (RuleManager) is the SSOT for folder prefix/suffix.
+                // settings.folderSymbols/folderPrefixes are a stale _config.yml duplicate that the
+                // patchFolderRule path never updates, so a general-settings batch-save was rebuilding
+                // _rule.yml from that stale copy and clobbering a just-saved rule (value reverted ~2s
+                // after save). Prioritize the live rule; fall back to settings only for folders that
+                // have no rule yet (new-folder safety, Issue 606).
+                let prefix = existingRule?.prefix ?? settings.folderPrefixes[name] ?? ""
+                let suffix = existingRule?.suffix ?? settings.folderSymbols[name] ?? ""
 
                 // Bias and Description are optional in CollectionRule
                 let bias = currentRules[name]?.triggerBias
