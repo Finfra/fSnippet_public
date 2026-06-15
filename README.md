@@ -3,10 +3,9 @@ title: fSnippet Pro
 description: macOS Menu Bar Snippet & Clipboard Manager
 date: 2026-03-26
 ---
-
 [![ko](https://img.shields.io/badge/lang-ko-red.svg)](./README_ko.md)
 
-<img src="./manual/app-icon.png" width="28" alt="fSnippet Icon"> [![Product Page](https://img.shields.io/badge/Product%20Page-finfra.kr-blue)](https://finfra.kr/product/fSnippet/en/index.html)
+`<img src="./manual/app-icon.png" width="28" alt="fSnippet Icon">` [![Product Page](https://img.shields.io/badge/Product%20Page-finfra.kr-blue)](https://finfra.kr/product/fSnippet/en/index.html)
 
 > **Expand any text, Powerful snippet tool.**
 
@@ -14,10 +13,10 @@ macOS Menu Bar Snippet & Clipboard Manager. Manage text snippets, track clipboar
 
 ## Editions
 
-| Edition                | Price           | Interface | Install                                                   |
-| :--------------------- | :-------------- | :-------- | :-------------------------------------------------------- |
-| **fSnippet Pro** (GUI) | Paid            | GUI       | App Store (Coming Soon)                                   |
-| **fSnippetCli** (CLI)  | Free / OSS      | CLI       | `brew install finfra/tap/fsnippetcli` ([Source](./cli/)) |
+| Edition                | Price      | Interface | Install                                                  |
+| :--------------------- | :--------- | :-------- | :------------------------------------------------------- |
+| **fSnippet Pro** (GUI) | Paid       | GUI       | App Store (Coming Soon)                                  |
+| **fSnippetCli** (CLI)  | Free / OSS | CLI       | `brew install finfra/tap/fsnippetcli` ([Source](./cli/)) |
 
 * **fSnippet Pro** - Full-featured GUI app with intuitive settings, visual snippet management, and clipboard history viewer. Available on the Mac App Store (coming soon).
 * **fSnippetCli** - Fully open-source CLI version. All source code is in the [`cli/`](./cli/) directory. Installable via Homebrew.
@@ -69,6 +68,7 @@ Automate and extend fSnippet with AI agents. All integration methods use the bui
 | **fBoard**       | Your personalized screen board                   | [Product Page](http://finfra.kr/product/fBoard/en/index.html)       |
 | **fQRGen**       | Clipboard to QR code, instantly                  | [Product Page](http://finfra.kr/product/fQRGen/en/index.html)       |
 | **fGoogleSheet** | The fastest Google Sheets menu bar app for Mac   | [Product Page](http://finfra.kr/product/fGoogleSheet/en/index.html) |
+
 ## Documentation
 
 | Document                              | Description                                    |
@@ -78,25 +78,31 @@ Automate and extend fSnippet with AI agents. All integration methods use the bui
 | [MCP Server](./mcp/)                  | Model Context Protocol server                  |
 | [Claude Code Skill](./agents/claude/) | Claude Code plugin                             |
 | [Localization](./localization/)       | Multi-language string resources (10 languages) |
+
 ## Community & Support
 
 ### Issues
+
 * [GitHub Issues](https://github.com/Finfra/fSnippet_public/issues)
 
 ### Board (English)
+
 | Category | Link                                                                  |
 | :------- | :-------------------------------------------------------------------- |
 | Notice   | [fSnippet Notice](https://finfra.kr/w1/category/fsnippet-notice/)     |
 | Guide    | [fSnippet Guide](https://finfra.kr/w1/category/fsnippet-guide/)       |
 | QnA      | [fSnippet QnA](https://finfra.kr/w1/category/fsnippet-qna/)           |
 | Feedback | [fSnippet Feedback](https://finfra.kr/w1/category/fsnippet-feedback/) |
+
 ### Board (Korean)
-| Category | Link                                                                |
-| :------- | :------------------------------------------------------------------ |
-| Notice   | [fSnippet 공지](https://finfra.kr/w1/category/fsnippet-notice-kr/)    |
+
+| Category | Link                                                                   |
+| :------- | :--------------------------------------------------------------------- |
+| Notice   | [fSnippet 공지](https://finfra.kr/w1/category/fsnippet-notice-kr/)     |
 | Guide    | [fSnippet 사용법](https://finfra.kr/w1/category/fsnippet-guide-kr/)    |
-| QnA      | [fSnippet QnA](https://finfra.kr/w1/category/fsnippet-qna-kr/)      |
+| QnA      | [fSnippet QnA](https://finfra.kr/w1/category/fsnippet-qna-kr/)         |
 | Feedback | [fSnippet 피드백](https://finfra.kr/w1/category/fsnippet-feedback-kr/) |
+
 ## License
 
 Copyright (c) finfra.kr. All rights reserved.

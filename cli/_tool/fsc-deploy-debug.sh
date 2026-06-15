@@ -25,7 +25,7 @@ update_stable_link() {
     local app_path="$1"
     mkdir -p "$STABLE_LINK_DIR"
     if [ -L "$STABLE_LINK" ] || [ -e "$STABLE_LINK" ]; then
-        rm -f "$STABLE_LINK"
+        rm -rf "$STABLE_LINK"
     fi
     ln -sfn "$app_path" "$STABLE_LINK"
     echo "[deploy] ✅ 심링크: $STABLE_LINK → $app_path"
