@@ -17,7 +17,7 @@ date: 2026-04-07
 * `cli/_doc_arch/menuBar_enhance.md` 기준 진행(메뉴바, 로컬 SSOT — gitignored)
 
 # 🌱 이슈후보
-
+1. brew remote등록
 # 🚧 진행중
 
 # 📕 중요
