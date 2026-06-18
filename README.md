@@ -13,10 +13,10 @@ macOS Menu Bar Snippet & Clipboard Manager. Manage text snippets, track clipboar
 
 ## Editions
 
-| Edition                | Price      | Interface | Install                                                  |
-| :--------------------- | :--------- | :-------- | :------------------------------------------------------- |
-| **fSnippet Pro** (GUI) | Paid       | GUI       | App Store (Coming Soon)                                  |
-| **fSnippetCli** (CLI)  | Free / OSS | CLI       | `brew install finfra/tap/fsnippet-cli` ([Source](./cli/)) |
+| Edition                | Price      | Interface | Version | Install                                                  |
+| :--------------------- | :--------- | :-------- | :------ | :------------------------------------------------------- |
+| **fSnippet Pro** (GUI) | Paid       | GUI       | —       | App Store (Coming Soon)                                  |
+| **fSnippetCli** (CLI)  | Free / OSS | CLI       | v1.0.1  | `brew install finfra/tap/fsnippet-cli` ([Source](./cli/)) |
 
 * **fSnippet Pro** - Full-featured GUI app with intuitive settings, visual snippet management, and clipboard history viewer. Available on the Mac App Store (coming soon).
 * **fSnippetCli** - Fully open-source CLI version. All source code is in the [`cli/`](./cli/) directory. Installable via Homebrew.
@@ -78,6 +78,13 @@ This repository serves two purposes:
 * **Easy Management** - Intuitive UI for snippet organization
 * **Text & Image Support** - Store both text and image snippets
 * **AI Agent Integration** - Automate with Claude, Gemini, and MCP
+
+## Recent Improvements (v1.0.1)
+
+* **Robust HTTP Handling** - Fixed partial read scenarios and premature EOF handling in REST API (Issue929, Issue923)
+* **Brew Remote Deployment** - Can now be installed directly from the remote Homebrew tap without manual setup (Issue167)
+* **Enhanced Keyboard Capture** - Improved right_command and special key detection in CGEventTap (Issue912, Issue165)
+* **Better Settings Sync** - Fixed folder rule batch-save and proper stale cache handling (Issue926)
 
 ## AI Agent Integration
 
