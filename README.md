@@ -16,10 +16,51 @@ macOS Menu Bar Snippet & Clipboard Manager. Manage text snippets, track clipboar
 | Edition                | Price      | Interface | Install                                                  |
 | :--------------------- | :--------- | :-------- | :------------------------------------------------------- |
 | **fSnippet Pro** (GUI) | Paid       | GUI       | App Store (Coming Soon)                                  |
-| **fSnippetCli** (CLI)  | Free / OSS | CLI       | `brew install finfra/tap/fsnippetcli` ([Source](./cli/)) |
+| **fSnippetCli** (CLI)  | Free / OSS | CLI       | `brew install finfra/tap/fsnippet-cli` ([Source](./cli/)) |
 
 * **fSnippet Pro** - Full-featured GUI app with intuitive settings, visual snippet management, and clipboard history viewer. Available on the Mac App Store (coming soon).
 * **fSnippetCli** - Fully open-source CLI version. All source code is in the [`cli/`](./cli/) directory. Installable via Homebrew.
+
+## Installation (fSnippetCli)
+
+The free, open-source CLI engine is distributed via Homebrew.
+
+```bash
+# 1. Add the tap and install
+brew tap finfra/tap
+brew install finfra/tap/fsnippet-cli
+
+# 2. Start the background service (auto-starts on login)
+brew services start fsnippet-cli
+
+# 3. Verify the REST API is running
+curl http://localhost:3015/api/v2/status
+```
+
+### Service Management
+
+```bash
+brew services start fsnippet-cli     # Start (auto-start on login)
+brew services stop fsnippet-cli      # Stop
+brew services restart fsnippet-cli   # Restart
+brew upgrade fsnippet-cli            # Update to the latest version
+```
+
+### Uninstall
+
+```bash
+brew services stop fsnippet-cli      # Stop the service first
+brew uninstall fsnippet-cli          # Remove the app
+brew untap finfra/tap                # (optional) Remove the tap
+```
+
+> Snippet data and settings in `~/Documents/finfra/fSnippetData/` are kept after
+> uninstall. Delete that folder manually to remove all data.
+
+> **Accessibility permission required.** On first run, grant access in
+> *System Settings > Privacy & Security > Accessibility* for key monitoring to work.
+
+See [`cli/README.md`](./cli/README.md) for build-from-source and full details.
 
 ## About This Repository
 

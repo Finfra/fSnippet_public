@@ -17,10 +17,51 @@ macOS 메뉴바 스니펫 & 클립보드 관리 도구. 텍스트 스니펫을 �
 | 에디션                 | 가격            | 인터페이스 | 설치 방법                                                  |
 | :--------------------- | :-------------- | :--------- | :--------------------------------------------------------- |
 | **fSnippet Pro** (GUI) | 유료            | GUI        | App Store (출시 예정)                                      |
-| **fSnippetCli** (CLI)  | 무료 / 오픈소스 | CLI        | `brew install finfra/tap/fsnippetcli` ([소스코드](./cli/)) |
+| **fSnippetCli** (CLI)  | 무료 / 오픈소스 | CLI        | `brew install finfra/tap/fsnippet-cli` ([소스코드](./cli/)) |
 
 * **fSnippet Pro** - 직관적인 설정 화면, 시각적 스니펫 관리, 클립보드 히스토리 뷰어를 갖춘 정식 GUI 앱. Mac App Store에서 출시 예정.
 * **fSnippetCli** - 완전 무료 오픈소스 CLI 버전. 모든 소스코드는 [`cli/`](./cli/) 디렉토리에 있으며 Homebrew로 설치 가능.
+
+## 설치 (fSnippetCli)
+
+무료 오픈소스 CLI 엔진은 Homebrew로 배포됨.
+
+```bash
+# 1. tap 추가 후 설치
+brew tap finfra/tap
+brew install finfra/tap/fsnippet-cli
+
+# 2. 백그라운드 서비스 시작 (로그인 시 자동 시작)
+brew services start fsnippet-cli
+
+# 3. REST API 동작 확인
+curl http://localhost:3015/api/v2/status
+```
+
+### 서비스 관리
+
+```bash
+brew services start fsnippet-cli     # 시작 (로그인 시 자동 시작)
+brew services stop fsnippet-cli      # 중지
+brew services restart fsnippet-cli   # 재시작
+brew upgrade fsnippet-cli            # 최신 버전 업데이트
+```
+
+### 제거 (Uninstall)
+
+```bash
+brew services stop fsnippet-cli      # 먼저 서비스 중지
+brew uninstall fsnippet-cli          # 앱 제거
+brew untap finfra/tap                # (선택) tap 제거
+```
+
+> 스니펫 데이터·설정(`~/Documents/finfra/fSnippetData/`)은 제거 후에도 유지됨.
+> 전체 데이터까지 지우려면 해당 폴더를 직접 삭제할 것.
+
+> **접근성 권한 필요.** 최초 실행 시 *시스템 설정 > 개인정보 보호 및 보안 > 접근성*
+> 에서 권한을 부여해야 키 모니터링이 동작함.
+
+빌드 방법·상세는 [`cli/README.md`](./cli/README.md) 참조.
 
 ## 이 저장소에 대하여
 

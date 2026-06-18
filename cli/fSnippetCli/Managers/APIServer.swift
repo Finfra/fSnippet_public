@@ -171,8 +171,15 @@ class APIServer {
   // receive(minimumIncompleteLength:1) fires on the first byte, so headers and body may
   // arrive in separate callbacks — causing body == nil and HTTP 400 on re-register.
   private func receiveHTTPRequest(connection: NWConnection, remoteIP: String, accumulated: Data) {
-    connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self] data, _, _, error in
+    connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self] data, _, isComplete, error in
       guard let self = self else { return }
+
+      // Abort on receive error to avoid spinning on a broken connection (Issue929)
+      if let error = error {
+        logD("🌐 ❌ [APIServer] 수신 오류, 연결 종료: \(error)")
+        connection.cancel()
+        return
+      }
 
       var buffer = accumulated
       if let data = data, !data.isEmpty { buffer.append(data) }
@@ -183,6 +190,8 @@ class APIServer {
       guard let sepRange = buffer.range(of: separator) else {
         // Headers not yet complete — guard against oversized headers (>8 KB)
         guard buffer.count < 8192 else { connection.cancel(); return }
+        // Peer closed (EOF) before headers completed — abort to avoid busy-spin recursion (Issue929)
+        guard !isComplete else { connection.cancel(); return }
         self.receiveHTTPRequest(connection: connection, remoteIP: remoteIP, accumulated: buffer)
         return
       }
@@ -204,6 +213,8 @@ class APIServer {
       if contentLength > 0 && receivedBodyLength < contentLength {
         // Body not yet complete — guard against oversized bodies (>64 KB)
         guard buffer.count < 65536 else { connection.cancel(); return }
+        // Peer closed (EOF) before body completed — abort to avoid busy-spin recursion (Issue929)
+        guard !isComplete else { connection.cancel(); return }
         self.receiveHTTPRequest(connection: connection, remoteIP: remoteIP, accumulated: buffer)
         return
       }
