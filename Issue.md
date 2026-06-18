@@ -23,25 +23,23 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
-## Issue167: [Deploy] brew remote deploy 구현 — 원격 tap publish 활성화 (등록: 2026-06-18)
-* 목적: 현재 `/deploy brew publish` 는 🚧 TODO 미구현. local tap 만 동작. 원격 `finfra/homebrew-tap` 으로 Formula push + GitHub release 발행하여 `brew install finfra/tap/fsnippet-cli` 가 외부 사용자에게 동작하도록 함
-* 상세:
-    - 현 상태: local tap `finfra/homebrew-tap` 에 remote 미연결(`git remote -v` 빈 출력), Formula sha256 placeholder(`0000...`), url tag `cli-v1.0.0` 미발행
-    - `cli/Formula/fsnippet-cli.rb`: url `archive/refs/tags/cli-vX.X.X.tar.gz`, sha256 placeholder
-    - `cli/_tool/fsc-deploy-brew.sh`: `publish` 분기 미구현
-    - `.claude/skills/deploy/SKILL.md`: publish 🚧 TODO 표기
-* 구현 명세:
-    - 1. GitHub repo `finfra/homebrew-tap` 존재 확인 → local tap 에 remote origin 연결 (`gh repo view` / `git remote add`)
-    - 2. 버전 태그 발행: `_public/VERSION` SSOT 기준 `cli-v{ver}` 태그 push → GitHub release 생성 (tarball 자동)
-    - 3. tarball sha256 산출 (`curl -L <url> | shasum -a 256`) → Formula `url`/`version`/`sha256` 갱신
-    - 4. `fsc-deploy-brew.sh` `publish` 분기 구현: Formula 복사 → tap repo commit → push
-    - 5. SKILL.md / commands/deploy.md publish 상태 ✅ 갱신
-    - 검증: 클린 환경 `brew uninstall` 후 `brew install finfra/tap/fsnippet-cli` → REST 헬스(`curl localhost:3015/api/v2/status`)
-* depends: 없음
 
 # 📗 선택
 
 # ✅ 완료
+## Issue167: [Deploy] brew remote deploy 구현 — 원격 tap publish 활성화 (등록: 2026-06-18, 완료: 2026-06-18) (Hash: 74c4b16) ✅
+* 목적: `/deploy brew publish` 미구현 → 원격 `finfra/homebrew-tap` + GitHub release 발행으로 외부 사용자 `brew install finfra/tap/fsnippet-cli` 동작화
+* 구현:
+    - `cli/_tool/fsc-deploy-brew.sh` `cmd_publish` 구현 (fWarrange 패턴 미러, 5단계): Release 빌드 → tarball(`fsnippet-cli-pkg/fSnippetCli.app`) → `gh release create cli-v1.0.1` + asset → `cli/Formula/fsnippet-cli.rb` url/version/sha 갱신 → 원격 tap clone·commit·push
+    - `cli/Formula/fsnippet-cli.rb`: url `releases/download/cli-v1.0.1/fSnippetCli-1.0.1.tar.gz`, version 1.0.1, sha256 `32fc2132...` 실제값
+    - `.claude/skills/deploy/SKILL.md`: publish 🚧 TODO → ✅ (로컬 SCAR, gitignore)
+* 검증:
+    - 원격 tap `Finfra/homebrew-tap` 에 `fsnippet-cli.rb` push 확인 (commit c86d048)
+    - 로컬 tap origin 미연결(dev 전용) 문제 → `git remote add origin` + `reset --hard origin/main` 동기화
+    - 클린 `brew reinstall finfra/tap/fsnippet-cli` → 원격 asset 다운로드 + sha 검증 통과 + `.brew` formula 기록
+    - `brew services start` → Running:true, REST 헬스 `status:ok` (신규 인스턴스 uptime 3s)
+* 잔여: 앱 번들 내부 version 문자열이 "1.0.0" (Info.plist 미bump) — formula 1.0.1과 불일치. version-manager-m 적용 시 동기화 필요 (별개)
+
 ## Issue166: [Docs/Plugin] API 문서 + LLM plugin(prj20) 최신화 — cliApp/brew 전환 반영 (등록: 2026-06-13, 완료: 2026-06-13) (Hash: 4a08a5b, prj20 8ec2ade) ✅
 * 목적: 최근 API 작업(Issue163~165, paidApp 연동 920/921) 이후 공개 문서·prj20 LLM plugin 이 paidApp GUI 기준으로 stale. cliApp(fSnippetCli)/brew 운영 모델로 동기화
 * 구현:
