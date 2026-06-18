@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 166
+* Issue HWM: 167
 * Save Point :
       - 2026.06.15: 74d7598 (Fix(Settings): Issue926_1 폴더 규칙 batch-save stale revert 수정)
       - 2026.06.09: 20e59d6 (Fix(Issue162): 모디파이어 트리거 combo-breaker 위치 이동 — 오른쪽 ⌘+Tab 오발동 차단)
@@ -17,12 +17,27 @@ date: 2026-04-07
 * `cli/_doc_arch/menuBar_enhance.md` 기준 진행(메뉴바, 로컬 SSOT — gitignored)
 
 # 🌱 이슈후보
-1. brew remote등록
+
 # 🚧 진행중
 
 # 📕 중요
 
 # 📙 일반
+## Issue167: [Deploy] brew remote deploy 구현 — 원격 tap publish 활성화 (등록: 2026-06-18)
+* 목적: 현재 `/deploy brew publish` 는 🚧 TODO 미구현. local tap 만 동작. 원격 `finfra/homebrew-tap` 으로 Formula push + GitHub release 발행하여 `brew install finfra/tap/fsnippet-cli` 가 외부 사용자에게 동작하도록 함
+* 상세:
+    - 현 상태: local tap `finfra/homebrew-tap` 에 remote 미연결(`git remote -v` 빈 출력), Formula sha256 placeholder(`0000...`), url tag `cli-v1.0.0` 미발행
+    - `cli/Formula/fsnippet-cli.rb`: url `archive/refs/tags/cli-vX.X.X.tar.gz`, sha256 placeholder
+    - `cli/_tool/fsc-deploy-brew.sh`: `publish` 분기 미구현
+    - `.claude/skills/deploy/SKILL.md`: publish 🚧 TODO 표기
+* 구현 명세:
+    - 1. GitHub repo `finfra/homebrew-tap` 존재 확인 → local tap 에 remote origin 연결 (`gh repo view` / `git remote add`)
+    - 2. 버전 태그 발행: `_public/VERSION` SSOT 기준 `cli-v{ver}` 태그 push → GitHub release 생성 (tarball 자동)
+    - 3. tarball sha256 산출 (`curl -L <url> | shasum -a 256`) → Formula `url`/`version`/`sha256` 갱신
+    - 4. `fsc-deploy-brew.sh` `publish` 분기 구현: Formula 복사 → tap repo commit → push
+    - 5. SKILL.md / commands/deploy.md publish 상태 ✅ 갱신
+    - 검증: 클린 환경 `brew uninstall` 후 `brew install finfra/tap/fsnippet-cli` → REST 헬스(`curl localhost:3015/api/v2/status`)
+* depends: 없음
 
 # 📗 선택
 
@@ -34,6 +49,7 @@ date: 2026-04-07
     - `_public/api/README.md`·`README_ko.md` (4a08a5b): Server "macOS native app" → fSnippetCli helper(Homebrew), API enabled OFF→ON, 잔존 ◊ 인코딩(`%E2%97%8A`) → `%7Bright_command%7D`. README_ko 예제 `/api/snippets` → `/api/v2/snippets` 버전 정정 + v1 deprecated 스펙 노트 동기화
     - `openapi_v2.yaml`: Issue916/921 로 이미 동기화 확인 (trigger-key 엔드포인트 존재) — 무수정
 * 검증: 잔존 `◊`/`%E2%97%8A`/`open -a` GUI런치 0건, brew명 하이픈(`fsnippet-cli`) 정확
+
 ## Issue165: [KeyCapture] right_command 키 캡처 실패 — KM 인터셉션 + CGEvent flags 누락 (등록: 2026-06-13, 완료: 2026-06-13) (Hash: 0fcb9bc) ✅
 * 목적: paidApp ShortcutInputView에서 right_command(keyCode 54) 키를 캡처할 수 없는 버그 수정
 * 상세:
