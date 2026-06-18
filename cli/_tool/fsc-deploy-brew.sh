@@ -41,7 +41,7 @@ Usage: /deploy brew <sub>       ⚠️ 서브커맨드 필수 — 단독 호출 
   sub         설명                                                         상태
   ---------   -----------------------------------------------------------  -----
   local       Release 빌드 → 로컬 tap 재설치 + 심링크 + (옵트인 brew services) + 앱 실행 (9단계)  ✅
-  publish     원격 finfra/homebrew-tap 저장소에 Formula 반영 + push        🚧 TODO
+  publish     Release 빌드 → gh release(cli-v{ver}) + asset → Formula 갱신 + 원격 tap push  ✅
   status      brew 설치·tap·프로세스·REST API 상태 조회                    ✅
   uninstall   brew uninstall + 로컬 tap Formula 파일 정리                  ✅
 
@@ -345,24 +345,158 @@ FORMULA
 }
 
 # ==========================================
-# 서브커맨드: publish (TODO)
+# 서브커맨드: publish (Issue167 — fWarrange 패턴 미러)
 # ==========================================
+# 동작:
+#   1. Release 빌드 → 서명된 fSnippetCli.app
+#   2. 릴리스 tarball 생성 (fsnippet-cli-pkg/fSnippetCli.app wrapper)
+#   3. git tag cli-v{ver} + gh release create (Finfra/fSnippet_public) + asset 업로드
+#   4. asset sha256 산출 → cli/Formula/fsnippet-cli.rb (repo SSOT) url/version/sha 갱신
+#   5. 원격 Finfra/homebrew-tap 클론 → Formula 복사 → commit → push
+# 사전 조건: gh CLI 인증, Finfra/fSnippet_public·Finfra/homebrew-tap repo 존재
 cmd_publish() {
-    echo "🚧 /deploy brew publish 는 아직 미구현 (Issue43 Phase B)"
+    local PUB_OWNER="Finfra"
+    local SRC_REPO="$PUB_OWNER/fSnippet_public"
+    local TAP_REPO="$PUB_OWNER/homebrew-tap"
+    local VER="$LOCAL_VERSION"
+    local TAG="cli-v$VER"
+    local ASSET="fSnippetCli-$VER.tar.gz"
+    local REPO_FORMULA="$CLI_DIR/Formula/fsnippet-cli.rb"
+    local REL_TARBALL="/tmp/$ASSET"
+
+    echo "╔══════════════════════════════════════════╗"
+    echo "║  fSnippetCli Brew Deploy (publish)       ║"
+    echo "╚══════════════════════════════════════════╝"
+    echo "  version : $VER"
+    echo "  tag     : $TAG"
+    echo "  src     : $SRC_REPO"
+    echo "  tap     : $TAP_REPO"
     echo ""
-    echo "예정 동작:"
-    echo "  1. GitHub 태그 생성 (예: cli-v0.0.1)"
-    echo "  2. gh release create + tarball 업로드"
-    echo "  3. Formula 'url'/'sha256'/'version' 갱신"
-    echo "  4. 원격 finfra/homebrew-tap 저장소 push"
+
+    # ── 사전 조건 검증 ──
+    if ! command -v gh >/dev/null 2>&1; then
+        echo "❌ gh CLI 미설치 — brew install gh"
+        return 1
+    fi
+    if ! gh auth status >/dev/null 2>&1; then
+        echo "❌ gh 미인증 — gh auth login"
+        return 1
+    fi
+    if [ "$VER" = "0.0.0-local" ] || [ -z "$VER" ]; then
+        echo "❌ VERSION 미확인 ($_VERSION_FILE). publish 중단."
+        return 1
+    fi
+
+    # ── Step 1: Release 빌드 ──
+    echo "=== Step 1: Release 빌드 ==="
+    pushd "$CLI_DIR" > /dev/null || { echo "❌ cd $CLI_DIR 실패"; return 1; }
+    xcodebuild -scheme fSnippetCli -configuration Release build 2>&1 | tail -6
+    local BUILD_STATUS=${PIPESTATUS[0]}
+    popd > /dev/null || true
+    if [ "$BUILD_STATUS" -ne 0 ]; then
+        echo "❌ 빌드 실패 (exit=$BUILD_STATUS)"
+        return 1
+    fi
+
+    # ── Step 2: 릴리스 tarball 생성 ──
     echo ""
-    echo "사전 조건:"
-    echo "  - 원격 finfra/homebrew-tap GitHub 저장소 생성 (public)"
-    echo "  - gh CLI 인증 (gh auth login)"
-    echo "  - HOMEBREW_TAP_TOKEN (tap 레포 write PAT)"
+    echo "=== Step 2: 릴리스 tarball 생성 ==="
+    local BUILT_APP
+    BUILT_APP=$(cd "$CLI_DIR" && xcodebuild -scheme fSnippetCli -configuration Release -showBuildSettings 2>/dev/null | awk -F ' = ' '/ TARGET_BUILD_DIR =/ {print $2}' | xargs)
+    if [ -z "$BUILT_APP" ] || [ ! -d "$BUILT_APP/fSnippetCli.app" ]; then
+        echo "❌ 빌드된 .app 미존재: $BUILT_APP/fSnippetCli.app"
+        return 1
+    fi
+    local TAR_STAGE
+    TAR_STAGE=$(mktemp -d)
+    mkdir -p "$TAR_STAGE/fsnippet-cli-pkg"
+    cp -R "$BUILT_APP/fSnippetCli.app" "$TAR_STAGE/fsnippet-cli-pkg/"
+    tar -C "$TAR_STAGE" -czpf "$REL_TARBALL" fsnippet-cli-pkg
+    local TAR_STATUS=$?
+    rm -rf "$TAR_STAGE"
+    if [ "$TAR_STATUS" -ne 0 ]; then
+        echo "❌ tar 실패 (exit=$TAR_STATUS)"
+        return 1
+    fi
+    local SHA
+    SHA=$(shasum -a 256 "$REL_TARBALL" | awk '{print $1}')
+    echo "  tarball: $REL_TARBALL ($(du -h "$REL_TARBALL" | awk '{print $1}'))"
+    echo "  sha256 : $SHA"
+
+    # ── Step 3: GitHub release + asset ──
     echo ""
-    echo "참고 가이드: ~/_doc/3.Resource/_ICT/_OS/MacOS/homebrew_tap_deploy.md"
-    return 1
+    echo "=== Step 3: GitHub release ($TAG) + asset 업로드 ==="
+    local ASSET_URL="https://github.com/$SRC_REPO/releases/download/$TAG/$ASSET"
+    if gh release view "$TAG" -R "$SRC_REPO" >/dev/null 2>&1; then
+        echo "  릴리스 $TAG 이미 존재 — asset 갱신(--clobber)"
+        gh release upload "$TAG" "$REL_TARBALL" -R "$SRC_REPO" --clobber 2>&1 | tail -3
+    else
+        echo "  릴리스 $TAG 생성 + asset 업로드"
+        gh release create "$TAG" "$REL_TARBALL" \
+            -R "$SRC_REPO" \
+            --title "fSnippetCli v$VER" \
+            --notes "fSnippetCli v$VER — Homebrew tap release (brew install $PUB_OWNER/tap/fsnippet-cli)" \
+            2>&1 | tail -3
+    fi
+    if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+        echo "❌ gh release 실패"
+        return 1
+    fi
+
+    # ── Step 4: repo Formula 갱신 ──
+    echo ""
+    echo "=== Step 4: repo Formula 갱신 ($REPO_FORMULA) ==="
+    if [ ! -f "$REPO_FORMULA" ]; then
+        echo "❌ Formula 미존재: $REPO_FORMULA"
+        return 1
+    fi
+    # url/version/sha256 3줄만 치환 (나머지 install/service 블록 보존)
+    /usr/bin/sed -i '' \
+        -e "s|^  url .*|  url \"$ASSET_URL\"|" \
+        -e "s|^  version .*|  version \"$VER\"|" \
+        -e "s|^  sha256 .*|  sha256 \"$SHA\"|" \
+        "$REPO_FORMULA"
+    echo "  갱신됨:"
+    grep -E '^\s*(url|version|sha256)' "$REPO_FORMULA" | sed 's/^/    /'
+
+    # ── Step 5: 원격 tap push ──
+    echo ""
+    echo "=== Step 5: 원격 tap push ($TAP_REPO) ==="
+    local TAP_CLONE
+    TAP_CLONE=$(mktemp -d)
+    if ! gh repo clone "$TAP_REPO" "$TAP_CLONE/tap" -- -q 2>&1 | tail -2; then
+        echo "❌ tap 클론 실패"
+        rm -rf "$TAP_CLONE"
+        return 1
+    fi
+    mkdir -p "$TAP_CLONE/tap/Formula"
+    cp "$REPO_FORMULA" "$TAP_CLONE/tap/Formula/fsnippet-cli.rb"
+    pushd "$TAP_CLONE/tap" > /dev/null || { rm -rf "$TAP_CLONE"; return 1; }
+    git add Formula/fsnippet-cli.rb
+    if git diff --cached --quiet; then
+        echo "  변경 없음 — push 생략 (Formula 동일)"
+    else
+        git commit -q -m "fsnippet-cli $VER ($TAG)"
+        if git push -q origin HEAD 2>&1 | tail -3; then
+            echo "  ✅ push 완료: $TAP_REPO"
+        else
+            echo "❌ tap push 실패"
+            popd > /dev/null || true
+            rm -rf "$TAP_CLONE"
+            return 1
+        fi
+    fi
+    popd > /dev/null || true
+    rm -rf "$TAP_CLONE"
+
+    # ── 완료 ──
+    echo ""
+    echo "╔══════════════════════════════════════════╗"
+    echo "║  🎉 publish 완료                          ║"
+    echo "╚══════════════════════════════════════════╝"
+    echo "  검증: brew update && brew install $PUB_OWNER/tap/fsnippet-cli"
+    echo "  asset: $ASSET_URL"
+    return 0
 }
 
 # ==========================================
