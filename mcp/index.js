@@ -84,7 +84,7 @@ server.tool(
       if (folder) params.set("folder", folder);
       if (offset !== undefined) params.set("offset", String(offset));
       const { res, json } = await apiFetch(
-        `/api/snippets/search?${params}`
+        `/api/v2/snippets/search?${params}`
       );
       if (!res.ok) {
         return errorResult(
@@ -123,9 +123,9 @@ server.tool(
       }
       let path;
       if (abbreviation) {
-        path = `/api/snippets/by-abbreviation/${encodeURIComponent(abbreviation)}`;
+        path = `/api/v2/snippets/by-abbreviation/${encodeURIComponent(abbreviation)}`;
       } else {
-        path = `/api/snippets/${encodeURIComponent(id)}`;
+        path = `/api/v2/snippets/${encodeURIComponent(id)}`;
       }
       const { res, json } = await apiFetch(path);
       if (!res.ok) {
@@ -159,7 +159,7 @@ server.tool(
     try {
       const body = { abbreviation };
       if (placeholder_values) body.placeholder_values = placeholder_values;
-      const { res, json } = await apiFetch("/api/snippets/expand", {
+      const { res, json } = await apiFetch("/api/v2/snippets/expand", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -208,7 +208,7 @@ server.tool(
       if (pinned !== undefined) params.set("pinned", String(pinned));
       if (offset !== undefined) params.set("offset", String(offset));
       const { res, json } = await apiFetch(
-        `/api/clipboard/history?${params}`
+        `/api/v2/clipboard/history?${params}`
       );
       if (!res.ok) {
         return errorResult(
@@ -244,7 +244,7 @@ server.tool(
       });
       if (offset !== undefined) params.set("offset", String(offset));
       const { res, json } = await apiFetch(
-        `/api/clipboard/search?${params}`
+        `/api/v2/clipboard/search?${params}`
       );
       if (!res.ok) {
         return errorResult(
@@ -276,13 +276,13 @@ server.tool(
   },
   async ({ name, limit, offset }) => {
     try {
-      let path = "/api/folders";
+      let path = "/api/v2/folders";
       if (name) {
         const params = new URLSearchParams();
         if (limit !== undefined) params.set("limit", String(limit));
         if (offset !== undefined) params.set("offset", String(offset));
         const qs = params.toString();
-        path = `/api/folders/${encodeURIComponent(name)}${qs ? `?${qs}` : ""}`;
+        path = `/api/v2/folders/${encodeURIComponent(name)}${qs ? `?${qs}` : ""}`;
       }
       const { res, json } = await apiFetch(path);
       if (!res.ok) {
@@ -334,7 +334,7 @@ server.tool(
         if (offset !== undefined) params.set("offset", String(offset));
       }
       const { res, json } = await apiFetch(
-        `/api/stats/${statsType}?${params}`
+        `/api/v2/stats/${statsType}?${params}`
       );
       if (!res.ok) {
         return errorResult(
@@ -357,7 +357,7 @@ server.tool(
   {},
   async () => {
     try {
-      const { res, json } = await apiFetch("/api/triggers");
+      const { res, json } = await apiFetch("/api/v2/triggers");
       if (!res.ok) {
         return errorResult(
           `트리거 조회 실패 (${res.status}): ${json.error?.message || res.statusText}`
