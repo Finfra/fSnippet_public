@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 167
+* Issue HWM: 169
 * Save Point :
       - 2026.06.15: 74d7598 (Fix(Settings): Issue926_1 폴더 규칙 batch-save stale revert 수정)
       - 2026.06.09: 20e59d6 (Fix(Issue162): 모디파이어 트리거 combo-breaker 위치 이동 — 오른쪽 ⌘+Tab 오발동 차단)
@@ -23,10 +23,31 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
+## Issue168: [MCP] npm 재배포 — fsnippet-mcp v1.0.2 (등록: 2026-06-21)
+* 목적: fsnippet-mcp MCP 서버를 npm 레지스트리에 재배포하여 최신 변경분을 공개 패키지에 반영.
+* depends: Issue169
+* 상세:
+    - 패키지: `fsnippet-mcp` v1.0.2 (bump 완료: 1.0.1→1.0.2), 위치: `mcp`
+    - 재배포 사유: 최신 `index.js`·README 변경분이 npm 공개 버전에 미반영 (구체 변경 항목은 작업 시 확정)
+* 구현 명세:
+    - ✅ `package.json`/`package-lock.json` version bump 완료 (1.0.1→1.0.2)
+    - `cd mcp && npm publish --access public`
+    - 배포 후 `npx fsnippet-mcp` 동작 확인 + README 설치 안내 버전 동기화
 
 # 📗 선택
 
 # ✅ 완료
+## Issue169: [MCP] index.js REST 경로 v2 정합화 — /api/* → /api/v2/* (등록: 2026-06-21, 완료: 2026-06-21) (Hash: 1e0214d) ✅
+* 목적: MCP 서버(`mcp/index.js`) REST 호출 경로 10곳이 버전 없는 `/api/...` 인데 cliApp 서버(`APIRouter.swift`)는 `/api/v2/...` 만 라우팅 → 전부 404. 공개 배포 전 v2 정합화.
+* 구현:
+    - `mcp/index.js` 10곳 v2 정합화 (sed): L87 snippets/search, L126 by-abbreviation, L128 snippets/{id}, L162 snippets/expand, L211 clipboard/history, L247 clipboard/search, L279 folders, L285 folders/{name}, L337 stats/{type}, L360 triggers
+    - stats type(top/history)·baseURL(`http://localhost:3015`)·README 정상 (무수정)
+* 검증:
+    - 서버 가동(brew services) 상태 curl: old `/api/snippets` → 404 (버그 재현), v2 snippets/triggers/stats-top/folders/clipboard-history → 전부 200, snippets/expand POST → 400(route 매칭·검증단)
+    - `node --check index.js` 통과, double-v2 grep 0건
+    - 검토 리포트: `cli/_doc_work/z_htm/hub_htm_20260621_200030_a_mcp-api-sync.htm`
+* 후행: Issue168(npm 재배포) 착수 가능
+
 ## Issue167: [Deploy] brew remote deploy 구현 — 원격 tap publish 활성화 (등록: 2026-06-18, 완료: 2026-06-18) (Hash: 74c4b16) ✅
 * 목적: `/deploy brew publish` 미구현 → 원격 `finfra/homebrew-tap` + GitHub release 발행으로 외부 사용자 `brew install finfra/tap/fsnippet-cli` 동작화
 * 구현:
