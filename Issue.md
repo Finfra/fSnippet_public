@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 169
+* Issue HWM: 170
 * Save Point :
       - 2026.06.15: 74d7598 (Fix(Settings): Issue926_1 폴더 규칙 batch-save stale revert 수정)
       - 2026.06.09: 20e59d6 (Fix(Issue162): 모디파이어 트리거 combo-breaker 위치 이동 — 오른쪽 ⌘+Tab 오발동 차단)
@@ -27,6 +27,20 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue170: [Deploy] fSnippetCli 1.0.2 영구배포 — 단축키 게이팅(Issue933) Homebrew 반영 (등록: 2026-06-22, 완료: 2026-06-22) (Hash: 0086607) ✅
+* 목적: paidApp 단축키 조합 입력 버그의 진짜 원인은 배포 미반영 — brew Cellar 가 구버전 cliApp 1.0.1(Issue933 게이팅 없음)을 launchd KeepAlive 로 점유. 수동 Cellar 교체 임시 상태라 `brew upgrade`·재설치 시 published 1.0.1 로 롤백되어 버그 재발. 1.0.2 정식 릴리스 + Formula 갱신으로 영구화.
+* depends: Issue933(cliApp 게이팅, 4402a41), Issue936(paidApp displayString, 796ea889 — 메인 repo)
+* 진단 근거: 메인 repo `_doc_work/z_htm/hub_htm_20260622_185102_a_shortcut-fix.htm` (root cause 규명)
+* 구현:
+    - `cli/_tool/fsc-deploy-brew.sh publish` 실행 (Issue167 구현분, VERSION=1.0.2 파라미터화)
+    - Step1 Release 빌드 ✅ → Step2 tarball `fSnippetCli-1.0.2.tar.gz` (sha256 ab1735cc…) → Step3 `gh release create cli-v1.0.2` + asset ✅ → Step4 `cli/Formula/fsnippet-cli.rb` url/version/sha256 갱신 ✅ → Step5 원격 `Finfra/homebrew-tap` push ✅
+    - 로컬 tap 복구: `UU` merge 충돌 + `file:///tmp` WIP stash 잔존 → `merge --abort` + `reset --hard origin/main`(53b7b5d, 1.0.2)
+* 검증:
+    - `brew reinstall finfra/tap/fsnippet-cli` → Cellar 1.0.2 (16 files), `brew list --versions` = 1.0.2
+    - `brew services restart` → 실행 프로세스 `opt/fsnippet-cli`→Cellar/1.0.2 심링크, 빌드시각 18:59(게이팅 포함 Release)
+    - 키캡처 런타임 로그는 사용자 단축키 녹화 시 발현 — 게이팅 코드는 1.0.2 바이너리에 포함됨(HID 주입 검증은 진단 report 참조)
+* 비고: 본 1.0.2 Release 빌드는 working tree 기준 — 미커밋 UI 변경(HistoryPreviewView/PopupUIConstants) 포함됨. 게이팅(Issue933)은 기커밋이라 영향 없음.
+
 ## Issue168: [MCP] npm 재배포 — fsnippet-mcp v1.0.2 (등록: 2026-06-21, 완료: 2026-06-22) (Hash: 0cf65dd) ✅
 * 목적: fsnippet-mcp MCP 서버를 npm 레지스트리에 재배포하여 최신 변경분을 공개 패키지에 반영.
 * depends: Issue169 (충족)
