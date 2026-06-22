@@ -215,7 +215,7 @@ class CGEventTapManager {
         // tap timeout, triggering frequent .tapDisabledByTimeout events and intermittent
         // key processing.
         if KeyCaptureManager.shared.isPendingFast,
-           type == .keyDown || type == .flagsChanged
+           type == .keyDown || (type == .flagsChanged && KeyCaptureManager.shared.allowModifierless)
         {
             // Issue912: For flagsChanged (modifier-only) events, skip NSEvent construction
             // entirely. NSEvent(cgEvent:) blocks on certain flagsChanged events injected by

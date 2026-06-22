@@ -29,25 +29,37 @@ final class KeyCaptureManager {
     // which is bounded and self-correcting.
     private var _isPendingFast: Bool = false
 
+    // Issue863-fix: when false (default), flagsChanged events are NOT captured so that
+    // modifier-key presses during a combo (e.g. Ctrl in Ctrl+Shift+D) don't prematurely
+    // terminate the capture session. Set true only for trigger-key recording where a
+    // bare modifier key (e.g. right_command) is the intended shortcut.
+    private var _allowModifierless: Bool = false
+
     /// Lock-free probe used by CGEventTapManager hot-path to skip
     /// the expensive NSEvent(cgEvent:) construction while no capture session is active.
     var isPendingFast: Bool {
         return _isPendingFast
     }
 
+    /// When false, CGEventTapManager ignores flagsChanged events during capture.
+    var allowModifierless: Bool {
+        return _allowModifierless
+    }
+
     // MARK: - Session control (called by APIRouter)
 
-    func startCapture() {
+    func startCapture(allowModifierless: Bool = false) {
         lock.lock()
         _status = .pending
         _capturedKeyCode = nil
         _capturedNSModifiers = nil
         _capturedDisplayString = nil
         _captureStartTime = Date()
+        _allowModifierless = allowModifierless
         _isPendingFast = true   // Issue865-fix: enable hot-path
         lock.unlock()
 
-        logI("🎯 [KeyCaptureManager] Capture session started")
+        logI("🎯 [KeyCaptureManager] Capture session started (allowModifierless:\(allowModifierless))")
         // Issue912: Disable Keyboard Maestro Engine during capture to prevent it from
         // intercepting modifier-only keys (e.g. right_command keyCode 54).
         // KM intercepts the flagsChanged event and injects ⌃⇧⌘F11 instead, causing

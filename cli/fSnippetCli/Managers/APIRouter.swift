@@ -268,7 +268,7 @@ class APIRouter {
 
     // Key capture (Issue863): delegate CGEventTap key recording from paidApp to cliApp
     case ("POST", "/api/v2/key-capture/start"):
-      return handleKeyCaptureStart()
+      return handleKeyCaptureStart(request: request)
     case ("GET", "/api/v2/key-capture/result"):
       return handleKeyCaptureResult()
     case ("DELETE", "/api/v2/key-capture/stop"):
@@ -1754,8 +1754,16 @@ class APIRouter {
 
   // POST /api/v2/key-capture/start
   // Begins a one-shot key-capture session. cliApp captures the next key event via CGEventTap.
-  private func handleKeyCaptureStart() -> APIServer.HTTPResponse {
-    KeyCaptureManager.shared.startCapture()
+  // Body (optional JSON): { "allowModifierless": true }
+  // When allowModifierless is false (default), flagsChanged events (bare modifier keys) are
+  // ignored so that e.g. pressing Ctrl as part of Ctrl+Shift+D does not prematurely end capture.
+  // Set allowModifierless: true only for trigger-key recording (right_command etc.).
+  private struct KeyCaptureStartRequest: Decodable { let allowModifierless: Bool? }
+
+  private func handleKeyCaptureStart(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    let decoded = request.body.flatMap { try? JSONDecoder().decode(KeyCaptureStartRequest.self, from: $0) }
+    let allowModifierless = decoded?.allowModifierless ?? false
+    KeyCaptureManager.shared.startCapture(allowModifierless: allowModifierless)
     return jsonResponse(KeyCaptureSimpleResponse(ok: true, status: "pending"))
   }
 
