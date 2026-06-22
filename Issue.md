@@ -23,20 +23,21 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
-## Issue168: [MCP] npm 재배포 — fsnippet-mcp v1.0.2 (등록: 2026-06-21)
-* 목적: fsnippet-mcp MCP 서버를 npm 레지스트리에 재배포하여 최신 변경분을 공개 패키지에 반영.
-* depends: Issue169
-* 상세:
-    - 패키지: `fsnippet-mcp` v1.0.2 (bump 완료: 1.0.1→1.0.2), 위치: `mcp`
-    - 재배포 사유: 최신 `index.js`·README 변경분이 npm 공개 버전에 미반영 (구체 변경 항목은 작업 시 확정)
-* 구현 명세:
-    - ✅ `package.json`/`package-lock.json` version bump 완료 (1.0.1→1.0.2)
-    - `cd mcp && npm publish --access public`
-    - 배포 후 `npx fsnippet-mcp` 동작 확인 + README 설치 안내 버전 동기화
 
 # 📗 선택
 
 # ✅ 완료
+## Issue168: [MCP] npm 재배포 — fsnippet-mcp v1.0.2 (등록: 2026-06-21, 완료: 2026-06-22) (Hash: 0cf65dd) ✅
+* 목적: fsnippet-mcp MCP 서버를 npm 레지스트리에 재배포하여 최신 변경분을 공개 패키지에 반영.
+* depends: Issue169 (충족)
+* 상세:
+    - 패키지: `fsnippet-mcp` v1.0.2, 위치: `mcp`
+    - 재배포 사유: Issue169 REST 경로 v2 정합화(`/api/*`→`/api/v2/*`) 변경분을 npm 공개 버전에 반영
+* 구현 명세:
+    - ✅ VERSION SSOT 1.0.1→1.0.2 정합 + `package.json`/`package-lock.json` 1.0.2
+    - ✅ `npm publish` 완료 — registry `fsnippet-mcp@1.0.2` 게시 확인
+    - 비고: 초기 `npm publish` 는 2FA OTP(`EOTP`) 로 1회 차단 → OTP 재시도 후 게시 성공
+
 ## Issue169: [MCP] index.js REST 경로 v2 정합화 — /api/* → /api/v2/* (등록: 2026-06-21, 완료: 2026-06-21) (Hash: 1e0214d) ✅
 * 목적: MCP 서버(`mcp/index.js`) REST 호출 경로 10곳이 버전 없는 `/api/...` 인데 cliApp 서버(`APIRouter.swift`)는 `/api/v2/...` 만 라우팅 → 전부 404. 공개 배포 전 v2 정합화.
 * 구현:
