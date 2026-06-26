@@ -3,7 +3,7 @@ class FsnippetCli < Formula
   homepage "https://github.com/Finfra/fSnippet_public"
   url "https://github.com/Finfra/fSnippet_public/releases/download/cli-v1.0.2/fSnippetCli-1.0.2.tar.gz"
   version "1.0.2"
-  sha256 "ab1735ccf8b9ca86613d0fb6166c975b3815a0e7a7acc518fc3f3129b4c25395"
+  sha256 "d0434671af3e2a3280794feffd8ac2976197895f02280d7272ba1252908232d0"
   license "MIT"
 
   depends_on :macos
