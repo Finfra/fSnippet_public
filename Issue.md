@@ -39,6 +39,7 @@ date: 2026-04-07
     - `brew reinstall finfra/tap/fsnippet-cli` → Cellar 1.0.2 (16 files), `brew list --versions` = 1.0.2
     - `brew services restart` → 실행 프로세스 `opt/fsnippet-cli`→Cellar/1.0.2 심링크, 빌드시각 18:59(게이팅 포함 Release)
     - 키캡처 런타임 로그는 사용자 단축키 녹화 시 발현 — 게이팅 코드는 1.0.2 바이너리에 포함됨(HID 주입 검증은 진단 report 참조)
+* 후속 수정 (Hash: c379188): API `/status` version 이 1.0.1 리턴 → 원인은 xcodeproj `MARKETING_VERSION` 미bump(VERSION SSOT 1.0.2지만 Info.plist `CFBundleShortVersionString`=`$(MARKETING_VERSION)`=1.0.1). project.yml+pbxproj(Debug+Release) 1.0.2 bump → 재publish(sha256 d0434671) → Cellar Info.plist 1.0.2, **API version 1.0.2 확정**. (게이팅 기능은 1차 배포부터 정상이었고 버전 라벨만 stale 이었음)
 * 비고: 본 1.0.2 Release 빌드는 working tree 기준 — 미커밋 UI 변경(HistoryPreviewView/PopupUIConstants) 포함됨. 게이팅(Issue933)은 기커밋이라 영향 없음.
 
 ## Issue168: [MCP] npm 재배포 — fsnippet-mcp v1.0.2 (등록: 2026-06-21, 완료: 2026-06-22) (Hash: 0cf65dd) ✅
