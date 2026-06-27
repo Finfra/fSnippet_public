@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 170
+* Issue HWM: 171
 * Save Point :
       - 2026.06.15: 74d7598 (Fix(Settings): Issue926_1 폴더 규칙 batch-save stale revert 수정)
       - 2026.06.09: 20e59d6 (Fix(Issue162): 모디파이어 트리거 combo-breaker 위치 이동 — 오른쪽 ⌘+Tab 오발동 차단)
@@ -27,6 +27,15 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue171: [Deploy] 버전 드리프트 방지 — publish 자동동기화 + 검증게이트 (등록: 2026-06-27, 완료: 2026-06-27) (Hash: 7780f93) ✅
+* 목적: Issue170 후속 — `VERSION`(SSOT)과 xcodeproj `MARKETING_VERSION` 이 미연결 별개 값이라 드리프트 발생(VERSION 1.0.2지만 Info.plist·API 1.0.1). 재발 방지 위해 publish 경로에 2층 방어 추가.
+* depends: Issue170 (충족)
+* 구현 (`cli/_tool/fsc-deploy-brew.sh cmd_publish`):
+    - 층1 자동동기화 (Step 0, 빌드 직전): `VERSION` → `project.yml` + `pbxproj`(Debug/Release) `MARKETING_VERSION` sed 강제 주입. VERSION 한 줄만 올리면 Info.plist `CFBundleShortVersionString`($(MARKETING_VERSION))·API `/status` version 자동 일치.
+    - 층2 검증게이트 (Step 2.5, tarball 후·release 전): 빌드된 `.app` Info.plist `CFBundleShortVersionString` ≠ `VERSION` 이면 `gh release`·tap push 전 `return 1` 중단. 동기화 누락 시 엉뚱한 버전 공개 발행 차단.
+* 검증: `bash -n` 문법 통과. 다음 publish 실행 시 Step 0/2.5 로그 발현 (`MARKETING_VERSION → x`·`✅ Info.plist 버전 검증`).
+* 미적용(후순위): 층3 런타임 노출(/status 에 commit hash) + `CFBundleVersion`(빌드번호) 동기화 — store 배포 시 `version-manager-m` 스킬 통합 권장.
+
 ## Issue170: [Deploy] fSnippetCli 1.0.2 영구배포 — 단축키 게이팅(Issue933) Homebrew 반영 (등록: 2026-06-22, 완료: 2026-06-22) (Hash: 0086607) ✅
 * 목적: paidApp 단축키 조합 입력 버그의 진짜 원인은 배포 미반영 — brew Cellar 가 구버전 cliApp 1.0.1(Issue933 게이팅 없음)을 launchd KeepAlive 로 점유. 수동 Cellar 교체 임시 상태라 `brew upgrade`·재설치 시 published 1.0.1 로 롤백되어 버그 재발. 1.0.2 정식 릴리스 + Formula 갱신으로 영구화.
 * depends: Issue933(cliApp 게이팅, 4402a41), Issue936(paidApp displayString, 796ea889 — 메인 repo)
