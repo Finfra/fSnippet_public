@@ -387,6 +387,16 @@ cmd_publish() {
         return 1
     fi
 
+    # ── Step 0: VERSION → MARKETING_VERSION 동기화 (드리프트 방지·층1, Issue170) ──
+    # VERSION(SSOT)을 xcodeproj MARKETING_VERSION 으로 강제 주입 → Info.plist
+    # CFBundleShortVersionString($(MARKETING_VERSION))·API /status version 자동 일치.
+    echo "=== Step 0: VERSION → MARKETING_VERSION 동기화 ($VER) ==="
+    /usr/bin/sed -i '' "s/MARKETING_VERSION: \"[^\"]*\"/MARKETING_VERSION: \"$VER\"/" "$CLI_DIR/project.yml"
+    /usr/bin/sed -i '' "s/MARKETING_VERSION = [^;]*;/MARKETING_VERSION = $VER;/g" \
+        "$CLI_DIR/fSnippetCli.xcodeproj/project.pbxproj"
+    echo "  MARKETING_VERSION → $VER (project.yml + pbxproj Debug/Release)"
+    echo ""
+
     # ── Step 1: Release 빌드 ──
     echo "=== Step 1: Release 빌드 ==="
     pushd "$CLI_DIR" > /dev/null || { echo "❌ cd $CLI_DIR 실패"; return 1; }
@@ -422,6 +432,19 @@ cmd_publish() {
     SHA=$(shasum -a 256 "$REL_TARBALL" | awk '{print $1}')
     echo "  tarball: $REL_TARBALL ($(du -h "$REL_TARBALL" | awk '{print $1}'))"
     echo "  sha256 : $SHA"
+
+    # ── Step 2.5: 버전 검증 게이트 (드리프트 방지·층2, Issue170) ──
+    # 빌드된 .app Info.plist 실제 버전 ≠ VERSION 이면 release 발행·tap push 전 중단.
+    # Step 0 동기화가 어떤 이유로 실패해도 엉뚱한 버전의 공개 release 발행을 차단.
+    local BUILT_VER
+    BUILT_VER=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" \
+        "$BUILT_APP/fSnippetCli.app/Contents/Info.plist" 2>/dev/null)
+    if [ "$BUILT_VER" != "$VER" ]; then
+        echo "❌ 버전 불일치 — Info.plist=$BUILT_VER, VERSION=$VER. publish 중단."
+        echo "   (Step 0 MARKETING_VERSION 동기화 또는 빌드 캐시 확인)"
+        return 1
+    fi
+    echo "  ✅ Info.plist 버전 검증: $BUILT_VER == $VER"
 
     # ── Step 3: GitHub release + asset ──
     echo ""
