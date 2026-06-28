@@ -6,8 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 171
+* Issue HWM: 172
 * Save Point :
+      - 2026.06.28: 45cb4b9 (Close Issue172)
       - 2026.06.15: 74d7598 (Fix(Settings): Issue926_1 폴더 규칙 batch-save stale revert 수정)
       - 2026.06.09: 20e59d6 (Fix(Issue162): 모디파이어 트리거 combo-breaker 위치 이동 — 오른쪽 ⌘+Tab 오발동 차단)
       - 2026.05.27: fb1a9dc (Fix(Issue155): collision delay 정밀화 — exact match 우선 + cleanBuffer prefix 검사)
@@ -27,6 +28,19 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue172: [API] PATCH /api/v2/settings/popup 팝업 단축키 변경 후 ShortcutMgr 미갱신 — 재시작 전까지 반영 안 됨 (등록: 2026-06-28) (✅ 완료, 45cb4b9) ✅
+* 목적: paidApp 설정 UI 또는 API로 팝업 단축키 변경 시 즉시 적용되지 않는 버그 수정
+* 상세:
+    - `handleV2PatchPopup` — `batchUpdate`로 `_config.yml`의 `snippet_popup_modifier_flags`, `snippet_popup_key_code`, `snippet_popup_hotkey` 기록 후 ShortcutMgr 재등록 없음
+    - ShortcutMgr의 `registerAppGlobalShortcuts()` — 팝업 단축키를 `SettingsManager.shared.load()` 경유 등록 (line 448~456)
+    - 결과: `_config.yml` 갱신되나 cliApp 메모리의 팝업 단축키는 구 값 유지 → cliApp 재시작 전까지 새 단축키 미적용
+    - `_config.yml` 직접 편집 시에도 동일 문제 (`snippet_popup_hotkey` 표시 문자열만 변경하면 실제 `snippet_popup_modifier_flags`/`snippet_popup_key_code` 불일치 위험 포함)
+    - Issue164([API] PATCH/PUT triggerKey 변경 후 TriggerKeyManager 미갱신) 동일 패턴
+* 구현 명세:
+    - `handleV2PatchPopup`: `popupModifierFlags`/`popupKeyCode`/`popupDisplayString` 중 하나라도 변경 시, `batchUpdate` 완료 후 ShortcutMgr 재등록 트리거
+    - 방법: `handleSettingsChange` 알림 발송 (`SettingsManager.settingsChangedNotification` 등), 또는 `ShortcutMgr.shared.registerAppGlobalShortcuts()` 직접 호출
+    - Issue164의 `TriggerKeyManager.shared.reloadSettings()` 패턴 참고
+
 ## Issue171: [Deploy] 버전 드리프트 방지 — publish 자동동기화 + 검증게이트 (등록: 2026-06-27, 완료: 2026-06-27) (Hash: 7780f93) ✅
 * 목적: Issue170 후속 — `VERSION`(SSOT)과 xcodeproj `MARKETING_VERSION` 이 미연결 별개 값이라 드리프트 발생(VERSION 1.0.2지만 Info.plist·API 1.0.1). 재발 방지 위해 publish 경로에 2층 방어 추가.
 * depends: Issue170 (충족)
