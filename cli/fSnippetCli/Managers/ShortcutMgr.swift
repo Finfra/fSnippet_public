@@ -442,17 +442,27 @@ class ShortcutMgr: ObservableObject {
             )
         }
 
-        // 4. Snippet Popup Hotkey (Legacy)
-        // 참고: 팝업 키는 보통 "Space Space" 같은 시퀀스이거나 특정 키일 수 있음.
-        // 현재 설정 구조상 Popup Key는 GeneralSettingsView에서 관리됨.
-        let settings = SettingsManager.shared.load()
-        let popupKey = settings.popupKeyShortcut
+        // 4. Snippet Popup Hotkey
+        // Read directly from PreferencesManager (always up-to-date) instead of SettingsManager
+        // cache (stale after REST PATCH until next explicit load). Issue172 fix.
+        let popupDisplayStr = prefs.string(forKey: "snippet_popup_hotkey")
+        let popupModFlags = prefs.get("snippet_popup_modifier_flags") as Int?
+        let popupKeyCode = prefs.get("snippet_popup_key_code") as Int?
+        let popupKey: PopupKeyShortcut
+        if !popupDisplayStr.isEmpty, let mods = popupModFlags, let code = popupKeyCode {
+            popupKey = PopupKeyShortcut(
+                modifierFlags: UInt(mods), keyCode: UInt16(code), displayString: popupDisplayStr)
+        } else if !popupDisplayStr.isEmpty {
+            popupKey = PopupKeyShortcut.from(hotkeyString: popupDisplayStr)
+        } else {
+            popupKey = PopupKeyShortcut.default
+        }
         if !popupKey.toHotkeyString.isEmpty {
             tryRegister(
                 id: "snippet.popup.hotkey",
                 keySpec: popupKey.toHotkeyString,
                 description: "Snippet Popup",
-                source: "Settings"
+                source: "Preferences"
             )
         }
 

@@ -1067,6 +1067,11 @@ class APIRouter {
       if let v = patch.popupDisplayString { config["snippet_popup_hotkey"] = v }
       if let v = patch.popupQuickSelectModifierFlags { config["snippet_popup_quick_select_modifier_flags"] = v }
     }
+    // Issue172: re-register popup hotkey in ShortcutMgr immediately (no restart required)
+    let hotkeyChanged = patch.popupModifierFlags != nil || patch.popupKeyCode != nil || patch.popupDisplayString != nil
+    if hotkeyChanged {
+      ShortcutMgr.shared.refreshAll()
+    }
     return jsonResponse(buildV2Popup())
   }
 
