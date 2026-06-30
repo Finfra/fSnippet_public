@@ -6,8 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 172
+* Issue HWM: 175
 * Save Point :
+      - 2026.06.30: 8bfc673 (Fix(Issue175) snippet_popup_hotkey brace 정정)
       - 2026.06.28: 45cb4b9 (Close Issue172)
       - 2026.06.15: 74d7598 (Fix(Settings): Issue926_1 폴더 규칙 batch-save stale revert 수정)
       - 2026.06.09: 20e59d6 (Fix(Issue162): 모디파이어 트리거 combo-breaker 위치 이동 — 오른쪽 ⌘+Tab 오발동 차단)
@@ -22,12 +23,42 @@ date: 2026-04-07
 # 🚧 진행중
 
 # 📕 중요
+## Issue174: [API] PATCH /api/v2/settings/popup — searchScope enum 불일치로 popup PATCH 전체 400 거부 (단축키 변경 무효) (등록: 2026-06-29)
+* 목적: cliApp이 저장·사용하고 GET으로 반환하는 searchScope 값(`content`)을, 정작 PATCH 검증(`handleV2PatchPopup` allowed)이 거부함. paidApp의 popup PATCH는 단축키와 함께 항상 `searchScope`를 실어 보내므로, **단축키와 무관하게 PATCH 전체가 400으로 거부**되어 popup 설정(단축키 포함) 변경이 전혀 반영되지 않았다. paidApp의 `try?`가 400을 삼켜 "보냈는데 반영 안 됨"으로 보였다. Issue172(`refreshAll`)의 진짜 가림막 — PATCH가 400이면 refreshAll에 도달조차 못 함.
+* depends: Issue172
+* 상세:
+    - 재현: 단축키 3필드만(`searchScope` 없이) PATCH → 200 정상. paidApp 실제 body(`searchScope:"content"` 포함) → `400 invalid_argument "searchScope must be one of [keyword, keywordName, keywordNameContent]"`.
+    - enum 불일치: paidApp/cliApp `PopupSearchScope`(SnippetEntry.swift)는 `abbreviation`/`name`/`content`. `_config.yml`도 `snippet_popup_search_scope: "content"`. 그런데 cliApp 검증 allowed(APIRouter.swift L1045)만 `keyword`/`keywordName`/`keywordNameContent`로 잘못 박혀 있었음.
+    - paidApp은 무죄: 단축키 값(393475·9437448 등 device-bit 포함)도, searchScope도 모두 정확히 전송.
+* 구현 명세:
+    - `_public/cli/fSnippetCli/Managers/APIRouter.swift` `handleV2PatchPopup` L1045: `allowed = ["keyword","keywordName","keywordNameContent"]` → `["abbreviation","name","content"]` (실제 enum/저장값과 정합). ✅ 수정 완료
+    - 같은 파일 L878 `buildV2Popup` 기본값: `?? "keyword"` → `?? "abbreviation"` (유효 raw value). ✅ 수정 완료
+    - 검증: brew 재배포 후 paidApp Apply로 단축키 변경 → `_config.yml` 즉시 반영 + 실제 키 입력 시 팝업 동작 확인.
+
+## Issue173: [API] PATCH /api/v2/settings/popup — modifierFlags ↔ displayString 불일치 무검증 수용 (화면≠실제 단축키) (등록: 2026-06-29)
+* 목적: 팝업 단축키 PATCH 시 실제 동작을 결정하는 `popupModifierFlags`(정수)와 표시용 `popupDisplayString`이 어긋나도 서버가 그대로 수용함. 그 결과 화면에는 한 단축키가 보이지만 실제로는 다른 키로 동작하는 함정이 발생. paidApp ShortcutRecorder는 세 값을 정합하여 보내므로 무해하나, 수동 curl·외부 클라이언트(MCP 등)는 쉽게 불일치를 만든다. 다른 단축키 관련 후속 개선(외부 API 클라이언트 정합)의 **선행 이슈**.
+* 상세:
+    - 재현: `{"popupModifierFlags":1310720(⌃⌘),"popupKeyCode":49,"popupDisplayString":"⌥⌘Space"}` PATCH → GET 응답엔 display `⌥⌘Space`로 표시되나, 실제 등록은 flags 1310720 기준 ⌃⌘Space. ⌃⌘Space 입력 시 팝업 뜨고 ⌥⌘Space는 안 뜸.
+    - 원인: 실제 동작은 `popupModifierFlags`+`popupKeyCode`가 결정. `popupDisplayString`은 표시 라벨일 뿐 (`PopupKeyShortcut.toHotkeyString`이 nsModifierFlags 기반 keySpec 생성).
+    - 부수 표시 버그: GET 응답 `popupHotkey.modifiers`가 항상 빈 배열 `[]` — display 문자열에서 Unicode modifier(⌥⌘ 등) 역파싱 실패. 동작 무관(cosmetic)이나 함께 정리 가치.
+* 구현 명세:
+    - 위치: `_public/cli/fSnippetCli/Managers/APIRouter.swift` `handleV2PatchPopup` (~L1038)
+    - 방안 A (권장, 서버 SSOT): `popupModifierFlags`+`popupKeyCode`만 신뢰하고 `popupDisplayString`은 서버가 생성(입력값 무시 또는 옵셔널). `PopupKeyShortcut` → display 문자열 변환 헬퍼 사용. 응답·`_config.yml`의 display를 항상 flags와 정합하게 유지.
+    - 방안 B (검증): flags에서 추출한 modifier set과 displayString 파싱 결과 비교 → 불일치 시 `400 invalid_argument`.
+    - 부수: `modifiers: []` 빈 배열 수정 — 응답 빌더가 displayString 역파싱 대신 `modifierFlags` 정수에서 modifier 배열 직접 산출.
+    - 검증: curl 불일치 PATCH → 방안A는 display 자동 교정, 방안B는 400. 실제 키 입력으로 등록 일치 확인.
 
 # 📙 일반
 
 # 📗 선택
 
 # ✅ 완료
+## Issue175: [Config] snippet_popup_hotkey 수동 편집 방어 — brace 오입력(`{⌃⌥J}`) 자동 정정 (등록: 2026-06-29) (✅ 완료, 8bfc673) ✅
+* 목적: 사용자가 `_config.yml`을 손편집하며 다른 핫키(`settings.hotkey` 등)처럼 `snippet_popup_hotkey: "{⌃⌥J}"`로 brace 감싸 저장하면 displayString에 brace가 박혀 표시/파싱이 어긋남. popup만 `PopupKeyShortcut`(displayString + 숫자필드) 체계라 raw 표기(`⌃⌥J`)여야 함. 두 체계 통합은 안 함(고위험 핫패스·기능버그 0), brace 오입력만 자동 정정.
+* depends: Issue173
+* 구현: `ConfigMigration.migrate()` 시작 시 1회 경로에 `snippet_popup_hotkey` 단독 brace strip(self-healing, 파일 재기록 + 백업). `Result.bracesNormalized` + `hasChanges` 포함. `PreferencesManager` 로그에 정정 건수 반영. 다른 hotkey는 brace 정상이라 미변경.
+* 검증: 격리 ENV에서 `{⌃⌥J}` → `⌃⌥J` 정정 + 백업 생성 확인, 타 hotkey brace 보존(diff=popup 단독), BUILD SUCCEEDED, brew local 9/9 PASS.
+
 ## Issue172: [API] PATCH /api/v2/settings/popup 팝업 단축키 변경 후 ShortcutMgr 미갱신 — 재시작 전까지 반영 안 됨 (등록: 2026-06-28) (✅ 완료, 45cb4b9) ✅
 * 목적: paidApp 설정 UI 또는 API로 팝업 단축키 변경 시 즉시 적용되지 않는 버그 수정
 * 상세:
