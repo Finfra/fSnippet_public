@@ -875,7 +875,8 @@ class APIRouter {
 
   private func buildV2Popup() -> APIV2PopupSettings {
     let prefs = PreferencesManager.shared
-    let scope: String = prefs.get("snippet_popup_search_scope") ?? "keyword"
+    // Issue174: default to a valid PopupSearchScope raw value (enum: abbreviation/name/content)
+    let scope: String = prefs.get("snippet_popup_search_scope") ?? "abbreviation"
     let rows: Int = prefs.get("snippet_popup_rows") ?? 10
     let width: Int = {
       if let d: Double = prefs.get("snippet_popup_width") { return Int(d) }
@@ -1042,7 +1043,11 @@ class APIRouter {
     guard let patch = maybe else { return v2Error(code: "internal", message: "decode failed", statusCode: 500) }
 
     if let scope = patch.searchScope {
-      let allowed = ["keyword", "keywordName", "keywordNameContent"]
+      // Issue174: align with PopupSearchScope enum (SnippetEntry.swift) and the value
+      //   actually stored in _config.yml / returned by GET. The old list
+      //   (keyword/keywordName/keywordNameContent) never matched the real raw values,
+      //   so every paidApp popup PATCH (which always carries searchScope) was rejected 400.
+      let allowed = ["abbreviation", "name", "content"]
       guard allowed.contains(scope) else {
         return v2Error(code: "invalid_argument", message: "searchScope must be one of \(allowed)", statusCode: 400)
       }

@@ -914,6 +914,52 @@ class SettingsObservableObject: ObservableObject {
         logD("📡 [SettingsObservableObject] saveUISettings entered")
         let prefs = PreferencesManager.shared
 
+        // Issue941: The popup hotkey is written to _config.yml only via the REST handler
+        //   (handleV2PatchPopup -> batchUpdate). This SettingsObservableObject.settings memory
+        //   is never refreshed, so settings.popupKeyShortcut stays stale at the value loaded
+        //   at launch. When any UI setting triggers saveUISettings -> saveAndUpdate(settings),
+        //   SettingsManager.save() writes that stale popup hotkey back, reverting the user's
+        //   just-applied change ("applied then reverted"). Re-sync from the current _config.yml
+        //   right before saving so the popup hotkey is never overwritten with an old value.
+        if let disp: String = prefs.get("snippet_popup_hotkey"),
+            let kc: Int = prefs.get("snippet_popup_key_code"),
+            let mf: Int = prefs.get("snippet_popup_modifier_flags")
+        {
+            let fresh = PopupKeyShortcut(
+                modifierFlags: UInt(mf), keyCode: UInt16(kc), displayString: disp)
+            if settings.popupKeyShortcut != fresh {
+                logD(
+                    "📡 [Issue941] saveUISettings popup re-sync: \(settings.popupKeyShortcut.displayString) -> \(disp) (stale revert prevented)"
+                )
+                settings.popupKeyShortcut = fresh
+            }
+        }
+
+        // Issue941: The same stale-revert applies to every hotkey @Published. settings/history
+        //   hotkeys are written to _config.yml only via REST (putShortcut / historyPatch); the
+        //   @Published mirrors here stay at the launch value. When saveAndUpdate(settings) runs,
+        //   the stale mirror overwrites _config.yml, reverting the user's just-applied hotkey.
+        //   Re-sync each hotkey @Published from the current _config.yml token before saving.
+        let hotkeyResync: [(key: String, current: PopupKeyShortcut, assign: (PopupKeyShortcut) -> Void)] = [
+            ("settings.hotkey", settingsHotkey, { self.settingsHotkey = $0 }),
+            ("history.viewer.hotkey", historyViewerHotkey, { self.historyViewerHotkey = $0 }),
+            ("history.pause.hotkey", historyPauseHotkey, { self.historyPauseHotkey = $0 }),
+            ("history.preview.hotkey", historyPreviewHotkey, { self.historyPreviewHotkey = $0 }),
+            (
+                "history.registerSnippet.hotkey", historyRegisterSnippetHotkey,
+                { self.historyRegisterSnippetHotkey = $0 }
+            ),
+        ]
+        for item in hotkeyResync {
+            let fresh = PopupKeyShortcut.from(hotkeyString: prefs.string(forKey: item.key))
+            if item.current != fresh {
+                logD(
+                    "📡 [Issue941] saveUISettings hotkey re-sync [\(item.key)]: \(item.current.displayString) -> \(fresh.displayString) (stale revert prevented)"
+                )
+                item.assign(fresh)
+            }
+        }
+
         // Update AppleLanguages to force language change on next launch (Issue14: 정규화 적용)
         let normalizedLang = Self.normalizeLanguageCode(language)
         let defaults = UserDefaults.standard
