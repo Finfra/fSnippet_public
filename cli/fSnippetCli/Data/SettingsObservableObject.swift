@@ -928,10 +928,7 @@ class SettingsObservableObject: ObservableObject {
             let fresh = PopupKeyShortcut(
                 modifierFlags: UInt(mf), keyCode: UInt16(kc), displayString: disp)
             if settings.popupKeyShortcut != fresh {
-                logD(
-                    "📡 [Issue941] saveUISettings popup re-sync: \(settings.popupKeyShortcut.displayString) -> \(disp) (stale revert prevented)"
-                )
-                settings.popupKeyShortcut = fresh
+                settings.popupKeyShortcut = fresh  // Issue941: stale revert 방지
             }
         }
 
@@ -953,10 +950,7 @@ class SettingsObservableObject: ObservableObject {
         for item in hotkeyResync {
             let fresh = PopupKeyShortcut.from(hotkeyString: prefs.string(forKey: item.key))
             if item.current != fresh {
-                logD(
-                    "📡 [Issue941] saveUISettings hotkey re-sync [\(item.key)]: \(item.current.displayString) -> \(fresh.displayString) (stale revert prevented)"
-                )
-                item.assign(fresh)
+                item.assign(fresh)  // Issue941: stale revert 방지
             }
         }
 
