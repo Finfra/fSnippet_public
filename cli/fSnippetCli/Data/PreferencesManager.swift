@@ -297,7 +297,7 @@ class PreferencesManager: PreferencesManagerProtocol {
             let result = ConfigMigration.migrate(at: self.configURL)
             if result.hasChanges {
                 logI(
-                    "⚙️ [Preference] Issue89 hotkey 마이그레이션: 정리 \(result.totalCleaned)건 (예약 \(result.blacklisted.count) + 폐기 \(result.obsolete.count))"
+                    "⚙️ [Preference] Issue89 hotkey 마이그레이션: 정리 \(result.totalCleaned)건 (예약 \(result.blacklisted.count) + 폐기 \(result.obsolete.count)) + Issue175 brace 정정 \(result.bracesNormalized.count)건"
                 )
             }
         }
