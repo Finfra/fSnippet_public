@@ -297,7 +297,7 @@ class PreferencesManager: PreferencesManagerProtocol {
             let result = ConfigMigration.migrate(at: self.configURL)
             if result.hasChanges {
                 logI(
-                    "⚙️ [Preference] Issue89 hotkey 마이그레이션: 정리 \(result.totalCleaned)건 (예약 \(result.blacklisted.count) + 폐기 \(result.obsolete.count)) + Issue175 brace 정정 \(result.bracesNormalized.count)건"
+                    "⚙️ [Preference] Issue89 hotkey 마이그레이션: 정리 \(result.totalCleaned)건 (예약 \(result.blacklisted.count) + 폐기 \(result.obsolete.count))"
                 )
             }
         }
@@ -311,6 +311,14 @@ class PreferencesManager: PreferencesManagerProtocol {
                 let parsed = self.parseYAML(content)
                 // 기본값과 병합 (파일에 있는 값이 우선)
                 configToLoad = self.getDefaults().merging(parsed) { (_, new) in new }
+
+                // Issue176: snippet_popup_hotkey 는 _config.yml 에 brace-token(`{...}`) 으로 저장되지만
+                // cachedConfig·API·런타임은 raw(`⌃⌥J`) 로 다룬다. 로드 시 brace 를 벗겨 메모리를 raw 로 정규화.
+                if let stored = configToLoad["snippet_popup_hotkey"] as? String,
+                    stored.hasPrefix("{"), stored.hasSuffix("}"), stored.count >= 2
+                {
+                    configToLoad["snippet_popup_hotkey"] = String(stored.dropFirst().dropLast())
+                }
 
                 // 특정 디버그
                 if let loadedTrigger = configToLoad["snippet_trigger_key"] {
@@ -410,7 +418,15 @@ class PreferencesManager: PreferencesManagerProtocol {
         }
 
         // 2. YAML 직렬화 및 저장 (External Keys 제외됨)
-        let content = serializeYAML(cachedConfig)
+        // Issue176: snippet_popup_hotkey 는 타 hotkey(`settings.hotkey: "{...}"`)와 통일하여
+        // brace-token 으로 저장한다. cachedConfig 는 raw 유지하므로 직렬화 직전 사본에서만 wrap.
+        var configForYAML = cachedConfig
+        if let raw = configForYAML["snippet_popup_hotkey"] as? String,
+            !raw.isEmpty, !(raw.hasPrefix("{") && raw.hasSuffix("}"))
+        {
+            configForYAML["snippet_popup_hotkey"] = "{\(raw)}"
+        }
+        let content = serializeYAML(configForYAML)
         do {
             try content.write(to: configURL, atomically: true, encoding: .utf8)
             try content.write(to: configURL, atomically: true, encoding: .utf8)

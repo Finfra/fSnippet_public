@@ -55,15 +55,13 @@ enum ConfigMigration {
         var blacklisted: [String] = []
         /// 폐기된 액션 키로 라인 제거된 키
         var obsolete: [String] = []
-        /// Issue175: brace 오입력이 정정된 키 (현재 snippet_popup_hotkey 전용)
-        var bracesNormalized: [String] = []
         /// 백업 파일 경로 (변경 발생 시에만)
         var backupPath: String?
         /// Issue95: cleanup으로 삭제된 오래된 백업 파일 경로
         var removedBackups: [String] = []
 
         var totalCleaned: Int { blacklisted.count + obsolete.count }
-        var hasChanges: Bool { totalCleaned > 0 || !bracesNormalized.isEmpty }
+        var hasChanges: Bool { totalCleaned > 0 }
     }
 
     /// _config.yml 마이그레이션 수행
@@ -107,35 +105,17 @@ enum ConfigMigration {
                 continue
             }
 
-            // Issue175: snippet_popup_hotkey brace 오입력 정정.
-            // settings.hotkey / history.*.hotkey / snippet_trigger_key 는 brace-token(`{...}`)
-            // 표기가 정상이므로 제외. snippet_popup_hotkey 만 PopupKeyShortcut(displayString +
-            // 숫자필드) 체계라 raw 표기여야 한다. 사용자가 다른 핫키처럼 `{⌃⌥J}` 로 손편집하면
-            // displayString 에 brace 가 박혀 표시/파싱이 어긋나므로, 시작 시 1회 inner 로 정정한다.
-            var effectiveValue = value
-            var bracesStripped = false
-            if key == "snippet_popup_hotkey",
-                value.hasPrefix("{"), value.hasSuffix("}"), value.count >= 2
-            {
-                effectiveValue = String(value.dropFirst().dropLast())
-                bracesStripped = true
-                result.bracesNormalized.append(key)
-                logI(
-                    "⚙️ [ConfigMigration] Issue175 snippet_popup_hotkey brace 정정: '\(value)' → '\(effectiveValue)'"
-                )
-            }
-
             // 2. 시스템 예약 매칭: 빈 값으로 정정 (라인은 보존하여 사용자 가시성 유지)
             // Issue127 (2026-05-16): context-only exemption removed. Even inside dedicated views
             // (clipboard history viewer), values like `{⌘S}` confuse users who expect macOS
             // standard behavior. Pre-Issue87 default `⌘S` for `history.registerSnippet.hotkey`
             // is the primary target.
-            if !effectiveValue.isEmpty && ShortcutBlacklist.isReserved(effectiveValue)
+            if !value.isEmpty && ShortcutBlacklist.isReserved(value)
             {
-                let reason = ShortcutBlacklist.reason(for: effectiveValue) ?? "System Reserved"
+                let reason = ShortcutBlacklist.reason(for: value) ?? "System Reserved"
                 result.blacklisted.append(key)
                 logI(
-                    "⚙️ [ConfigMigration] 시스템 예약 hotkey 정리: \(key)='\(effectiveValue)' (\(reason)) → 빈 값"
+                    "⚙️ [ConfigMigration] 시스템 예약 hotkey 정리: \(key)='\(value)' (\(reason)) → 빈 값"
                 )
                 // 들여쓰기 보존
                 let indent = leadingWhitespace(line)
@@ -143,13 +123,8 @@ enum ConfigMigration {
                 continue
             }
 
-            // 정상 — brace 정정이 있었으면 정정된 라인, 아니면 원본 그대로 통과
-            if bracesStripped {
-                let indent = leadingWhitespace(line)
-                newLines.append("\(indent)\(key): \"\(effectiveValue)\"")
-            } else {
-                newLines.append(line)
-            }
+            // 정상 — 그대로 통과
+            newLines.append(line)
         }
 
         // 변경 없으면 idempotent — 종료 (단, 누적된 오래된 백업 정리는 항상 실행)
