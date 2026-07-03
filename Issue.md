@@ -6,8 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 175
+* Issue HWM: 176
 * Save Point :
+      - 2026.07.03: c614df2 (Fix(Issue176) snippet_popup_hotkey 저장 brace 통일)
       - 2026.06.30: 8bfc673 (Fix(Issue175) snippet_popup_hotkey brace 정정)
       - 2026.06.28: 45cb4b9 (Close Issue172)
       - 2026.06.15: 74d7598 (Fix(Settings): Issue926_1 폴더 규칙 batch-save stale revert 수정)
@@ -53,7 +54,13 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
-## Issue175: [Config] snippet_popup_hotkey 수동 편집 방어 — brace 오입력(`{⌃⌥J}`) 자동 정정 (등록: 2026-06-29) (✅ 완료, 8bfc673) ✅
+## Issue176: [Config] snippet_popup_hotkey 저장 포맷 brace 통일 — `{⌃⌥J}` (Issue175 strip 반전·대체) (등록: 2026-06-30) (✅ 완료, c614df2) ✅
+* 목적: 사용자 요청 — popup 단축키도 다른 hotkey(`settings.hotkey: "{^⌘⇧;}"` 등)처럼 `_config.yml`에 brace 감싸 저장(`snippet_popup_hotkey: "{⌃⌥J}"`). Issue175는 popup brace를 strip하는 방향이었으나 본 이슈에서 **반대로 brace를 canonical 저장 포맷**으로 채택. 단 메모리·API·런타임은 raw(`⌃⌥J`) 유지하여 paidApp REST 정합(Issue173/174) 무영향.
+* depends: Issue175
+* 구현: `PreferencesManager.saveConfigInternal`이 serializeYAML 직전 사본에서 popup을 `{...}` wrap(cachedConfig 미변경), `loadConfigInternal`이 parseYAML 직후 brace strip → cachedConfig raw. 전 저장 경로가 saveConfigInternal→serializeYAML로, 전 읽기가 cachedConfig로 수렴하므로 단일 chokepoint 2개로 충분. `ConfigMigration`의 Issue175 brace-strip 블록 제거(canonical-braced와 충돌·백업 churn 유발). matching은 numeric 권위라 brace 무관.
+* 검증: 저장→`_config.yml "{⌃⇧Space}"`, API GET raw `"⌃⇧Space"`, 재시작 round-trip 안정(이중brace·백업 churn 없음), active_hotkey 18, brew local 9/9 PASS.
+
+## Issue175: [Config] snippet_popup_hotkey 수동 편집 방어 — brace 오입력(`{⌃⌥J}`) 자동 정정 (등록: 2026-06-29) (✅ 완료, 8bfc673) ✅ ⚠️ Issue176에서 방향 반전(strip→brace canonical)으로 대체·코드 제거됨
 * 목적: 사용자가 `_config.yml`을 손편집하며 다른 핫키(`settings.hotkey` 등)처럼 `snippet_popup_hotkey: "{⌃⌥J}"`로 brace 감싸 저장하면 displayString에 brace가 박혀 표시/파싱이 어긋남. popup만 `PopupKeyShortcut`(displayString + 숫자필드) 체계라 raw 표기(`⌃⌥J`)여야 함. 두 체계 통합은 안 함(고위험 핫패스·기능버그 0), brace 오입력만 자동 정정.
 * depends: Issue173
 * 구현: `ConfigMigration.migrate()` 시작 시 1회 경로에 `snippet_popup_hotkey` 단독 brace strip(self-healing, 파일 재기록 + 백업). `Result.bracesNormalized` + `hasChanges` 포함. `PreferencesManager` 로그에 정정 건수 반영. 다른 hotkey는 brace 정상이라 미변경.
