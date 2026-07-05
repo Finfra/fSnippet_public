@@ -752,6 +752,18 @@ class APIRouter {
     return (mods, key)
   }
 
+  /// Issue173: map an NSEvent.ModifierFlags raw value to API modifier names
+  /// (same ⌃⌥⇧⌘ order as the display string).
+  private func v2ModifierNames(fromFlags flags: Int) -> [String] {
+    let m = NSEvent.ModifierFlags(rawValue: UInt(max(flags, 0)))
+    var mods: [String] = []
+    if m.contains(.control) { mods.append("control") }
+    if m.contains(.option) { mods.append("option") }
+    if m.contains(.shift) { mods.append("shift") }
+    if m.contains(.command) { mods.append("command") }
+    return mods
+  }
+
   private func v2BuildShortcut(token: String) -> APIV2ShortcutRW {
     let (mods, _) = v2ParseShortcutToken(token)
     return APIV2ShortcutRW(keyCode: nil, modifiers: mods, display: token, token: token)
@@ -850,6 +862,9 @@ class APIRouter {
     let settingsHotkeyStr: String = prefs.get("settings.hotkey") ?? ""
     let popupHotkeyStr: String = prefs.get("snippet_popup_hotkey") ?? ""
     let popupKeyCode: Int? = prefs.get("snippet_popup_key_code")
+    // Issue173: derive modifiers from the stored flags integer instead of returning []
+    let popupModFlags: Int = prefs.get("snippet_popup_modifier_flags") ?? 0
+    let popupModifiers = v2ModifierNames(fromFlags: popupModFlags)
 
     let excludedFiles: [String] = prefs.get(APIRouter.v2GlobalExcludedKey) ?? []
 
@@ -864,7 +879,7 @@ class APIRouter {
       settingsFolder: settingsFolder,
       snippetFolder: snippetFolder,
       settingsHotkey: APIV2Shortcut(keyCode: nil, modifiers: [], display: settingsHotkeyStr, token: settingsHotkeyStr),
-      popupHotkey: APIV2Shortcut(keyCode: popupKeyCode, modifiers: [], display: popupHotkeyStr, token: popupHotkeyStr),
+      popupHotkey: APIV2Shortcut(keyCode: popupKeyCode, modifiers: popupModifiers, display: popupHotkeyStr, token: popupHotkeyStr),
       triggerKey: APIV2TriggerKey(keyCode: nil, display: triggerKeyToken, token: triggerKeyToken),
       triggerBias: triggerBias,
       quickSelectModifier: quickModifier,
@@ -1061,6 +1076,22 @@ class APIRouter {
     if let pw = patch.previewWindowWidth, !(0...2000).contains(pw) {
       return v2Error(code: "invalid_argument", message: "previewWindowWidth must be between 0 and 2000", statusCode: 400)
     }
+    if let f = patch.popupModifierFlags, f < 0 {
+      return v2Error(code: "invalid_argument", message: "popupModifierFlags must be >= 0", statusCode: 400)
+    }
+    if let kc = patch.popupKeyCode, !(0...65535).contains(kc) {
+      return v2Error(code: "invalid_argument", message: "popupKeyCode must be between 0 and 65535", statusCode: 400)
+    }
+
+    // Issue173: the server is the SSOT for popupDisplayString. It is always derived
+    // from the effective modifierFlags + keyCode, so a mismatched client-sent
+    // displayString can never make the shown shortcut diverge from the registered one.
+    let prefs = PreferencesManager.shared
+    let effectiveFlags: Int = patch.popupModifierFlags ?? prefs.get("snippet_popup_modifier_flags") ?? 0
+    let effectiveKeyCode: Int = patch.popupKeyCode ?? prefs.get("snippet_popup_key_code") ?? 0
+    let hotkeyChanged = patch.popupModifierFlags != nil || patch.popupKeyCode != nil || patch.popupDisplayString != nil
+    let canonicalDisplay = PopupKeyShortcut.canonicalDisplayString(
+      modifierFlags: UInt(effectiveFlags), keyCode: UInt16(effectiveKeyCode))
 
     PreferencesManager.shared.batchUpdate { config in
       if let v = patch.searchScope { config["snippet_popup_search_scope"] = v }
@@ -1069,11 +1100,10 @@ class APIRouter {
       if let v = patch.previewWindowWidth { config["history.preview.width"] = Double(v) }
       if let v = patch.popupModifierFlags { config["snippet_popup_modifier_flags"] = v }
       if let v = patch.popupKeyCode { config["snippet_popup_key_code"] = v }
-      if let v = patch.popupDisplayString { config["snippet_popup_hotkey"] = v }
+      if hotkeyChanged { config["snippet_popup_hotkey"] = canonicalDisplay }
       if let v = patch.popupQuickSelectModifierFlags { config["snippet_popup_quick_select_modifier_flags"] = v }
     }
     // Issue172: re-register popup hotkey in ShortcutMgr immediately (no restart required)
-    let hotkeyChanged = patch.popupModifierFlags != nil || patch.popupKeyCode != nil || patch.popupDisplayString != nil
     if hotkeyChanged {
       ShortcutMgr.shared.refreshAll()
     }

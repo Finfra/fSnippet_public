@@ -196,6 +196,26 @@ struct PopupKeyShortcut: Codable, Equatable, CustomStringConvertible {
         return "{\(result)}"
     }
 
+    // MARK: - Issue173: server-side canonical display string
+
+    /// Canonical key name for a keyCode (reverse lookup on TriggerKeyManager.reverseKeyMap).
+    /// Deterministic: shortest name wins, ties broken alphabetically.
+    static func keyName(for keyCode: UInt16) -> String {
+        var candidates: [String] = []
+        for (name, codes) in TriggerKeyManager.reverseKeyMap where codes.contains(keyCode) {
+            candidates.append(name)
+        }
+        return candidates.min { ($0.count, $0) < ($1.count, $1) } ?? ""
+    }
+
+    /// Issue173: derive the display string from modifierFlags + keyCode so that a
+    /// client-sent displayString can never diverge from the hotkey actually registered.
+    static func canonicalDisplayString(modifierFlags: UInt, keyCode: UInt16) -> String {
+        let modifiers = NSEvent.ModifierFlags(rawValue: modifierFlags)
+        return createDisplayString(
+            modifiers: modifiers, code: keyCode, char: keyName(for: keyCode))
+    }
+
     private static func createDisplayString(
         modifiers: NSEvent.ModifierFlags, code: UInt16, char: String
     ) -> String {
