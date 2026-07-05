@@ -824,6 +824,8 @@ class APIRouter {
     prefs.set(newToken, forKey: prefKey)
     // 런타임 재등록 시도 (ShortcutMgr 는 Preferences 변경 관찰자 보유 시 자동 반영)
     ShortcutMgr.shared.refreshAll()
+    // Issue177: refresh menu bar keyEquivalents without restart
+    NotificationCenter.default.post(name: .shortcutsChanged, object: nil)
     return jsonResponse(v2BuildShortcut(token: newToken))
   }
 
@@ -834,6 +836,8 @@ class APIRouter {
     }
     PreferencesManager.shared.set("", forKey: prefKey)
     ShortcutMgr.shared.refreshAll()
+    // Issue177: refresh menu bar keyEquivalents without restart
+    NotificationCenter.default.post(name: .shortcutsChanged, object: nil)
     return APIServer.HTTPResponse(statusCode: 204, body: "")
   }
 
@@ -1106,6 +1110,8 @@ class APIRouter {
     // Issue172: re-register popup hotkey in ShortcutMgr immediately (no restart required)
     if hotkeyChanged {
       ShortcutMgr.shared.refreshAll()
+      // Issue177: refresh menu bar keyEquivalents without restart
+      NotificationCenter.default.post(name: .shortcutsChanged, object: nil)
     }
     return jsonResponse(buildV2Popup())
   }

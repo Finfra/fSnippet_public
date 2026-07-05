@@ -1,5 +1,23 @@
 import SwiftUI
 
+// MARK: - Menu Shortcut Refresher (Issue177)
+
+/// Issue177: menu keyEquivalents were hardcoded, so hotkeys changed via REST
+/// (PUT /api/v2/settings/shortcuts/{name}, PATCH popup) kept showing stale keys
+/// until restart. This object bumps on `.shortcutsChanged` so SwiftUI re-renders
+/// the MenuBarExtra content with fresh values read from PreferencesManager.
+final class MenuShortcutRefresher: ObservableObject {
+    static let shared = MenuShortcutRefresher()
+    @Published private(set) var version = 0
+    private init() {
+        NotificationCenter.default.addObserver(
+            forName: .shortcutsChanged, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.version += 1
+        }
+    }
+}
+
 // MARK: - Menu Bar View
 
 /// fSnippetCli menu bar (Issue82 — grouped submenus + shared shortcut tokens).
@@ -9,6 +27,8 @@ import SwiftUI
 /// via `AppStateManager.shared.paidAppStatus`.
 struct MenuBarView: View {
     @StateObject private var appState = AppStateManager.shared
+    // Issue177: invalidates this view when shortcuts change via REST
+    @ObservedObject private var shortcutRefresher = MenuShortcutRefresher.shared
     @State private var isPaused: Bool = PreferencesManager.shared.bool(
         forKey: "history.isPaused", defaultValue: false)
     @State private var isApiPaused: Bool = false
@@ -33,14 +53,20 @@ struct MenuBarView: View {
         } label: {
             Label("⚡ Snippet Popup", systemImage: "bolt.fill")
         }
-        .keyboardShortcut(KeyEquivalent(" "), modifiers: [.control, .shift])
+        .keyboardShortcut(
+            storedShortcut(
+                prefKey: "snippet_popup_hotkey",
+                fallback: KeyboardShortcut(KeyEquivalent(" "), modifiers: [.control, .shift])))
 
         Button {
             HistoryViewerManager.shared.show()
         } label: {
             Label("📋 Show Clipboard History", systemImage: "clock.arrow.circlepath")
         }
-        .keyboardShortcut(";", modifiers: .command)
+        .keyboardShortcut(
+            storedShortcut(
+                prefKey: "history.viewer.hotkey",
+                fallback: KeyboardShortcut(";", modifiers: .command)))
 
         // ─── 📜 Clipboard submenu ───
         Menu {
@@ -52,7 +78,10 @@ struct MenuBarView: View {
                     LocalizedStringKey(isPaused ? "Resume" : "Pause"),
                     systemImage: isPaused ? "play.fill" : "pause.fill")
             }
-            .keyboardShortcut("p", modifiers: [.control, .option, .command])
+            .keyboardShortcut(
+                storedShortcut(
+                    prefKey: "history.pause.hotkey",
+                    fallback: KeyboardShortcut("p", modifiers: [.control, .option, .command])))
 
             // Issue84 — Clipboard to Snippet (UI wired; backend deferred)
             Button {
@@ -77,7 +106,10 @@ struct MenuBarView: View {
         } label: {
             Label("🔧 Open Settings Window", systemImage: "gear")
         }
-        .keyboardShortcut(";", modifiers: [.control, .shift, .command])
+        .keyboardShortcut(
+            storedShortcut(
+                prefKey: "settings.hotkey",
+                fallback: KeyboardShortcut(";", modifiers: [.control, .shift, .command])))
 
         Divider()
 
@@ -158,6 +190,40 @@ struct MenuBarView: View {
                 Label("Quit All", systemImage: "power")
             }
         }
+    }
+
+    // MARK: - Dynamic Shortcuts (Issue177)
+
+    /// Reads the persisted hotkey token for `prefKey` and converts it to a
+    /// `KeyboardShortcut` for menu display. Falls back to the legacy hardcoded
+    /// shortcut when the preference is empty, and to no shortcut when the token
+    /// cannot be represented as a single key equivalent (e.g. modifier-only keys).
+    private func storedShortcut(prefKey: String, fallback: KeyboardShortcut?) -> KeyboardShortcut? {
+        let token = PreferencesManager.shared.string(forKey: prefKey, defaultValue: "")
+        guard !token.isEmpty else { return fallback }
+        return Self.keyboardShortcut(fromHotkeyToken: token)
+    }
+
+    /// Converts a stored hotkey token (e.g. "{^⇧⌘;}", "⌃⇧Space") into a SwiftUI
+    /// `KeyboardShortcut`. Returns nil when the base key is not a single character.
+    static func keyboardShortcut(fromHotkeyToken token: String) -> KeyboardShortcut? {
+        let shortcut = PopupKeyShortcut.from(hotkeyString: token)
+
+        // Strip modifier symbols to isolate the base key.
+        var key = shortcut.displayString
+        for symbol in ["⌃", "^", "⌥", "⇧", "⌘", "⇪"] {
+            key = key.replacingOccurrences(of: symbol, with: "")
+        }
+        if key.compare("space", options: .caseInsensitive) == .orderedSame { key = " " }
+        guard key.count == 1, let base = key.lowercased().first else { return nil }
+
+        var modifiers: EventModifiers = []
+        let flags = shortcut.nsModifierFlags
+        if flags.contains(.control) { modifiers.insert(.control) }
+        if flags.contains(.option) { modifiers.insert(.option) }
+        if flags.contains(.shift) { modifiers.insert(.shift) }
+        if flags.contains(.command) { modifiers.insert(.command) }
+        return KeyboardShortcut(KeyEquivalent(base), modifiers: modifiers)
     }
 
     // MARK: - Actions

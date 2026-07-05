@@ -41,6 +41,12 @@ struct PopupKeyShortcut: Codable, Equatable, CustomStringConvertible {
             modifiers.insert(.control)
             keyStr = keyStr.replacingOccurrences(of: "^", with: "")
         }
+        // Issue177: canonical displays (Issue173) use "⌃" (U+2303) for control, not "^".
+        // Without this the control modifier was silently dropped by the cleanup loop below.
+        if keyStr.contains("⌃") {
+            modifiers.insert(.control)
+            keyStr = keyStr.replacingOccurrences(of: "⌃", with: "")
+        }
         if keyStr.contains("⌥") {
             modifiers.insert(.option)
             keyStr = keyStr.replacingOccurrences(of: "⌥", with: "")

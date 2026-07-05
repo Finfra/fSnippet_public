@@ -42,4 +42,7 @@ extension Notification.Name {
     // Settings Updates
     static let preferencesDidUpdate = Notification.Name("preferencesDidUpdate")
     static let preferencesDidLoadConfig = Notification.Name("preferencesDidLoadConfig")
+
+    // Issue177: shortcut hotkeys changed via REST — menu bar must re-render keyEquivalents
+    static let shortcutsChanged = Notification.Name("shortcutsChanged")
 }
