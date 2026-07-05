@@ -954,6 +954,27 @@ class SettingsObservableObject: ObservableObject {
             }
         }
 
+        // Issue178: The snippet trigger key has the same stale-revert as the hotkeys above.
+        //   REST handlers (handleV2PatchGeneral / handleV2PutGeneralTriggerKey) persist
+        //   snippet_trigger_key via PreferencesManager and reload TriggerKeyManager only;
+        //   this @Published mirror keeps its launch-time value. When any unrelated setting
+        //   triggers this save, the stale mirror reaches settings.defaultSymbol below and
+        //   SettingsManager.save() writes the old trigger key back to _config.yml.
+        //   Re-sync the mirror from the persisted token before saving (same conversion
+        //   as loadUISettings: token -> EnhancedTriggerKey -> PopupKeyShortcut).
+        if let freshTriggerToken: String = prefs.get("snippet_trigger_key"),
+            !freshTriggerToken.isEmpty
+        {
+            let freshKey = EnhancedTriggerKey.from(keySpec: freshTriggerToken)
+            let fresh = PopupKeyShortcut(
+                modifierFlags: freshKey.modifierFlagsUInt,
+                keyCode: freshKey.hardwareKeyCode ?? 0,
+                displayString: freshKey.displayName)
+            if triggerKeyShortcut != fresh {
+                triggerKeyShortcut = fresh  // Issue178: stale revert 방지
+            }
+        }
+
         // Update AppleLanguages to force language change on next launch (Issue14: 정규화 적용)
         let normalizedLang = Self.normalizeLanguageCode(language)
         let defaults = UserDefaults.standard
