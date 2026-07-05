@@ -6,8 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 177
+* Issue HWM: 178
 * Save Point :
+      - 2026.07.05: 6a5fefe (Fix(Issue177) 메뉴바 keyEquivalent 동적 갱신 + Issue178 trigger_key stale-revert 수정)
       - 2026.07.05: f381864 (Fix(Issue173) popup displayString 서버 SSOT 파생 + Issue174 검증 종결)
       - 2026.07.03: c614df2 (Fix(Issue176) snippet_popup_hotkey 저장 brace 통일)
       - 2026.06.30: 8bfc673 (Fix(Issue175) snippet_popup_hotkey brace 정정)
@@ -28,19 +29,31 @@ date: 2026-04-07
 
 # 📙 일반
 
-## Issue177: [MenuBar] 단축키 변경 후 메뉴바 keyEquivalent 미갱신 — shortcut 변경 시 메뉴 재생성 필요 (등록: 2026-07-05)
-* 목적: paidApp Apply → `PUT /api/v2/settings/shortcuts/{name}` 로 hotkey 변경 시 `ShortcutMgr.refreshAll()` 은 호출되어 런타임 단축키는 재등록되지만(flog 확인: `{⌥⌘⇧;}` appShortcut 등록됨), 메뉴바 메뉴는 앱 시작 시 1회 + pause 상태 변경 시에만 재생성되어 **옛 단축키 표기가 그대로 남음** (재시작 전까지 stale).
-* 상세:
-    - 재현: 설정창에서 Settings Hotkey `^⇧⌘;` → `⌥⌘⇧;` 변경 + Apply → `_config.yml`·ShortcutMgr 재등록 OK, 메뉴바 "Open Settings Window"는 여전히 `^⇧⌘;` 표시.
-    - 원인: `MenuBarManager.createMenuBarMenu()` (cli/fSnippetCli/Managers/MenuBarManager.swift L60~) 가 `settings.hotkey`·`history.viewer.hotkey`·`history.pause.hotkey` 를 메뉴 생성 시점에만 읽음. 재생성 트리거는 `handlePauseStateChanged` 뿐.
-    - 참고: `handleV2PutShortcut`/`handleV2DeleteShortcut` (APIRouter.swift L780·L818) 은 `refreshAll()` 만 호출, 메뉴 재생성 없음. ChangeTracker `settings.changed target=shortcuts` 이벤트는 이미 발행 중.
-* 구현 명세:
-    - 방안: shortcut 변경 지점(PUT/DELETE handler 또는 ChangeTracker 구독)에서 `MenuBarManager` 메뉴 재생성 호출 (`handlePauseStateChanged` 와 동일 패턴 — main queue 에서 `createMenuBarMenu()` 재할당).
-    - 검증: PUT shortcut 후 재시작 없이 메뉴바 열어 새 keyEquivalent 표기 확인.
-
 # 📗 선택
 
 # ✅ 완료
+## Issue177: [MenuBar] 단축키 변경 후 메뉴바 keyEquivalent 미갱신 — shortcut 변경 시 메뉴 재생성 필요 (등록: 2026-07-05) (✅ 완료, 6a5fefe) ✅
+* 목적: paidApp Apply → `PUT /api/v2/settings/shortcuts/{name}` 로 hotkey 변경 시 `ShortcutMgr.refreshAll()` 은 호출되어 런타임 단축키는 재등록되지만, 메뉴바 메뉴는 앱 시작 시 1회 + pause 상태 변경 시에만 재생성되어 **옛 단축키 표기가 그대로 남음** (재시작 전까지 stale).
+* 구현 (`6a5fefe`) — 등록 시 명세(MenuBarManager 재생성)와 달리 실제 메뉴는 SwiftUI `MenuBarExtra { MenuBarView() }` 이고 `MenuBarManager.createMenuBarMenu()` 는 데드 코드(statusItem 미생성)였음. 진짜 원인은 `MenuBarView` 의 **하드코딩 keyboardShortcut 4곳**:
+    - `MenuBarView` 하드코딩 4곳(popup/viewer/pause/settings)을 `storedShortcut(prefKey:fallback:)` — PreferencesManager 저장 토큰 기반 동적 계산으로 교체 (빈 값은 기존 하드코딩 fallback, 단일 문자로 표현 불가 토큰은 표기 생략)
+    - `MenuShortcutRefresher`(ObservableObject) 신설 — `.shortcutsChanged` notification 수신 시 version bump → SwiftUI 재렌더
+    - `APIRouter` `handleV2PutShortcut`/`handleV2DeleteShortcut` + `handleV2PatchPopup`(hotkey 변경 시)에 `.shortcutsChanged` post 추가
+    - 부수 수정: `PopupKeyShortcut.from(hotkeyString:)` 이 canonical display 의 `⌃`(U+2303)를 control 로 파싱하지 않고 유실하던 버그 수정 (Issue173 canonical 포맷 `{⌃⇧Space}` 가 `⇧Space` 로 표기되던 원인; ShortcutMgr L456 동일 함수 사용 — 잠재 등록 버그도 함께 해소)
+* 검증 (2026-07-05, brew local 9/9 PASS ×2 배포 후 AX 조회):
+    - 런치 후 메뉴: popup `⌃⇧Space`(mods=13, ⌃ 파싱 수정 전 mods=9), settings `⌃⌥⌘;`(mods=6) — 저장 토큰 정상 반영
+    - **라이브 갱신**: 실행 중 `PUT settingsHotkey {^⌘⇧;}` → 재시작 없이 즉시 mods=6→5 (`⌃⌥⌘;`→`⌃⇧⌘;`) 갱신 확인
+
+## Issue178: [Settings] snippet_trigger_key REST 변경이 saveUISettings()에 의해 원복됨 — Issue941 stale-revert 패턴 재발 (등록: 2026-07-05) (✅ 완료, 46b1ef1) ✅
+* 목적: paidApp 일반설정 탭 또는 REST(`PATCH /api/v2/settings/general`, `PUT /api/v2/settings/general/trigger-key`)로 트리거 키를 변경해도, 짧게는 2초 길게는 90초 뒤 트리거 무관한 다른 설정이 저장되는 순간 자동으로 옛 값(주로 `{right_command}`)으로 원복되는 버그 수정.
+* 상세:
+    - 근본원인: `SettingsObservableObject.saveUISettings()` — REST 경로는 `PreferencesManager` 직접 기록 + `TriggerKeyManager.reloadSettings()` 만 호출, `triggerKeyShortcut`(@Published UI 미러)는 런치 시점 값에 고정(stale). 무관 설정 저장 시 stale 미러가 `settings.defaultSymbol` 을 거쳐 `_config.yml` 을 덮어씀.
+    - 동일 버그 클래스: Issue941 리싱크 목록에서 `snippet_trigger_key`/`defaultSymbol` 누락으로 재발.
+* 구현 (`46b1ef1`):
+    - `saveUISettings()` 의 Issue941 hotkey 리싱크 블록 옆에 트리거 키 리싱크 추가: `prefs.get("snippet_trigger_key")` 최신 토큰 → `EnhancedTriggerKey.from(keySpec:)` → `PopupKeyShortcut` 변환(loadUISettings 와 동일 변환) 후 미러와 다르면 갱신
+* 검증 (2026-07-05, brew local 9/9 PASS 배포 후 curl):
+    - `PUT trigger-key {f1}` → `PATCH history`(debounced saveUISettings 유발) → flog "Saving Trigger Key to snippet_default_symbol: {f1}" — stale `{right_command}` 대신 fresh 값 저장, `_config.yml` 원복 없음
+    - 역방향 `{right_command}` round-trip 정상 (modifier-only 토큰 54~62 keyCode 경로 유지)
+
 ## Issue173: [API] PATCH /api/v2/settings/popup — modifierFlags ↔ displayString 불일치 무검증 수용 (화면≠실제 단축키) (등록: 2026-06-29) (✅ 완료, f381864) ✅
 * depends: Issue174
 * 목적: 팝업 단축키 PATCH 시 실제 동작을 결정하는 `popupModifierFlags`(정수)와 표시용 `popupDisplayString`이 어긋나도 서버가 그대로 수용함. 화면에는 한 단축키가 보이지만 실제로는 다른 키로 동작하는 함정. paidApp ShortcutRecorder는 세 값을 정합하여 보내므로 무해하나, 수동 curl·외부 클라이언트(MCP 등)는 쉽게 불일치를 만듦.
