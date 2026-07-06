@@ -439,9 +439,8 @@ class SettingsManager {
     private let alfredImportRulePathKey = "alfred_import_rule_path"
     private let alfredImportRulePathBookmarkKey = "alfred_import_rule_path_bookmark"
 
-    // 팝업 키 관련
-    private let popupModifierFlagsKey = "snippet_popup_modifier_flags"
-    private let popupKeyCodeKey = "snippet_popup_key_code"
+    // 팝업 키 관련 (Issue183: the hotkey string is the single persisted SSOT;
+    // snippet_popup_modifier_flags / snippet_popup_key_code are obsolete)
     private let popupDisplayStringKey = "snippet_popup_hotkey"
     private let previousPopupDisplayStringKey = "snippet_popup_display_string"  // Issue258 Legacy
 
@@ -695,28 +694,18 @@ class SettingsManager {
         // 최대 너비 제한 (Issue 394 최적화 - 거대 할당 방지)
         // (특정 너비 설정 선호로 제거됨)
 
-        // MARK: - 팝업 키 로드 (Issue 429 수정)
-        // 환경설정에서 팝업 키 로드
+        // MARK: - 팝업 키 로드 (Issue183: string is the single SSOT)
+        // The hotkey string in _config.yml is the only persisted form; modifierFlags
+        // and keyCode are always derived by parsing it. The raw-integer keys
+        // (snippet_popup_modifier_flags / snippet_popup_key_code) are no longer read
+        // or written — ConfigMigration strips them from existing configs.
         let popupKeyStr = prefs.string(forKey: popupDisplayStringKey)
-        let popupMods = prefs.get(popupModifierFlagsKey) as Int?
-        let popupCode = prefs.get(popupKeyCodeKey) as Int?
 
         if !popupKeyStr.isEmpty {
-            // 저장된 구성 요소가 있으면 재구성
-            if let mods = popupMods, let code = popupCode {
-                settings.popupKeyShortcut = PopupKeyShortcut(
-                    modifierFlags: UInt(mods), keyCode: UInt16(code), displayString: popupKeyStr)
-            } else {
-                // 폴백: 구성 요소가 없으면 문자열 파싱 (레거시 또는 단순 저장)
-                settings.popupKeyShortcut = PopupKeyShortcut.from(hotkeyString: popupKeyStr)
-            }
+            settings.popupKeyShortcut = PopupKeyShortcut.from(hotkeyString: popupKeyStr)
         } else if let legacyDisplay = defaults.string(forKey: legacyPopupDisplayStringKey) {
-            // Migration
+            // Migration from the legacy UserDefaults key
             settings.popupKeyShortcut = PopupKeyShortcut.from(hotkeyString: legacyDisplay)
-
-            // Save to new keys immediately
-            prefs.set(Int(settings.popupKeyShortcut.modifierFlags), forKey: popupModifierFlagsKey)
-            prefs.set(Int(settings.popupKeyShortcut.keyCode), forKey: popupKeyCodeKey)
             prefs.set(settings.popupKeyShortcut.displayString, forKey: popupDisplayStringKey)
         }
 
@@ -907,9 +896,7 @@ class SettingsManager {
                 config[self.popupRowsKey] = settings.popupRows
                 config[self.excludedFilesKey] = settings.excludedFiles
 
-                // 팝업 키
-                config[self.popupModifierFlagsKey] = Int(settings.popupKeyShortcut.modifierFlags)
-                config[self.popupKeyCodeKey] = Int(settings.popupKeyShortcut.keyCode)
+                // 팝업 키 (Issue183: display string only — flags/keyCode are derived on load)
                 config[self.popupDisplayStringKey] = settings.popupKeyShortcut.displayString
                 // Issue182: persist as a human-readable token ({command}/{control})
                 config[self.popupQuickSelectModifierFlagsKey] =

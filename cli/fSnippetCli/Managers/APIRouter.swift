@@ -865,10 +865,12 @@ class APIRouter {
 
     let settingsHotkeyStr: String = prefs.get("settings.hotkey") ?? ""
     let popupHotkeyStr: String = prefs.get("snippet_popup_hotkey") ?? ""
-    let popupKeyCode: Int? = prefs.get("snippet_popup_key_code")
-    // Issue173: derive modifiers from the stored flags integer instead of returning []
-    let popupModFlags: Int = prefs.get("snippet_popup_modifier_flags") ?? 0
-    let popupModifiers = v2ModifierNames(fromFlags: popupModFlags)
+    // Issue183: the hotkey string is the single SSOT — keyCode/modifiers are derived
+    // by parsing it (the raw-integer config keys are obsolete).
+    let popupParsed = popupHotkeyStr.isEmpty
+      ? nil : PopupKeyShortcut.from(hotkeyString: popupHotkeyStr)
+    let popupKeyCode: Int? = popupParsed.map { Int($0.keyCode) }
+    let popupModifiers = v2ModifierNames(fromFlags: popupParsed.map { Int($0.modifierFlags) } ?? 0)
 
     let excludedFiles: [String] = prefs.get(APIRouter.v2GlobalExcludedKey) ?? []
 
@@ -905,9 +907,12 @@ class APIRouter {
       if let d: Double = prefs.get("history.preview.width") { return Int(d) }
       return prefs.get("history.preview.width") ?? 400
     }()
-    let popupModFlags: Int = prefs.get("snippet_popup_modifier_flags") ?? 0
-    let popupKC: Int = prefs.get("snippet_popup_key_code") ?? 0
+    // Issue183: derive flags/keyCode from the hotkey string (single SSOT)
     let popupDispStr: String = prefs.get("snippet_popup_hotkey") ?? ""
+    let popupParsed = popupDispStr.isEmpty
+      ? nil : PopupKeyShortcut.from(hotkeyString: popupDispStr)
+    let popupModFlags: Int = popupParsed.map { Int($0.modifierFlags) } ?? 0
+    let popupKC: Int = popupParsed.map { Int($0.keyCode) } ?? 0
     // Issue182: config now stores a braced token ({command}/{control}); convert to
     // Int flags for the REST contract. Fall back to legacy Int for old configs.
     let popupQSFlags: Int = {
@@ -1098,9 +1103,16 @@ class APIRouter {
     // Issue173: the server is the SSOT for popupDisplayString. It is always derived
     // from the effective modifierFlags + keyCode, so a mismatched client-sent
     // displayString can never make the shown shortcut diverge from the registered one.
+    // Issue183: only the canonical hotkey string is persisted. Incoming flags/keyCode
+    // are transient input used to build it; the current value is parsed from the
+    // stored string (the raw-integer config keys are obsolete).
     let prefs = PreferencesManager.shared
-    let effectiveFlags: Int = patch.popupModifierFlags ?? prefs.get("snippet_popup_modifier_flags") ?? 0
-    let effectiveKeyCode: Int = patch.popupKeyCode ?? prefs.get("snippet_popup_key_code") ?? 0
+    let currentStr: String = prefs.get("snippet_popup_hotkey") ?? ""
+    let current = currentStr.isEmpty
+      ? PopupKeyShortcut(modifierFlags: 0, keyCode: 0, displayString: "")
+      : PopupKeyShortcut.from(hotkeyString: currentStr)
+    let effectiveFlags: Int = patch.popupModifierFlags ?? Int(current.modifierFlags)
+    let effectiveKeyCode: Int = patch.popupKeyCode ?? Int(current.keyCode)
     let hotkeyChanged = patch.popupModifierFlags != nil || patch.popupKeyCode != nil || patch.popupDisplayString != nil
     let canonicalDisplay = PopupKeyShortcut.canonicalDisplayString(
       modifierFlags: UInt(effectiveFlags), keyCode: UInt16(effectiveKeyCode))
@@ -1110,8 +1122,6 @@ class APIRouter {
       if let v = patch.popupRows { config["snippet_popup_rows"] = v }
       if let v = patch.popupWidth { config["snippet_popup_width"] = Double(v) }
       if let v = patch.previewWindowWidth { config["history.preview.width"] = Double(v) }
-      if let v = patch.popupModifierFlags { config["snippet_popup_modifier_flags"] = v }
-      if let v = patch.popupKeyCode { config["snippet_popup_key_code"] = v }
       if hotkeyChanged { config["snippet_popup_hotkey"] = canonicalDisplay }
       // Issue182: persist as a human-readable token ({command}/{control})
       if let v = patch.popupQuickSelectModifierFlags {

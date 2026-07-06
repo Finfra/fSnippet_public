@@ -53,8 +53,6 @@ preferences:
   snippet_list_name_width: 81.23828125
   snippet_popup_height: 300
   snippet_popup_hotkey: "⌃⇧Space"
-  snippet_popup_key_code: 49
-  snippet_popup_modifier_flags: 393475
   snippet_popup_preview_width: 400
   snippet_popup_quick_select_modifier_flags: 1048576
   snippet_popup_rows: 8

@@ -311,6 +311,61 @@ enum ConfigMigration {
         return migrated
     }
 
+    /// Issue183: Obsolete config keys that are no longer read or written.
+    /// The popup hotkey string (`snippet_popup_hotkey`) is the single SSOT;
+    /// modifierFlags/keyCode are derived by parsing it on load.
+    static let obsoleteConfigKeys: Set<String> = [
+        "snippet_popup_key_code",
+        "snippet_popup_modifier_flags",
+    ]
+
+    /// Issue183: One-shot removal of obsolete raw-integer popup hotkey keys from `_config.yml`.
+    ///
+    /// Behavior:
+    /// - Strips any line whose key (indentation-insensitive) is in `obsoleteConfigKeys`.
+    /// - Idempotent: returns an empty array when no obsolete key is present.
+    /// - No backup: the removed values are always re-derivable from `snippet_popup_hotkey`.
+    ///
+    /// - Parameter configURL: Path to the active `_config.yml`.
+    /// - Returns: Removed key names (empty when nothing was stripped).
+    @discardableResult
+    static func removeObsoleteConfigKeys(at configURL: URL) -> [String] {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: configURL.path) else { return [] }
+
+        guard let content = try? String(contentsOf: configURL, encoding: .utf8) else {
+            logW("⚙️ [ConfigMigration] Issue183 _config.yml read failed")
+            return []
+        }
+
+        var removed: [String] = []
+        var newLines: [String] = []
+
+        for line in content.components(separatedBy: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if !trimmed.isEmpty, !trimmed.hasPrefix("#"),
+                let colonIdx = trimmed.firstIndex(of: ":"),
+                obsoleteConfigKeys.contains(String(trimmed[..<colonIdx]))
+            {
+                removed.append(String(trimmed[..<colonIdx]))
+                logI("⚙️ [ConfigMigration] Issue183 obsolete key removed: \(trimmed[..<colonIdx])")
+                continue
+            }
+            newLines.append(line)
+        }
+
+        guard !removed.isEmpty else { return [] }
+
+        do {
+            try newLines.joined(separator: "\n").write(
+                to: configURL, atomically: true, encoding: .utf8)
+        } catch {
+            logE("⚙️ ❌ [ConfigMigration] Issue183 _config.yml write failed: \(error)")
+            return []
+        }
+        return removed
+    }
+
     // MARK: - Helpers
 
     /// `  key: "value"` 또는 `key: value` 라인에서 (key, value) 추출

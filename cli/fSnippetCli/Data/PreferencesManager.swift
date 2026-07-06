@@ -292,6 +292,13 @@ class PreferencesManager: PreferencesManagerProtocol {
             logI("⚙️ [Preference] Issue122 appRootPath migrated from _config.yml: \(migrated)")
         }
 
+        // Issue183: One-shot removal of obsolete popup hotkey integer keys
+        // (snippet_popup_key_code / snippet_popup_modifier_flags). Idempotent.
+        let obsoleteRemoved = ConfigMigration.removeObsoleteConfigKeys(at: self.configURL)
+        if !obsoleteRemoved.isEmpty {
+            logI("⚙️ [Preference] Issue183 obsolete keys removed: \(obsoleteRemoved.joined(separator: ", "))")
+        }
+
         // Issue89: 박제된 hotkey 자동 정리 마이그레이션 (파일 파싱 전 1회 수행, idempotent)
         if fileManager.fileExists(atPath: path) {
             let result = ConfigMigration.migrate(at: self.configURL)
@@ -558,9 +565,8 @@ class PreferencesManager: PreferencesManagerProtocol {
             "snippet_trigger_bias": 0,
             "cursor_max_distance": 10000,  // Issue354: 경고 방지를 위해 제한 증가
 
-            // 팝업
-            "snippet_popup_modifier_flags": 1_048_576,  // Command
-            "snippet_popup_key_code": 49,  // Space
+            // 팝업 (Issue183: hotkey string is the single SSOT — the raw-integer
+            // keys snippet_popup_modifier_flags / snippet_popup_key_code are obsolete)
             "snippet_popup_hotkey": "",  // Issue88: SSOT는 _config.yml. default 빈 값(미설정 시 등록 안 함)
             "snippet_popup_search_scope": "abbreviation",  // Issue184 기본값
             "snippet_popup_height": 300.0,  // Issue184 기본값 (Legacy)

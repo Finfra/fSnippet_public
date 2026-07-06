@@ -445,14 +445,10 @@ class ShortcutMgr: ObservableObject {
         // 4. Snippet Popup Hotkey
         // Read directly from PreferencesManager (always up-to-date) instead of SettingsManager
         // cache (stale after REST PATCH until next explicit load). Issue172 fix.
+        // Issue183: the hotkey string is the single SSOT — flags/keyCode are parsed from it.
         let popupDisplayStr = prefs.string(forKey: "snippet_popup_hotkey")
-        let popupModFlags = prefs.get("snippet_popup_modifier_flags") as Int?
-        let popupKeyCode = prefs.get("snippet_popup_key_code") as Int?
         let popupKey: PopupKeyShortcut
-        if !popupDisplayStr.isEmpty, let mods = popupModFlags, let code = popupKeyCode {
-            popupKey = PopupKeyShortcut(
-                modifierFlags: UInt(mods), keyCode: UInt16(code), displayString: popupDisplayStr)
-        } else if !popupDisplayStr.isEmpty {
+        if !popupDisplayStr.isEmpty {
             popupKey = PopupKeyShortcut.from(hotkeyString: popupDisplayStr)
         } else {
             popupKey = PopupKeyShortcut.default

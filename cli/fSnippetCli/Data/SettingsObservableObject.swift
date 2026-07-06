@@ -924,12 +924,9 @@ class SettingsObservableObject: ObservableObject {
         //   SettingsManager.save() writes that stale popup hotkey back, reverting the user's
         //   just-applied change ("applied then reverted"). Re-sync from the current _config.yml
         //   right before saving so the popup hotkey is never overwritten with an old value.
-        if let disp: String = prefs.get("snippet_popup_hotkey"),
-            let kc: Int = prefs.get("snippet_popup_key_code"),
-            let mf: Int = prefs.get("snippet_popup_modifier_flags")
-        {
-            let fresh = PopupKeyShortcut(
-                modifierFlags: UInt(mf), keyCode: UInt16(kc), displayString: disp)
+        // Issue183: derive flags/keyCode by parsing the hotkey string (single SSOT)
+        if let disp: String = prefs.get("snippet_popup_hotkey"), !disp.isEmpty {
+            let fresh = PopupKeyShortcut.from(hotkeyString: disp)
             if settings.popupKeyShortcut != fresh {
                 settings.popupKeyShortcut = fresh  // Issue941: stale revert 방지
             }

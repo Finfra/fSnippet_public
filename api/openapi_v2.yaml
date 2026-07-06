@@ -2171,9 +2171,9 @@ components:
         popupRows:                   { type: integer, minimum: 1, maximum: 30, example: 9 }
         popupWidth:                  { type: integer, description: "points", example: 500 }
         previewWindowWidth:          { type: integer, description: "points", example: 400 }
-        popupModifierFlags:          { type: integer, description: "NSEvent.ModifierFlags raw value for popup hotkey" }
-        popupKeyCode:                { type: integer, description: "macOS virtual keycode for popup hotkey" }
-        popupDisplayString:          { type: string, description: "Human-readable popup hotkey display string" }
+        popupModifierFlags:          { type: integer, deprecated: true, description: "Derived from popupDisplayString (Issue183). Read-only convenience value; no longer persisted." }
+        popupKeyCode:                { type: integer, deprecated: true, description: "Derived from popupDisplayString (Issue183). Read-only convenience value; no longer persisted." }
+        popupDisplayString:          { type: string, description: "Human-readable popup hotkey display string — the single persisted SSOT (Issue183)" }
         popupQuickSelectModifierFlags: { type: integer, description: "NSEvent.ModifierFlags raw value for quick-select" }
     PopupSettingsPatch:
       type: object
@@ -2182,8 +2182,8 @@ components:
         popupRows:                   { type: integer, minimum: 1, maximum: 30 }
         popupWidth:                  { type: integer, minimum: 200, maximum: 2000 }
         previewWindowWidth:          { type: integer, minimum: 0,   maximum: 2000 }
-        popupModifierFlags:          { type: integer }
-        popupKeyCode:                { type: integer }
+        popupModifierFlags:          { type: integer, deprecated: true, description: "Transient input only (Issue183) — combined with popupKeyCode to build the canonical hotkey string; the integer itself is not persisted." }
+        popupKeyCode:                { type: integer, deprecated: true, description: "Transient input only (Issue183) — combined with popupModifierFlags to build the canonical hotkey string; the integer itself is not persisted." }
         popupDisplayString:          { type: string }
         popupQuickSelectModifierFlags: { type: integer }
 
