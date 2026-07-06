@@ -369,8 +369,11 @@ class SettingsObservableObject: ObservableObject {
             logV("📡 [AutoSave] 변경사항 자동 저장 실행 (delay: \(delay))")
 
             // ✅ Issue140: UI 설정도 함께 저장
+            // Issue179: saveUISettings() already calls saveAndUpdate(settings) at its end —
+            //   the extra direct call here duplicated the save and, due to the async
+            //   PreferencesManager write, made saveAndUpdate()'s stale-value comparison
+            //   fire the "restart required" trigger-key alert twice for one change.
             self.saveUISettings()
-            self.settingsManager.saveAndUpdate(self.settings)
 
             // ✅ Issue140: 로그 레벨 변경 시 Logger에 즉시 반영
             Logger.shared.currentLogLevel = self.logLevel
@@ -1195,80 +1198,20 @@ extension SettingsManager {
             SnippetIndexManager.shared.loadSnippets(basePath: settings.basePath)
         }
 
-        // 트리거키가 변경된 경우 사용자에게 재시작 여부 묻기
+        // Issue181: 트리거키는 saveUISettings()의 TriggerKeyManager.updateDefaultTriggerKey()
+        //   호출로 이미 재시작 없이 즉시 적용된 상태다(Issue164/921/178). 그런데도 여기서
+        //   "재시작 필요" 확인창(runModal, 블로킹)을 띄우고 "재시작" 선택 시 자기 자신을
+        //   NSWorkspace로 재실행하려 했는데, 옛 인스턴스가 아직 살아있는 상태에서 새 인스턴스를
+        //   띄우다 보니 SingleInstanceGuard가 새 인스턴스를 "중복"으로 즉시 종료시키고, 그걸
+        //   "실행 성공"으로 오인한 옛 인스턴스도 곧이어 스스로 종료해 결국 cliApp이 완전히
+        //   죽는 사고로 이어졌다. 트리거키가 이미 적용됐으므로 재시작 자체가 불필요 — 확인
+        //   요구도, 재실행 시도도 없이 조용히 알림만 남긴다.
         if oldSettings.defaultSymbol != settings.defaultSymbol {
-            logV(
-                "📡 [Issue38] 트리거키 변경 감지 - 재시작 필요 (기존: '\(oldSettings.defaultSymbol)' → 새: '\(settings.defaultSymbol)')"
+            logI(
+                "📡 [Issue181] 트리거키 변경 즉시 적용됨 (기존: '\(oldSettings.defaultSymbol)' → 새: '\(settings.defaultSymbol)') — 재시작 불필요"
             )
-
-            // 사용자에게 재시작 여부 묻기
-            DispatchQueue.main.async {
-                let alert = NSAlert()
-                alert.messageText = "앱 재시작 필요"
-                alert.informativeText =
-                    "트리거키가 '\(oldSettings.defaultSymbol)'에서 '\(settings.defaultSymbol)'로 변경되었습니다.\n\n새로운 트리거키를 적용하려면 앱을 재시작해야 합니다.\n지금 재시작하시겠습니까?"
-                alert.alertStyle = .warning
-                alert.addButton(withTitle: "재시작")
-                alert.addButton(withTitle: "나중에")
-
-                let response = alert.runModal()
-
-                if response == .alertFirstButtonReturn {
-                    logV("📡 [Issue38] 사용자가 재시작 선택")
-
-                    // 설정 변경 알림 (재시작 전에 보냄)
-                    NotificationCenter.default.post(name: .settingsDidChange, object: settings)
-
-                    // 앱 재시작
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        logV("📡 [Issue38] 앱 재시작 중...")
-
-                        // 현재 앱의 경로 가져오기
-                        let bundleURL = Bundle.main.bundleURL
-
-                        // NSWorkspace를 사용하여 앱 재실행
-                        let configuration = NSWorkspace.OpenConfiguration()
-                        configuration.createsNewApplicationInstance = true
-                        configuration.activates = true
-
-                        NSWorkspace.shared.openApplication(
-                            at: bundleURL, configuration: configuration
-                        ) { (app, error) in
-                            if let error = error {
-                                logE("📡 ❌ [Issue38] 앱 재시작 실패: \(error)")
-                            } else {
-                                logV("📡 [Issue38] 새 인스턴스 실행 성공")
-                                // 현재 앱 종료
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                                    NSApp.terminate(nil)
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    logV("📡 ⏸️ [Issue38] 사용자가 나중에 재시작 선택")
-
-                    // 설정은 저장되었지만 적용되지 않음을 사용자에게 알림
-                    let infoAlert = NSAlert()
-                    infoAlert.messageText = "설정 저장됨"
-                    infoAlert.informativeText =
-                        "트리거키 설정이 저장되었습니다.\n새로운 트리거키 '\(settings.defaultSymbol)'는 다음 앱 실행 시 적용됩니다."
-                    infoAlert.alertStyle = .informational
-                    infoAlert.addButton(withTitle: "확인")
-                    infoAlert.runModal()
-
-                    // 다른 설정은 즉시 적용되도록 알림 전송
-                    NotificationCenter.default.post(name: .settingsDidChange, object: settings)
-                }
-            }
-        } else {
-            logV("📡 [Issue38] 설정 변경 알림 전송 중... (트리거키 변경 없음)")
-
-            // 트리거키 외 다른 설정 변경은 즉시 적용
-            NotificationCenter.default.post(name: .settingsDidChange, object: settings)
-
-            logV("📡 [Issue38] 설정 변경 알림 전송 완료!")
         }
+        NotificationCenter.default.post(name: .settingsDidChange, object: settings)
     }
 
     /// 설정 검증 (Issue794: SettingsValidator로 위임)

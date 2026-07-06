@@ -1961,6 +1961,13 @@ class APIRouter {
 
     logI("🛑 [APIRouter] shutdown 요청: reason=\(reason), delayMs=\(delayMs)")
 
+    // Issue181: paidApp relaunch path — paidApp is restarting itself and only needs
+    // cliApp to exit quietly. Without this flag, applicationWillTerminate fires
+    // terminatePaidApp() and kills the freshly relaunched paidApp instance.
+    if reason == "paidapp-relaunch" {
+      AppDelegate.skipPaidAppTerminationOnExit = true
+    }
+
     let resp = ShutdownResponse(accepted: true, message: "cliApp 종료 예약됨 (delay=\(delayMs)ms)")
     guard let payload = try? JSONEncoder().encode(resp),
           let json = String(data: payload, encoding: .utf8) else {

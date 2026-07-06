@@ -69,6 +69,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// 중복 인스턴스 여부 — true 이면 applicationWillTerminate 에서 정리 로직 건너뜀
     private var isDuplicateInstance = false
 
+    /// Issue181: POST /api/v2/shutdown reason="paidapp-relaunch" 수신 시 true.
+    /// paidApp이 스스로 재시작하는 경로에서는 cliApp이 종료 시 terminatePaidApp()으로
+    /// 새로 뜬 paidApp 인스턴스를 사살하면 안 되므로, 이 플래그로 역방향 종료 신호를 건너뜀.
+    static var skipPaidAppTerminationOnExit = false
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Issue51 Phase4 (방어 이전: main.swift exit(0) → LaunchServices 오류 발생):
         // AppKit 완전 초기화 후 중복 인스턴스를 감지하여 terminate(nil) 로 graceful 종료.
@@ -143,6 +148,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if !otherCliApps.isEmpty {
             let otherPIDs = otherCliApps.map { $0.processIdentifier }
             logI("다른 cliApp 인스턴스 활동 중 (PIDs: \(otherPIDs)) — paidApp 종료 신호 스킵 (인스턴스 교체)")
+        } else if AppDelegate.skipPaidAppTerminationOnExit {
+            // Issue181 — paidApp 재시작(reason=paidapp-relaunch)으로 인한 종료:
+            // paidApp이 곧(또는 이미) 새 인스턴스로 다시 뜨므로 역방향 종료 신호를 보내면
+            // 새 paidApp을 사살하게 됨 → 조용히 종료만 수행.
+            logI("paidApp relaunch 경로 — 역방향 종료 신호 스킵 (Issue181)")
         } else {
             // Issue849 — cliApp이 종료될 때 paidApp에 종료 신호 전송 (역방향 신호)
             // cliApp이 메뉴바에서 Quit 되었을 때, paidApp도 함께 종료되어야 함
