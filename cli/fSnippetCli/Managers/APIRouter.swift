@@ -908,7 +908,15 @@ class APIRouter {
     let popupModFlags: Int = prefs.get("snippet_popup_modifier_flags") ?? 0
     let popupKC: Int = prefs.get("snippet_popup_key_code") ?? 0
     let popupDispStr: String = prefs.get("snippet_popup_hotkey") ?? ""
-    let popupQSFlags: Int = prefs.get("snippet_popup_quick_select_modifier_flags") ?? 0
+    // Issue182: config now stores a braced token ({command}/{control}); convert to
+    // Int flags for the REST contract. Fall back to legacy Int for old configs.
+    let popupQSFlags: Int = {
+      if let tok: String = prefs.get("snippet_popup_quick_select_modifier_flags") {
+        return QuickSelectModifierCodec.flags(fromToken: tok)
+      }
+      return prefs.get("snippet_popup_quick_select_modifier_flags")
+        ?? Int(NSEvent.ModifierFlags.command.rawValue)
+    }()
     return APIV2PopupSettings(
       searchScope: scope,
       popupRows: rows,
@@ -1105,7 +1113,10 @@ class APIRouter {
       if let v = patch.popupModifierFlags { config["snippet_popup_modifier_flags"] = v }
       if let v = patch.popupKeyCode { config["snippet_popup_key_code"] = v }
       if hotkeyChanged { config["snippet_popup_hotkey"] = canonicalDisplay }
-      if let v = patch.popupQuickSelectModifierFlags { config["snippet_popup_quick_select_modifier_flags"] = v }
+      // Issue182: persist as a human-readable token ({command}/{control})
+      if let v = patch.popupQuickSelectModifierFlags {
+        config["snippet_popup_quick_select_modifier_flags"] = QuickSelectModifierCodec.token(fromFlags: v)
+      }
     }
     // Issue172: re-register popup hotkey in ShortcutMgr immediately (no restart required)
     if hotkeyChanged {

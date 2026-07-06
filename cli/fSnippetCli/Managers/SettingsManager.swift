@@ -245,6 +245,48 @@ struct PopupKeyShortcut: Codable, Equatable, CustomStringConvertible {
     }
 }
 
+// MARK: - Issue182: Quick-select modifier persisted as human-readable token
+
+/// Issue182: `snippet_popup_quick_select_modifier_flags` was stored in `_config.yml`
+/// as a raw `NSEvent.ModifierFlags` integer (e.g. 262144), which users cannot edit
+/// by hand. It is now persisted as a braced token (`{command}` / `{control}` /
+/// `{shift}`). The runtime and REST layers keep using the Int flags; this codec
+/// converts only at the config boundary. Legacy integer values are still accepted
+/// on read and self-heal to a token on the next save.
+enum QuickSelectModifierCodec {
+    private static let nameToFlag: [String: NSEvent.ModifierFlags] = [
+        "command": .command, "control": .control, "shift": .shift, "option": .option,
+    ]
+
+    /// Int flags -> braced token. Priority command > control > shift.
+    /// Issue742: option is deprecated and normalized to command before encoding,
+    /// so the config never persists `{option}`. Falls back to `{command}`.
+    static func token(fromFlags raw: Int) -> String {
+        let flags = NSEvent.ModifierFlags(rawValue: UInt(normalize(raw)))
+        if flags.contains(.command) { return "{command}" }
+        if flags.contains(.control) { return "{control}" }
+        if flags.contains(.shift) { return "{shift}" }
+        return "{command}"
+    }
+
+    /// Braced/bare token or legacy Int-string -> Int flags.
+    /// Issue742: option is deprecated and normalized to command.
+    static func flags(fromToken token: String) -> Int {
+        var t = token.trimmingCharacters(in: .whitespaces).lowercased()
+        if t.hasPrefix("{") && t.hasSuffix("}") { t = String(t.dropFirst().dropLast()) }
+        if let intVal = Int(t) { return normalize(intVal) }
+        if let flag = nameToFlag[t] { return normalize(Int(flag.rawValue)) }
+        return Int(NSEvent.ModifierFlags.command.rawValue)
+    }
+
+    private static func normalize(_ raw: Int) -> Int {
+        if raw == Int(NSEvent.ModifierFlags.option.rawValue) {
+            return Int(NSEvent.ModifierFlags.command.rawValue)
+        }
+        return raw
+    }
+}
+
 // MARK: - Issue 178: Popup Search Scope
 
 // MARK: - 설정 모델
@@ -710,7 +752,12 @@ class SettingsManager {
             settings.popupSearchScope = scope
         }
 
-        if let modFlags = prefs.get(popupQuickSelectModifierFlagsKey) as Int? {
+        // Issue182: prefer the braced token ({command}/{control}); fall back to the
+        // legacy Int format (self-heals to a token on the next save).
+        if let tokenStr = prefs.get(popupQuickSelectModifierFlagsKey) as String? {
+            settings.popupQuickSelectModifierFlags =
+                QuickSelectModifierCodec.flags(fromToken: tokenStr)
+        } else if let modFlags = prefs.get(popupQuickSelectModifierFlagsKey) as Int? {
             // Issue742: Option 키는 더 이상 지원하지 않음 → Command로 fallback
             let optionRaw = Int(NSEvent.ModifierFlags.option.rawValue)
             if modFlags == optionRaw {
@@ -864,8 +911,9 @@ class SettingsManager {
                 config[self.popupModifierFlagsKey] = Int(settings.popupKeyShortcut.modifierFlags)
                 config[self.popupKeyCodeKey] = Int(settings.popupKeyShortcut.keyCode)
                 config[self.popupDisplayStringKey] = settings.popupKeyShortcut.displayString
+                // Issue182: persist as a human-readable token ({command}/{control})
                 config[self.popupQuickSelectModifierFlagsKey] =
-                    settings.popupQuickSelectModifierFlags
+                    QuickSelectModifierCodec.token(fromFlags: settings.popupQuickSelectModifierFlags)
 
                 // Issue 376, 386
                 config[self.statsRetentionUsageDaysKey] = settings.statsRetentionUsageDays
