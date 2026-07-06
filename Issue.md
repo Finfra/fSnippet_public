@@ -8,6 +8,7 @@ date: 2026-04-07
 
 * Issue HWM: 183
 * Save Point :
+      - 2026.07.06: ea3eb83 (Fix(Issue183) snippet_popup_hotkey 문자열 단일 SSOT 화 — 정수 2키 저장 제거 + 부팅 마이그레이션)
       - 2026.07.06: 4a526c1 (Feat(Issue182) quick-select modifier 저장 포맷 사람이 읽는 토큰 {command}/{control} 으로 변경)
       - 2026.07.06: 766c9cb (Fix(Issue179,Issue181) 트리거키 재시작 경로 안전화 — 중복저장·자기재실행·역방향사살 3결함 수정)
       - 2026.07.05: 6a5fefe (Fix(Issue177) 메뉴바 keyEquivalent 동적 갱신 + Issue178 trigger_key stale-revert 수정)
@@ -27,12 +28,14 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-
-
 # 📕 중요
 
 # 📙 일반
-## Issue183: [Settings] snippet_popup_hotkey 문자열 단일 SSOT 화 — key_code/modifier_flags 파일 저장 제거 (등록: 2026-07-06)
+
+# 📗 선택
+
+# ✅ 완료
+## Issue183: [Settings] snippet_popup_hotkey 문자열 단일 SSOT 화 — key_code/modifier_flags 파일 저장 제거 (등록: 2026-07-06) (✅ 완료, ea3eb83) ✅
 * 목적: `_config.yml` 팝업 단축키가 `snippet_popup_hotkey`(문자열) + `snippet_popup_key_code` + `snippet_popup_modifier_flags` 3키로 중복 저장됨. 정수 2키는 사람이 직접 편집 불가(raw `NSEvent.ModifierFlags` — device-dependent 비트 노이즈 포함, 현재 값 393475 = ⌃⇧ 393216 + 노이즈 259)하고, 3키 수동 동기화가 불일치 버그 원천(Issue172·173·175·176·178 계열). 문자열 1키만 SSOT로 남기고 flags/code는 로드 시 파생.
 * task: `cli/_doc_work/tasks/popup-hotkey-single-ssot_task.md`
 * 상세:
@@ -40,17 +43,15 @@ date: 2026-04-07
     - Gap 1 (좌/우 modifier 비대칭): `toHotkeyString`은 오른쪽 modifier 시 `right_command+…` verbose 출력(L95-119)하나 `from()`은 심볼만 역파싱. 팝업 핫키는 좌/우 미구분 정책으로 단순화(트리거키와 달리 구분 실익 없음)
     - Gap 2 (REST v2 계약): `openapi_v2.yaml` L2174-2186 `popupModifierFlags`/`popupKeyCode` 노출 중 → deprecated 처리(요청 시 무시, 응답은 파생값 유지로 하위호환)
     - Swift 사용처 18개소: `ShortcutMgr.swift:449`, `APIRouter.swift:870/908/1094-1105`, `SettingsManager.swift:401/455/1164`, `SettingsObservableObject.swift:674/929`, `PreferencesManager.swift:562`
-* 구현 명세:
-    - **로드**: `_config.yml`에서 `snippet_popup_hotkey` 문자열만 읽고 `from(hotkeyString:)`으로 flags/code 파생 — 메모리(UserDefaults 캐시 허용)에만 유지, 파일 저장 금지
-    - **저장**: `SettingsManager` save 경로에서 `snippet_popup_key_code`/`snippet_popup_modifier_flags` YAML 기록 제거
-    - **마이그레이션**: 로드 시 기존 2키 발견 → 무시 + YAML에서 제거 1회 (Issue182 `ConfigMigration` 패턴 준용)
-    - **REST v2**: PATCH의 `popupModifierFlags`/`popupKeyCode` 입력 무시(hotkey 문자열이 정본), GET 응답은 파생값 반환 유지
-    - **기본값**: `PreferencesManager.swift:562` 정수 시드 유지 가능(내부 캐시용) 또는 문자열 기본값에서 파생으로 통일
-    - **검증**: 빌드 → `_config.yml`에서 `{⌃⇧Space}` 설정 후 재시작 → 팝업 정상 호출 + YAML에 정수 2키 재출현 없음 + REST PATCH hotkey 변경 반영 확인
+* 구현 명세 (완료, ea3eb83):
+    - **로드**: `SettingsManager.load` — `snippet_popup_hotkey` 문자열만 읽고 `PopupKeyShortcut.from(hotkeyString:)` 파생. 정수 2키 read 제거
+    - **저장**: `SettingsManager.save` — displayString만 YAML 기록. `APIRouter.handleV2PatchPopup` — 정수 2키 config 쓰기 제거
+    - **마이그레이션**: `ConfigMigration.removeObsoleteConfigKeys` 신설 (idempotent, 백업 불요 — 문자열에서 항상 재파생 가능) + `PreferencesManager` 부팅 훅 연결
+    - **REST v2**: PATCH의 flags/keyCode는 canonical 문자열 조립용 transient 입력으로만 사용(파일 미기록). GET 2곳(`buildV2General`/`buildV2Popup`)은 문자열 파싱 파생값 반환 — 계약 하위호환 유지. `openapi_v2.yaml` 두 필드 deprecated 표기
+    - **기본값**: `PreferencesManager` defaults dict + 번들 `_config.yml` 템플릿에서 정수 2키 제거
+    - **부수 정리**: `SettingsObservableObject.saveUISettings` stale-revert resync(Issue941)도 문자열 파싱 파생으로 교체
+    - **검증 결과**: BUILD SUCCEEDED → brew local 9 PASS 배포 → 부팅 로그에 `Issue183 obsolete key removed` 2건 + `_config.yml`에서 정수 2키 소멸 확인. GET flags 393216(장치 노이즈 259 제거된 clean 값). PATCH ⌘Space→⌃⇧Space round-trip 시 `"{⌘Space}"`/`"{⌃⇧Space}"` 문자열만 갱신·정수 키 재출현 없음. App Shortcuts 4개 정상 등록. (팝업 실제 키 입력 호출은 미검증 — 등록·REST 레벨 검증까지 완료)
 
-# 📗 선택
-
-# ✅ 완료
 ## Issue182: [Settings] snippet_popup_quick_select_modifier_flags 저장 포맷 사람이 편집 어려움 — raw 정수 → {command}/{control} 토큰 (등록: 2026-07-06) (✅ 완료, 4a526c1) ✅
 * 목적: `_config.yml` 의 `snippet_popup_quick_select_modifier_flags` 가 raw `NSEvent.ModifierFlags` 정수(262144 등)로 저장되어 사용자가 손으로 편집 불가. 다른 토큰(트리거키 `{right_command}`, hotkey `{^⌘⇧;}`)처럼 브레이스 토큰 `{command}`/`{control}` 로 저장되게 변경.
 * 상세:
