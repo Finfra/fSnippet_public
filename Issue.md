@@ -6,8 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 181
+* Issue HWM: 182
 * Save Point :
+      - 2026.07.06: 4a526c1 (Feat(Issue182) quick-select modifier 저장 포맷 사람이 읽는 토큰 {command}/{control} 으로 변경)
       - 2026.07.06: 766c9cb (Fix(Issue179,Issue181) 트리거키 재시작 경로 안전화 — 중복저장·자기재실행·역방향사살 3결함 수정)
       - 2026.07.05: 6a5fefe (Fix(Issue177) 메뉴바 keyEquivalent 동적 갱신 + Issue178 trigger_key stale-revert 수정)
       - 2026.07.05: f381864 (Fix(Issue173) popup displayString 서버 SSOT 파생 + Issue174 검증 종결)
@@ -35,6 +36,20 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue182: [Settings] snippet_popup_quick_select_modifier_flags 저장 포맷 사람이 편집 어려움 — raw 정수 → {command}/{control} 토큰 (등록: 2026-07-06) (✅ 완료, 4a526c1) ✅
+* 목적: `_config.yml` 의 `snippet_popup_quick_select_modifier_flags` 가 raw `NSEvent.ModifierFlags` 정수(262144 등)로 저장되어 사용자가 손으로 편집 불가. 다른 토큰(트리거키 `{right_command}`, hotkey `{^⌘⇧;}`)처럼 브레이스 토큰 `{command}`/`{control}` 로 저장되게 변경.
+* 상세:
+    - 런타임 SSOT는 이 Int 키 하나(`HistoryViewer`·`PopupKeyboardHandler`·`PopupKeyboardModifier` 가 `.contains(.command/.control/...)` 로 소비). 별도 `quick_select_modifier`(String) 키는 v2 REST 에만 존재하는 **고아 키** — 런타임 무영향(desync, 본 이슈 범위 밖·미수정).
+    - 저장 포맷만 문제이므로 런타임 Int·REST Int 계약은 유지하고 config 경계에서만 변환.
+* 구현 (`4a526c1`):
+    - `QuickSelectModifierCodec`(SettingsManager.swift) 신설 — `token(fromFlags:)` Int→`{command}`/`{control}`/`{shift}`, `flags(fromToken:)` 토큰/레거시Int문자열→Int. Issue742(option deprecated) normalize 를 읽기·쓰기 양쪽 적용 → config 에 `{option}` 미저장.
+    - 변환 적용 4곳: `SettingsManager.load`(토큰 우선, 레거시 Int fallback), `SettingsManager.save`(토큰 기록), `APIRouter.buildV2Popup`(토큰→Int), `APIRouter.handleV2PatchPopup`(Int→토큰).
+    - 레거시 Int 값은 읽기 시 그대로 수용, 다음 저장 시 토큰으로 self-heal.
+* 검증 (2026-07-06, brew local 9/9 PASS ×2 배포 후 curl):
+    - 레거시 `262144` → GET `262144` 정상 read
+    - PATCH command(1048576) → config `"{command}"`, PATCH control(262144) → `"{control}"`, PATCH option(524288) → `"{command}"`(normalize)
+    - GET 은 항상 Int 반환(REST 계약 불변), option 저장분도 `1048576`(command)로 정규화 read
+
 ## Issue181: [Lifecycle] 트리거키 변경 재시작 경로 안전화 — cliApp 자기재실행 제거 + paidapp-relaunch 역방향 종료 스킵 (등록: 2026-07-06) (✅ 완료, 766c9cb) ✅
 * depends: Issue179
 * 목적: 트리거키 변경 후 재시작 흐름에서 cliApp·paidApp이 모두 죽거나(자기재실행 경합), 새로 뜬 paidApp이 사살되어(역방향 종료 신호) "종료만 되고 재시작 안 됨"이 되는 두 가지 프로세스 라이프사이클 결함 수정.
