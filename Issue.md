@@ -6,8 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 178
+* Issue HWM: 181
 * Save Point :
+      - 2026.07.06: 766c9cb (Fix(Issue179,Issue181) 트리거키 재시작 경로 안전화 — 중복저장·자기재실행·역방향사살 3결함 수정)
       - 2026.07.05: 6a5fefe (Fix(Issue177) 메뉴바 keyEquivalent 동적 갱신 + Issue178 trigger_key stale-revert 수정)
       - 2026.07.05: f381864 (Fix(Issue173) popup displayString 서버 SSOT 파생 + Issue174 검증 종결)
       - 2026.07.03: c614df2 (Fix(Issue176) snippet_popup_hotkey 저장 brace 통일)
@@ -25,6 +26,8 @@ date: 2026-04-07
 
 # 🚧 진행중
 
+
+
 # 📕 중요
 
 # 📙 일반
@@ -32,6 +35,25 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue181: [Lifecycle] 트리거키 변경 재시작 경로 안전화 — cliApp 자기재실행 제거 + paidapp-relaunch 역방향 종료 스킵 (등록: 2026-07-06) (✅ 완료, 766c9cb) ✅
+* depends: Issue179
+* 목적: 트리거키 변경 후 재시작 흐름에서 cliApp·paidApp이 모두 죽거나(자기재실행 경합), 새로 뜬 paidApp이 사살되어(역방향 종료 신호) "종료만 되고 재시작 안 됨"이 되는 두 가지 프로세스 라이프사이클 결함 수정.
+* 상세:
+    - 결함 A (자기재실행 경합): Issue38의 "재시작" 버튼이 cliApp 자신을 `NSWorkspace.openApplication`으로 재실행 — 옛 인스턴스가 아직 살아있는 상태라 `SingleInstanceGuard`(non-launchd 패자 규칙)가 새 인스턴스를 즉시 자폭시키고, "실행 성공"으로 오인한 옛 인스턴스도 스스로 종료 → cliApp 완전 사망.
+    - 결함 B (역방향 사살): paidApp이 재시작 직전 `POST /api/v2/shutdown`으로 cliApp을 내리면, cliApp의 `applicationWillTerminate`가 Quit All 의도로 `terminatePaidApp()` 실행 → 그 시점에 이미 새로 뜬 paidApp 인스턴스를 사살 (flog 2026-07-06 17:33:21.372 옛 종료 → 17:33:21.556 새 인스턴스 종료).
+* 구현 명세:
+    - A: `SettingsObservableObject.saveAndUpdate()`의 Issue38 재시작 다이얼로그·자기재실행 블록 전체 제거 — 트리거키는 `TriggerKeyManager.updateDefaultTriggerKey()`로 이미 즉시 적용되므로 조용히 로그만 남김. 전체 재시작은 paidApp(Relauncher, 검증된 경로)이 오케스트레이션 (paidApp 메인 레포 연동 변경: `needsRelaunch()`에 defaultSymbol 추가 + `shutdown(reason:"paidapp-relaunch")` 전송).
+    - B: `APIRouter.handleShutdown`이 `reason == "paidapp-relaunch"`면 `AppDelegate.skipPaidAppTerminationOnExit = true` 설정 → `applicationWillTerminate`에서 `terminatePaidApp()` 스킵.
+    - 검증: 트리거키 변경 + Apply → cliApp 조용히 종료 → paidApp 재시작 → 새 paidApp이 Issue847 autoStartCliService로 cliApp 재기동 — 사용자 E2E 확인 완료 (2026-07-06).
+
+## Issue179: [Settings] debouncedSave()의 saveAndUpdate() 중복 호출 — 트리거키 변경 시 "재시작 필요" 다이얼로그 2회 표시 (등록: 2026-07-06) (✅ 완료, 766c9cb) ✅
+* 목적: 트리거키 변경 한 번에 "앱 재시작 필요" 모달이 연속 2회 뜨는 문제 수정.
+* 상세:
+    - 원인: `SettingsObservableObject.debouncedSave()`(Issue140)가 `saveUISettings()` 호출 직후 `settingsManager.saveAndUpdate(settings)`를 한 번 더 직접 호출 — `saveUISettings()`는 자기 끝에서 이미 `saveAndUpdate()`를 호출하므로 완전 중복.
+    - `saveAndUpdate()`는 `load()`(직전 값) vs `settings`(새 값) diff로 재시작 다이얼로그를 띄우는데, `PreferencesManager` 쓰기가 비동기(barrier)라 두 번째 호출 시점에도 `load()`가 옛값을 반환 → 같은 변경에 다이얼로그 2회 예약.
+* 구현 명세:
+    - `debouncedSave()`의 중복 `saveAndUpdate()` 직접 호출 삭제 — `saveUISettings()` 단일 경로로 통일.
+
 ## Issue177: [MenuBar] 단축키 변경 후 메뉴바 keyEquivalent 미갱신 — shortcut 변경 시 메뉴 재생성 필요 (등록: 2026-07-05) (✅ 완료, 6a5fefe) ✅
 * 목적: paidApp Apply → `PUT /api/v2/settings/shortcuts/{name}` 로 hotkey 변경 시 `ShortcutMgr.refreshAll()` 은 호출되어 런타임 단축키는 재등록되지만, 메뉴바 메뉴는 앱 시작 시 1회 + pause 상태 변경 시에만 재생성되어 **옛 단축키 표기가 그대로 남음** (재시작 전까지 stale).
 * 구현 (`6a5fefe`) — 등록 시 명세(MenuBarManager 재생성)와 달리 실제 메뉴는 SwiftUI `MenuBarExtra { MenuBarView() }` 이고 `MenuBarManager.createMenuBarMenu()` 는 데드 코드(statusItem 미생성)였음. 진짜 원인은 `MenuBarView` 의 **하드코딩 keyboardShortcut 4곳**:
