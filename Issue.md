@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 182
+* Issue HWM: 183
 * Save Point :
       - 2026.07.06: 4a526c1 (Feat(Issue182) quick-select modifier 저장 포맷 사람이 읽는 토큰 {command}/{control} 으로 변경)
       - 2026.07.06: 766c9cb (Fix(Issue179,Issue181) 트리거키 재시작 경로 안전화 — 중복저장·자기재실행·역방향사살 3결함 수정)
@@ -32,6 +32,21 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
+## Issue183: [Settings] snippet_popup_hotkey 문자열 단일 SSOT 화 — key_code/modifier_flags 파일 저장 제거 (등록: 2026-07-06)
+* 목적: `_config.yml` 팝업 단축키가 `snippet_popup_hotkey`(문자열) + `snippet_popup_key_code` + `snippet_popup_modifier_flags` 3키로 중복 저장됨. 정수 2키는 사람이 직접 편집 불가(raw `NSEvent.ModifierFlags` — device-dependent 비트 노이즈 포함, 현재 값 393475 = ⌃⇧ 393216 + 노이즈 259)하고, 3키 수동 동기화가 불일치 버그 원천(Issue172·173·175·176·178 계열). 문자열 1키만 SSOT로 남기고 flags/code는 로드 시 파생.
+* task: `cli/_doc_work/tasks/popup-hotkey-single-ssot_task.md`
+* 상세:
+    - `PopupKeyShortcut.from(hotkeyString:)`([SettingsManager.swift:31]) 파서 이미 존재 — `⌃⌥⌘⇧⇪` 심볼·중괄호·`reverseKeyMap` 특수키 처리. 문자열 → flags/code 파생 가능
+    - Gap 1 (좌/우 modifier 비대칭): `toHotkeyString`은 오른쪽 modifier 시 `right_command+…` verbose 출력(L95-119)하나 `from()`은 심볼만 역파싱. 팝업 핫키는 좌/우 미구분 정책으로 단순화(트리거키와 달리 구분 실익 없음)
+    - Gap 2 (REST v2 계약): `openapi_v2.yaml` L2174-2186 `popupModifierFlags`/`popupKeyCode` 노출 중 → deprecated 처리(요청 시 무시, 응답은 파생값 유지로 하위호환)
+    - Swift 사용처 18개소: `ShortcutMgr.swift:449`, `APIRouter.swift:870/908/1094-1105`, `SettingsManager.swift:401/455/1164`, `SettingsObservableObject.swift:674/929`, `PreferencesManager.swift:562`
+* 구현 명세:
+    - **로드**: `_config.yml`에서 `snippet_popup_hotkey` 문자열만 읽고 `from(hotkeyString:)`으로 flags/code 파생 — 메모리(UserDefaults 캐시 허용)에만 유지, 파일 저장 금지
+    - **저장**: `SettingsManager` save 경로에서 `snippet_popup_key_code`/`snippet_popup_modifier_flags` YAML 기록 제거
+    - **마이그레이션**: 로드 시 기존 2키 발견 → 무시 + YAML에서 제거 1회 (Issue182 `ConfigMigration` 패턴 준용)
+    - **REST v2**: PATCH의 `popupModifierFlags`/`popupKeyCode` 입력 무시(hotkey 문자열이 정본), GET 응답은 파생값 반환 유지
+    - **기본값**: `PreferencesManager.swift:562` 정수 시드 유지 가능(내부 캐시용) 또는 문자열 기본값에서 파생으로 통일
+    - **검증**: 빌드 → `_config.yml`에서 `{⌃⇧Space}` 설정 후 재시작 → 팝업 정상 호출 + YAML에 정수 2키 재출현 없음 + REST PATCH hotkey 변경 반영 확인
 
 # 📗 선택
 
