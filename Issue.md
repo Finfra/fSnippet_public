@@ -8,6 +8,7 @@ date: 2026-04-07
 
 * Issue HWM: 184
 * Save Point :
+      - 2026.07.07: ba6521c (Fix(Issue184) quick-select modifier 적용 후 원복 수정 — general 엔드포인트 고아 키 제거·SSOT 키 통일)
       - 2026.07.06: ea3eb83 (Fix(Issue183) snippet_popup_hotkey 문자열 단일 SSOT 화 — 정수 2키 저장 제거 + 부팅 마이그레이션)
       - 2026.07.06: 4a526c1 (Feat(Issue182) quick-select modifier 저장 포맷 사람이 읽는 토큰 {command}/{control} 으로 변경)
       - 2026.07.06: 766c9cb (Fix(Issue179,Issue181) 트리거키 재시작 경로 안전화 — 중복저장·자기재실행·역방향사살 3결함 수정)
@@ -35,7 +36,7 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
-## Issue184: [Settings] snippet_popup_quick_select_modifier_flags 적용 후 원복 — general 엔드포인트가 고아 키 quick_select_modifier 만 read/write (등록: 2026-07-07) (✅ 완료, TBD) ✅
+## Issue184: [Settings] snippet_popup_quick_select_modifier_flags 적용 후 원복 — general 엔드포인트가 고아 키 quick_select_modifier 만 read/write (등록: 2026-07-07) (✅ 완료, ba6521c) ✅
 * depends: Issue182
 * 목적: paidApp GUI 에서 quick-select modifier 변경이 적용되었다가 원복되는 문제 수정. Issue182 가 저장 포맷(토큰)은 고쳤으나 "고아 키 desync" 는 범위 밖으로 미뤄둠 — 그 desync 가 원복의 실제 원인.
 * 상세:
@@ -48,7 +49,7 @@ date: 2026-04-07
     - general 4곳을 SSOT 키로 통일: 읽기 = 토큰→flags→name, 쓰기 = name→flags→토큰. 고아 키 `quick_select_modifier` 접근 전면 제거.
     - `ConfigMigration.obsoleteConfigKeys` 에 `quick_select_modifier` 추가 → 부팅 시 자동 제거(idempotent, 백업 불요 — SSOT 토큰 키에서 항상 재파생).
     - REST v2 contract(`quickSelectModifier` String enum) 시그니처 불변 — 내부 저장 키만 통일이라 openapi_v2.yaml 스키마 변경 불요.
-* 구현 (`TBD`):
+* 구현 (`ba6521c`):
     - `QuickSelectModifierCodec.name(fromFlags:)` 신설(SettingsManager.swift) — Int flags → bare name.
     - `APIRouter.readQuickSelectModifierName(_:)` / `quickSelectToken(fromName:)` 헬퍼 신설. general 4곳(`buildV2General`·`handleV2PatchGeneral`·`handleV2GetGeneralQuickSelectModifier`·`handleV2PutGeneralQuickSelectModifier`) 을 SSOT 키 read/write 로 교체. 고아 키 `quick_select_modifier` 코드 접근 0건.
     - `ConfigMigration.obsoleteConfigKeys += "quick_select_modifier"` — 부팅 자동 제거.
