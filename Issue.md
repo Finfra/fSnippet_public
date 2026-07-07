@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 183
+* Issue HWM: 184
 * Save Point :
       - 2026.07.06: ea3eb83 (Fix(Issue183) snippet_popup_hotkey 문자열 단일 SSOT 화 — 정수 2키 저장 제거 + 부팅 마이그레이션)
       - 2026.07.06: 4a526c1 (Feat(Issue182) quick-select modifier 저장 포맷 사람이 읽는 토큰 {command}/{control} 으로 변경)
@@ -27,6 +27,35 @@ date: 2026-04-07
 # 🌱 이슈후보
 
 # 🚧 진행중
+
+# 📕 중요
+
+# 📙 일반
+
+# 📗 선택
+
+# ✅ 완료
+## Issue184: [Settings] snippet_popup_quick_select_modifier_flags 적용 후 원복 — general 엔드포인트가 고아 키 quick_select_modifier 만 read/write (등록: 2026-07-07) (✅ 완료, TBD) ✅
+* depends: Issue182
+* 목적: paidApp GUI 에서 quick-select modifier 변경이 적용되었다가 원복되는 문제 수정. Issue182 가 저장 포맷(토큰)은 고쳤으나 "고아 키 desync" 는 범위 밖으로 미뤄둠 — 그 desync 가 원복의 실제 원인.
+* 상세:
+    - 같은 설정에 config 키 2개 공존:
+        - 런타임 SSOT `snippet_popup_quick_select_modifier_flags` (토큰 `{command}`) — 런타임(HistoryViewer·PopupKeyboardHandler)·`SettingsManager.load/save`·REST v2 popup 엔드포인트(`buildV2Popup`·`handleV2PatchPopup`) 소비.
+        - 고아 키 `quick_select_modifier` (String) — REST v2 general 엔드포인트만 read/write(`buildV2General` L864, `handleV2PatchGeneral` L2479, 별도 sub `handleV2GetGeneralQuickSelectModifier` L2580 / `handleV2PutGeneralQuickSelectModifier` L2594). **런타임 무영향**.
+    - paidApp GUI 가 general 엔드포인트로 저장 → 고아 키만 갱신 → 런타임/popup/SettingsManager 는 옛 flags 키 그대로 → 새로고침·재기동 시 옛 값으로 원복.
+* 구현 명세:
+    - `QuickSelectModifierCodec` 에 `name(fromFlags:) -> String`("command"/"control"/"shift") 추가. `flags(fromToken:)` 는 이미 bare name("command") 처리하므로 String→flags 재사용.
+    - general 4곳을 SSOT 키로 통일: 읽기 = 토큰→flags→name, 쓰기 = name→flags→토큰. 고아 키 `quick_select_modifier` 접근 전면 제거.
+    - `ConfigMigration.obsoleteConfigKeys` 에 `quick_select_modifier` 추가 → 부팅 시 자동 제거(idempotent, 백업 불요 — SSOT 토큰 키에서 항상 재파생).
+    - REST v2 contract(`quickSelectModifier` String enum) 시그니처 불변 — 내부 저장 키만 통일이라 openapi_v2.yaml 스키마 변경 불요.
+* 구현 (`TBD`):
+    - `QuickSelectModifierCodec.name(fromFlags:)` 신설(SettingsManager.swift) — Int flags → bare name.
+    - `APIRouter.readQuickSelectModifierName(_:)` / `quickSelectToken(fromName:)` 헬퍼 신설. general 4곳(`buildV2General`·`handleV2PatchGeneral`·`handleV2GetGeneralQuickSelectModifier`·`handleV2PutGeneralQuickSelectModifier`) 을 SSOT 키 read/write 로 교체. 고아 키 `quick_select_modifier` 코드 접근 0건.
+    - `ConfigMigration.obsoleteConfigKeys += "quick_select_modifier"` — 부팅 자동 제거.
+* 검증 (2026-07-07, brew local 9/9 PASS 배포 후 curl):
+    - PATCH general `control` → config `snippet_popup_quick_select_modifier_flags: "{control}"`, GET general `control` (**원복 없음**).
+    - 크로스 엔드포인트 일관: general `control` ↔ popup `popupQuickSelectModifierFlags: 262144` ↔ sub-endpoint `control` ↔ config `{control}` — 전부 동일 SSOT.
+    - `command` round-trip 정상. 번들 템플릿 `_config.yml` 은 SSOT 키만 시드(고아 키 없음).
 
 # 📕 중요
 

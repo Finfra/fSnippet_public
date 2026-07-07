@@ -314,9 +314,15 @@ enum ConfigMigration {
     /// Issue183: Obsolete config keys that are no longer read or written.
     /// The popup hotkey string (`snippet_popup_hotkey`) is the single SSOT;
     /// modifierFlags/keyCode are derived by parsing it on load.
+    ///
+    /// Issue184: `quick_select_modifier` (String) was an orphan key that only the v2 general
+    /// endpoint read/wrote, with no runtime effect — the runtime SSOT is
+    /// `snippet_popup_quick_select_modifier_flags` (braced token). The orphan caused
+    /// apply-then-revert desync and is now removed on boot (re-derivable from the SSOT key).
     static let obsoleteConfigKeys: Set<String> = [
         "snippet_popup_key_code",
         "snippet_popup_modifier_flags",
+        "quick_select_modifier",
     ]
 
     /// Issue183: One-shot removal of obsolete raw-integer popup hotkey keys from `_config.yml`.

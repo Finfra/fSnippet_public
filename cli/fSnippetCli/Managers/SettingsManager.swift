@@ -269,6 +269,17 @@ enum QuickSelectModifierCodec {
         return "{command}"
     }
 
+    /// Int flags -> bare name (no braces) for the REST String contract.
+    /// Issue184: the v2 general endpoint exposes quickSelectModifier as a String
+    /// enum ("command"/"control"/"shift"); this mirrors token(fromFlags:) without braces.
+    static func name(fromFlags raw: Int) -> String {
+        let flags = NSEvent.ModifierFlags(rawValue: UInt(normalize(raw)))
+        if flags.contains(.command) { return "command" }
+        if flags.contains(.control) { return "control" }
+        if flags.contains(.shift) { return "shift" }
+        return "command"
+    }
+
     /// Braced/bare token or legacy Int-string -> Int flags.
     /// Issue742: option is deprecated and normalized to command.
     static func flags(fromToken token: String) -> Int {

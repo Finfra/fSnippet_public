@@ -861,7 +861,10 @@ class APIRouter {
 
     let triggerKeyToken: String = prefs.get("snippet_trigger_key") ?? "{right_command}"
     let triggerBias: Int = prefs.get("snippet_trigger_bias") ?? 0
-    let quickModifier: String = prefs.get("quick_select_modifier") ?? "command"
+    // Issue184: derive from the single runtime SSOT key (snippet_popup_quick_select_modifier_flags,
+    // stored as a braced token). The old orphan key `quick_select_modifier` had no runtime effect
+    // and caused apply-then-revert desync.
+    let quickModifier: String = APIRouter.readQuickSelectModifierName(prefs)
 
     let settingsHotkeyStr: String = prefs.get("settings.hotkey") ?? ""
     let popupHotkeyStr: String = prefs.get("snippet_popup_hotkey") ?? ""
@@ -892,6 +895,26 @@ class APIRouter {
       permissions: permissions,
       excludedFiles: excludedFiles
     )
+  }
+
+  /// Issue184: read the quick-select modifier as a bare REST name ("command"/"control"/"shift")
+  /// from the single runtime SSOT key. Accepts the braced token or a legacy Int, self-healing on
+  /// the next write. Replaces the orphan `quick_select_modifier` key that had no runtime effect.
+  static func readQuickSelectModifierName(_ prefs: PreferencesManager) -> String {
+    let flags: Int
+    if let tok: String = prefs.get("snippet_popup_quick_select_modifier_flags") {
+      flags = QuickSelectModifierCodec.flags(fromToken: tok)
+    } else {
+      flags = prefs.get("snippet_popup_quick_select_modifier_flags")
+        ?? Int(NSEvent.ModifierFlags.command.rawValue)
+    }
+    return QuickSelectModifierCodec.name(fromFlags: flags)
+  }
+
+  /// Issue184: convert a REST name ("command"/"control"/"shift"/"option") to the braced token
+  /// stored in the SSOT key. Option is normalized to command (Issue742) by the codec.
+  static func quickSelectToken(fromName name: String) -> String {
+    QuickSelectModifierCodec.token(fromFlags: QuickSelectModifierCodec.flags(fromToken: name))
   }
 
   private func buildV2Popup() -> APIV2PopupSettings {
@@ -2476,7 +2499,10 @@ class APIRouter {
       if let v = patch.snippetFolder { config["snippet_base_path"] = v }
       if let v = patch.triggerKey, !v.isEmpty { config["snippet_trigger_key"] = v }
       if let v = patch.triggerBias { config["snippet_trigger_bias"] = v }
-      if let v = patch.quickSelectModifier { config["quick_select_modifier"] = v }
+      // Issue184: write the single runtime SSOT key (braced token), not the orphan string key.
+      if let v = patch.quickSelectModifier {
+        config["snippet_popup_quick_select_modifier_flags"] = APIRouter.quickSelectToken(fromName: v)
+      }
       if let v = patch.excludedFiles { config[APIRouter.v2GlobalExcludedKey] = v }
     }
     // Issue164: reload TriggerKeyManager immediately so new key takes effect without restart
@@ -2577,7 +2603,8 @@ class APIRouter {
   }
 
   private func handleV2GetGeneralQuickSelectModifier() -> APIServer.HTTPResponse {
-    let modifier: String = PreferencesManager.shared.get("quick_select_modifier") ?? "command"
+    // Issue184: read from the single runtime SSOT key (not the orphan quick_select_modifier).
+    let modifier = APIRouter.readQuickSelectModifierName(PreferencesManager.shared)
     return jsonResponse(V2ModifierResponse(modifier: modifier))
   }
 
@@ -2591,8 +2618,11 @@ class APIRouter {
     guard allowed.contains(body.modifier) else {
       return v2Error(code: "invalid_argument", message: "modifier must be one of \(allowed)", statusCode: 400)
     }
-    PreferencesManager.shared.batchUpdate { config in config["quick_select_modifier"] = body.modifier }
-    return jsonResponse(V2ModifierResponse(modifier: body.modifier))
+    // Issue184: write the single runtime SSOT key (braced token), not the orphan string key.
+    PreferencesManager.shared.batchUpdate { config in
+      config["snippet_popup_quick_select_modifier_flags"] = APIRouter.quickSelectToken(fromName: body.modifier)
+    }
+    return jsonResponse(V2ModifierResponse(modifier: APIRouter.readQuickSelectModifierName(PreferencesManager.shared)))
   }
 
   private func handleV2GetGeneralPermissions() -> APIServer.HTTPResponse {
