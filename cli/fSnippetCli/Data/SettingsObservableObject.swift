@@ -975,6 +975,22 @@ class SettingsObservableObject: ObservableObject {
             }
         }
 
+        // Issue184 (follow-up): The popup quick-select modifier has the same stale-revert
+        //   as the hotkeys/trigger key above. REST handler (handleV2PatchPopup) persists
+        //   snippet_popup_quick_select_modifier_flags directly via PreferencesManager; this
+        //   @Published mirror keeps its launch-time value. When any unrelated setting
+        //   triggers this save, the stale mirror reaches settings.popupQuickSelectModifierFlags
+        //   below and SettingsManager.save() writes the old token back to _config.yml.
+        //   Re-sync the mirror from the persisted token before saving.
+        if let freshQsToken: String = prefs.get("snippet_popup_quick_select_modifier_flags"),
+            !freshQsToken.isEmpty
+        {
+            let freshQs = QuickSelectModifierCodec.flags(fromToken: freshQsToken)
+            if popupQuickSelectModifierFlags != freshQs {
+                popupQuickSelectModifierFlags = freshQs  // Issue184: stale revert 방지
+            }
+        }
+
         // Update AppleLanguages to force language change on next launch (Issue14: 정규화 적용)
         let normalizedLang = Self.normalizeLanguageCode(language)
         let defaults = UserDefaults.standard
