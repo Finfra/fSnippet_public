@@ -59,6 +59,14 @@ date: 2026-04-07
     - `command` round-trip 정상. 번들 템플릿 `_config.yml` 은 SSOT 키만 시드(고아 키 없음).
 * 진단 후속 (2026-07-07, 로그 추적): 사용자 원복 재현 시 cliApp write 로그 **0줄** — paidApp GUI 가 quick-select 변경을 cliApp 에 **전송 자체를 안 함(제로 호출)**. 직접 curl PATCH 는 정상 write·정착(APIRouter 로그 발화 확인). ∴ 원복은 cliApp SSOT desync(본 이슈, 수정 완료)가 아니라 **paidApp 저장 배선 결함**. 이중 호출도 cliApp 자체 원복도 아님. → **후속 paidApp(prj15) 이슈로 분리** 필요.
     - 진단 로그(`[Issue184]` 태그 write 4곳 + load 1곳)는 관측용으로 보존 (커밋 별도). paidApp 수정 후 write 도달 검증에 재사용.
+    - paidApp 후속: fSnippet(prj15) `Issue947`로 분리·완료(hash `33289694`) — `applyRemoteSettings()` Issue889 동기화 목록에 `popupQuickSelectModifierFlags` 누락. 본 이슈와는 별개 근본원인.
+
+### Issue184_2: cliApp 자체 SettingsObservableObject 도 동일 stale-revert 클래스 재발 (등록: 2026-07-07) (✅ 완료, f531ba3) ✅
+* depends: Issue184
+* 목적: Issue184 본체(고아 키 통일) 수정 후에도 원복이 재현됨 — cliApp History/설정창용 `SettingsObservableObject`(`Managers/SettingsManager.swift`와 별개 인스턴스)의 `saveUISettings()` 저장 직전 리싱크 목록에 `popupQuickSelectModifierFlags`가 빠져 있어 발생한 잔존 결함.
+* 상세: 이 객체는 앱 시작 시 1회만 `popupQuickSelectModifierFlags`를 디스크 값으로 로드하고(`loadUISettings()`), 이후 갱신되지 않음. Issue941(hotkey)·Issue178(triggerKey)에서는 저장 직전 최신 config로 재동기화하는 방어 코드를 이미 추가했으나, quick-select 필드는 그 목록에서 누락되어 있었음. 그 결과 cliApp 자신의 History/설정창에서 다른 아무 설정(예: autoStart, language)을 저장하기만 해도 stale 값이 SSOT 키를 덮어씀.
+* 구현 명세: `_public/cli/fSnippetCli/Data/SettingsObservableObject.swift`의 `saveUISettings()` 리싱크 블록(Issue941/178 패턴 바로 다음)에 `snippet_popup_quick_select_modifier_flags` 재동기화 항목 추가.
+* 검증: brew local 9/9 PASS 배포 후 `_config.yml`·REST 양쪽 값 유지 확인.
 
 # 📕 중요
 
