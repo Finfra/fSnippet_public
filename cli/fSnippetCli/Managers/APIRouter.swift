@@ -1148,7 +1148,9 @@ class APIRouter {
       if hotkeyChanged { config["snippet_popup_hotkey"] = canonicalDisplay }
       // Issue182: persist as a human-readable token ({command}/{control})
       if let v = patch.popupQuickSelectModifierFlags {
-        config["snippet_popup_quick_select_modifier_flags"] = QuickSelectModifierCodec.token(fromFlags: v)
+        let tok = QuickSelectModifierCodec.token(fromFlags: v)
+        logI("🌐 [Issue184] PATCH /popup popupQuickSelectModifierFlags=\(v) -> config token=\(tok)")
+        config["snippet_popup_quick_select_modifier_flags"] = tok
       }
     }
     // Issue172: re-register popup hotkey in ShortcutMgr immediately (no restart required)
@@ -2501,7 +2503,9 @@ class APIRouter {
       if let v = patch.triggerBias { config["snippet_trigger_bias"] = v }
       // Issue184: write the single runtime SSOT key (braced token), not the orphan string key.
       if let v = patch.quickSelectModifier {
-        config["snippet_popup_quick_select_modifier_flags"] = APIRouter.quickSelectToken(fromName: v)
+        let tok = APIRouter.quickSelectToken(fromName: v)
+        logI("🌐 [Issue184] PATCH /general quickSelectModifier='\(v)' -> config token=\(tok)")
+        config["snippet_popup_quick_select_modifier_flags"] = tok
       }
       if let v = patch.excludedFiles { config[APIRouter.v2GlobalExcludedKey] = v }
     }
@@ -2619,8 +2623,10 @@ class APIRouter {
       return v2Error(code: "invalid_argument", message: "modifier must be one of \(allowed)", statusCode: 400)
     }
     // Issue184: write the single runtime SSOT key (braced token), not the orphan string key.
+    let putTok = APIRouter.quickSelectToken(fromName: body.modifier)
+    logI("🌐 [Issue184] PUT /general/quick-select-modifier modifier='\(body.modifier)' -> config token=\(putTok)")
     PreferencesManager.shared.batchUpdate { config in
-      config["snippet_popup_quick_select_modifier_flags"] = APIRouter.quickSelectToken(fromName: body.modifier)
+      config["snippet_popup_quick_select_modifier_flags"] = putTok
     }
     return jsonResponse(V2ModifierResponse(modifier: APIRouter.readQuickSelectModifierName(PreferencesManager.shared)))
   }

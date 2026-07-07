@@ -57,6 +57,8 @@ date: 2026-04-07
     - PATCH general `control` → config `snippet_popup_quick_select_modifier_flags: "{control}"`, GET general `control` (**원복 없음**).
     - 크로스 엔드포인트 일관: general `control` ↔ popup `popupQuickSelectModifierFlags: 262144` ↔ sub-endpoint `control` ↔ config `{control}` — 전부 동일 SSOT.
     - `command` round-trip 정상. 번들 템플릿 `_config.yml` 은 SSOT 키만 시드(고아 키 없음).
+* 진단 후속 (2026-07-07, 로그 추적): 사용자 원복 재현 시 cliApp write 로그 **0줄** — paidApp GUI 가 quick-select 변경을 cliApp 에 **전송 자체를 안 함(제로 호출)**. 직접 curl PATCH 는 정상 write·정착(APIRouter 로그 발화 확인). ∴ 원복은 cliApp SSOT desync(본 이슈, 수정 완료)가 아니라 **paidApp 저장 배선 결함**. 이중 호출도 cliApp 자체 원복도 아님. → **후속 paidApp(prj15) 이슈로 분리** 필요.
+    - 진단 로그(`[Issue184]` 태그 write 4곳 + load 1곳)는 관측용으로 보존 (커밋 별도). paidApp 수정 후 write 도달 검증에 재사용.
 
 # 📕 중요
 

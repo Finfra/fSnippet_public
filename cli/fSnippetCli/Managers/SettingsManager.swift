@@ -757,6 +757,7 @@ class SettingsManager {
         if let tokenStr = prefs.get(popupQuickSelectModifierFlagsKey) as String? {
             settings.popupQuickSelectModifierFlags =
                 QuickSelectModifierCodec.flags(fromToken: tokenStr)
+            logI("💾 [Issue184] SettingsManager.load quick-select token='\(tokenStr)' -> flags=\(settings.popupQuickSelectModifierFlags)")
         } else if let modFlags = prefs.get(popupQuickSelectModifierFlagsKey) as Int? {
             // Issue742: Option 키는 더 이상 지원하지 않음 → Command로 fallback
             let optionRaw = Int(NSEvent.ModifierFlags.option.rawValue)
@@ -910,8 +911,9 @@ class SettingsManager {
                 // 팝업 키 (Issue183: display string only — flags/keyCode are derived on load)
                 config[self.popupDisplayStringKey] = settings.popupKeyShortcut.displayString
                 // Issue182: persist as a human-readable token ({command}/{control})
-                config[self.popupQuickSelectModifierFlagsKey] =
-                    QuickSelectModifierCodec.token(fromFlags: settings.popupQuickSelectModifierFlags)
+                let qsTok = QuickSelectModifierCodec.token(fromFlags: settings.popupQuickSelectModifierFlags)
+                logI("💾 [Issue184] SettingsManager.save quick-select flags=\(settings.popupQuickSelectModifierFlags) -> token=\(qsTok)")
+                config[self.popupQuickSelectModifierFlagsKey] = qsTok
 
                 // Issue 376, 386
                 config[self.statsRetentionUsageDaysKey] = settings.statsRetentionUsageDays
