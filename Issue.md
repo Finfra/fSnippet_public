@@ -6,8 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 184
+* Issue HWM: 185
 * Save Point :
+      - 2026.07.09: 3e68f26 (Fix(Issue185) 스니펫 팝업창서 마침표(.) 입력 시 닫히던 문제 — 팝업 모드 한정 '.' close 예외)
       - 2026.07.09: 4984401 (Fix(fSnippet#Issue949) 종료 직전 _config.yml 비동기 쓰기 flush — PATCH 유실 레이스 수정)
       - 2026.07.07: ba6521c (Fix(Issue184) quick-select modifier 적용 후 원복 수정 — general 엔드포인트 고아 키 제거·SSOT 키 통일)
       - 2026.07.06: ea3eb83 (Fix(Issue183) snippet_popup_hotkey 문자열 단일 SSOT 화 — 정수 2키 저장 제거 + 부팅 마이그레이션)
@@ -37,6 +38,17 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue185: [Popup] 스니펫 팝업창에서 마침표(.) 입력 시 팝업이 닫힘 (등록: 2026-07-09) (✅ 완료, 3e68f26) ✅
+* 목적: 팝업 검색 필터 입력 중 `.` 을 치면 팝업이 닫혀 필터링이 끊김. `.` 을 필터 문자로 취급하도록 수정.
+* 상세:
+    - 원인: `KeyEventHandler.handleKeyInPopupMode` 가 `AppSettingManager.bufferClearKeys` (= `\r \n \t space .`) 에 포함된 문자를 팝업 close 트리거로 사용. `.` 이 포함되어 팝업이 닫힘.
+    - 팝업에는 `SnippetPopupView.searchText` 필터가 있어 타이핑이 목록 필터링에 쓰임 — `.` 도 필터 문자여야 자연스러움.
+    - normal mode 의 `.` buffer clear(abbreviation 감지 리셋)는 유지해야 함(부작용 방지).
+* 구현 명세:
+    - `KeyEventHandler.handleKeyInPopupMode` 의 clear-key 판정에서 `.` 만 예외 처리(팝업 모드 한정) → normal mode 는 무변경.
+    - 파일: `cli/fSnippetCli/Core/KeyEventHandler.swift`
+* 검증: Release brew 배포 (9 PASS / 0 FAIL) + 사용자 수동 확인 (팝업서 `.` 입력 시 유지).
+
 ## Issue184: [Settings] snippet_popup_quick_select_modifier_flags 적용 후 원복 — general 엔드포인트가 고아 키 quick_select_modifier 만 read/write (등록: 2026-07-07) (✅ 완료, ba6521c) ✅
 * depends: Issue182
 * 목적: paidApp GUI 에서 quick-select modifier 변경이 적용되었다가 원복되는 문제 수정. Issue182 가 저장 포맷(토큰)은 고쳤으나 "고아 키 desync" 는 범위 밖으로 미뤄둠 — 그 desync 가 원복의 실제 원인.
