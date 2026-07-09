@@ -1672,6 +1672,16 @@ class APIRouter {
       folderMap[entry.folderName, default: []].append(entry)
     }
 
+    // Issue186: SnippetIndexManager only indexes folders that contain at least one
+    // snippet file, so a freshly created empty folder was invisible here — the
+    // paidApp New Snippet dialog fetches this endpoint to populate its Storage
+    // Folder picker, so an empty folder couldn't be selected right after creation.
+    // Union in on-disk folder names with zero entries to fix that.
+    let diskFolderNames = SnippetFileManager.shared.getSnippetFolders().map { $0.lastPathComponent }
+    for name in diskFolderNames where folderMap[name] == nil {
+      folderMap[name] = []
+    }
+
     let allRules = RuleManager.shared.getAllRulesDict()
 
     let data = folderMap.keys.sorted().map { folderName -> APIFolderSummary in
