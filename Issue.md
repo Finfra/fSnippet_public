@@ -8,6 +8,7 @@ date: 2026-04-07
 
 * Issue HWM: 186
 * Save Point :
+      - 2026.07.09: 2e15877 (Fix(fSnippet#Issue949 후속) popupRows/searchScope/width/previewWidth stale-mirror 리싱크 추가)
       - 2026.07.09: 78b9a31 (Fix(Issue186) GET /api/v2/folders 빈 폴더 누락 수정 — 디스크 폴더 union, paidApp Storage Folder 선택 불가 근본원인)
       - 2026.07.09: 3e68f26 (Fix(Issue185) 스니펫 팝업창서 마침표(.) 입력 시 닫히던 문제 — 팝업 모드 한정 '.' close 예외)
       - 2026.07.09: 4984401 (Fix(fSnippet#Issue949) 종료 직전 _config.yml 비동기 쓰기 flush — PATCH 유실 레이스 수정)
@@ -100,6 +101,13 @@ date: 2026-04-07
 * 상세: `PreferencesManager.set()`/`batchUpdate()`는 `textQueue`(concurrent, barrier)에 비동기로 `saveConfigInternal()`을 큐잉하고 HTTP 응답은 그 완료를 기다리지 않고 즉시 반환됨. paidApp의 `saveDraft()` → `needsRelaunch` → `shutdown()` 흐름은 PATCH 전송 후 그 디스크 쓰기 완료를 기다리지 않고 곧바로 cliApp에 `/api/v2/shutdown`(delayMs=0)을 보내고, cliApp은 100ms 뒤 `terminate(nil)`을 실행함. `applicationWillTerminate`에는 Logger용 `flush()`는 있었지만 `PreferencesManager` 쪽 동등한 flush가 없어, 대기 중인 barrier 쓰기가 끝나기 전에 프로세스가 죽을 수 있었음.
 * 구현 명세: `PreferencesManager`에 `flush()`(빈 barrier 블록으로 대기 중인 쓰기 완료 보장) 신설 + `fSnippetCliApp.applicationWillTerminate`에서 `logger.flush()`와 함께 호출.
 * 검증: curl로 PATCH 직후 즉시 `/api/v2/shutdown`(delayMs=0) 발사 → cliApp 재기동 후 값 정상 유지 확인(수정 전 재현, 수정 후 미재현).
+
+### Issue184_4: popupRows/searchScope/width/previewWidth도 동일 stale-mirror 재발 (등록: 2026-07-09) (✅ 완료, 2e15877) ✅
+* depends: Issue184_2
+* 목적: Issue184_2(quick-select)·Issue184_3(종료 레이스) 수정 후에도 "Popup Settings" 쪽 다른 필드(특히 popupRows: 9→5 변경이 곧바로 9로 원복)가 재현됨(main 레포 fSnippet#Issue949 사용자 재현). quick-select만 리싱크되고 나머지 popup 필드는 동일 결함이 남아있던 것.
+* 상세: 트리거 경로는 종료 레이스(Issue184_3)와 무관하게 앱이 계속 켜져 있는 중에도 발생 가능 — paidApp이 설정 Apply 시 보내는 history PATCH가 `handleV2PatchHistory`(`APIRouter.swift:2876-2882`, Issue900)에서 `obs.historyShowStatusBar`/`historyShowPreview`/`historyImageDetailIsFloating`을 cliApp 자신의 `SettingsObservableObject`에 직접 대입 → `syncHistorySetting()` → `debouncedSave()`(0.5s 지연) → `saveUISettings()` 재호출. 이때 `popupRows`/`popupSearchScope`/`popupWidth`/`popupPreviewWidth`는 launch-time 로드 값 그대로 남아있어, 0.5s 전에 별도 popup PATCH로 막 반영된 값을 스스로 덮어씀.
+* 구현 명세: `saveUISettings()`의 quick-select 리싱크 블록 바로 다음에 `snippet_popup_rows`/`snippet_popup_search_scope`/`snippet_popup_width`/`snippet_popup_preview_width` 4개 항목 리싱크 추가(동일 패턴).
+* 검증: curl로 popup PATCH(rows: 9→9로 세팅) 직후 history PATCH(다른 필드 토글, Issue900 경로 강제 발동) → 0.5s 대기 → popupRows 값 유지 확인(수정 전 이 경로로 원복 가능, 수정 후 미재현).
 
 # 📕 중요
 
