@@ -991,6 +991,28 @@ class SettingsObservableObject: ObservableObject {
             }
         }
 
+        // Issue949 (follow-up): popupRows/popupSearchScope/popupWidth/popupPreviewWidth have the
+        //   same stale-revert as the quick-select modifier above — loadUISettings() sets these
+        //   @Published mirrors only once at launch; nothing re-syncs them afterward. When paidApp
+        //   PATCHes one of these via REST and this SettingsObservableObject then saves any
+        //   unrelated setting, the stale launch-time mirror overwrites the just-written value.
+        if let freshRows: Int = prefs.get("snippet_popup_rows"), popupRows != freshRows {
+            popupRows = freshRows  // Issue949: stale revert 방지
+        }
+        if let freshScopeRaw: String = prefs.get("snippet_popup_search_scope"),
+            let freshScope = PopupSearchScope(rawValue: freshScopeRaw), popupSearchScope != freshScope
+        {
+            popupSearchScope = freshScope  // Issue949: stale revert 방지
+        }
+        if let freshWidth: Double = prefs.get("snippet_popup_width"), popupWidth != CGFloat(freshWidth) {
+            popupWidth = CGFloat(freshWidth)  // Issue949: stale revert 방지
+        }
+        if let freshPreviewWidth: Double = prefs.get("snippet_popup_preview_width"),
+            popupPreviewWidth != CGFloat(freshPreviewWidth)
+        {
+            popupPreviewWidth = CGFloat(freshPreviewWidth)  // Issue949: stale revert 방지
+        }
+
         // Update AppleLanguages to force language change on next launch (Issue14: 정규화 적용)
         let normalizedLang = Self.normalizeLanguageCode(language)
         let defaults = UserDefaults.standard
