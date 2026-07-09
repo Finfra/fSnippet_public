@@ -321,6 +321,13 @@ class KeyEventHandler: KeyEventProcessorDelegate {
           return
         }
 
+        // Issue185: Period (.) is a normal-mode buffer clear key, but inside the
+        // popup it must be treated as a filter character (SnippetPopupView.searchText)
+        // instead of closing the popup. Popup-scoped exception only; normal mode unchanged.
+        if character == "." {
+          return
+        }
+
         let firstChar = String(character.prefix(1))
         if clearKeys.contains(Character(firstChar)) {
           // Suffix Guard
