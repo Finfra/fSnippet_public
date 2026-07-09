@@ -6,8 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 185
+* Issue HWM: 186
 * Save Point :
+      - 2026.07.09: 78b9a31 (Fix(Issue186) GET /api/v2/folders 빈 폴더 누락 수정 — 디스크 폴더 union, paidApp Storage Folder 선택 불가 근본원인)
       - 2026.07.09: 3e68f26 (Fix(Issue185) 스니펫 팝업창서 마침표(.) 입력 시 닫히던 문제 — 팝업 모드 한정 '.' close 예외)
       - 2026.07.09: 4984401 (Fix(fSnippet#Issue949) 종료 직전 _config.yml 비동기 쓰기 flush — PATCH 유실 레이스 수정)
       - 2026.07.07: ba6521c (Fix(Issue184) quick-select modifier 적용 후 원복 수정 — general 엔드포인트 고아 키 제거·SSOT 키 통일)
@@ -38,6 +39,18 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue186: GET /api/v2/folders에서 빈 폴더(스니펫 0개) 누락 — paidApp New Snippet Storage Folder 선택 불가 원인 (등록: 2026-07-09) (✅ 완료, 78b9a31) ✅
+* depends: fSnippet#Issue951
+* 목적: paidApp에서 새 폴더 생성 직후 New Snippet 창의 Storage Folder 드롭다운이 빈 값으로 뜨는 문제(fSnippet 레포 Issue951)의 근본 원인. `handleGetFolders()`가 스니펫 인덱스 기반으로만 폴더 목록을 구성해, 스니펫이 하나도 없는 폴더는 생성 주체(paidApp/cliApp)와 무관하게 항상 목록에서 누락됨.
+* 상세:
+    - 원인: `APIRouter.handleGetFolders()` 가 `SnippetIndexManager.shared.entries`를 `folderName`으로 그룹핑해 `folderMap`을 만듦. 스니펫이 0개인 폴더는 `entries`에 아예 나타나지 않으므로 `folderMap`에 키가 생기지 않아 응답 `data`에서 누락됨.
+    - `handleCreateFolder()` 자체는 폴더 생성 후 `SnippetFileManager.shared.loadAllSnippets(force: true)`로 인덱스를 동기 리로드하지만, 빈 폴더는 애초에 인덱스할 스니펫이 없으므로 리로드해도 여전히 `folderMap`에 반영 안 됨 — REST 경유/직접 fs 접근 여부와 무관한 구조적 결함.
+* 구현 (`78b9a31`):
+    - 파일: `cli/fSnippetCli/Managers/APIRouter.swift` `handleGetFolders()`.
+    - `SnippetFileManager.shared.getSnippetFolders()`(디스크 실제 하위 디렉토리 스캔)로 얻은 폴더명 목록(`lastPathComponent`)을 인덱스 기반 `folderMap`과 union — `folderMap[name] == nil`인 디스크 폴더를 빈 배열로 추가. 빈 폴더는 `snippetCount:0`·`icon` 생략으로 정상 노출.
+* 검증 (2026-07-09, Release brew local 9/9 PASS 배포 후 curl):
+    - `POST /api/v2/folders {"name":"Issue186VerifyFolder"}` → 즉시 `GET /api/v2/folders` 응답 포함(`snippet_count:0`) 확인 → `DELETE .../Issue186VerifyFolder?force=true` 정리.
+
 ## Issue185: [Popup] 스니펫 팝업창에서 마침표(.) 입력 시 팝업이 닫힘 (등록: 2026-07-09) (✅ 완료, 3e68f26) ✅
 * 목적: 팝업 검색 필터 입력 중 `.` 을 치면 팝업이 닫혀 필터링이 끊김. `.` 을 필터 문자로 취급하도록 수정.
 * 상세:
