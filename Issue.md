@@ -8,6 +8,7 @@ date: 2026-04-07
 
 * Issue HWM: 184
 * Save Point :
+      - 2026.07.09: 4984401 (Fix(fSnippet#Issue949) 종료 직전 _config.yml 비동기 쓰기 flush — PATCH 유실 레이스 수정)
       - 2026.07.07: ba6521c (Fix(Issue184) quick-select modifier 적용 후 원복 수정 — general 엔드포인트 고아 키 제거·SSOT 키 통일)
       - 2026.07.06: ea3eb83 (Fix(Issue183) snippet_popup_hotkey 문자열 단일 SSOT 화 — 정수 2키 저장 제거 + 부팅 마이그레이션)
       - 2026.07.06: 4a526c1 (Feat(Issue182) quick-select modifier 저장 포맷 사람이 읽는 토큰 {command}/{control} 으로 변경)
@@ -67,6 +68,13 @@ date: 2026-04-07
 * 상세: 이 객체는 앱 시작 시 1회만 `popupQuickSelectModifierFlags`를 디스크 값으로 로드하고(`loadUISettings()`), 이후 갱신되지 않음. Issue941(hotkey)·Issue178(triggerKey)에서는 저장 직전 최신 config로 재동기화하는 방어 코드를 이미 추가했으나, quick-select 필드는 그 목록에서 누락되어 있었음. 그 결과 cliApp 자신의 History/설정창에서 다른 아무 설정(예: autoStart, language)을 저장하기만 해도 stale 값이 SSOT 키를 덮어씀.
 * 구현 명세: `_public/cli/fSnippetCli/Data/SettingsObservableObject.swift`의 `saveUISettings()` 리싱크 블록(Issue941/178 패턴 바로 다음)에 `snippet_popup_quick_select_modifier_flags` 재동기화 항목 추가.
 * 검증: brew local 9/9 PASS 배포 후 `_config.yml`·REST 양쪽 값 유지 확인.
+
+### Issue184_3: cliApp 종료 직전 _config.yml 비동기 쓰기 유실 레이스 (등록: 2026-07-09) (✅ 완료, 4984401) ✅
+* depends: Issue184_2
+* 목적: Issue184_2 수정 후에도 원복이 재현됨(main 레포 fSnippet#Issue949 참조). paidApp이 설정 PATCH 전송 직후 재시작을 트리거하면 cliApp이 100ms 뒤 강제 종료되는데, PATCH의 실제 디스크 쓰기가 비동기라 그 창을 놓치면 값이 파일에 한 번도 기록되지 않은 채 프로세스가 죽는 레이스 수정.
+* 상세: `PreferencesManager.set()`/`batchUpdate()`는 `textQueue`(concurrent, barrier)에 비동기로 `saveConfigInternal()`을 큐잉하고 HTTP 응답은 그 완료를 기다리지 않고 즉시 반환됨. paidApp의 `saveDraft()` → `needsRelaunch` → `shutdown()` 흐름은 PATCH 전송 후 그 디스크 쓰기 완료를 기다리지 않고 곧바로 cliApp에 `/api/v2/shutdown`(delayMs=0)을 보내고, cliApp은 100ms 뒤 `terminate(nil)`을 실행함. `applicationWillTerminate`에는 Logger용 `flush()`는 있었지만 `PreferencesManager` 쪽 동등한 flush가 없어, 대기 중인 barrier 쓰기가 끝나기 전에 프로세스가 죽을 수 있었음.
+* 구현 명세: `PreferencesManager`에 `flush()`(빈 barrier 블록으로 대기 중인 쓰기 완료 보장) 신설 + `fSnippetCliApp.applicationWillTerminate`에서 `logger.flush()`와 함께 호출.
+* 검증: curl로 PATCH 직후 즉시 `/api/v2/shutdown`(delayMs=0) 발사 → cliApp 재기동 후 값 정상 유지 확인(수정 전 재현, 수정 후 미재현).
 
 # 📕 중요
 
