@@ -443,6 +443,15 @@ class PreferencesManager: PreferencesManagerProtocol {
         }
     }
 
+    /// Issue949: 대기 중인 비동기 disk write(set/batchUpdate)를 모두 완료시킴.
+    /// textQueue는 barrier로 쓰기를 직렬화하므로, 빈 barrier 블록이 sync 반환하는 시점엔
+    /// 그 이전에 큐잉된 모든 saveConfigInternal() 이 이미 끝나 있음이 보장된다.
+    /// 프로세스 종료 직전(applicationWillTerminate 등)에 반드시 호출해야, 직전 REST PATCH의
+    /// 쓰기가 100ms 내 terminate()에 의해 유실되는 레이스를 막을 수 있다.
+    func flush() {
+        textQueue.sync(flags: .barrier) {}
+    }
+
     /// 공개 Setter (외부 호출용)
     func set(_ value: Any?, forKey key: String) {
         textQueue.async(flags: .barrier) {

@@ -172,6 +172,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         SnippetFileManager.shared.stopFolderWatching()
         APIServer.shared.stop()
         logI("fSnippetCli 종료")
+        PreferencesManager.shared.flush()  // Issue949: 종료 전 대기 중인 _config.yml 쓰기 완료 대기
         logger.flush()  // async 로그 큐 완료 대기 (종료 전 파일 기록 보장)
     }
 
