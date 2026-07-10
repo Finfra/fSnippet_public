@@ -578,7 +578,6 @@ class PreferencesManager: PreferencesManagerProtocol {
             // keys snippet_popup_modifier_flags / snippet_popup_key_code are obsolete)
             "snippet_popup_hotkey": "",  // Issue88: SSOT는 _config.yml. default 빈 값(미설정 시 등록 안 함)
             "snippet_popup_search_scope": "abbreviation",  // Issue184 기본값
-            "snippet_popup_height": 300.0,  // Issue184 기본값 (Legacy)
             "snippet_popup_rows": 10,  // Issue245 기본값
             "snippet_popup_width": 350.0,  // Issue355 기본값
 

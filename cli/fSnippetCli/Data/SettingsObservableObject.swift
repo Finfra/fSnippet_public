@@ -157,7 +157,6 @@ class SettingsObservableObject: ObservableObject {
         }
     }
 
-    @Published var popupHeight: CGFloat = 300.0  // 기본값 (legacy)
     @Published var popupWidth: CGFloat = 350.0 {  // Issue355: 구성 가능한 너비 (기본값 350.0)
         didSet {
             if !isInitializing {

@@ -927,8 +927,8 @@ class APIRouter {
       return prefs.get("snippet_popup_width") ?? 350
     }()
     let previewWidth: Int = {
-      if let d: Double = prefs.get("history.preview.width") { return Int(d) }
-      return prefs.get("history.preview.width") ?? 400
+      if let d: Double = prefs.get("snippet_popup_preview_width") { return Int(d) }
+      return prefs.get("snippet_popup_preview_width") ?? 400
     }()
     // Issue183: derive flags/keyCode from the hotkey string (single SSOT)
     let popupDispStr: String = prefs.get("snippet_popup_hotkey") ?? ""
@@ -1144,7 +1144,7 @@ class APIRouter {
       if let v = patch.searchScope { config["snippet_popup_search_scope"] = v }
       if let v = patch.popupRows { config["snippet_popup_rows"] = v }
       if let v = patch.popupWidth { config["snippet_popup_width"] = Double(v) }
-      if let v = patch.previewWindowWidth { config["history.preview.width"] = Double(v) }
+      if let v = patch.previewWindowWidth { config["snippet_popup_preview_width"] = Double(v) }
       if hotkeyChanged { config["snippet_popup_hotkey"] = canonicalDisplay }
       // Issue182: persist as a human-readable token ({command}/{control})
       if let v = patch.popupQuickSelectModifierFlags {

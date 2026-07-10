@@ -310,7 +310,6 @@ struct SnippetSettings: Codable, Equatable {
     var triggerBias: Int  // 트리거 바이어스 (+1: 한글자 더, -1: 한글자 덜, 0: 기본)
     // var triggerBiasAux: Int // Deprecated: Moved to AppSettingManager
     var popupSearchScope: PopupSearchScope  // Issue 178
-    var popupHeight: Double  // Issue 178 (Deprecated, maintained for backward compatibility)
     var popupRows: Int  // Issue 245: Height by rows
     var folderSymbols: [String: String]  // 폴더별 Suffix 매핑 (기존 folderSymbols 유지)
     var folderPrefixes: [String: String]  // 폴더별 Prefix 매핑 (신규 추가)
@@ -366,7 +365,6 @@ struct SnippetSettings: Codable, Equatable {
             triggerBias: 0,
             // triggerBiasAux: 0, // Deprecated
             popupSearchScope: .abbreviation,  // 기본값
-            popupHeight: 300.0,  // 기본값 (사용 안 함)
             popupRows: 10,  // Issue 245 기본값
             folderSymbols: [:],
             folderPrefixes: [:],
@@ -443,7 +441,6 @@ class SettingsManager {
 
     // Issue 178 Keys
     private let popupSearchScopeKey = "snippet_popup_search_scope"
-    private let popupHeightKey = "snippet_popup_height"
     private let popupRowsKey = "snippet_popup_rows"  // Issue 245
     private let popupPreviewWidthKey = "snippet_popup_preview_width"  // Issue 595
     private let lastSelectedFolderKey = "snippet_last_selected_folder"  // Issue 649
