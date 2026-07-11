@@ -509,18 +509,16 @@ class HistoryViewModel: ObservableObject {
     }
 
     func registerAndEditAsSnippet(item: ClipboardItem) {
-        let (keyword, content) = prepareSnippetData(item: item)
+        let (keyword, _) = prepareSnippetData(item: item)
 
         DispatchQueue.main.async {
-            // CL095: Open 'New Snippet' Editor (Draft Mode)
-            // Instead of creating a file immediately, we open the editor with pre-filled data.
-            // The file is created only when the user clicks 'Save'.
-            SnippetEditorWindowManager.shared.showNewEditor(
-                keyword: keyword, content: content,
-                relativeTo: HistoryViewerManager.shared.window?.frame)
+            // Issue188: SnippetEditorWindowManager is a cliApp stub (no editor GUI here) —
+            // route to paidApp's New Snippet screen instead. Content prefill isn't supported
+            // by the URL scheme yet, only keyword.
+            PaidAppManager.shared.handleNewSnippet(keyword: keyword)
 
             // Log action
-            logI("🧠 [HistoryViewModel] Opened New Snippet Editor for item: \(keyword)")
+            logI("🧠 [HistoryViewModel] Requested New Snippet via paidApp for item: \(keyword)")
         }
     }
 

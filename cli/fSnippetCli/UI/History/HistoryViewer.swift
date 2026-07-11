@@ -275,15 +275,20 @@ struct HistoryViewer: View {
         // Check for Configurable Hotkeys (Priority Over Navigation/Hardcoded)
 
         // 1. Register as Snippet (Or Save Image for image items) — 유료 버전 전용
+        // Issue188: previously fell through to child views in .previewView/.previewEdit,
+        // whose hardcoded Cmd+S handling is an unrelated feature (paid gate / save-text-edit).
+        // Now handled uniformly here regardless of chvMode.
         if TriggerKeyManager.shared.isHotkeyMatch(
             event: event, hotkeyString: settings.historyRegisterSnippetHotkey.toHotkeyString)
         {
-            if clipboardManager.chvMode == .list {
-                PaidAppManager.shared.handlePaidFeature()
-                return true
+            if let selectedItem = viewModel.items.first(where: { $0.id == viewModel.selectedId }) {
+                if selectedItem.type == .image {
+                    viewModel.saveImageLocally(item: selectedItem)
+                } else {
+                    viewModel.registerAndEditAsSnippet(item: selectedItem)
+                }
             }
-            // If in .previewView or .previewEdit, let the event pass to the child views (HistoryPreviewView / PreviewTextView)
-            // They have their own dedicated handling for Cmd+S.
+            return true
         }
 
         // 2. Toggle Preview (CL042_2)
@@ -610,6 +615,19 @@ struct HistoryViewer: View {
                     viewModel.isPaused
                         ? L10n("viewer.help.resume")
                         : L10n("viewer.help.pause"))
+
+                // Preview Panel Toggle (Issue187) — mirrors historyPreviewHotkey action as a clickable button
+                Button(action: {
+                    let currentItem = viewModel.items.first(where: { $0.id == viewModel.selectedId })
+                    HistoryPreviewManager.shared.togglePreview(with: currentItem)
+                }) {
+                    Text(settings.historyShowPreview ? "◀" : "▶")
+                        .font(.caption2.bold())
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(PlainButtonStyle())
+                .padding(.leading, 8)
+                .instantTooltip(L10n("viewer.help.toggle_preview"))
 
                 Spacer()
                 Spacer()
