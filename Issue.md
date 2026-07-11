@@ -6,24 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 186
+* Issue HWM: 188
 * Save Point :
       - 2026.07.09: 2e15877 (Fix(fSnippet#Issue949 후속) popupRows/searchScope/width/previewWidth stale-mirror 리싱크 추가)
-      - 2026.07.09: 78b9a31 (Fix(Issue186) GET /api/v2/folders 빈 폴더 누락 수정 — 디스크 폴더 union, paidApp Storage Folder 선택 불가 근본원인)
-      - 2026.07.09: 3e68f26 (Fix(Issue185) 스니펫 팝업창서 마침표(.) 입력 시 닫히던 문제 — 팝업 모드 한정 '.' close 예외)
-      - 2026.07.09: 4984401 (Fix(fSnippet#Issue949) 종료 직전 _config.yml 비동기 쓰기 flush — PATCH 유실 레이스 수정)
-      - 2026.07.07: ba6521c (Fix(Issue184) quick-select modifier 적용 후 원복 수정 — general 엔드포인트 고아 키 제거·SSOT 키 통일)
-      - 2026.07.06: ea3eb83 (Fix(Issue183) snippet_popup_hotkey 문자열 단일 SSOT 화 — 정수 2키 저장 제거 + 부팅 마이그레이션)
-      - 2026.07.06: 4a526c1 (Feat(Issue182) quick-select modifier 저장 포맷 사람이 읽는 토큰 {command}/{control} 으로 변경)
-      - 2026.07.06: 766c9cb (Fix(Issue179,Issue181) 트리거키 재시작 경로 안전화 — 중복저장·자기재실행·역방향사살 3결함 수정)
-      - 2026.07.05: 6a5fefe (Fix(Issue177) 메뉴바 keyEquivalent 동적 갱신 + Issue178 trigger_key stale-revert 수정)
-      - 2026.07.05: f381864 (Fix(Issue173) popup displayString 서버 SSOT 파생 + Issue174 검증 종결)
-      - 2026.07.03: c614df2 (Fix(Issue176) snippet_popup_hotkey 저장 brace 통일)
-      - 2026.06.30: 8bfc673 (Fix(Issue175) snippet_popup_hotkey brace 정정)
-      - 2026.06.28: 45cb4b9 (Close Issue172)
-      - 2026.06.15: 74d7598 (Fix(Settings): Issue926_1 폴더 규칙 batch-save stale revert 수정)
-      - 2026.06.09: 20e59d6 (Fix(Issue162): 모디파이어 트리거 combo-breaker 위치 이동 — 오른쪽 ⌘+Tab 오발동 차단)
-      - 2026.05.27: fb1a9dc (Fix(Issue155): collision delay 정밀화 — exact match 우선 + cleanBuffer prefix 검사)
 
 # 🤔 결정사항
 * `~/_git/__all/fSnippet/_doc_arch/paid_cli_protocol.md` 기준 진행(상위 메인 레포, paidApp앱과 연동)
@@ -40,6 +25,30 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue188: [Bug] "스니펫으로 등록" 기능 미작동 — cliApp 에디터 stub + 단축키 오배선 (등록: 2026-07-11) (✅ 완료, fab09b4 / paidApp fSnippet#b775cd4a) ✅
+* 목적: 클립보드 히스토리에서 "스니펫으로 등록"이 우클릭 메뉴·커스텀 단축키 양쪽 모두 실제로는 아무 것도 저장하지 않는 것으로 확인됨. 근본 원인 규명 및 정상 경로(paidApp New Snippet 창)로 재배선.
+* 상세 (코드 조사 결과):
+    - **우클릭 메뉴 경로**: `HistoryViewModel.registerAndEditAsSnippet(item:)` → `SnippetEditorWindowManager.shared.showNewEditor(...)` 호출. 그러나 cliApp 의 `SnippetEditorWindowManager` 는 "스니펫 편집 GUI는 fSnippet 메인 앱에서 제공됨" 로그만 남기는 **완전한 no-op stub** (`Managers/SnippetEditorWindowManager.swift`). 창도 안 뜨고 파일도 안 생김 — 에러도 없이 조용히 실패.
+    - **단축키 경로**: `HistoryViewer.handleKeyEvent()` 에서 `.list` 모드일 때만 `PaidAppManager.shared.handlePaidFeature()` 호출 — 이는 범용 "유료 기능 안내" 함수로 paidApp 의 **일반 설정 창**을 열 뿐, 스니펫 등록과 무관. `.previewView`/`.previewEdit` 모드에서는 이벤트가 자식 뷰로 넘어가는데, 그 자식 뷰들(`HistoryPreviewView`, `PreviewTextView`)의 하드코딩된 Cmd+S 처리는 **전혀 다른 기능**(각각: 유료 게이트 안내 / 편집 중인 텍스트를 클립보드 DB에 저장)이라 등록 함수(`registerAndEditAsSnippet`)를 아예 호출하지 않음.
+    - **올바른 기존 인프라 존재 확인**: `PaidAppManager.handleNewSnippet(keyword:)` (Issue157) 가 이미 paidApp 의 새 스니펫 창을 keyword 프리필로 여는 정확한 paid-gated 함수로 존재 (`Create` 버튼이 사용 중). 이번 버그는 히스토리 쪽 두 경로가 이 함수를 쓰지 않고 각각 stub/오배선 함수를 호출한 것.
+    - **알려진 한계 (후속 과제, 이번 수정 범위 밖)**: `PaidAppDetector.openNewSnippet(keyword:)` URL Scheme 은 keyword 만 전달하고 클립보드 본문(content) prefill 은 지원 안 함 — "Create" 버튼과 동일한 기존 제약이라 이번 수정에서 확장하지 않음.
+* 구현 (`fab09b4`, paidApp `b775cd4a`):
+    - `cli/fSnippetCli/UI/History/HistoryViewModel.swift` `registerAndEditAsSnippet(item:)` — `SnippetEditorWindowManager` stub 호출 제거, `PaidAppManager.shared.handleNewSnippet(keyword:)` 호출로 교체
+    - `cli/fSnippetCli/UI/History/HistoryViewer.swift` `handleKeyEvent()` 1번 분기 — `.list` 전용 `handlePaidFeature()` 대신 모든 chvMode 에서 선택 항목 조회 후 이미지면 `saveImageLocally`, 아니면 `registerAndEditAsSnippet` 호출하도록 통일 (우클릭 메뉴와 동일 함수 재사용)
+    - paidApp `Views/Settings/HistorySettingsView.swift` — "스니펫으로 등록" 필드 옆 물음표 아이콘 + `.help()` 툴팁 추가: "비어 있으면 단축키가 비활성화됩니다. 등록 시 fSnippet(유료 앱)의 새 스니펫 창이 열립니다." (10개 로케일 `Settings.strings` 동시 반영 — en/ko/ja/zh-Hans/zh-Hant/es/fr/de/ar/hi)
+    - **원 요청과 다른 지점**: 사용자는 "Cmd+S가 기본값" 문구를 요청했으나, 실제로는 Issue87(과거)에서 macOS 표준 저장 단축키 충돌 때문에 기본값을 의도적으로 빈 문자열로 바꾼 상태 — 이 설계 결정과 모순되므로 "Cmd+S 기본값" 문구 대신 "빈 값 = 비활성화" 로 정확하게 안내
+* 검증 (2026-07-11): paidApp Debug 빌드 성공, cliApp Release brew local 배포 9/9 PASS, REST API 헬스체크 정상, 두 앱 프로세스 실행 확인.
+
+## Issue187: 히스토리 뷰어에 미리보기 토글 UI 버튼 추가 (등록: 2026-07-11) (✅ 완료, fab09b4) ✅
+* 목적: 설정 > 히스토리 화면의 "미리보기 토글" 단축키 필드는 정상 작동하지만, 클립보드 히스토리 창 자체에는 마우스로 미리보기 패널을 켜고 끌 수 있는 UI가 없음. 단축키 미설정 사용자를 위해 클릭 가능한 토글 버튼 추가.
+* 상세:
+    - 대상: `cli/fSnippetCli/UI/History/HistoryViewer.swift` footerView (Pause Toggle 버튼 옆)
+    - 단축키 로직(`historyPreviewHotkey`, `TriggerKeyManager` 매칭)은 변경하지 않음 — UI 버튼만 추가, 기존 `HistoryPreviewManager.shared.togglePreview(with:)` 재사용
+* 구현 (`fab09b4`):
+    - `HistoryViewer.swift` footerView 에 `settings.historyShowPreview` 상태에 따라 `◀`/`▶` 표시하는 Button 추가, 클릭 시 현재 선택 항목으로 `togglePreview(with:)` 호출
+    - `LocalizedStringManager.swift` en/ko/ja 3개 로케일에 `viewer.help.toggle_preview` 툴팁 키 추가
+* 검증 (2026-07-11): cliApp Release brew local 배포 9/9 PASS, 앱 실행 확인.
+
 ## Issue186: GET /api/v2/folders에서 빈 폴더(스니펫 0개) 누락 — paidApp New Snippet Storage Folder 선택 불가 원인 (등록: 2026-07-09) (✅ 완료, 78b9a31) ✅
 * depends: fSnippet#Issue951
 * 목적: paidApp에서 새 폴더 생성 직후 New Snippet 창의 Storage Folder 드롭다운이 빈 값으로 뜨는 문제(fSnippet 레포 Issue951)의 근본 원인. `handleGetFolders()`가 스니펫 인덱스 기반으로만 폴더 목록을 구성해, 스니펫이 하나도 없는 폴더는 생성 주체(paidApp/cliApp)와 무관하게 항상 목록에서 누락됨.
