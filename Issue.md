@@ -49,6 +49,22 @@ date: 2026-04-07
     - `LocalizedStringManager.swift` en/ko/ja 3개 로케일에 `viewer.help.toggle_preview` 툴팁 키 추가
 * 검증 (2026-07-11): cliApp Release brew local 배포 9/9 PASS, 앱 실행 확인.
 
+### Issue187_1: [후속] 미리보기 토글 버튼 위치 이동 (등록: 2026-07-11) (✅ 완료, 717efe8) ✅
+* 목적: Issue187 로 추가된 미리보기 토글 버튼(하단 좌측 `◀`/`▶`)의 발견성이 낮음. 더 적절한 위치로 이동.
+* 결정 (2026-07-12, hub 폼 회수): 이동 목표 = **상단 검색바 우측(필터 아이콘 옆)**. 상태바 숨김(`historyShowStatusBar=false`)과 무관하게 항상 보이고, 스크린샷 화살표 의도(우상단)에 부합.
+* 구현 (`717efe8`):
+    - `cli/fSnippetCli/UI/History/HistorySearchBar.swift` — 필터 Menu 옆에 `sidebar.right` SF Symbol 토글 버튼 추가. `previewShown: Bool` + `onTogglePreview: () -> Void` 파라미터 신설. `previewShown` 시 accentColor, 아니면 secondary.
+    - `cli/fSnippetCli/UI/History/HistoryViewer.swift` — footerView 좌측 기존 미리보기 토글 버튼 제거, `HistorySearchBar(...)` 호출부에 `previewShown: settings.historyShowPreview` + `onTogglePreview`(선택 항목 조회 후 `HistoryPreviewManager.shared.togglePreview(with:)`) 전달.
+* 검증 (2026-07-12): cliApp Release brew local 배포 9/9 PASS, REST API 헬스체크 정상, 앱 실행 확인.
+
+### Issue187_2: [후속] 미리보기 토글 버튼 풍선 도움말 다국어 (등록: 2026-07-11) (✅ 완료, 717efe8) ✅
+* 목적: 토글 버튼에 hover 풍선 도움말(툴팁)을 붙이고 다국어로 표시.
+* 조사 정정: 등록 시 "10개 로케일 / 나머지 7개 확장"은 paidApp `Settings.strings` 기준 오판단. **cliApp `LocalizedStringManager` 는 en/ko/ja 3개 로케일만 지원**하며, `viewer.help.toggle_preview` 키가 이미 3개 모두에 존재(Issue187). 즉 다국어 풍선 자체는 Issue187 에서 이미 구현됨.
+* 구현 (`717efe8`):
+    - Issue187_1 로 버튼을 상단으로 이관하면서 툴팁을 함께 이전 — `.instantTooltip(L10n("viewer.help.toggle_preview"))` (딜레이 없는 커스텀 풍선, `InstantTooltipModifier`) 유지.
+    - 접근성/네이티브 툴팁 보강: `.help(L10n("viewer.help.toggle_preview"))` 추가 부착. 둘 다 en/ko/ja i18n.
+* 검증 (2026-07-12): 위 187_1 검증에 포함(동일 빌드·배포).
+
 ## Issue186: GET /api/v2/folders에서 빈 폴더(스니펫 0개) 누락 — paidApp New Snippet Storage Folder 선택 불가 원인 (등록: 2026-07-09) (✅ 완료, 78b9a31) ✅
 * depends: fSnippet#Issue951
 * 목적: paidApp에서 새 폴더 생성 직후 New Snippet 창의 Storage Folder 드롭다운이 빈 값으로 뜨는 문제(fSnippet 레포 Issue951)의 근본 원인. `handleGetFolders()`가 스니펫 인덱스 기반으로만 폴더 목록을 구성해, 스니펫이 하나도 없는 폴더는 생성 주체(paidApp/cliApp)와 무관하게 항상 목록에서 누락됨.
