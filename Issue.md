@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 188
+* Issue HWM: 189
 * Save Point :
       - 2026.07.09: 2e15877 (Fix(fSnippet#Issue949 후속) popupRows/searchScope/width/previewWidth stale-mirror 리싱크 추가)
 
@@ -17,6 +17,37 @@ date: 2026-04-07
 # 🌱 이슈후보
 
 # 🚧 진행중
+## Issue189: [Bug] Interactive View(Preview) Cmd+S 가 스니펫 등록 대신 설정창 오픈 — Issue188 후속 (등록: 2026-07-12) (본체 ✅ 완료, Hash: d5d1df7)
+* depends: Issue188
+* 목적: 클립보드 히스토리 Preview 창(Interactive View)에서 Cmd+S 를 누르면 paidApp 새 스니펫 창이 열려야 하나, 실제로는 paidApp 일반 설정창이 열림. Issue188 에서 리스트 모드 경로는 `registerAndEditAsSnippet` 으로 통일했으나 Preview Window 경로가 누락됨.
+* 상세 (코드 조사 결과):
+    - Issue188 수정(`HistoryViewer.handleKeyEvent` 통일 처리)의 monitor 는 `isPreviewWindow(event.window)` 이면 pass-through(`HistoryViewer.swift` L170-173) + `isHistoryWindow` strict guard 로 Preview Window 이벤트가 `handleKeyEvent()` 에 도달하지 못함 — "Now handled uniformly here regardless of chvMode" 주석이 Preview Window 케이스에는 미적용.
+    - 대신 Preview Window 자체 로컬 monitor(`HistoryPreviewView.swift` L200-211)의 구버전 하드코딩 분기(keyCode 1 + Cmd, `.previewView`)가 이벤트를 consume 하고 `PaidAppManager.handlePaidFeature()` 호출 — 이 함수는 범용 paid 게이트로 모든 분기가 `openSettings()` 로 종결(설정창).
+    - 올바른 함수는 Issue188 에서 재배선된 `HistoryViewModel.registerAndEditAsSnippet(item:)` → `PaidAppManager.handleNewSnippet(keyword:)` (이미지면 `saveImageLocally`).
+* 구현 명세:
+    - `HistoryViewerManager` 에 forwarding 메서드 `registerItemAsSnippet(_:)` 추가 (private viewModel 로 위임: image → `saveImageLocally`, else → `registerAndEditAsSnippet` — 리스트 모드 분기와 동일 로직 재사용)
+    - `HistoryPreviewView.swift` Cmd+S 분기에서 `handlePaidFeature()` 제거 → `HistoryViewerManager.shared.registerItemAsSnippet(state.currentItem ?? item)` 호출
+    - Edit 모드(`PreviewTextView` CL045_10 Cmd+S = 텍스트 편집 저장)는 별개 기능이므로 변경 없음. Preview 상태바 하드코딩 힌트(⌘s)와 트리거 일치 유지 — 설정 hotkey 와의 통일은 범위 밖.
+* 검증: Preview 창에서 Cmd+S → paidApp "새 스니펫" 창 오픈 확인 (2026-07-13 사용자 스크린샷). 후속 결함은 아래 서브 이슈로 분리 — 서브 이슈 종결 시 본 트리 전체 ✅ 완료 이동.
+
+### Issue189_1: [후속/Bug] 새 스니펫 창 자동 채움 실패 — 내용 미입력 + 키워드 비정상 (등록: 2026-07-13)
+* 목적: Cmd+S 로 열린 paidApp "새 스니펫" 창에 선택한 클립보드 항목 텍스트가 **내용**으로 자동 입력되어야 하나 공란으로 열림. **키워드**도 `d998` 같은 비의도 값이 자동 입력됨.
+* 상세 (재현):
+    - 히스토리에서 텍스트 항목 "해야함"(3 chars) 선택 → Cmd+S → 새 스니펫 창: 저장 폴더 `Question_prompt_engineering`, 키워드 `d998`, 내용 공란 (2026-07-13 스크린샷).
+    - 경로: `registerAndEditAsSnippet(item:)` → `PaidAppManager.handleNewSnippet(keyword:)` — 시그니처가 keyword 만 전달, 항목 content 전달 파라미터 부재 추정. `d998` 키워드의 생성 출처(자동 발번? 이전 상태 잔존?) 규명 필요.
+* 구현 명세:
+    - cliApp → paidApp 새 스니펫 요청에 content 포함 (URL scheme/REST 페이로드 확장 — paidApp 측 수신·프리필 처리 포함, 필요 시 paidApp fSnippet 레포 이슈 페어 등록)
+    - 키워드 기본값 규칙 정의 (공란 시작 권장 또는 항목 기반 제안값) + `d998` 오염원 제거
+    - 검증: 텍스트 항목 선택 → Cmd+S → 내용=항목 텍스트, 키워드=규칙값 확인
+
+### Issue189_2: [후속/UX] 리스트 모드 로우 포커스 상태에서도 Cmd+S 스니펫 등록 작동 (등록: 2026-07-13)
+* 목적: Cmd+S 스니펫 등록이 현재 Preview(Interactive View) 모드에서만 작동. 리스트 뷰에서 로우에 포커스(선택)만 있어도 동일하게 작동해야 함.
+* 상세:
+    - 리스트 모드 상태바에 "⌘s: Save To Snippet (Paid Only)" 힌트가 노출되나 실제 미작동 (2026-07-13 스크린샷).
+    - Issue188 이 리스트 모드 경로를 `HistoryViewer.handleKeyEvent` 로 통일했으나 현재 Cmd+S 이벤트가 해당 분기에 도달하지 않거나 분기 누락 추정 — monitor 도달 여부(`isHistoryWindow` guard·chvMode 분기) 조사 필요.
+* 구현 명세:
+    - 리스트 모드 keyDown 경로에서 Cmd+S → 선택 로우 item 으로 `registerItemAsSnippet(_:)` 라우팅 (Preview 와 동일 paid 게이트)
+    - 검증: 리스트 로우 선택(프리뷰 off) → Cmd+S → 새 스니펫 창 오픈
 
 # 📕 중요
 
@@ -406,7 +437,7 @@ date: 2026-04-07
 * 1차 가설(틀림): Karabiner 3set390 manipulator [183] command leak → ⌘; 오발동. flog 상 `{⌘;}` Registered Shortcut 발동은 사실이나 증상이었음
 * 진짜 root cause: `자!` abbreviation 에 매칭되는 **스니펫 파일이 폴더에 존재하지 않았음**. 스니펫 부재 → `AbbreviationMatcher` 매칭 실패 → 확장 안 됨, ⌘; 발동은 매칭 실패의 부수 증상. **스니펫 생성으로 해결**
 * 조치: 누락 스니펫 파일 생성 (cliApp 코드·Karabiner 룰 변경 불필요)
-* 기록: `cli/_doc_work/debug_TECH.md` "세벌속기 자! 입력 시 ⌘; 글로벌 단축키 오발동" 사례 — 교훈: 단축키 충돌 증상이 스니펫 부재를 가림, 대상 스니펫 파일 존재 먼저 확인
+* 기록: `cli/_doc_base/debug_TECH.md` "세벌속기 자! 입력 시 ⌘; 글로벌 단축키 오발동" 사례 — 교훈: 단축키 충돌 증상이 스니펫 부재를 가림, 대상 스니펫 파일 존재 먼저 확인
 * 참고: 조사 중 작성한 Karabiner 수정 가이드 `cli/_doc_work/z_htm/hub_htm_20260603_193247_a_issue159-guide.htm` (불필요해짐, 참고용 보존)
 
 ## Issue158: [cliApp] Placeholder 입력창 — 초기 선택 상태 텍스트가 paste 시 교체되지 않고 prepend됨 (등록: 2026-05-31) (✅ 완료, b0b9872) ✅
@@ -1020,7 +1051,7 @@ date: 2026-04-07
 * 부수 발견:
     - Right Command 떼는 flagsChanged 이벤트 callback 도달 추적은 별도 회귀 검토 필요 (현 fix로 트리거는 회복했으나 trace 가시성 부족) → Issue119 로 분리
 * 참고 문서:
-    - `cli/_doc_work/debug_TECH.md` — "CGEventTap callback hot-path 비용 → tap timeout 빈발 ..." 사례 등록
+    - `cli/_doc_base/debug_TECH.md` — "CGEventTap callback hot-path 비용 → tap timeout 빈발 ..." 사례 등록
 
 ## Issue117: [Critical/Bug] Accessibility 권한 런타임 박탈 시 시스템 슬로다운 — 감지·알림·종료 절차 도입 (등록: 2026-05-10, 완료: 2026-05-10) (Hash: 7ee74e9)
 * 목적: 시스템 설정에서 fSnippetCli.app의 접근성 권한을 박탈하면 `CGEventTap` 재시도 루프(`handleTapDisabled` backoff)가 메인 큐를 점유하여 시스템 전반이 급격히 느려지던 회귀를 차단. 박탈 즉시 NSAlert로 안내 후 앱 자체 종료.
