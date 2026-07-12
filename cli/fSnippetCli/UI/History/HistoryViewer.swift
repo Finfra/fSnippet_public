@@ -283,15 +283,36 @@ struct HistoryViewer: View {
         // Issue188: previously fell through to child views in .previewView/.previewEdit,
         // whose hardcoded Cmd+S handling is an unrelated feature (paid gate / save-text-edit).
         // Now handled uniformly here regardless of chvMode.
-        if TriggerKeyManager.shared.isHotkeyMatch(
-            event: event, hotkeyString: settings.historyRegisterSnippetHotkey.toHotkeyString)
-        {
-            if let selectedItem = viewModel.items.first(where: { $0.id == viewModel.selectedId }) {
+        // Issue189_2: the Preview window and the status-bar hint have always advertised a
+        // hardcoded Cmd+S, while this branch only matched the configurable hotkey — which
+        // defaults to unset (Issue87) or may hold a custom value (e.g. "{⌥⌘f6}"), so Cmd+S
+        // in list mode silently did nothing. Accept Cmd+S unconditionally (window-local
+        // monitor — no global conflict) plus the configured hotkey when set.
+        let registerHotkey = settings.historyRegisterSnippetHotkey.toHotkeyString
+        let isCmdS =
+            event.keyCode == 1
+            && event.modifierFlags.intersection([.control, .option, .command, .shift])
+                == [.command]
+        let isRegisterShortcut =
+            isCmdS
+            || (!registerHotkey.isEmpty
+                && TriggerKeyManager.shared.isHotkeyMatch(event: event, hotkeyString: registerHotkey))
+        if isRegisterShortcut {
+            // Issue189_2: mirror the Enter branch — fall back to the multi-select set when
+            // selectedId is nil (Cmd-click selection) so a focused row never fails silently.
+            let selectedItem =
+                viewModel.items.first(where: { $0.id == viewModel.selectedId })
+                ?? viewModel.selectedIds.first.flatMap { id in
+                    viewModel.items.first(where: { $0.id == id })
+                }
+            if let selectedItem {
                 if selectedItem.type == .image {
                     viewModel.saveImageLocally(item: selectedItem)
                 } else {
                     viewModel.registerAndEditAsSnippet(item: selectedItem)
                 }
+            } else {
+                logD("📋 [HistoryViewer] Register-snippet shortcut with no selected row — ignored")
             }
             return true
         }
