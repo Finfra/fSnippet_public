@@ -275,7 +275,8 @@ FORMULA
     if [ -f "$CONFIG_FILE" ]; then
         # YAML 형식: launchAtLogin: true/false
         # grep -A1 로 다음 줄도 함께 추출 (멀티라인 YAML 대비), sed로 불린 값 추출
-        LAUNCH_AT_LOGIN=$(grep "launchAtLogin:" "$CONFIG_FILE" | head -1 | awk '{print $2}' | tr -d '\r')
+        # _config.yml uses snake_case `launch_at_login`; accept camelCase too for safety.
+        LAUNCH_AT_LOGIN=$(grep -E "launch_at_login:|launchAtLogin:" "$CONFIG_FILE" | head -1 | awk '{print $2}' | tr -d '\r')
         [ -z "$LAUNCH_AT_LOGIN" ] && LAUNCH_AT_LOGIN="false"
         echo "[config] launchAtLogin: $LAUNCH_AT_LOGIN (from $CONFIG_FILE)"
     else
@@ -694,7 +695,19 @@ case "$SUB" in
         cmd_local
         ;;
     publish)
-        cmd_publish
+        # publish 성공 시 로컬 머신에도 설치 (사용자 요청: deploy 시 local install 동반).
+        # 원격 tap push 후 개발 머신이 최신 릴리스를 곧바로 실행하도록 cmd_local 체이닝.
+        if cmd_publish; then
+            echo ""
+            echo "╔══════════════════════════════════════════╗"
+            echo "║  publish 후속: 로컬 install (brew local) ║"
+            echo "╚══════════════════════════════════════════╝"
+            cmd_local
+        else
+            PUB_STATUS=$?
+            echo "❌ publish 실패 (exit=$PUB_STATUS) — 로컬 install 생략"
+            exit "$PUB_STATUS"
+        fi
         ;;
     status)
         cmd_status
