@@ -169,7 +169,7 @@ def process_file(file_path, mapping, dry_run=False):
 def main():
     parser = argparse.ArgumentParser(description='Apply emojis to file paths in markdown files.')
     parser.add_argument('files', metavar='F', type=str, nargs='+', help='Files to process')
-    parser.add_argument('--mapping', default='_doc_design/EmojiForFile.csv', help='Path to CSV mapping file')
+    parser.add_argument('--mapping', default='cli/_doc_base/EmojiForFile.csv', help='Path to CSV mapping file')
     parser.add_argument('--dry-run', action='store_true', help='Preview changes without modifying files')
     
     args = parser.parse_args()

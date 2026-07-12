@@ -9,7 +9,7 @@ from pathlib import Path
 
 # Paths
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
-CSV_PATH = PROJECT_ROOT / "_doc_design" / "EmojiForFile.csv"
+CSV_PATH = PROJECT_ROOT / "cli" / "_doc_base" / "EmojiForFile.csv"
 
 # Emoji Pool for fallback (using mostly distinct objects/symbols)
 EMOJI_POOL = [

@@ -66,7 +66,7 @@ def normalize_file(file_path, mapping):
         print(f"Normalized: {file_path}")
 
 if __name__ == "__main__":
-    csv_url = '_doc_design/EmojiForFile.csv'
+    csv_url = 'cli/_doc_base/EmojiForFile.csv'
     mapping = load_mapping(csv_url)
     files = sys.argv[1:]
     for f in files:

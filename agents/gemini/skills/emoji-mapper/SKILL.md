@@ -6,11 +6,11 @@ version: 1.0.0
 
 # Emoji Mapper Skill (이모지 매퍼 스킬)
 
-이 스킬은 중앙 정의 파일(`_doc_arch/EmojiForFile.csv`)을 기반으로 문서 파일(Mermaid 다이어그램 등)의 클래스 이름이나 기타 키워드에 이모지를 자동으로 추가하는 프로세스를 자동화합니다.
+이 스킬은 중앙 정의 파일(`cli/_doc_base/EmojiForFile.csv`)을 기반으로 문서 파일(Mermaid 다이어그램 등)의 클래스 이름이나 기타 키워드에 이모지를 자동으로 추가하는 프로세스를 자동화합니다.
 
 ## 📋 필수 조건 (Prerequisites)
 - Python 3 설치 필요
-- `_doc_arch/EmojiForFile.csv` 경로에 매핑 파일 필요 (형식: `emoji,ClassName,filePath`)
+- `cli/_doc_base/EmojiForFile.csv` 경로에 매핑 파일 필요 (형식: `emoji,ClassName,filePath`)
 
 ## 🚀 사용법 (Usage)
 
@@ -29,10 +29,10 @@ python3 .agent/skills/emoji-mapper/scripts/apply_emojis.py --dry-run "경로/파
 ```
 
 ## 🛠️ 설정 (Configuration)
-매핑 파일 경로는 현재 프로젝트 루트 기준 `_doc_arch/EmojiForFile.csv`로 하드코딩되어 있습니다. 반드시 프로젝트 루트에서 스크립트를 실행하십시오.
+매핑 파일 경로는 현재 프로젝트 루트 기준 `cli/_doc_base/EmojiForFile.csv`로 하드코딩되어 있습니다. 반드시 프로젝트 루트에서 스크립트를 실행하십시오.
 
 ## 📝 로직 (Logic)
-1. `_doc_arch/EmojiForFile.csv`를 로드합니다.
+1. `cli/_doc_base/EmojiForFile.csv`를 로드합니다.
 2. 키워드를 길이순(내림차순)으로 정렬하여 긴 클래스 이름부터 일치시킵니다.
 3. 세부 로직:
     - YAML Frontmatter(`---` 사이의 줄)는 건너뜁니다.

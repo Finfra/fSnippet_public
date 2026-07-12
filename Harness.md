@@ -70,7 +70,7 @@
 | `refactor` | 리팩토링 전용 |
 | `rule-manager` | 규칙 관리 전용 |
 | `verify` | 빌드 검증 전용 |
-| `tech-consultant` | 디버깅 선례·코드위치·연관이슈 조회 + 이슈 트리 큐레이션 (경로기반 도메인 라우팅). 데이터: `cli/_doc_arch/{tech-consultant.md,domain-map.yml,issue-graph.json}` + `cli/_doc_work/debug/{DOMAIN}_tech.md` |
+| `tech-consultant` | 디버깅 선례·코드위치·연관이슈 조회 + 이슈 트리 큐레이션 (경로기반 도메인 라우팅). 데이터: `cli/_doc_arch/tech-consultant.md` + `cli/_doc_base/{domain-map.yml,issue-graph.json}` + `cli/_doc_base/debug/{DOMAIN}_tech.md` |
 
 ## Rules
 
