@@ -27,10 +27,10 @@ struct PopupUIConstants {
     static func calculateHistoryWindowHeight(rows: Int, showStatusBar: Bool) -> CGFloat {
         // 엄격한 높이 계산: 헤더(36) + 패딩(10) + 리스트(행 * 44)
         let baseHeight = calculateWindowHeight(rows: rows+2)
-        
+
         if showStatusBar {
             // 컴팩트 상태 표시줄 높이 추가 (26)
-            return baseHeight + statusBarHeight 
+            return baseHeight + statusBarHeight
         } else {
             return baseHeight
         }

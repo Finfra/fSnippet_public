@@ -36,6 +36,22 @@ class HistoryViewerManager: NSObject, NSWindowDelegate {
         return self.window === window
     }
 
+    // Issue189: Unified "Register as Snippet" routing for the Preview Window.
+    // The list-mode monitor (HistoryViewer.handleKeyEvent) never receives events
+    // whose window is the Preview Window, so HistoryPreviewView forwards here.
+    // Mirrors the list-mode branch: image -> save locally, else -> paidApp New Snippet.
+    func registerItemAsSnippet(_ item: ClipboardItem) {
+        guard let viewModel = viewModel else {
+            logW("🎞️ [HistoryViewerManager] registerItemAsSnippet — viewModel is nil, ignored")
+            return
+        }
+        if item.type == .image {
+            viewModel.saveImageLocally(item: item)
+        } else {
+            viewModel.registerAndEditAsSnippet(item: item)
+        }
+    }
+
     func show(cursorRect: CGRect? = nil, onSelection: ((String) -> Void)? = nil) {
         logD("🎞️ [HistoryViewerManager] show() called")
 

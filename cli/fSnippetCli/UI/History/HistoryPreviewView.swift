@@ -170,13 +170,15 @@ struct HistoryPreviewView: View {
                 }
             }
 
-            // Status Bar
-            statusBarView
-                .background(
-                    ZStack {
-                        Color(NSColor.windowBackgroundColor)
-                        PopupUIConstants.clipboardBackgroundColor
-                    })
+            // Status Bar (gated by history.showStatusBar — was always shown)
+            if settings.historyShowStatusBar {
+                statusBarView
+                    .background(
+                        ZStack {
+                            Color(NSColor.windowBackgroundColor)
+                            PopupUIConstants.clipboardBackgroundColor
+                        })
+            }
         }
         .onAppear {
             // Add Window-Local Monitor for Tab/Shift+Tab
@@ -199,10 +201,13 @@ struct HistoryPreviewView: View {
                     if event.modifierFlags.contains(.command) {
                         if clipboardManager.chvMode == .previewView && isKeyWindow {
                             logD(
-                                "👓 [HistoryPreviewView] Cmd+S pressed in Interactive View. Paid version only."
+                                "👓 [HistoryPreviewView] Cmd+S pressed in Interactive View. Register as Snippet."
                             )
-                            // 유료 버전 전용 기능 안내
-                            PaidAppManager.shared.handlePaidFeature()
+                            // Issue189: route to the unified register path (was handlePaidFeature,
+                            // which only opened paidApp Settings). Paid gate is applied inside
+                            // registerAndEditAsSnippet -> handleNewSnippet(keyword:).
+                            HistoryViewerManager.shared.registerItemAsSnippet(
+                                state.currentItem ?? item)
                             return nil  // Consume
                         }
                     }
