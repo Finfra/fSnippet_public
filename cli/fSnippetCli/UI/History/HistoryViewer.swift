@@ -33,7 +33,12 @@ struct HistoryViewer: View {
                 },
                 selectedFilter: $viewModel.selectedFilter,
                 availableApps: viewModel.availableApps,
-                isFilterFocused: $isFilterFocused  // CL078: Bind focus state
+                isFilterFocused: $isFilterFocused,  // CL078: Bind focus state
+                previewShown: settings.historyShowPreview,  // Issue187_1: relocated preview toggle state
+                onTogglePreview: {  // Issue187_1: relocated preview toggle action (was footer button)
+                    let currentItem = viewModel.items.first(where: { $0.id == viewModel.selectedId })
+                    HistoryPreviewManager.shared.togglePreview(with: currentItem)
+                }
             )
             .padding(.horizontal, 12)
             .padding(.bottom, 12)
@@ -616,18 +621,8 @@ struct HistoryViewer: View {
                         ? L10n("viewer.help.resume")
                         : L10n("viewer.help.pause"))
 
-                // Preview Panel Toggle (Issue187) — mirrors historyPreviewHotkey action as a clickable button
-                Button(action: {
-                    let currentItem = viewModel.items.first(where: { $0.id == viewModel.selectedId })
-                    HistoryPreviewManager.shared.togglePreview(with: currentItem)
-                }) {
-                    Text(settings.historyShowPreview ? "◀" : "▶")
-                        .font(.caption2.bold())
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(PlainButtonStyle())
-                .padding(.leading, 8)
-                .instantTooltip(L10n("viewer.help.toggle_preview"))
+                // Preview Panel Toggle relocated to HistorySearchBar top-right (Issue187_1).
+                // Balloon tooltip (instantTooltip) + native .help() live with the button there.
 
                 Spacer()
                 Spacer()

@@ -11,7 +11,11 @@ struct HistorySearchBar: View {
     
     // CL078: Filter Focus State (Hoisted)
     var isFilterFocused: FocusState<Bool>.Binding
-    
+
+    // Issue187_1: Preview panel toggle state + action (relocated from footer status bar)
+    var previewShown: Bool
+    var onTogglePreview: () -> Void
+
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass")
@@ -92,6 +96,17 @@ struct HistorySearchBar: View {
             .menuStyle(BorderlessButtonMenuStyle())
             .fixedSize()
             .focused(isFilterFocused)
+
+            // Issue187_1: Preview panel toggle, relocated here from the footer status bar.
+            // Issue187_2: instant balloon tooltip + native .help(), both localized via L10n (en/ko/ja).
+            Button(action: onTogglePreview) {
+                Image(systemName: "sidebar.right")
+                    .foregroundColor(previewShown ? .accentColor : .secondary)
+                    .frame(width: 16)
+            }
+            .buttonStyle(PlainButtonStyle())
+            .help(L10n("viewer.help.toggle_preview"))
+            .instantTooltip(L10n("viewer.help.toggle_preview"))
         }
         .padding(8)
         .background(Color.secondary.opacity(0.1))
