@@ -794,7 +794,7 @@ date: 2026-05-03
     - `/run` 커맨드 라우팅 테이블에 `tcc-brew` 항목 추가
     - 기존 `tcc` 옵션 유지 (Xcode Debug 경로 사용자용)
 * 종결 사유 (2026-04-19):
-    - Save point 커밋 `d4749f6` 에서 `fsc-deploy-brew/debug 스크립트 TCC 꼬임·심링크 경로 일원화` 완료
+    - checkpoint 커밋 `d4749f6` 에서 `fsc-deploy-brew/debug 스크립트 TCC 꼬임·심링크 경로 일원화` 완료
     - LaunchAgent 단일 경로(opt_prefix) + 심링크 경로 통합으로 TCC 승인 경로가 1회로 수렴 (Issue46 해결 경로에 포함)
     - brew 서비스 경로 전용 분리 서브커맨드의 필요성 자체가 해소됨 → obsolete 처리
 
