@@ -17,7 +17,14 @@ date: 2026-04-07
 # 🌱 이슈후보
 
 # 🚧 진행중
-## Issue189: [Bug] Interactive View(Preview) Cmd+S 가 스니펫 등록 대신 설정창 오픈 — Issue188 후속 (등록: 2026-07-12) (본체 ✅ 완료, Hash: d5d1df7)
+# 📕 중요
+
+# 📙 일반
+
+# 📗 선택
+
+# ✅ 완료
+## Issue189: [Bug] Interactive View(Preview) Cmd+S 가 스니펫 등록 대신 설정창 오픈 — Issue188 후속 (등록: 2026-07-12) (✅ 완료, d5d1df7) ✅
 * depends: Issue188
 * 목적: 클립보드 히스토리 Preview 창(Interactive View)에서 Cmd+S 를 누르면 paidApp 새 스니펫 창이 열려야 하나, 실제로는 paidApp 일반 설정창이 열림. Issue188 에서 리스트 모드 경로는 `registerAndEditAsSnippet` 으로 통일했으나 Preview Window 경로가 누락됨.
 * 상세 (코드 조사 결과):
@@ -28,9 +35,9 @@ date: 2026-04-07
     - `HistoryViewerManager` 에 forwarding 메서드 `registerItemAsSnippet(_:)` 추가 (private viewModel 로 위임: image → `saveImageLocally`, else → `registerAndEditAsSnippet` — 리스트 모드 분기와 동일 로직 재사용)
     - `HistoryPreviewView.swift` Cmd+S 분기에서 `handlePaidFeature()` 제거 → `HistoryViewerManager.shared.registerItemAsSnippet(state.currentItem ?? item)` 호출
     - Edit 모드(`PreviewTextView` CL045_10 Cmd+S = 텍스트 편집 저장)는 별개 기능이므로 변경 없음. Preview 상태바 하드코딩 힌트(⌘s)와 트리거 일치 유지 — 설정 hotkey 와의 통일은 범위 밖.
-* 검증: Preview 창에서 Cmd+S → paidApp "새 스니펫" 창 오픈 확인 (2026-07-13 사용자 스크린샷). 후속 결함은 아래 서브 이슈로 분리 — 서브 이슈 종결 시 본 트리 전체 ✅ 완료 이동.
+* 검증: Preview 창에서 Cmd+S → paidApp "새 스니펫" 창 오픈 확인 (2026-07-13 사용자 스크린샷). 후속 결함은 아래 서브 이슈로 분리하여 함께 종결.
 
-### Issue189_1: [후속/Bug] 새 스니펫 창 자동 채움 실패 — 내용 미입력 + 키워드 비정상 (등록: 2026-07-13)
+### Issue189_1: [후속/Bug] 새 스니펫 창 자동 채움 실패 — 내용 미입력 + 키워드 비정상 (등록: 2026-07-13) (✅ 완료, b19f54c / paidApp fSnippet#Issue955 14549d1d) ✅
 * 목적: Cmd+S 로 열린 paidApp "새 스니펫" 창에 선택한 클립보드 항목 텍스트가 **내용**으로 자동 입력되어야 하나 공란으로 열림. **키워드**도 `d998` 같은 비의도 값이 자동 입력됨.
 * 상세 (재현):
     - 히스토리에서 텍스트 항목 "해야함"(3 chars) 선택 → Cmd+S → 새 스니펫 창: 저장 폴더 `Question_prompt_engineering`, 키워드 `d998`, 내용 공란 (2026-07-13 스크린샷).
@@ -39,8 +46,13 @@ date: 2026-04-07
     - cliApp → paidApp 새 스니펫 요청에 content 포함 (URL scheme/REST 페이로드 확장 — paidApp 측 수신·프리필 처리 포함, 필요 시 paidApp fSnippet 레포 이슈 페어 등록)
     - 키워드 기본값 규칙 정의 (공란 시작 권장 또는 항목 기반 제안값) + `d998` 오염원 제거
     - 검증: 텍스트 항목 선택 → Cmd+S → 내용=항목 텍스트, 키워드=규칙값 확인
+* 해결 (2026-07-13):
+    - **`d998` 원인 확정**: `prepareSnippetData` 의 "suggestion+4hex해시" 자동 키워드("해야함d998")가 `PaidAppDetector.sanitizeKeyword` 의 ASCII 화이트리스트에 걸려 한글이 제거되고 해시(`d998`)만 잔존.
+    - cliApp: `openNewSnippet(keyword:content:)` content 파라미터 추가(32KB UTF-8 clamp) + sanitize 를 프로토콜 정합 printable 필터(128B)로 완화 + 히스토리 등록 경로는 keyword 공란 전송(사용자 직접 입력). `handleNewSnippet`/`launchAndOpenNewSnippet` content 스레딩 (기본 nil — 팝업 Create 경로 무변경).
+    - paidApp: URL Scheme `content` 수신·새 스니펫 창 내용 프리필 + `paid_cli_protocol.md` §1.2 갱신 — fSnippet#Issue955 (14549d1d) pm-do 위임 처리.
+    - 검증: 내용="Hello\nWorld Test" 프리필 + 키워드 공란 확인 (2026-07-13 사용자 스크린샷).
 
-### Issue189_2: [후속/UX] 리스트 모드 로우 포커스 상태에서도 Cmd+S 스니펫 등록 작동 (등록: 2026-07-13)
+### Issue189_2: [후속/UX] 리스트 모드 로우 포커스 상태에서도 Cmd+S 스니펫 등록 작동 (등록: 2026-07-13) (✅ 완료, 1cfaaf1) ✅
 * 목적: Cmd+S 스니펫 등록이 현재 Preview(Interactive View) 모드에서만 작동. 리스트 뷰에서 로우에 포커스(선택)만 있어도 동일하게 작동해야 함.
 * 상세:
     - 리스트 모드 상태바에 "⌘s: Save To Snippet (Paid Only)" 힌트가 노출되나 실제 미작동 (2026-07-13 스크린샷).
@@ -48,14 +60,11 @@ date: 2026-04-07
 * 구현 명세:
     - 리스트 모드 keyDown 경로에서 Cmd+S → 선택 로우 item 으로 `registerItemAsSnippet(_:)` 라우팅 (Preview 와 동일 paid 게이트)
     - 검증: 리스트 로우 선택(프리뷰 off) → Cmd+S → 새 스니펫 창 오픈
+* 해결 (2026-07-13):
+    - **원인 확정**: 리스트 분기(`HistoryViewer.handleKeyEvent` 1번)가 설정 hotkey 만 매칭 — 사용자 환경 저장값 `history.registerSnippet.hotkey: "{⌥⌘f6}"` (기본값도 unset, Issue87) 이라 Cmd+S 무반응. Preview 창은 하드코딩 Cmd+S 라 작동 → "프리뷰에서만 작동" 증상.
+    - 수정: 리스트 모드 Cmd+S 상시 허용(윈도우 로컬 monitor — 글로벌 충돌 없음) + 설정 hotkey 병행 매칭. `selectedId` nil(cmd-클릭 다중선택) 시 `selectedIds` 폴백(Enter 분기 미러) + 무선택 logD.
+    - 검증: 빌드·brew 재배포 완료 (2026-07-13). 사용자 리스트 모드 재확인 대기 — 미작동 시 재오픈.
 
-# 📕 중요
-
-# 📙 일반
-
-# 📗 선택
-
-# ✅ 완료
 ## Issue188: [Bug] "스니펫으로 등록" 기능 미작동 — cliApp 에디터 stub + 단축키 오배선 (등록: 2026-07-11) (✅ 완료, fab09b4 / paidApp fSnippet#b775cd4a) ✅
 * 목적: 클립보드 히스토리에서 "스니펫으로 등록"이 우클릭 메뉴·커스텀 단축키 양쪽 모두 실제로는 아무 것도 저장하지 않는 것으로 확인됨. 근본 원인 규명 및 정상 경로(paidApp New Snippet 창)로 재배선.
 * 상세 (코드 조사 결과):
