@@ -55,8 +55,11 @@ enum PaidAppDetector {
   }
 
   /// paidApp 새 스니펫 추가 창 열기 — Issue157 (paid_cli_protocol §1.2 new-snippet)
-  /// URL Scheme: fsnippet://command?action=new-snippet&keyword=<sanitized>&source=cliApp
-  static func openNewSnippet(keyword: String) {
+  /// URL Scheme: fsnippet://command?action=new-snippet&keyword=<sanitized>&content=<clamped>&source=cliApp
+  /// Issue189_1: optional `content` prefills the editor body (percent-encoded by
+  /// URLComponents, clamped to 32KB UTF-8). paidApp ignores unknown params, so this
+  /// stays backward-compatible with older paidApp builds.
+  static func openNewSnippet(keyword: String, content: String? = nil) {
     let sanitized = sanitizeKeyword(keyword)
     var comps = URLComponents(string: "fsnippet://command")!
     comps.queryItems = [
@@ -65,6 +68,10 @@ enum PaidAppDetector {
     ]
     if !sanitized.isEmpty {
       comps.queryItems?.append(URLQueryItem(name: "keyword", value: sanitized))
+    }
+    if let content, !content.isEmpty {
+      comps.queryItems?.append(
+        URLQueryItem(name: "content", value: clampUTF8(content, maxBytes: 32768)))
     }
     guard let schemeURL = comps.url else {
       logW("🆕 [NewSnippet] URL 생성 실패 — keyword=\(keyword)")
@@ -90,12 +97,29 @@ enum PaidAppDetector {
     route(schemeURL, label: "EditSnippet")
   }
 
-  /// §1.2 keyword 검증: 화이트리스트 [a-z0-9A-Z\-_.], 64자(ASCII 1byte) 제한
+  /// §1.2 keyword sanitization — Issue189_1: the old ASCII whitelist [a-z0-9A-Z\-_.]
+  /// stripped Korean keywords down to their 4-hex hash suffix (e.g. "해야함d998" → "d998").
+  /// paidApp's URLSchemeHandler accepts any printable characters (control chars forbidden,
+  /// max 128 UTF-8 bytes — paid_cli_protocol §부록), so mirror that here.
   private static func sanitizeKeyword(_ raw: String) -> String {
-    let allowed = CharacterSet(
-      charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.")
-    let filtered = String(raw.unicodeScalars.filter { allowed.contains($0) })
-    return String(filtered.prefix(64))
+    let filtered = raw.unicodeScalars.filter {
+      !CharacterSet.controlCharacters.contains($0) && !CharacterSet.newlines.contains($0)
+    }
+    return clampUTF8(String(String.UnicodeScalarView(filtered)), maxBytes: 128)
+  }
+
+  /// Truncate to a UTF-8 byte budget without splitting a character.
+  private static func clampUTF8(_ s: String, maxBytes: Int) -> String {
+    guard s.utf8.count > maxBytes else { return s }
+    var result = ""
+    var bytes = 0
+    for ch in s {
+      let n = String(ch).utf8.count
+      if bytes + n > maxBytes { break }
+      result.append(ch)
+      bytes += n
+    }
+    return result
   }
 
   /// URL Scheme 라우팅 공통 경로 — register된 bundlePath 1차, LaunchServices 2차 안전망.

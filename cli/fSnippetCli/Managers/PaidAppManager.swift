@@ -176,7 +176,8 @@ class PaidAppManager {
     }
 
     /// Issue157: paidApp 새 스니펫 추가 창 기동 — launchAndOpenSettings 의 new-snippet 변형
-    private func launchAndOpenNewSnippet(keyword: String) {
+    /// Issue189_1: optional content prefill forwarded to the URL scheme.
+    private func launchAndOpenNewSnippet(keyword: String, content: String? = nil) {
         guard launchPaidApp() else {
             logW("🆕 [NewSnippet] launch 실패 — 새 스니펫 창 열기 중단")
             return
@@ -185,7 +186,7 @@ class PaidAppManager {
             guard let self else { return }
             _ = self.waitForPaidAppRegistration()
             DispatchQueue.main.async {
-                PaidAppDetector.openNewSnippet(keyword: keyword)
+                PaidAppDetector.openNewSnippet(keyword: keyword, content: content)
             }
         }
     }
@@ -237,11 +238,12 @@ class PaidAppManager {
     }
 
     /// Issue157: Create 버튼 → paidApp 새 스니펫 추가 창.
-    /// handlePaidFeature 와 동일한 상태 라우팅이되, openSettings 대신 openNewSnippet(keyword:) 호출.
-    /// - .started → activate + URL Scheme(new-snippet&keyword)
+    /// handlePaidFeature 와 동일한 상태 라우팅이되, openSettings 대신 openNewSnippet(keyword:content:) 호출.
+    /// - .started → activate + URL Scheme(new-snippet&keyword&content)
     /// - .stopped → consent 기반 launchAndOpenNewSnippet 또는 require 다이얼로그
     /// - .notInstall → showPaidOnlyAlert
-    func handleNewSnippet(keyword: String) {
+    /// Issue189_1: optional content prefill (clipboard history → New Snippet body).
+    func handleNewSnippet(keyword: String, content: String? = nil) {
         let freshStatus: PaidAppStatus = {
             if isRunning() { return .started }
             if isInstalled() { return .stopped }
@@ -254,16 +256,16 @@ class PaidAppManager {
                 guard let self else { return }
                 _ = self.waitForPaidAppRegistration()
                 DispatchQueue.main.async {
-                    PaidAppDetector.openNewSnippet(keyword: keyword)
+                    PaidAppDetector.openNewSnippet(keyword: keyword, content: content)
                 }
             }
         case .stopped:
             if autoLaunchConsent {
                 logI("🆕 [NewSnippet] 동의 기반 자동 기동 (Issue112)")
-                launchAndOpenNewSnippet(keyword: keyword)
+                launchAndOpenNewSnippet(keyword: keyword, content: content)
             } else {
                 showRequirePaidAlert { [weak self] in
-                    self?.launchAndOpenNewSnippet(keyword: keyword)
+                    self?.launchAndOpenNewSnippet(keyword: keyword, content: content)
                 }
             }
         case .notInstall:

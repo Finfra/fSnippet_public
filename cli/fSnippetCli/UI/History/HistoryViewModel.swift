@@ -509,16 +509,19 @@ class HistoryViewModel: ObservableObject {
     }
 
     func registerAndEditAsSnippet(item: ClipboardItem) {
-        let (keyword, _) = prepareSnippetData(item: item)
+        let (_, content) = prepareSnippetData(item: item)
 
         DispatchQueue.main.async {
             // Issue188: SnippetEditorWindowManager is a cliApp stub (no editor GUI here) —
-            // route to paidApp's New Snippet screen instead. Content prefill isn't supported
-            // by the URL scheme yet, only keyword.
-            PaidAppManager.shared.handleNewSnippet(keyword: keyword)
+            // route to paidApp's New Snippet screen instead.
+            // Issue189_1: keyword stays blank so the user picks the trigger — the old
+            // auto "suggestion+hash" keyword survived URL sanitization only as its hex
+            // hash (e.g. "d998"). The item text now rides along as content prefill.
+            PaidAppManager.shared.handleNewSnippet(keyword: "", content: content)
 
-            // Log action
-            logI("🧠 [HistoryViewModel] Requested New Snippet via paidApp for item: \(keyword)")
+            logI(
+                "🧠 [HistoryViewModel] Requested New Snippet via paidApp (content \(content.count) chars)"
+            )
         }
     }
 
