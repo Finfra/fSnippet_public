@@ -7,7 +7,7 @@ date: 2026-04-07
 # Issue Management
 
 * Issue HWM: 189
-* Update checkpoint:
+* Checkpoints:
       - 2026.07.09: 2e15877 (Fix(fSnippet#Issue949 후속) popupRows/searchScope/width/previewWidth stale-mirror 리싱크 추가)
 
 # 🤔 결정사항
