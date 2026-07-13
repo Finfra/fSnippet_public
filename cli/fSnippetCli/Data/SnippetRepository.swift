@@ -443,13 +443,27 @@ class SnippetRepository {
   func renameFolder(oldName: String, newName: String) -> Bool {
     let oldURL = accessedURL.appendingPathComponent(oldName)
     let newURL = accessedURL.appendingPathComponent(newName)
+    // Issue957: APFS/HFS+ 기본값은 대소문자 구분 없이(case-insensitive) 경로를 비교하므로
+    // "UNity" -> "Unity" 같은 대소문자만 다른 rename은 newURL이 oldURL과 동일 아이템으로
+    // 판정되어 fileExists(newURL)가 true를 반환함 — 실제로는 충돌이 아니라 같은 폴더의
+    // 대소문자 변경이므로 이 경우엔 중복 검사를 건너뜀.
+    let isCaseOnlyRename = oldName != newName && oldName.lowercased() == newName.lowercased()
     do {
       if !fileManager.fileExists(atPath: oldURL.path) { return false }
-      if fileManager.fileExists(atPath: newURL.path) { return false }
-      try fileManager.moveItem(at: oldURL, to: newURL)
+      if !isCaseOnlyRename && fileManager.fileExists(atPath: newURL.path) { return false }
+      if isCaseOnlyRename {
+        // 대소문자 전용 rename은 direct move가 case-insensitive 파일시스템에서
+        // no-op으로 무시될 수 있어 임시 이름을 경유하는 2단계 rename으로 확실히 반영.
+        let tempURL = accessedURL.appendingPathComponent(newName + ".rename_tmp_\(UUID().uuidString.prefix(8))")
+        try fileManager.moveItem(at: oldURL, to: tempURL)
+        try fileManager.moveItem(at: tempURL, to: newURL)
+      } else {
+        try fileManager.moveItem(at: oldURL, to: newURL)
+      }
       loadAllSnippets(reason: "renameFolder", force: true)  // Issue 704: 즉시 리빌드
       return true
     } catch {
+      logE("📂 ❌ [SnippetRepository] renameFolder 실패: \(oldName) -> \(newName) — \(error)")
       return false
     }
   }

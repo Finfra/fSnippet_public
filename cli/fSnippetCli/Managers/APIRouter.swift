@@ -412,8 +412,12 @@ class APIRouter {
         guard !newName.contains("/") && !newName.contains("..") else {
           return v2Error(code: "invalid_request", message: "Folder name cannot contain '/' or '..'", statusCode: 400)
         }
+        // Issue957: APFS/HFS+ case-insensitive 파일시스템에서는 "UNity" -> "Unity" 같은
+        // 대소문자 전용 rename도 fileExists(newName)가 true로 나옴(같은 폴더이므로 충돌 아님).
+        // 진짜 이름 충돌만 걸러내도록 대소문자만 다른 케이스는 통과시킴.
+        let isCaseOnlyRename = newName.lowercased() == folder.lowercased()
         let rootURL = SnippetFileManager.shared.rootFolderURL
-        guard !FileManager.default.fileExists(atPath: rootURL.appendingPathComponent(newName).path) else {
+        guard isCaseOnlyRename || !FileManager.default.fileExists(atPath: rootURL.appendingPathComponent(newName).path) else {
           return v2Error(code: "already_exists", message: "Folder already exists: \(newName)", statusCode: 409)
         }
         guard SnippetFileManager.shared.renameFolder(oldName: folder, newName: newName) else {
