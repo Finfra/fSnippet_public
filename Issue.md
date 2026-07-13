@@ -25,7 +25,7 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
-## Issue190: [Feat] REST v2 폴더 rename 미지원 — PATCH snippet-folders에 name 필드 추가 (등록: 2026-07-13) (✅ 완료, 69e94d4 / paidApp fSnippet#Issue957) ✅
+## Issue190: [Feat] REST v2 폴더 rename 미지원 — PATCH snippet-folders에 name 필드 추가 (등록: 2026-07-13) (✅ 완료, 69e94d4, 03a56ee / paidApp fSnippet#Issue957) ✅
 * 목적: paidApp 스니펫 탭 폴더 규칙 편집기에서 폴더명 변경이 저장되지 않는 문제(paidApp fSnippet#Issue957)의 근본 원인 해결 — cliApp REST v2에 폴더 rename을 노출하는 엔드포인트가 전혀 없었음. `SnippetFileManager.renameFolder`(→`SnippetRepository.renameFolder`)는 이미 정상 동작했으나 REST 레이어에 미노출.
 * 상세:
     - `PATCH /api/v2/settings/snippet-folders/{folder}` 요청 바디에 `name` 필드가 있고 기존 폴더명과 다르면: 물리적 폴더 rename → `_rule.yml` 컬렉션 엔트리 rename(name은 `let`이라 CollectionRule 재구성 후 교체) → `openable` 프리퍼런스 키 이관 → 이후 prefix/suffix 처리는 새 이름 기준 진행.
@@ -35,6 +35,7 @@ date: 2026-04-07
     - `cli/fSnippetCli/Managers/APIRouter.swift`: `handleV2PatchSnippetFolder`에 rename 분기 추가 (빈 이름/`/`·`..` 포함/중복 이름 검증 포함, 400/409 반환).
     - `api/openapi_v2.yaml`: `SnippetFolderRulePatch` 스키마에 `name` 추가, PATCH 엔드포인트 설명·404/409 응답 갱신.
 * 페어 이슈: paidApp `fSnippet#Issue957` — paidApp `SettingsManager.updateRule`이 로컬 stub(`EngineStubs.swift` 항상 `false` 반환) 대신 본 REST 확장을 사용하도록 함께 수정됨.
+* 후속 수정 (`03a56ee`): 실사용 검증 중 `UNity` → `Unity` 같은 **대소문자 전용** rename이 409로 거부되는 회귀 발견. APFS/HFS+ case-insensitive 파일시스템에서 `fileExists(newName)`가 "같은 폴더"를 "이미 존재하는 다른 폴더"로 오탐. `SnippetRepository.renameFolder`에 대소문자 전용 rename 감지 + 임시 이름 경유 2단계 rename 추가, `APIRouter`의 사전 중복 검사도 동일 케이스 통과하도록 수정. 임시 폴더로 재현·검증(`CaseTest957`→`Casetest957`, `ls -la`로 디스크 대소문자 변경 확인).
 
 ## Issue189: [Bug] Interactive View(Preview) Cmd+S 가 스니펫 등록 대신 설정창 오픈 — Issue188 후속 (등록: 2026-07-12) (✅ 완료, d5d1df7) ✅
 * depends: Issue188
