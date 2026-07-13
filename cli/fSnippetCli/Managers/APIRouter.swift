@@ -400,19 +400,70 @@ class APIRouter {
       return v2Error(code: "not_found", message: "Snippet folder not found: \(folder)", statusCode: 404)
     }
 
+    var targetFolder = folder
+
+    // Issue957: 폴더 이름 변경 — 물리적 폴더 rename + _rule.yml 엔트리 rename
+    if let rawName = patch.name {
+      let newName = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+      if newName != folder {
+        guard !newName.isEmpty else {
+          return v2Error(code: "invalid_request", message: "Folder name cannot be empty", statusCode: 400)
+        }
+        guard !newName.contains("/") && !newName.contains("..") else {
+          return v2Error(code: "invalid_request", message: "Folder name cannot contain '/' or '..'", statusCode: 400)
+        }
+        let rootURL = SnippetFileManager.shared.rootFolderURL
+        guard !FileManager.default.fileExists(atPath: rootURL.appendingPathComponent(newName).path) else {
+          return v2Error(code: "already_exists", message: "Folder already exists: \(newName)", statusCode: 409)
+        }
+        guard SnippetFileManager.shared.renameFolder(oldName: folder, newName: newName) else {
+          return v2Error(code: "rename_failed", message: "Failed to rename folder on disk: \(folder) -> \(newName)", statusCode: 500)
+        }
+
+        // _rule.yml 엔트리도 함께 rename (있으면)
+        var collections = RuleManager.shared.getAllRules()
+        if let idx = collections.firstIndex(where: { $0.name == folder }) {
+          let old = collections[idx]
+          let renamed = RuleManager.CollectionRule(
+            name: newName,
+            suffix: old.suffix,
+            prefix: old.prefix,
+            description: old.description,
+            triggerBias: old.triggerBias,
+            prefixComment: old.prefixComment,
+            suffixComment: old.suffixComment,
+            triggerBiasComment: old.triggerBiasComment,
+            descriptionComment: old.descriptionComment
+          )
+          collections.remove(at: idx)
+          collections.append(renamed)
+          _ = RuleManager.shared.saveRules(to: nil, newCollections: collections)
+        }
+
+        // openable 프리퍼런스도 새 이름으로 이관
+        if let openable: Bool = PreferencesManager.shared.get(v2FolderOpenableKey(folder)) {
+          PreferencesManager.shared.set(openable, forKey: v2FolderOpenableKey(newName))
+          PreferencesManager.shared.set(nil, forKey: v2FolderOpenableKey(folder))
+        }
+
+        targetFolder = newName
+        logI("🌐 [v2PatchSnippetFolder] 폴더 이름 변경 완료: \(folder) -> \(newName)")
+      }
+    }
+
     // openable 은 preference 에만 저장
     if let openable = patch.openable {
-      PreferencesManager.shared.set(openable, forKey: v2FolderOpenableKey(folder))
+      PreferencesManager.shared.set(openable, forKey: v2FolderOpenableKey(targetFolder))
     }
 
     // prefix/suffix 중 하나라도 있으면 _rule.yml 갱신
     if patch.prefix != nil || patch.suffix != nil {
       var collections = RuleManager.shared.getAllRules()
-      let existing = collections.first(where: { $0.name == folder })
+      let existing = collections.first(where: { $0.name == targetFolder })
       if existing == nil {
         // rule 에 없던 폴더면 새 항목 추가
         let newRule = RuleManager.CollectionRule(
-          name: folder,
+          name: targetFolder,
           suffix: patch.suffix ?? "",
           prefix: patch.prefix ?? "",
           description: nil,
@@ -427,7 +478,7 @@ class APIRouter {
         var updated = existing!
         if let p = patch.prefix { updated.prefix = p }
         if let s = patch.suffix { updated.suffix = s }
-        collections = collections.map { $0.name == folder ? updated : $0 }
+        collections = collections.map { $0.name == targetFolder ? updated : $0 }
       }
 
       let ok = RuleManager.shared.saveRules(to: nil, newCollections: collections)
@@ -437,8 +488,8 @@ class APIRouter {
     }
 
     // 최신 상태 재조회 후 반환
-    let refreshed = v2AllSnippetFolderRules().first(where: { $0.folder == folder })
-      ?? v2BuildSnippetFolderRule(folder: folder, ruleManaged: false, prefix: nil, suffix: nil)
+    let refreshed = v2AllSnippetFolderRules().first(where: { $0.folder == targetFolder })
+      ?? v2BuildSnippetFolderRule(folder: targetFolder, ruleManaged: false, prefix: nil, suffix: nil)
     return jsonResponse(refreshed)
   }
 

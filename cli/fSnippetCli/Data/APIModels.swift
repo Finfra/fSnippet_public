@@ -472,6 +472,7 @@ struct APIV2SnippetFolderRulePatch: Decodable {
   let prefix: String?
   let suffix: String?
   let openable: Bool?
+  let name: String?  // Issue957: 폴더 이름 변경 (rename)
 }
 
 // MARK: - v2 Shortcut (named shortcut CRUD)
