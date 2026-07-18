@@ -69,3 +69,6 @@ __pycache__/
 
 # 테스트/빌드 로그 (log-path-rules) — public 레포 제외
 logs/
+
+# issue-map 산출물 (Issue.md 로부터 재생성 — prj1#Issue286)
+Issue_map.htm
