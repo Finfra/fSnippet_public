@@ -6,8 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 190
+* Issue HWM: 191
 * Checkpoints:
+      - 2026.07.18: c3fe0c7 (Fix Issue191 "스니펫으로 등록" 전역 단축키·메뉴바 스텁)
       - 2026.07.09: 2e15877 (Fix(fSnippet#Issue949 후속) popupRows/searchScope/width/previewWidth stale-mirror 리싱크 추가)
 
 # 🤔 결정사항
@@ -25,6 +26,19 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue191: [Fix] 클립보드 히스토리 "스니펫으로 등록" 전역 단축키·메뉴바가 미구현 스텁만 실행 (등록: 2026-07-18, 완료: 2026-07-18) (Hash: c3fe0c7) ✅
+* 목적: 설정 화면(⌃⌘F6 등)에 노출된 "스니펫으로 등록" 단축키를 클립보드 히스토리 창 밖에서(전역 단축키·메뉴바 "Clipboard to Snippet") 실행하면 "Register Snippet — pending implementation" 토스트만 뜨고 실제 등록이 안 되는 문제.
+* 원인: 같은 기능에 두 개의 별도 코드 경로가 존재했음.
+    - `HistoryViewer.swift`(창 내부 로컬 키 핸들러, ⌘S): Issue188/189에서 `viewModel.registerAndEditAsSnippet(item:)`로 실제 구현됨 — 정상 동작
+    - `ShortcutMgr.swift`(전역 시스템 단축키) + `MenuBarView.swift`(메뉴바 클릭): Issue84 당시 "백엔드 구현 보류"로 남긴 토스트 스텁이 그대로 방치됨 — Issue188/189 통합 시 갱신 누락
+* 구현 명세:
+    - `cli/fSnippetCli/UI/History/HistoryViewModel.swift`: `currentSelectedItem` 계산 프로퍼티 추가 (selectedId → ClipboardItem 변환)
+    - `cli/fSnippetCli/Managers/HistoryViewerManager.swift`: `registerCurrentSelectionAsSnippet()` 추가 — 히스토리 창이 열려 있고 선택된 항목이 있으면 기존 `registerItemAsSnippet(_:)`을 재사용해 등록, 아니면 `false` 반환
+    - `cli/fSnippetCli/Managers/ShortcutMgr.swift`: `executeAction(for:)`의 `"history.registerSnippet.hotkey"` 분기에서 스텁 토스트 제거 → `registerCurrentSelectionAsSnippet()` 호출, 실패 시 안내 토스트("클립보드 히스토리에서 항목을 선택한 후 다시 시도하세요")
+    - `cli/fSnippetCli/MenuBarView.swift`: `registerSnippetAction()` 동일하게 교체
+* 검증: `/run`으로 paidApp+cliApp 빌드·배포·재시작(Release → brew local reinstall) 9/9 PASS, REST API(3015) 헬스체크 정상 응답 확인. (수동 UI 재현 테스트는 사용자 확인 대기)
+* 참고: 창을 열지 않고 최신 클립보드 항목을 바로 등록하는 더 공격적인 UX는 이번 스코프 밖 — 별도 이슈 판단 필요 시 후속 등록.
+
 ## Issue190: [Feat] REST v2 폴더 rename 미지원 — PATCH snippet-folders에 name 필드 추가 (등록: 2026-07-13) (✅ 완료, 69e94d4, 03a56ee / paidApp fSnippet#Issue957) ✅
 * 목적: paidApp 스니펫 탭 폴더 규칙 편집기에서 폴더명 변경이 저장되지 않는 문제(paidApp fSnippet#Issue957)의 근본 원인 해결 — cliApp REST v2에 폴더 rename을 노출하는 엔드포인트가 전혀 없었음. `SnippetFileManager.renameFolder`(→`SnippetRepository.renameFolder`)는 이미 정상 동작했으나 REST 레이어에 미노출.
 * 상세:
