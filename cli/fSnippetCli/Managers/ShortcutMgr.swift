@@ -705,11 +705,13 @@ class ShortcutMgr: ObservableObject {
                 NotificationCenter.default.post(
                     name: NSNotification.Name("fSnippetShowPopup"), object: nil)
             case "history.registerSnippet.hotkey":
-                // Issue84 — UI wiring complete; backend deferred (see Issue.md Out of Scope §1).
-                // Surface a toast so the user confirms the hotkey was recognised.
-                ToastManager.shared.showToast(
-                    message: "Register Snippet — pending implementation",
-                    iconName: "hammer")
+                // Reuses the same backend as the in-viewer ⌘S handler (HistoryViewer.swift),
+                // acting on whatever row is currently selected in the open history window.
+                if !HistoryViewerManager.shared.registerCurrentSelectionAsSnippet() {
+                    ToastManager.shared.showToast(
+                        message: "클립보드 히스토리에서 항목을 선택한 후 다시 시도하세요",
+                        iconName: "doc.on.clipboard")
+                }
             default:
                 logW("🚀 [ShortcutMgr] Unknown Action ID: \(id)")
             }

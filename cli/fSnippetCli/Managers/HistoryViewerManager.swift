@@ -52,6 +52,19 @@ class HistoryViewerManager: NSObject, NSWindowDelegate {
         }
     }
 
+    // Entry point for callers without a specific ClipboardItem in hand (global hotkey,
+    // menu bar action): registers whatever row is currently selected in the open viewer.
+    // Returns false when the viewer is closed or nothing is selected, so callers can
+    // surface guidance instead of silently doing nothing.
+    @discardableResult
+    func registerCurrentSelectionAsSnippet() -> Bool {
+        guard window?.isVisible == true, let item = viewModel?.currentSelectedItem else {
+            return false
+        }
+        registerItemAsSnippet(item)
+        return true
+    }
+
     func show(cursorRect: CGRect? = nil, onSelection: ((String) -> Void)? = nil) {
         logD("🎞️ [HistoryViewerManager] show() called")
 

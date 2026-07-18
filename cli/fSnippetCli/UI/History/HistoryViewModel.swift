@@ -63,6 +63,14 @@ class HistoryViewModel: ObservableObject {
         return lastSelectedId ?? selectedIds.first
     }
 
+    // Resolves the currently selected row to its ClipboardItem, used by callers
+    // outside the SwiftUI view (global hotkey, menu bar) that need the same
+    // "selected item" the in-window ⌘S handler already uses.
+    var currentSelectedItem: ClipboardItem? {
+        guard let selectedId else { return nil }
+        return items.first(where: { $0.id == selectedId })
+    }
+
     private let PAGE_SIZE = 50
     private var cancellables = Set<AnyCancellable>()
 
