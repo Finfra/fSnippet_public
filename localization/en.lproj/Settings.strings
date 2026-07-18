@@ -244,9 +244,9 @@
 "settings.snippet.help.duplicate" = "This abbreviation already exists.";
 "settings.snippet.help.info_content" = "ℹ️ Help\n\n• Search Term: Supports Regular Expressions (Regex).\n• Example: \\d+ (Find digits)\n• Replace: Converts all matches to {{Name}} format.";
 "settings.snippet.help.info_tooltip" = "Usage & Regex Help";
-"settings.snippet.help.insert_file" = "Inserts external file content as a reference (Issue 549)";
+"settings.snippet.help.insert_file" = "Inserts external file content as a reference";
 "settings.snippet.help.name_underscore" = "If there is no keyword and the description ends with an _(underscore), the automatic folder prefix becomes uppercase.";
-"settings.snippet.help.reference" = "Inserts other snippet content as a reference (Issue 539)";
+"settings.snippet.help.reference" = "Inserts other snippet content as a reference";
 "settings.snippet.help.save" = "Save (Cmd+S)";
 "settings.snippet.help.shortcuts" = "Insert macOS Shortcut";
 "settings.snippet.help.undo" = "Undo Replace";

@@ -225,8 +225,8 @@
 "settings.snippet.button.insert_prompt" = "Insert";
 "settings.snippet.button.reference" = "स्निपेट संदर्भ";
 "settings.snippet.help.duplicate" = "यह संक्षिप्तीकरण पहले से ही मौजूद है।";
-"settings.snippet.help.insert_file" = "संदर्भ के रूप में बाहरी फ़ाइल सामग्री डालें (Issue 549)";
-"settings.snippet.help.reference" = "संदर्भ के रूप में अन्य स्निपेट सामग्री डालें (Issue 539)";
+"settings.snippet.help.insert_file" = "संदर्भ के रूप में बाहरी फ़ाइल सामग्री डालें";
+"settings.snippet.help.reference" = "संदर्भ के रूप में अन्य स्निपेट सामग्री डालें";
 "settings.snippet.help.save" = "सहेजें (Cmd+S)";
 "settings.snippet.label.content" = "सामग्री";
 "settings.snippet.label.filename" = "Filename:";

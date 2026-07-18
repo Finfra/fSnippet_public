@@ -202,8 +202,8 @@
 "settings.snippet.button.insert_prompt" = "挿入";
 "settings.snippet.button.reference" = "スニペット参照";
 "settings.snippet.help.duplicate" = "既に存在する略語です。";
-"settings.snippet.help.insert_file" = "外部ファイルの内容を参照として挿入します (Issue 549)";
-"settings.snippet.help.reference" = "他のスニペットの内容を参照として挿入します (Issue 539)";
+"settings.snippet.help.insert_file" = "外部ファイルの内容を参照として挿入します";
+"settings.snippet.help.reference" = "他のスニペットの内容を参照として挿入します";
 "settings.snippet.help.save" = "保存 (Cmd+S)";
 "settings.snippet.label.content" = "内容";
 "settings.snippet.label.filename" = "ファイル名:";

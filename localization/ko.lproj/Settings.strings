@@ -244,9 +244,9 @@
 "settings.snippet.help.duplicate" = "이미 존재하는 단축어(Abbreviation)입니다.";
 "settings.snippet.help.info_content" = "ℹ️ 도움말\n\n• 검색어: 정규표현식(Regex)을 지원합니다.\n• 예시: \\d+ (숫자 찾기)\n• 변환: 일치하는 모든 텍스트를 {{Name}} 형식으로 변경합니다.";
 "settings.snippet.help.info_tooltip" = "사용법 및 정규식 도움말";
-"settings.snippet.help.insert_file" = "외부 파일 내용을 참조로 삽입합니다 (Issue 549)";
+"settings.snippet.help.insert_file" = "외부 파일 내용을 참조로 삽입합니다";
 "settings.snippet.help.name_underscore" = "키워드가 없고, 설명의 끝에 _(언더바)를 넣으면 폴더명 자동 Prefix가 대문자로 설정 됩니다.";
-"settings.snippet.help.reference" = "다른 스니펫 내용을 참조로 삽입합니다 (Issue 539)";
+"settings.snippet.help.reference" = "다른 스니펫 내용을 참조로 삽입합니다";
 "settings.snippet.help.save" = "저장 (Cmd+S)";
 "settings.snippet.help.shortcuts" = "macOS 단축어 삽입";
 "settings.snippet.help.undo" = "변환 실행 취소 (Undo)";

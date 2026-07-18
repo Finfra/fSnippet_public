@@ -225,8 +225,8 @@
 "settings.snippet.button.insert_prompt" = "Insert";
 "settings.snippet.button.reference" = "مرجع مقتطف";
 "settings.snippet.help.duplicate" = "هذا الاختصار موجود بالفعل.";
-"settings.snippet.help.insert_file" = "إدراج محتوى ملف خارجي كمرجع (Issue 549)";
-"settings.snippet.help.reference" = "إدراج محتوى مقتطف آخر كمرجع (Issue 539)";
+"settings.snippet.help.insert_file" = "إدراج محتوى ملف خارجي كمرجع";
+"settings.snippet.help.reference" = "إدراج محتوى مقتطف آخر كمرجع";
 "settings.snippet.help.save" = "حفظ (Cmd+S)";
 "settings.snippet.label.content" = "المحتوى";
 "settings.snippet.label.filename" = "Filename:";
