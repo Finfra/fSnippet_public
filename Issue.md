@@ -32,6 +32,9 @@ date: 2026-04-07
     - `HistoryViewer.swift` L292-299의 `isCmdS`/`isRegisterShortcut` 판정에 `clipboardManager.chvMode != .previewEdit` 조건을 추가하여, Edit Mode 중에는 window-level 모니터가 ⌘S를 소비하지 않고 `return event`로 통과시키도록 한다 (List/Interactive View 모드의 기존 "스니펫 등록" 동작은 그대로 유지).
     - 통과된 이벤트는 기존 체인대로 `PreviewTextView.swift` L227-231의 `onSave` 콜백(→ `HistoryPreviewView.swift` L120-143, `ClipboardDB.shared.updateItemContent`로 DB 저장 + Interactive View 전환)이 정상 처리하는지 확인.
     - 검증: (1) List/Interactive View 상태에서 ⌘S → 여전히 "스니펫 등록"(paidApp 새 스니펫 창) 동작 확인 (회귀 없음). (2) Tab-Tab으로 Edit Mode 진입 → 텍스트 수정 → ⌘S → 토스트 "저장됨" 표시 + Interactive View로 복귀 확인.
+* 해결 (2026-07-19):
+    - `HistoryViewer.swift` `handleKeyEvent()` L292-303: `isRegisterShortcut` 판정 선두에 `clipboardManager.chvMode != .previewEdit` 조건 추가. Edit Mode 중에는 window-level 모니터가 ⌘S를 소비하지 않고 `return event`로 통과시켜, `PreviewTextView.swift`의 `onSave` 콜백(→ `ClipboardDB.updateItemContent` 저장 + Interactive View 전환)이 정상 도달하도록 함. List/Interactive View 모드의 기존 "스니펫 등록" 동작은 조건 그대로 유지.
+    - 검증: Release 빌드 성공(`xcodebuild -scheme fSnippetCli -configuration Release build` — BUILD SUCCEEDED). 코드 경로 재확인으로 Edit Mode에서 register-shortcut 분기가 더 이상 매칭되지 않고 default case를 거쳐 `return false`(이벤트 미소비)로 귀결됨을 확인. brew 배포 후 실사용 UI 조작 검증(토스트 "저장됨" 노출·DB 반영)은 사용자 재확인 필요.
 
 # 📙 일반
 

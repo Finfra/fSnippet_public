@@ -288,15 +288,21 @@ struct HistoryViewer: View {
         // defaults to unset (Issue87) or may hold a custom value (e.g. "{⌥⌘f6}"), so Cmd+S
         // in list mode silently did nothing. Accept Cmd+S unconditionally (window-local
         // monitor — no global conflict) plus the configured hotkey when set.
+        // Issue192: Edit Mode (previewEdit) owns Cmd+S for its own "Save & View" text-edit
+        // persistence (PreviewTextView.onSave -> ClipboardDB.updateItemContent). This
+        // window-level monitor must not steal Cmd+S while editing, or that save path becomes
+        // unreachable dead code and every edit is silently discarded in favor of a snippet
+        // registration the user didn't ask for.
         let registerHotkey = settings.historyRegisterSnippetHotkey.toHotkeyString
         let isCmdS =
             event.keyCode == 1
             && event.modifierFlags.intersection([.control, .option, .command, .shift])
                 == [.command]
         let isRegisterShortcut =
-            isCmdS
-            || (!registerHotkey.isEmpty
-                && TriggerKeyManager.shared.isHotkeyMatch(event: event, hotkeyString: registerHotkey))
+            clipboardManager.chvMode != .previewEdit
+            && (isCmdS
+                || (!registerHotkey.isEmpty
+                    && TriggerKeyManager.shared.isHotkeyMatch(event: event, hotkeyString: registerHotkey)))
         if isRegisterShortcut {
             // Issue189_2: mirror the Enter branch — fall back to the multi-select set when
             // selectedId is nil (Cmd-click selection) so a focused row never fails silently.
