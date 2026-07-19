@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 191
+* Issue HWM: 192
 * Checkpoints:
       - 2026.07.18: c3fe0c7 (Fix Issue191 "스니펫으로 등록" 전역 단축키·메뉴바 스텁)
       - 2026.07.09: 2e15877 (Fix(fSnippet#Issue949 후속) popupRows/searchScope/width/previewWidth stale-mirror 리싱크 추가)
@@ -20,6 +20,18 @@ date: 2026-04-07
 # 🚧 진행중
 
 # 📕 중요
+## Issue192: [Bug] 클립보드 히스토리 Edit Mode(Tab-Tab 진입)에서 ⌘S가 "편집 저장" 대신 "스니펫 등록"으로 오작동 — Issue189 후속 회귀 (등록: 2026-07-19)
+* depends: Issue189
+* 목적: 클립보드 히스토리 뷰어에서 Tab을 두 번 눌러 Edit Mode(`previewEdit`)에 진입한 뒤 ⌘S를 누르면, 하단 힌트("Esc: Exit Edit | ⌘s: Save & View")와 다르게 편집 내용이 저장되지 않고 매번 "스니펫으로 등록" 동작이 실행됨. `PreviewTextView`의 `onSave`(텍스트를 `ClipboardDB`에 저장) 경로가 도달 불가능한 죽은 코드 상태가 되어 있음.
+* 상세 (코드 조사 결과):
+    - `HistoryViewer.swift`의 window-level keyDown 모니터(`handleKeyEvent`, L279-318)가 ⌘S를 chvMode 구분 없이 무조건 "스니펫 등록"으로 처리함. `isRegisterShortcut` 조건(L292-299)에 chvMode 체크가 전혀 없음 — Issue189_2(2026-07-13, "리스트 모드 Cmd+S 상시 허용")에서 기존 모드 스코프 제한이 제거된 것이 원인으로 추정됨.
+    - 원래 이 모니터를 우회시켜야 할 가드 `if HistoryPreviewManager.shared.isPreviewWindow(event.window) { return event }`(`HistoryViewer.swift` L170-173)가, Issue543(프리뷰가 별도 NSWindow에서 같은 윈도우로 통합된 리팩터링)로 인해 `HistoryPreviewManager.isPreviewWindow()`(`HistoryPreviewManager.swift` L32-35)가 항상 `false`를 반환하도록 바뀌어 사실상 무력화되어 있음. Edit Mode도 같은 History 윈도우 안에서 렌더링되므로 이 가드가 더 이상 아무것도 걸러내지 못함.
+    - 결과적으로 `handleKeyEvent`가 ⌘S 이벤트를 항상 먼저 소비(`return nil`)하여, `HistoryPreviewView.swift`의 chvMode 인식 ⌘S 분기(L200-214, previewView 전용 스니펫 등록)와 `PreviewTextView.swift`의 `onSave` 콜백(L227-231, Edit Mode 전용 편집 저장)에 이벤트가 도달하지 못함. 후자가 죽은 코드가 된 것이 이번 버그의 직접 원인.
+    - Issue189의 구현 명세에는 명시적으로 "Edit 모드(`PreviewTextView` CL045_10 Cmd+S = 텍스트 편집 저장)는 별개 기능이므로 변경 없음"이라고 되어 있어, 이번 회귀는 그 이후 변경(Issue189_2)이 의도치 않게 그 경계를 깬 것으로 판단됨.
+* 구현 명세:
+    - `HistoryViewer.swift` L292-299의 `isCmdS`/`isRegisterShortcut` 판정에 `clipboardManager.chvMode != .previewEdit` 조건을 추가하여, Edit Mode 중에는 window-level 모니터가 ⌘S를 소비하지 않고 `return event`로 통과시키도록 한다 (List/Interactive View 모드의 기존 "스니펫 등록" 동작은 그대로 유지).
+    - 통과된 이벤트는 기존 체인대로 `PreviewTextView.swift` L227-231의 `onSave` 콜백(→ `HistoryPreviewView.swift` L120-143, `ClipboardDB.shared.updateItemContent`로 DB 저장 + Interactive View 전환)이 정상 처리하는지 확인.
+    - 검증: (1) List/Interactive View 상태에서 ⌘S → 여전히 "스니펫 등록"(paidApp 새 스니펫 창) 동작 확인 (회귀 없음). (2) Tab-Tab으로 Edit Mode 진입 → 텍스트 수정 → ⌘S → 토스트 "저장됨" 표시 + Interactive View로 복귀 확인.
 
 # 📙 일반
 
