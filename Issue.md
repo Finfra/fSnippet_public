@@ -8,6 +8,7 @@ date: 2026-04-07
 
 * Issue HWM: 192
 * Checkpoints:
+      - 2026.07.19: a494408 (Fix Issue192 Edit Mode ⌘S 스니펫 등록 오작동 회귀)
       - 2026.07.18: c3fe0c7 (Fix Issue191 "스니펫으로 등록" 전역 단축키·메뉴바 스텁)
       - 2026.07.09: 2e15877 (Fix(fSnippet#Issue949 후속) popupRows/searchScope/width/previewWidth stale-mirror 리싱크 추가)
 
@@ -20,7 +21,13 @@ date: 2026-04-07
 # 🚧 진행중
 
 # 📕 중요
-## Issue192: [Bug] 클립보드 히스토리 Edit Mode(Tab-Tab 진입)에서 ⌘S가 "편집 저장" 대신 "스니펫 등록"으로 오작동 — Issue189 후속 회귀 (등록: 2026-07-19)
+
+# 📙 일반
+
+# 📗 선택
+
+# ✅ 완료
+## Issue192: [Bug] 클립보드 히스토리 Edit Mode(Tab-Tab 진입)에서 ⌘S가 "편집 저장" 대신 "스니펫 등록"으로 오작동 — Issue189 후속 회귀 (등록: 2026-07-19, 완료: 2026-07-19) (Hash: a494408) ✅
 * depends: Issue189
 * 목적: 클립보드 히스토리 뷰어에서 Tab을 두 번 눌러 Edit Mode(`previewEdit`)에 진입한 뒤 ⌘S를 누르면, 하단 힌트("Esc: Exit Edit | ⌘s: Save & View")와 다르게 편집 내용이 저장되지 않고 매번 "스니펫으로 등록" 동작이 실행됨. `PreviewTextView`의 `onSave`(텍스트를 `ClipboardDB`에 저장) 경로가 도달 불가능한 죽은 코드 상태가 되어 있음.
 * 상세 (코드 조사 결과):
@@ -36,11 +43,6 @@ date: 2026-04-07
     - `HistoryViewer.swift` `handleKeyEvent()` L292-303: `isRegisterShortcut` 판정 선두에 `clipboardManager.chvMode != .previewEdit` 조건 추가. Edit Mode 중에는 window-level 모니터가 ⌘S를 소비하지 않고 `return event`로 통과시켜, `PreviewTextView.swift`의 `onSave` 콜백(→ `ClipboardDB.updateItemContent` 저장 + Interactive View 전환)이 정상 도달하도록 함. List/Interactive View 모드의 기존 "스니펫 등록" 동작은 조건 그대로 유지.
     - 검증: Release 빌드 성공(`xcodebuild -scheme fSnippetCli -configuration Release build` — BUILD SUCCEEDED). 코드 경로 재확인으로 Edit Mode에서 register-shortcut 분기가 더 이상 매칭되지 않고 default case를 거쳐 `return false`(이벤트 미소비)로 귀결됨을 확인. brew 배포 후 실사용 UI 조작 검증(토스트 "저장됨" 노출·DB 반영)은 사용자 재확인 필요.
 
-# 📙 일반
-
-# 📗 선택
-
-# ✅ 완료
 ## Issue191: [Fix] 클립보드 히스토리 "스니펫으로 등록" 전역 단축키·메뉴바가 미구현 스텁만 실행 (등록: 2026-07-18, 완료: 2026-07-18) (Hash: c3fe0c7) ✅
 * 목적: 설정 화면(⌃⌘F6 등)에 노출된 "스니펫으로 등록" 단축키를 클립보드 히스토리 창 밖에서(전역 단축키·메뉴바 "Clipboard to Snippet") 실행하면 "Register Snippet — pending implementation" 토스트만 뜨고 실제 등록이 안 되는 문제.
 * 원인: 같은 기능에 두 개의 별도 코드 경로가 존재했음.
