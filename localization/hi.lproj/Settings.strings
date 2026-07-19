@@ -234,6 +234,7 @@
 "settings.snippet.list.button.add.help" = "नया स्निपेट जोड़ें (Cmd+N)";
 "settings.snippet.list.context.delete" = "हटाएं";
 "settings.snippet.list.empty" = "कोई स्निपेट नहीं मिला";
+"settings.snippet.list.memory_warning" = "%d स्निपेट लोड हुए — मेमोरी उपयोग अधिक हो सकता है।";
 "settings.snippet.list.header.abbreviation" = "संक्षिप्तीकरण";
 "settings.snippet.list.header.content" = "सामग्री";
 "settings.snippet.list.header.name" = "नाम";

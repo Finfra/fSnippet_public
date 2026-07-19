@@ -193,6 +193,7 @@
 "settings.snippet.list.button.add.help" = "Ajouter un nouvel extrait";
 "settings.snippet.list.context.delete" = "Supprimer";
 "settings.snippet.list.empty" = "Aucun extrait trouvé";
+"settings.snippet.list.memory_warning" = "%d extraits chargés — l'utilisation de la mémoire peut être élevée.";
 "settings.snippet.list.header.abbreviation" = "Abréviation";
 "settings.snippet.list.header.content" = "Contenu";
 "settings.snippet.list.header.name" = "Nom";

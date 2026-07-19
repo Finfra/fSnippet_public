@@ -234,6 +234,7 @@
 "settings.snippet.list.button.add.help" = "إضافة مقتطف جديد (Cmd+N)";
 "settings.snippet.list.context.delete" = "حذف";
 "settings.snippet.list.empty" = "لا توجد مقتطفات";
+"settings.snippet.list.memory_warning" = "تم تحميل %d مقتطف — قد يرتفع استهلاك الذاكرة.";
 "settings.snippet.list.header.abbreviation" = "اختصار";
 "settings.snippet.list.header.content" = "محتوى";
 "settings.snippet.list.header.name" = "اسم";

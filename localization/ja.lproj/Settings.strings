@@ -211,6 +211,7 @@
 "settings.snippet.list.button.add.help" = "新しいスニペットを追加";
 "settings.snippet.list.context.delete" = "削除";
 "settings.snippet.list.empty" = "スニペットがありません";
+"settings.snippet.list.memory_warning" = "%d 件のスニペットを読み込みました — メモリ使用量が大きくなる可能性があります。";
 "settings.snippet.list.header.abbreviation" = "略語";
 "settings.snippet.list.header.content" = "内容";
 "settings.snippet.list.header.name" = "名前";

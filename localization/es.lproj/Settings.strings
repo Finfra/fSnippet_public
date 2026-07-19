@@ -197,6 +197,7 @@
 "settings.snippet.list.button.add.help" = "Añadir nuevo fragmento";
 "settings.snippet.list.context.delete" = "Eliminar";
 "settings.snippet.list.empty" = "No se encontraron fragmentos";
+"settings.snippet.list.memory_warning" = "%d fragmentos cargados: el uso de memoria puede ser elevado.";
 "settings.snippet.list.header.abbreviation" = "Abreviatura";
 "settings.snippet.list.header.content" = "Contenido";
 "settings.snippet.list.header.name" = "Nombre";

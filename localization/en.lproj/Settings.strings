@@ -258,6 +258,7 @@
 "settings.snippet.list.button.add.help" = "Add New Snippet";
 "settings.snippet.list.context.delete" = "Delete";
 "settings.snippet.list.empty" = "No snippets found";
+"settings.snippet.list.memory_warning" = "%d snippets loaded — memory usage may be high.";
 "settings.snippet.list.header.abbreviation" = "Abbreviation";
 "settings.snippet.list.header.content" = "Content";
 "settings.snippet.list.header.name" = "Name";

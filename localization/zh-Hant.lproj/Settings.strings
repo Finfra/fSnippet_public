@@ -193,6 +193,7 @@
 "settings.snippet.list.button.add.help" = "新增片段";
 "settings.snippet.list.context.delete" = "刪除";
 "settings.snippet.list.empty" = "沒有找到片段";
+"settings.snippet.list.memory_warning" = "已載入 %d 個片段 — 記憶體用量可能較高。";
 "settings.snippet.list.header.abbreviation" = "縮寫";
 "settings.snippet.list.header.content" = "內容";
 "settings.snippet.list.header.name" = "名稱";

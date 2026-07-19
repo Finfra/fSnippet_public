@@ -193,6 +193,7 @@
 "settings.snippet.list.button.add.help" = "Neues Snippet hinzufügen";
 "settings.snippet.list.context.delete" = "Löschen";
 "settings.snippet.list.empty" = "Keine Snippets gefunden";
+"settings.snippet.list.memory_warning" = "%d Snippets geladen – der Speicherverbrauch kann hoch sein.";
 "settings.snippet.list.header.abbreviation" = "Abkürzung";
 "settings.snippet.list.header.content" = "Inhalt";
 "settings.snippet.list.header.name" = "Name";

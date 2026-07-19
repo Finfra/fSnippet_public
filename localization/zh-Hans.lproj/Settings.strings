@@ -208,6 +208,7 @@
 "settings.snippet.list.button.add.help" = "添加新片段";
 "settings.snippet.list.context.delete" = "删除";
 "settings.snippet.list.empty" = "没有找到片段";
+"settings.snippet.list.memory_warning" = "已加载 %d 个片段 — 内存占用可能较高。";
 "settings.snippet.list.header.abbreviation" = "缩写";
 "settings.snippet.list.header.content" = "内容";
 "settings.snippet.list.header.name" = "名称";
