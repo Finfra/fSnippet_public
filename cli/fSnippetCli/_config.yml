@@ -1,4 +1,4 @@
-# fSnippet Configuration
+# fSnippet Configuration : orignal
 # Created: 2026-04-17 04:46:04 +0000
 # Modifier : {⌃⌥⇧⌘}
 
@@ -50,7 +50,6 @@ preferences:
   snippet_last_selected_folder: "_symbol_space"
   snippet_list_abbr_width: 111.1328125
   snippet_list_name_width: 81.23828125
-  snippet_popup_height: 300
   snippet_popup_hotkey: "{⌥⇧Space}"
   snippet_popup_preview_width: 400
   snippet_popup_quick_select_modifier_flags: "{command}"
