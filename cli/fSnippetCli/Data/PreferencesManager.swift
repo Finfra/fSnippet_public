@@ -76,9 +76,12 @@ class PreferencesManager: PreferencesManagerProtocol {
     var legacyConfigURL: URL { return appBaseURL.appendingPathComponent("config.yaml") }
 
     private init() {
-        // 앱 시작 시 디렉토리 생성 및 로드
+        // App start: ensure directory/file structure, then load config.
+        // Issue194: ensureStructureSync() was dead code — wiring it here restores
+        // legacy config.yaml migration (Issue333) and _rule.yml bundle seeding
+        // (Issue474_3) before loadConfig() can create a fresh _config.yml.
         logV("⚙️ [PreferencesManager] Init started")
-        ensureDirectoriesExist()
+        ensureStructureSync()
         loadConfig()
     }
 
