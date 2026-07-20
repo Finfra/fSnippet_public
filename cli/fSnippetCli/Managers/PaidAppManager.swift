@@ -193,52 +193,12 @@ class PaidAppManager {
 
     // MARK: - paid 전용 기능 핸들링
 
-    /// paid 전용 기능 시도 시 호출 (paid_cli_protocol §4.2 준수)
-    /// Routes via AppStateManager.paidAppStatus (single source of truth, Issue110).
-    /// - .notInstall → showPaidOnlyAlert (App Store / Locate / Show Config / Cancel)
-    /// - .stopped + autoLaunchConsent==false → showRequirePaidAlert (최초 1회 동의)
-    /// - .stopped + autoLaunchConsent==true  → 다이얼로그 생략, launchAndOpenSettings (Issue112)
-    /// - .started → activate(foreground) + openSettings (Issue113)
-    ///
-    /// Issue141: cliApp startup 직후 자동 launch 된 paidApp 의 `paidAppStateChanged`
-    /// 알림 도달 전이라도 NSWorkspace 직접 확인으로 fresh 평가하여 race 해소.
-    func handlePaidFeature() {
-        // Issue141: cached paidAppStatus 의 stale 상태(특히 .stopped) 가 첫 클릭을 consent
-        // 다이얼로그/launchAndOpenSettings 우회 경로로 잘못 라우팅하지 않도록 fresh check.
-        let freshStatus: PaidAppStatus = {
-            if isRunning() { return .started }
-            if isInstalled() { return .stopped }
-            return .notInstall
-        }()
-        switch freshStatus {
-        case .started:
-            // Issue113: explicit activate before URL scheme to guarantee foreground
-            // Issue142: wait for paidApp registration before openSettings to ensure 1st channel
-            // (bundlePath-routed URL scheme) instead of unreliable LaunchServices fallback.
-            // Mirrors launchAndOpenSettings() pattern; waitForPaidAppRegistration returns
-            // immediately if already registered.
-            activatePaidApp()
-            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-                guard let self else { return }
-                _ = self.waitForPaidAppRegistration()
-                DispatchQueue.main.async {
-                    PaidAppDetector.openSettings()
-                }
-            }
-        case .stopped:
-            if autoLaunchConsent {
-                logI("🏷️ [PaidApp] 동의 기반 자동 기동 (Issue112)")
-                launchAndOpenSettings()
-            } else {
-                showRequirePaidAlert()
-            }
-        case .notInstall:
-            showPaidOnlyAlert()
-        }
-    }
+    // Issue195: handlePaidFeature() removed — it had no callers and its .started
+    // branch still used the URL Scheme routing deprecated by Issue903. Actual
+    // routing lives in handleNewSnippet / handleEditSnippet / openSettings.
 
     /// Issue157: Create 버튼 → paidApp 새 스니펫 추가 창.
-    /// handlePaidFeature 와 동일한 상태 라우팅이되, openSettings 대신 openNewSnippet(keyword:content:) 호출.
+    /// Fresh-status 기반 상태 라우팅(Issue141 패턴) 후 openNewSnippet(keyword:content:) 호출.
     /// - .started → activate + URL Scheme(new-snippet&keyword&content)
     /// - .stopped → consent 기반 launchAndOpenNewSnippet 또는 require 다이얼로그
     /// - .notInstall → showPaidOnlyAlert
