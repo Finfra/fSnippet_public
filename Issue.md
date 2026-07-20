@@ -6,8 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 192
+* Issue HWM: 195
 * Checkpoints:
+      - 2026.07.20: d372aff (_doc_arch 정합성 검토(Issue193) 진행 중 작업 트리 스냅샷)
       - 2026.07.19: a494408 (Fix Issue192 Edit Mode ⌘S 스니펫 등록 오작동 회귀)
       - 2026.07.18: c3fe0c7 (Fix Issue191 "스니펫으로 등록" 전역 단축키·메뉴바 스텁)
       - 2026.07.09: 2e15877 (Fix(fSnippet#Issue949 후속) popupRows/searchScope/width/previewWidth stale-mirror 리싱크 추가)
@@ -19,6 +20,16 @@ date: 2026-04-07
 # 🌱 이슈후보
 
 # 🚧 진행중
+## Issue193: [Docs] cli/_doc_arch 설계 문서 ↔ 소스코드 정합성 전수 검토 및 업데이트 (등록: 2026-07-20)
+* 목적: `cli/_doc_arch/` 27개 설계 문서가 최근 이슈들(Issue122/125/188/189/189_2/190/191/192, Issue543 프리뷰 윈도우 통합 등) 이후의 실제 소스코드 상태를 반영하지 못해 stale 해진 부분을 전수 검증하고 갱신함.
+* 상세:
+    - 검토 범위: ARCHITECTURE.md, class/, key-event/(4), clipboard/(4), api/(3), popup/(3), shortcut/, snippet/, statistic/, event/, appsetting-json-design.md, settings-folder-resolve.md, menuBar_enhance.md, paidApp_version.md 등
+    - 대조 소스: `cli/fSnippetCli/` 135개 Swift 파일 + `api/openapi_v2.yaml`
+    - 방식: 도메인별 병렬 검토 agent 7개(arch/key-event/clipboard/api/settings/ui/misc)가 문서 주장 vs 코드 실상 불일치를 근거(파일:줄)와 함께 수집 → 확정본만 문서에 반영
+* 구현 명세:
+    - 각 불일치를 심각도순으로 취합, 코드가 진실(SSOT)이라는 전제로 문서를 갱신 (코드 버그 발견 시 문서 수정 대신 별도 이슈 등록)
+    - `cli/_doc_arch/` 는 gitignored 로컬 문서 — 문서 자체는 커밋 대상 아님, Issue.md 이력만 커밋
+    - 검증: 갱신 후 문서 내 클래스·메서드·경로 참조 grep 재확인
 
 # 📕 중요
 
@@ -27,6 +38,27 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue194: [Fix] ensureStructureSync() 죽은 코드 — 앱 시작 경로 미연결로 legacy 마이그레이션·규칙 파일 번들 시드 도달 불가 (등록: 2026-07-20, 완료: 2026-07-20) (Hash: 0cfb9be) ✅
+* depends: Issue193
+* 목적: Issue193 검토에서 발견. `PreferencesManager.ensureStructureSync()`/`ensureStructure()`가 어디서도 호출되지 않아, 내부에만 있는 두 설계 의도가 도달 불가 상태였음: (1) legacy `config.yaml` → `_config.yml` rename 마이그레이션(Issue333), (2) `_rule.yml`/`_rule_for_import.yml` 번들 사전 복사(Issue474_3 — Alert 중복 방지 목적).
+* 상세:
+    - 기존 앱 시작 경로: `PreferencesManager.init()` → `ensureDirectoriesExist()` + `loadConfig()` → `loadConfigInternal()`. `_config.yml` 부재 시 legacy 확인 없이 즉시 번들 복사/기본값 생성 → 마이그레이션 기회 영구 상실.
+    - `_rule.yml` 부재 시 방어선이 `RuleManager.ensureRuleFile(at:)`의 3버튼 대화형 NSAlert 뿐 — Issue474_3 이 의도한 "조용한 사전 시드"가 작동하지 않았음.
+* 해결 (2026-07-20):
+    - `PreferencesManager.init()`의 `ensureDirectoriesExist()` 호출을 `ensureStructureSync()`로 교체 — 마이그레이션·번들 시드가 `loadConfig()`(async barrier)의 신규 파일 생성보다 먼저 실행되도록 init 내 선행 배치. `ensureStructureSync` 내부가 `ensureDirectoriesExist` 포함 + `loadConfigInternal` 직접 호출 구조라 textQueue 중첩 데드락 없음.
+    - 검증: `/run` 9/9 PASS (Release 빌드 → brew local 재설치 → services start → REST 3015 응답). 앱 시작 로그에 `ensureStructureSync` 전용 시그니처 "Config 파일 이미 존재함 (Sync)" 출력 확인 — 죽은 코드가 실행 경로에 편입됨.
+
+## Issue195: [Chore] handlePaidFeature() 미호출 죽은 코드 제거 — outdated URL Scheme 라우팅 잔존 (등록: 2026-07-20, 완료: 2026-07-20) (Hash: 7f33e3a) ✅
+* depends: Issue193
+* 목적: Issue193 검토에서 발견. `PaidAppManager.handlePaidFeature()`는 호출부가 전무한 죽은 코드이며, `.started` 분기가 Issue903 에서 unreliable 로 폐기된 `PaidAppDetector.openSettings()` URL Scheme 방식을 그대로 담고 있어 향후 오용 시 회귀 위험이 있었음.
+* 상세:
+    - 실제 라우팅은 `handleNewSnippet`/`handleEditSnippet`/`openSettings()` 3개 메서드로 분산 구현되어 있고 각각 최신 방식(DistributedNotification 등) 사용.
+    - grep 결과 호출부 0건 — 삭제해도 컴파일·동작 영향 없음.
+* 해결 (2026-07-20):
+    - `PaidAppManager.swift`에서 `handlePaidFeature()` 메서드·doc comment 블록 제거, 제거 사유 주석(Issue195) 대체. `handleNewSnippet` doc comment 의 참조 문구도 자립형으로 정리.
+    - `cli/_doc_arch/paidApp_version.md`(§1/§3.2/§5/§9/§10)·`menuBar_enhance.md` 의 handlePaidFeature 언급을 제거 사실·3메서드 체계로 갱신.
+    - 검증: `grep -rn "handlePaidFeature" cli/ --include="*.swift"` 이력 주석 1건(HistoryPreviewView Issue189 "was handlePaidFeature") 외 0건 + `/run` 9/9 PASS.
+
 ## Issue192: [Bug] 클립보드 히스토리 Edit Mode(Tab-Tab 진입)에서 ⌘S가 "편집 저장" 대신 "스니펫 등록"으로 오작동 — Issue189 후속 회귀 (등록: 2026-07-19, 완료: 2026-07-19) (Hash: a494408) ✅
 * depends: Issue189
 * 목적: 클립보드 히스토리 뷰어에서 Tab을 두 번 눌러 Edit Mode(`previewEdit`)에 진입한 뒤 ⌘S를 누르면, 하단 힌트("Esc: Exit Edit | ⌘s: Save & View")와 다르게 편집 내용이 저장되지 않고 매번 "스니펫으로 등록" 동작이 실행됨. `PreviewTextView`의 `onSave`(텍스트를 `ClipboardDB`에 저장) 경로가 도달 불가능한 죽은 코드 상태가 되어 있음.
