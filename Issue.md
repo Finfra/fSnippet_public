@@ -24,13 +24,24 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
-## Issue196: [Design] Collision 0.4초 지연 타이머 죽은 코드 — 복원 vs 제거 결정 필요 (!) (등록: 2026-07-20)
-* depends: Issue193
-* 목적: Issue193 검토에서 발견. Issue479 설계의 "짧은 약어 충돌 시 0.4초 대기" 로직이 미구현 죽은 코드 상태 — 예약 함수 `CollisionManager.setupPendingCollision(candidate:)`(`CollisionManager.swift:36`)의 호출부가 전무하여 `pendingCollisionTimer`·`triggerPendingCollisionMatch()`·`KeyEventMonitor.triggerCollisionMatch` 콜백 전체가 발동 불가. 현재 실동작은 `hasLongerMatches` 시 즉시 무시(`TriggerProcessor.swift:59-64` `return false`) 후 다음 입력 재평가. 원 설계(타이머 복원)와 현행 유지(죽은 코드 제거) 중 UX 방향 결정이 필요하여 착수 보류. 관련 문서는 실동작 기준으로 이미 정정됨 (design_keyProcess.md §3.2 · design_keyEventMonitor.md §3.6 · abbreviation_matching.md §3).
 
 # 📗 선택
 
 # ✅ 완료
+## Issue196: [Chore] Collision 0.4초 지연 타이머 죽은 코드 — 제거 확정 (등록: 2026-07-20, 완료: 2026-07-22) (Hash: 5a7eafe) ✅
+* depends: Issue193
+* 목적: Issue193 검토에서 발견. Issue479 설계의 "짧은 약어 충돌 시 0.4초 대기" 로직이 미구현 죽은 코드 상태 — 예약 함수 `CollisionManager.setupPendingCollision(candidate:)`(`CollisionManager.swift:36`)의 호출부가 전무하여 `pendingCollisionTimer`·`triggerPendingCollisionMatch()`·`KeyEventMonitor.triggerCollisionMatch` 콜백 전체가 발동 불가. 현재 실동작은 `hasLongerMatches` 시 즉시 무시(`TriggerProcessor.swift:59-64` `return false`) 후 다음 입력 재평가. 원 설계(타이머 복원)와 현행 유지(죽은 코드 제거) 중 UX 방향 결정 필요하여 착수 보류 — `(!)` 마커로 등록.
+* 상세:
+    - 사용자 결정(2026-07-22): **제거**. "짧은 약어 입력 후 확장 대기" UX보다 "즉시 무시 후 재평가"가 이미 안정 동작 중이므로 죽은 코드만 정리.
+    - 제거 대상: `cli/fSnippetCli/Managers/CollisionManager.swift`(파일 삭제), `KeyEventMonitor`의 `CollisionManagerDelegate` 채택·`CollisionManager.shared.delegate` 배선·`triggerCollisionMatch(_:)` 콜백, `KeyEventHandler`의 60Hz collision throttle(`shouldRunCollisionCheck`/`lastCollisionCheckTime`/`collisionCheckInterval`) 및 `validatePendingCollision`/`cancelPendingCollision` 호출 4곳(중복 함수 2벌 × 2호출).
+* 구현 명세:
+    - `KeyEventMonitor.swift`: `CollisionManagerDelegate` 프로토콜 채택 제거, `CollisionManager.shared.delegate = self` 배선 제거, `triggerCollisionMatch` 콜백 삭제(`performTextReplacement`는 `TriggerProcessorDelegate` 몫이라 존치).
+    - `KeyEventHandler.swift`: throttle 헬퍼(`shouldRunCollisionCheck` 등) + "Pending Collision Check" 블록 2곳 + `cancelPendingCollision()` 호출 2곳 삭제.
+    - `project.yml`(glob 기반) → `xcodegen generate` 로 `project.pbxproj` 재생성해 파일 참조 동기화.
+    - `appSetting.json` logFilter allowList 의 `CollisionManagerDelegate` 항목 제거.
+    - 설계 문서 갱신(로컬 `_doc_arch`, gitignored): `abbreviation_matching.md`, `ARCHITECTURE.md`, `tech-consultant.md`, `key-event/design_keyProcess.md`, `key-event/design_keyEventMonitor.md`(§3.6 절 삭제), `class/design_CLASS_RESPONSIBILITIES.md`, `diagram/DIAGRAM_CLASS_all.mermaid` — `CollisionManager` 참조 전부 "제거됨" 각주로 대체. `_doc_base/domain-map.yml`·`EmojiForFile.csv` 도 동일 정리.
+    - 검증: `grep -rn "CollisionManager" cli/fSnippetCli --include="*.swift"` 0건. `xcodebuild -scheme fSnippetCli -configuration Release build` BUILD SUCCEEDED. `/run`(`fsc-deploy-brew.sh local`) 9/9 PASS — REST API(`localhost:3015`) 정상 응답.
+
 ## Issue193: [Docs] cli/_doc_arch 설계 문서 ↔ 소스코드 정합성 전수 검토 및 업데이트 (등록: 2026-07-20, 완료: 2026-07-20) (Hash: 35edadd — Issue.md 이력, 문서 본체는 gitignored) ✅
 * 목적: `cli/_doc_arch/` 27개 설계 문서가 최근 이슈들(Issue122/125/188/189/189_2/190/191/192, Issue543 프리뷰 윈도우 통합 등) 이후의 실제 소스코드 상태를 반영하지 못해 stale 해진 부분을 전수 검증하고 갱신함.
 * 상세:
@@ -40,7 +51,7 @@ date: 2026-04-07
 * 해결 (2026-07-20):
     - 총 **55건 불일치** 확정·문서 반영: settings 6 · misc 9 · ui 10 · arch 9 · clipboard 6 · api 9 · key-event 6
     - 주요 정정: handlePaidFeature "단일 진입점" 허위 → 라우팅 3메서드 체계 / ⌘S 스니펫 등록 "유료 안내" → paidApp New Snippet 라우팅(Issue188/189) / "0.15초 고정 딜레이" → 폴링 방식 / Collision 0.4초 타이머 미구현 명시 / snippetMap 타입·우선순위(append + first-wins) / Focus Retention Editor 분기 사문화 / REST 인증·Rate Limit 미구현 표기 / GET general 응답 keyCode=null 고정 + 누락 필드·엔드포인트 보강 / "미구현" 표기 3건 역방향 stale 해소(Issue191 ⌘S 등) / 죽은 링크·라인 인용 다수 정정
-    - 파생 이슈: Issue194(ensureStructureSync 연결, 0cfb9be ✅) · Issue195(handlePaidFeature 제거, 7f33e3a ✅) · Issue196(Collision 타이머 복원 vs 제거, `(!)` 등록)
+    - 파생 이슈: Issue194(ensureStructureSync 연결, 0cfb9be ✅) · Issue195(handlePaidFeature 제거, 7f33e3a ✅) · Issue196(Collision 타이머 제거, 5a7eafe ✅)
     - 검증: 수정 후 `grep -rn "handlePaidFeature" cli/ --include="*.swift"` 이력 주석 1건 외 0건, `/run` 9/9 PASS (Issue194/195 경유)
 
 ## Issue194: [Fix] ensureStructureSync() 죽은 코드 — 앱 시작 경로 미연결로 legacy 마이그레이션·규칙 파일 번들 시드 도달 불가 (등록: 2026-07-20, 완료: 2026-07-20) (Hash: 0cfb9be) ✅
