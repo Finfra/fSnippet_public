@@ -22,7 +22,6 @@
     "allowList": [
       "KeyEventMonitor",
       "DeleteLengthManager",
-      "CollisionManagerDelegate",
       "TriggerProcessor",
       "KeyEventInfo"
     ],

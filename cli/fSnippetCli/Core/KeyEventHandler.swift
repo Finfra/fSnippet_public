@@ -13,17 +13,6 @@ class KeyEventHandler: KeyEventProcessorDelegate {
   private let expansionCoordinator: SnippetExpansionCoordinator
   private weak var keyEventProcessor: KeyEventProcessor?  // Reference to control Tap
 
-  // Issue720_4: CollisionManager 호출 throttle (60Hz, 연속 키 입력 시 CPU 부하 감소)
-  private var lastCollisionCheckTime: TimeInterval = 0
-  private let collisionCheckInterval: TimeInterval = 1.0 / 60.0  // ~16ms
-
-  private func shouldRunCollisionCheck() -> Bool {
-    let now = CACurrentMediaTime()
-    guard (now - lastCollisionCheckTime) >= collisionCheckInterval else { return false }
-    lastCollisionCheckTime = now
-    return true
-  }
-
   // MARK: - Initialization
 
   init(
@@ -120,12 +109,6 @@ class KeyEventHandler: KeyEventProcessorDelegate {
         }
       }
 
-      // Pending Collision Check (Issue720_4: 60Hz throttle - 연속 입력 시 CPU 부하 감소)
-      if let char = keyInfo.character, !char.isEmpty, shouldRunCollisionCheck() {
-        CollisionManager.shared.validatePendingCollision(
-          extensionChar: char, currentBuffer: bufferController.getCurrentText())
-      }
-
       let sanitizedChar = KeyRenderingManager.shared.sanitizeInputCharacter(characterToken)
 
       // Visual Key Check
@@ -183,7 +166,6 @@ class KeyEventHandler: KeyEventProcessorDelegate {
         case .appShortcut:
           handleAppShortcut(role)
           bufferController.removeLast()
-          CollisionManager.shared.cancelPendingCollision()
           return true  // Consumed
 
         case .triggerKey:
@@ -378,12 +360,6 @@ class KeyEventHandler: KeyEventProcessorDelegate {
         }
       }
 
-      // Pending Collision Check (Issue720_4: 60Hz throttle - 연속 입력 시 CPU 부하 감소)
-      if let char = keyInfo.character, !char.isEmpty, shouldRunCollisionCheck() {
-        CollisionManager.shared.validatePendingCollision(
-          extensionChar: char, currentBuffer: bufferController.getCurrentText())
-      }
-
       let sanitizedChar = KeyRenderingManager.shared.sanitizeInputCharacter(characterToken)
 
       // Visual Key Check
@@ -437,7 +413,6 @@ class KeyEventHandler: KeyEventProcessorDelegate {
         case .appShortcut:
           handleAppShortcut(role)
           bufferController.removeLast()
-          CollisionManager.shared.cancelPendingCollision()
           return  // Consumed
 
         case .triggerKey:

@@ -3,7 +3,7 @@ import Foundation
 
 /// Fully integrated Key Event Monitor - Composition Root
 /// Refactored to delegate responsibilities to sub-components (Issue 583_7)
-class KeyEventMonitor: PopupControllerDelegate, CollisionManagerDelegate, TriggerProcessorDelegate {
+class KeyEventMonitor: PopupControllerDelegate, TriggerProcessorDelegate {
 
     // MARK: - Properties
 
@@ -105,7 +105,6 @@ class KeyEventMonitor: PopupControllerDelegate, CollisionManagerDelegate, Trigge
 
         // Global Delegates
         TriggerProcessor.shared.delegate = self
-        CollisionManager.shared.delegate = self
 
         // Observers
         setupObservers()
@@ -201,16 +200,7 @@ class KeyEventMonitor: PopupControllerDelegate, CollisionManagerDelegate, Trigge
         AppActivationMonitor.shared.setPopupVisible(isVisible)
     }
 
-    // MARK: - CollisionManagerDelegate & TriggerProcessorDelegate
-
-    func triggerCollisionMatch(_ candidate: AbbreviationMatcher.MatchCandidate) {
-        performTextReplacement(
-            snippet: candidate.snippet,
-            deleteLength: candidate.deleteLength,
-            triggerMethod: candidate.triggerMethod + "_delayed"
-        )
-        bufferController.clear(reason: "Collision Triggered")
-    }
+    // MARK: - TriggerProcessorDelegate
 
     func performTextReplacement(
         snippet: SnippetEntry, deleteLength: Int, triggerMethod: String
