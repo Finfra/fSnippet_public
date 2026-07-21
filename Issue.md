@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 195
+* Issue HWM: 196
 * Checkpoints:
       - 2026.07.20: d372aff (_doc_arch 정합성 검토(Issue193) 진행 중 작업 트리 스냅샷)
       - 2026.07.19: a494408 (Fix Issue192 Edit Mode ⌘S 스니펫 등록 오작동 회귀)
@@ -20,24 +20,29 @@ date: 2026-04-07
 # 🌱 이슈후보
 
 # 🚧 진행중
-## Issue193: [Docs] cli/_doc_arch 설계 문서 ↔ 소스코드 정합성 전수 검토 및 업데이트 (등록: 2026-07-20)
-* 목적: `cli/_doc_arch/` 27개 설계 문서가 최근 이슈들(Issue122/125/188/189/189_2/190/191/192, Issue543 프리뷰 윈도우 통합 등) 이후의 실제 소스코드 상태를 반영하지 못해 stale 해진 부분을 전수 검증하고 갱신함.
-* 상세:
-    - 검토 범위: ARCHITECTURE.md, class/, key-event/(4), clipboard/(4), api/(3), popup/(3), shortcut/, snippet/, statistic/, event/, appsetting-json-design.md, settings-folder-resolve.md, menuBar_enhance.md, paidApp_version.md 등
-    - 대조 소스: `cli/fSnippetCli/` 135개 Swift 파일 + `api/openapi_v2.yaml`
-    - 방식: 도메인별 병렬 검토 agent 7개(arch/key-event/clipboard/api/settings/ui/misc)가 문서 주장 vs 코드 실상 불일치를 근거(파일:줄)와 함께 수집 → 확정본만 문서에 반영
-* 구현 명세:
-    - 각 불일치를 심각도순으로 취합, 코드가 진실(SSOT)이라는 전제로 문서를 갱신 (코드 버그 발견 시 문서 수정 대신 별도 이슈 등록)
-    - `cli/_doc_arch/` 는 gitignored 로컬 문서 — 문서 자체는 커밋 대상 아님, Issue.md 이력만 커밋
-    - 검증: 갱신 후 문서 내 클래스·메서드·경로 참조 grep 재확인
 
 # 📕 중요
 
 # 📙 일반
+## Issue196: [Design] Collision 0.4초 지연 타이머 죽은 코드 — 복원 vs 제거 결정 필요 (!) (등록: 2026-07-20)
+* depends: Issue193
+* 목적: Issue193 검토에서 발견. Issue479 설계의 "짧은 약어 충돌 시 0.4초 대기" 로직이 미구현 죽은 코드 상태 — 예약 함수 `CollisionManager.setupPendingCollision(candidate:)`(`CollisionManager.swift:36`)의 호출부가 전무하여 `pendingCollisionTimer`·`triggerPendingCollisionMatch()`·`KeyEventMonitor.triggerCollisionMatch` 콜백 전체가 발동 불가. 현재 실동작은 `hasLongerMatches` 시 즉시 무시(`TriggerProcessor.swift:59-64` `return false`) 후 다음 입력 재평가. 원 설계(타이머 복원)와 현행 유지(죽은 코드 제거) 중 UX 방향 결정이 필요하여 착수 보류. 관련 문서는 실동작 기준으로 이미 정정됨 (design_keyProcess.md §3.2 · design_keyEventMonitor.md §3.6 · abbreviation_matching.md §3).
 
 # 📗 선택
 
 # ✅ 완료
+## Issue193: [Docs] cli/_doc_arch 설계 문서 ↔ 소스코드 정합성 전수 검토 및 업데이트 (등록: 2026-07-20, 완료: 2026-07-20) (Hash: 35edadd — Issue.md 이력, 문서 본체는 gitignored) ✅
+* 목적: `cli/_doc_arch/` 27개 설계 문서가 최근 이슈들(Issue122/125/188/189/189_2/190/191/192, Issue543 프리뷰 윈도우 통합 등) 이후의 실제 소스코드 상태를 반영하지 못해 stale 해진 부분을 전수 검증하고 갱신함.
+* 상세:
+    - 검토 범위: ARCHITECTURE.md, class/, key-event/(4)+abbreviation_matching, clipboard/(4), api/(3), popup/(3), shortcut/, snippet/, statistic/, event/, appsetting-json-design, settings-folder-resolve, menuBar_enhance, paidApp_version, tech-consultant
+    - 대조 소스: `cli/fSnippetCli/` 135개 Swift 파일 + `api/openapi_v2.yaml`
+    - 방식: 도메인별 병렬 검토 agent 7개(arch/key-event/clipboard/api/settings/ui/misc)가 불일치를 근거(파일:줄)와 함께 수집 → 확정본만 문서 반영
+* 해결 (2026-07-20):
+    - 총 **55건 불일치** 확정·문서 반영: settings 6 · misc 9 · ui 10 · arch 9 · clipboard 6 · api 9 · key-event 6
+    - 주요 정정: handlePaidFeature "단일 진입점" 허위 → 라우팅 3메서드 체계 / ⌘S 스니펫 등록 "유료 안내" → paidApp New Snippet 라우팅(Issue188/189) / "0.15초 고정 딜레이" → 폴링 방식 / Collision 0.4초 타이머 미구현 명시 / snippetMap 타입·우선순위(append + first-wins) / Focus Retention Editor 분기 사문화 / REST 인증·Rate Limit 미구현 표기 / GET general 응답 keyCode=null 고정 + 누락 필드·엔드포인트 보강 / "미구현" 표기 3건 역방향 stale 해소(Issue191 ⌘S 등) / 죽은 링크·라인 인용 다수 정정
+    - 파생 이슈: Issue194(ensureStructureSync 연결, 0cfb9be ✅) · Issue195(handlePaidFeature 제거, 7f33e3a ✅) · Issue196(Collision 타이머 복원 vs 제거, `(!)` 등록)
+    - 검증: 수정 후 `grep -rn "handlePaidFeature" cli/ --include="*.swift"` 이력 주석 1건 외 0건, `/run` 9/9 PASS (Issue194/195 경유)
+
 ## Issue194: [Fix] ensureStructureSync() 죽은 코드 — 앱 시작 경로 미연결로 legacy 마이그레이션·규칙 파일 번들 시드 도달 불가 (등록: 2026-07-20, 완료: 2026-07-20) (Hash: 0cfb9be) ✅
 * depends: Issue193
 * 목적: Issue193 검토에서 발견. `PreferencesManager.ensureStructureSync()`/`ensureStructure()`가 어디서도 호출되지 않아, 내부에만 있는 두 설계 의도가 도달 불가 상태였음: (1) legacy `config.yaml` → `_config.yml` rename 마이그레이션(Issue333), (2) `_rule.yml`/`_rule_for_import.yml` 번들 사전 복사(Issue474_3 — Alert 중복 방지 목적).
