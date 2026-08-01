@@ -447,6 +447,24 @@ cmd_publish() {
     fi
     echo "  ✅ Info.plist 버전 검증: $BUILT_VER == $VER"
 
+    # ── Step 2.9: git tag + push (F5-4 / prj1#Issue346) ──
+    # 왜: 지금까지 태그는 `gh release create` 가 **원격 기본 브랜치 HEAD 에** 대신
+    #   만들어 줬다. 그래서 태그가 붙는 커밋이 지금 빌드한 커밋이라는 보장이 없다.
+    #   prj26(fwc-deploy-brew.sh Step 3) 처럼 로컬에서 명시적으로 붙이고 push 한 뒤
+    #   gh release 가 그 태그를 재사용하게 한다.
+    # ⚠️ fail-soft — 이미 존재하는 태그로 재배포하는 경우가 정상 경로에 있다.
+    echo ""
+    echo "=== Step 2.9: git tag $TAG + push ==="
+    if git -C "$CLI_DIR" rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+        echo "  태그 이미 존재: $TAG (건너뜀)"
+    elif git -C "$CLI_DIR" tag -a "$TAG" -m "fSnippetCli v$VER"; then
+        git -C "$CLI_DIR" push origin "$TAG" 2>&1 | tail -2 \
+            || echo "  ⚠️ 태그 push 실패: $TAG (로컬에는 생성됨)"
+        echo "  🏷 $TAG → $(git -C "$CLI_DIR" rev-parse --short "$TAG^{commit}")"
+    else
+        echo "  ⚠️ 태그 생성 실패: $TAG"
+    fi
+
     # ── Step 3: GitHub release + asset ──
     echo ""
     echo "=== Step 3: GitHub release ($TAG) + asset 업로드 ==="
@@ -512,6 +530,15 @@ cmd_publish() {
     fi
     popd > /dev/null || true
     rm -rf "$TAP_CLONE"
+
+    # ── 배포 인벤토리 기록 (F5-5 / prj1#Issue346) ──
+    local _DEPLOY_RECORD="$HOME/_git/___pm/scripts/fpm-deploy-record.sh"
+    if [ -f "$_DEPLOY_RECORD" ]; then
+        bash "$_DEPLOY_RECORD" --prj 25 --name fSnippetCli --version "$VER" \
+            --channel homebrew --tag "$TAG" \
+            --commit "$(git -C "$CLI_DIR" rev-parse --short HEAD)" \
+            || echo "⚠️ 배포 기록 실패 (배포 자체는 완료됨)"
+    fi
 
     # ── 완료 ──
     echo ""
