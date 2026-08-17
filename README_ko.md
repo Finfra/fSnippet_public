@@ -16,7 +16,7 @@ macOS 메뉴바 스니펫 & 클립보드 관리 도구. 텍스트 스니펫을 �
 | 에디션                 | 가격            | 인터페이스 | 버전    | 설치 방법                                                  |
 | :--------------------- | :-------------- | :--------- | :------ | :--------------------------------------------------------- |
 | **fSnippet Pro** (GUI) | 유료            | GUI        | —       | App Store (출시 예정)                                      |
-| **fSnippetCli** (CLI)  | 무료 / 오픈소스 | CLI        | v1.0.1  | `brew install finfra/tap/fsnippet-cli` ([소스코드](./cli/)) |
+| **fSnippetCli** (CLI)  | 무료 / 오픈소스 | CLI        | v1.1.1  | `brew install finfra/tap/fsnippet-cli` ([소스코드](./cli/)) |
 
 * **fSnippet Pro** - 직관적인 설정 화면, 시각적 스니펫 관리, 클립보드 히스토리 뷰어를 갖춘 정식 GUI 앱. Mac App Store에서 출시 예정.
 * **fSnippetCli** - 완전 무료 오픈소스 CLI 버전. 모든 소스코드는 [`cli/`](./cli/) 디렉토리에 있으며 Homebrew로 설치 가능.
@@ -79,12 +79,17 @@ brew untap finfra/tap                # (선택) tap 제거
 * **텍스트 & 이미지 지원** - 텍스트와 이미지 스니펫 모두 저장
 * **AI 에이전트 연동** - Claude, Gemini, MCP로 자동화
 
-## 최근 개선사항 (v1.0.1)
+## 최근 개선사항 (v1.1.1)
 
-* **강화된 HTTP 처리** - REST API의 부분 수신 시나리오와 조기 EOF 처리 개선 (Issue929, Issue923)
-* **Brew 원격 배포** - 원격 Homebrew tap에서 직접 설치 가능 (Issue167)
-* **향상된 키보드 감지** - CGEventTap에서 오른쪽 커맨드 키 및 특수 키 감지 개선 (Issue912, Issue165)
-* **개선된 설정 동기화** - 폴더 규칙 일괄 저장 및 stale 캐시 처리 수정 (Issue926)
+* **단축키 즉시 반영** - 팝업 단축키와 메뉴바 keyEquivalent가 재시작 없이 곧바로 적용됨 (Issue172, Issue177)
+* **설정 저장 안정화** - 변경한 설정이 옛 값으로 원복되던 문제 수정 (트리거 키, 팝업 행 수/검색 범위/너비, quick-select modifier) (Issue178, Issue183, Issue184)
+* **사람이 읽는 설정 포맷** - 팝업 단축키·quick-select modifier를 raw 정수 대신 읽을 수 있는 토큰으로 저장 (Issue182, Issue183)
+* **클립보드 히스토리 개선** - 미리보기 토글 버튼 추가 + 리스트·미리보기·편집 모드 전반의 "스니펫으로 등록" 동작 수정 (Issue187 ~ Issue192)
+* **REST 폴더 관리** - v2 API 폴더 rename 지원, 빈 폴더가 폴더 목록에서 누락되던 문제 수정 (Issue186, Issue190)
+* **팝업 수정** - 마침표(`.`) 입력 시 스니펫 팝업이 닫히던 문제 수정 (Issue185)
+* **코드 정리** - 도달 불가한 죽은 코드 제거 및 끊겨 있던 시작 시 마이그레이션 경로 복원 (Issue194, Issue195, Issue196)
+
+> 참고: REST API v1(`/api/v1/`)은 전면 폐기되어 `410 GONE`을 반환합니다. `/api/v2/`를 사용하십시오.
 
 ## AI 에이전트 연동
 

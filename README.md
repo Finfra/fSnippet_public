@@ -16,7 +16,7 @@ macOS Menu Bar Snippet & Clipboard Manager. Manage text snippets, track clipboar
 | Edition                | Price      | Interface | Version | Install                                                  |
 | :--------------------- | :--------- | :-------- | :------ | :------------------------------------------------------- |
 | **fSnippet Pro** (GUI) | Paid       | GUI       | —       | App Store (Coming Soon)                                  |
-| **fSnippetCli** (CLI)  | Free / OSS | CLI       | v1.0.1  | `brew install finfra/tap/fsnippet-cli` ([Source](./cli/)) |
+| **fSnippetCli** (CLI)  | Free / OSS | CLI       | v1.1.1  | `brew install finfra/tap/fsnippet-cli` ([Source](./cli/)) |
 
 * **fSnippet Pro** - Full-featured GUI app with intuitive settings, visual snippet management, and clipboard history viewer. Available on the Mac App Store (coming soon).
 * **fSnippetCli** - Fully open-source CLI version. All source code is in the [`cli/`](./cli/) directory. Installable via Homebrew.
@@ -79,12 +79,17 @@ This repository serves two purposes:
 * **Text & Image Support** - Store both text and image snippets
 * **AI Agent Integration** - Automate with Claude, Gemini, and MCP
 
-## Recent Improvements (v1.0.1)
+## Recent Improvements (v1.1.1)
 
-* **Robust HTTP Handling** - Fixed partial read scenarios and premature EOF handling in REST API (Issue929, Issue923)
-* **Brew Remote Deployment** - Can now be installed directly from the remote Homebrew tap without manual setup (Issue167)
-* **Enhanced Keyboard Capture** - Improved right_command and special key detection in CGEventTap (Issue912, Issue165)
-* **Better Settings Sync** - Fixed folder rule batch-save and proper stale cache handling (Issue926)
+* **Instant Shortcut Updates** - Popup hotkey and menu bar key equivalents now apply immediately, with no restart required (Issue172, Issue177)
+* **Reliable Settings Persistence** - Fixed settings reverting to old values after a change (trigger key, popup rows, search scope, width, quick-select modifier) (Issue178, Issue183, Issue184)
+* **Human-Readable Config** - Popup hotkey and quick-select modifier are now stored as readable tokens instead of raw integers (Issue182, Issue183)
+* **Clipboard History Upgrades** - Added a preview toggle button and fixed "Register as Snippet" across list, preview, and edit modes (Issue187 - Issue192)
+* **Folder Management via REST** - Folder rename support in the v2 API, and empty folders are no longer missing from folder listings (Issue186, Issue190)
+* **Popup Fixes** - Typing a period (`.`) no longer closes the snippet popup (Issue185)
+* **Codebase Cleanup** - Removed unreachable dead code paths and restored a broken startup migration hook (Issue194, Issue195, Issue196)
+
+> Note: the REST API v1 (`/api/v1/`) is fully deprecated and returns `410 GONE`. Use `/api/v2/`.
 
 ## AI Agent Integration
 
