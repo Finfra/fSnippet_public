@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 196
+* Issue HWM: 197
 * Checkpoints:
       - 2026.07.20: d372aff (_doc_arch 정합성 검토(Issue193) 진행 중 작업 트리 스냅샷)
       - 2026.07.19: a494408 (Fix Issue192 Edit Mode ⌘S 스니펫 등록 오작동 회귀)
@@ -29,6 +29,14 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue197: [Release] 앱스토어 업로드 준비 — develop 정리 커밋 + release/1.1.0 머지 (등록: 2026-08-17, 완료: 2026-08-17) (Hash: 2a63cf7) ✅
+* 목적: 앱스토어 업로드 준비를 위해 develop 의 미커밋 변경을 정리하고 release/1.1.0 에 반영 (pm-do 위임 작업).
+* 상세:
+    - Issue.md 이슈후보 1건(mq handoff 유래)만 커밋(2a63cf7). `.vscode/settings.json` 은 로컬 IDE 색상 설정이라 커밋에서 제외(워킹트리 유지).
+    - VERSION=1.1.0 확인 후 develop → release/1.1.0 fast-forward 머지, release/1.1.0 체크아웃 상태로 종료.
+* 구현 명세:
+    - 검증: `git log --oneline -1 release/1.1.0` 이 develop HEAD 와 동일 지점인지 확인.
+
 ## Issue196: [Chore] Collision 0.4초 지연 타이머 죽은 코드 — 제거 확정 (등록: 2026-07-20, 완료: 2026-07-22) (Hash: 5a7eafe) ✅
 * depends: Issue193
 * 목적: Issue193 검토에서 발견. Issue479 설계의 "짧은 약어 충돌 시 0.4초 대기" 로직이 미구현 죽은 코드 상태 — 예약 함수 `CollisionManager.setupPendingCollision(candidate:)`(`CollisionManager.swift:36`)의 호출부가 전무하여 `pendingCollisionTimer`·`triggerPendingCollisionMatch()`·`KeyEventMonitor.triggerCollisionMatch` 콜백 전체가 발동 불가. 현재 실동작은 `hasLongerMatches` 시 즉시 무시(`TriggerProcessor.swift:59-64` `return false`) 후 다음 입력 재평가. 원 설계(타이머 복원)와 현행 유지(죽은 코드 제거) 중 UX 방향 결정 필요하여 착수 보류 — `(!)` 마커로 등록.
@@ -199,7 +207,7 @@ date: 2026-04-07
 * 검증 (2026-07-12): 위 187_1 검증에 포함(동일 빌드·배포).
 
 ## Issue186: GET /api/v2/folders에서 빈 폴더(스니펫 0개) 누락 — paidApp New Snippet Storage Folder 선택 불가 원인 (등록: 2026-07-09) (✅ 완료, 78b9a31) ✅
-* depends: fSnippet#Issue951
+* depends: prj15#Issue951
 * 목적: paidApp에서 새 폴더 생성 직후 New Snippet 창의 Storage Folder 드롭다운이 빈 값으로 뜨는 문제(fSnippet 레포 Issue951)의 근본 원인. `handleGetFolders()`가 스니펫 인덱스 기반으로만 폴더 목록을 구성해, 스니펫이 하나도 없는 폴더는 생성 주체(paidApp/cliApp)와 무관하게 항상 목록에서 누락됨.
 * 상세:
     - 원인: `APIRouter.handleGetFolders()` 가 `SnippetIndexManager.shared.entries`를 `folderName`으로 그룹핑해 `folderMap`을 만듦. 스니펫이 0개인 폴더는 `entries`에 아예 나타나지 않으므로 `folderMap`에 키가 생기지 않아 응답 `data`에서 누락됨.
@@ -750,9 +758,9 @@ date: 2026-04-07
 
 
 
-## Issue135: [paidApp 연동] folderExcludedFiles REST API 제공 검증 — paidApp Issue892 대응 (등록: 2026-05-20, 완료: 2026-05-20, 검증 완료) (Hash: 175a916)
-* 목적: paidApp Issue892가 `folderExcludedFiles`를 REST 경유로 읽고 쓸 때 cliApp `/api/v2/settings/excluded-files/per-folder` 엔드포인트가 정상 응답하는지 검증.
-* depends: paidApp Issue892 (구현 주체)
+## Issue135: [paidApp 연동] folderExcludedFiles REST API 제공 검증 — prj15#Issue892(paidApp) 대응 (등록: 2026-05-20, 완료: 2026-05-20, 검증 완료) (Hash: 175a916)
+* 목적: prj15#Issue892(paidApp)가 `folderExcludedFiles`를 REST 경유로 읽고 쓸 때 cliApp `/api/v2/settings/excluded-files/per-folder` 엔드포인트가 정상 응답하는지 검증.
+* depends: prj15#Issue892 (paidApp, 구현 주체)
 * 검증 결과 (cliApp 실행 중 curl, 엔진 코드 무수정):
     - **GET** `/per-folder` → raw map `{ "folderName": ["file.txt"] }` 반환. `openapi_v2.yaml` L539-542 (object + additionalProperties array of string) 와 일치
     - **PUT** `/per-folder/{folder}` body `["dummy.txt"]` → 200 + 응답 list. `_config.yml`의 `snippet_folder_excluded_files` 키에 `{"_qaTestFolder":["dummy.txt"]}` 반영 확인
@@ -760,7 +768,7 @@ date: 2026-04-07
     - 저장소: `PreferencesManager` → `_config.yml` `snippet_folder_excluded_files` (상수 `v2PerFolderExcludedKey`)
     - 테스트 데이터(`_qaTestFolder`)는 DELETE로 정리 완료
 * 명세 정정: 등록 시 확인 항목에 적은 GET 응답 형식 `{ "data": {...} }`는 부정확 — 실제 구현·`openapi_v2.yaml` SSOT 모두 래퍼 없는 raw map. SSOT 기준이 정답
-* 결론: cliApp 측 엔드포인트(GET 전체/단건·PUT·DELETE·POST) 정상 작동. paidApp Issue892 구현 시 즉시 사용 가능
+* 결론: cliApp 측 엔드포인트(GET 전체/단건·PUT·DELETE·POST) 정상 작동. prj15#Issue892(paidApp) 구현 시 즉시 사용 가능
 
 ## Issue138: [Test/Infra] qa 하니스 special-key 케이스 — 35/35 달성 (하니스 결함 수정) (등록: 2026-05-20, 완료: 2026-05-21) (Hash: 3fed3e3, 0a043a2)
 * 목적: Issue137 `qa_run_batch.sh` 검증의 case20/21/22/23 FAIL 4건 원인 규명·처리.
