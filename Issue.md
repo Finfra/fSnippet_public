@@ -18,6 +18,7 @@ date: 2026-04-07
 * `cli/_doc_arch/menuBar_enhance.md` 기준 진행(메뉴바, 로컬 SSOT — gitignored)
 
 # 🌱 이슈후보
+1. [mq] [컨펌] Issue196 Collision 0.4초 지연 타이머 죽은 코드 해결 방향 결정: A(제거·권장) = CollisionManager 전체+KeyEventMonitor delegate+KeyEventHandler validate/cancel 4곳 제거, 현행 … (출처 claude@_public · ACK 2026-07-21T19:49:26 · handoff 20260721-162512-001 → 전문은 handoff/z_consumed/20260721-162512-001.json)
 
 # 🚧 진행중
 
