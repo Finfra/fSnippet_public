@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 197
+* Issue HWM: 198
 * Checkpoints:
       - 2026.07.20: d372aff (_doc_arch 정합성 검토(Issue193) 진행 중 작업 트리 스냅샷)
       - 2026.07.19: a494408 (Fix Issue192 Edit Mode ⌘S 스니펫 등록 오작동 회귀)
@@ -29,6 +29,17 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue198: [Release] 버전 1.1.1 bump — brew publish 사전 준비 (등록: 2026-08-18, 완료: 2026-08-18) (Hash: 134d1dd) ✅
+* 목적: cli-v1.1.0 공개(2026-07-13) 이후 cli/ 에 40커밋 누적 — 같은 버전 번호에 다른 바이너리 배포를 막기 위해 패치 상승(사용자 승인, pm-do 위임 작업). GitHub API outage 로 원격 publish 는 보류, 로컬 준비까지만.
+* 상세:
+    - VERSION 1.1.0 → 1.1.1 (SSOT). develop 에서 bump 후 release/1.1.1 신설 (release/1.1.0 브랜치는 잔존 — 삭제는 승인 대상이라 보류)
+    - `cli/Formula/fsnippet-cli.rb` url/version 1.1.1 동기화. sha256 은 publish 5단계가 새 tarball 로 재계산하므로 구값 유지
+    - `cli/version-meta.yml` 은 버전 값 미보관(주석 규약 준수) — 변경 불요 확인
+    - `cli/project.yml`·`project.pbxproj` MARKETING_VERSION 1.1.1 동기화 (publish 층2 검증게이트: Info.plist ≠ VERSION 시 중단 대비)
+* 구현 명세:
+    - 검증: Release 빌드 통과 + 산출물 Info.plist `CFBundleShortVersionString` = 1.1.1 실측
+    - 후속: GitHub API 복구 후 `/deploy brew publish` 실행 (release/1.1.1 에서, cli-v1.1.1 태그)
+
 ## Issue197: [Release] 앱스토어 업로드 준비 — develop 정리 커밋 + release/1.1.0 머지 (등록: 2026-08-17, 완료: 2026-08-17) (Hash: 2a63cf7) ✅
 * 목적: 앱스토어 업로드 준비를 위해 develop 의 미커밋 변경을 정리하고 release/1.1.0 에 반영 (pm-do 위임 작업).
 * 상세:
