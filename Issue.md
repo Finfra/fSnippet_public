@@ -36,56 +36,75 @@ date: 2026-04-07
     - 검증: curl 로 스냅샷 GET → 값 일부 변경 → PUT → 재 GET 으로 반영 확인. paidApp import 왕복 1회 실측.
 
 # 📙 일반
-## Issue199: [Docs] CLAUDE.md brew 패키지명 오기재 — fsnippetcli(하이픈 없음) vs 실제 fsnippet-cli (등록: 2026-08-18)
-* 목적: CLAUDE.md 의 Formula 파일명·Quick Start brew 명령이 하이픈 없는 `fsnippetcli` 로 적혀 있어, 문서를 그대로 복붙 실행하면 formula 를 찾지 못해 실패함. consultant-m 검토(2026-08-18)에서 발견.
-* 상세:
-    - CLAUDE.md "중요 관련 파일" 표 배포 행: `cli/Formula/fsnippetcli.rb` — 실제 파일명은 `cli/Formula/fsnippet-cli.rb`.
-    - CLAUDE.md Quick Start: `brew install finfra/tap/fsnippetcli` · `brew services start fsnippetcli` — 실제 tap 패키지명은 `fsnippet-cli`.
-    - 대조 근거: `cli/_tool/fsc-deploy-brew.sh` 전역이 `fsnippet-cli` 로 통일(TAP_FORMULA·brew install/services/uninstall 전부), README.md·README_ko.md 도 하이픈 포함으로 정확히 표기. 오기재는 CLAUDE.md 단독.
-* 구현 명세:
-    - 로직: CLAUDE.md 3곳(Formula 경로 1·brew install 1·brew services 1)을 `fsnippet-cli` 로 정정.
-    - 검증: `grep -n "fsnippetcli" CLAUDE.md` 0건. 소스코드·빌드 산출물 무변경(문서 전용).
-
-## Issue200: [Docs] CLAUDE.md 에 존재하지 않는 경로 참조 — locales/, cli/Issue.md (등록: 2026-08-18)
-* 목적: CLAUDE.md 가 실재하지 않는 폴더·파일을 가리켜 신규 기여자·에이전트가 잘못된 경로를 탐색함. consultant-m 검토(2026-08-18)에서 발견.
-* 상세:
-    - "구조" 절 `locales/` · "다국어 (locales/)" 절 제목 — 실제 폴더명은 저장소 루트의 `localization/`. README.md 문서 표 링크도 `./localization/` 으로 정확히 표기됨.
-    - "중요 관련 파일" 표 `[cli/Issue.md](cli/Issue.md)` — 실재하지 않음(`ls cli/Issue.md` No such file). 이슈 관리 파일은 저장소 **루트**의 `Issue.md`.
-* 구현 명세:
-    - 로직: `locales/` → `localization/` 2곳, `cli/Issue.md` → `Issue.md` 1곳 정정.
-    - 검증: `grep -n "locales/\|cli/Issue.md" CLAUDE.md` 0건 + 참조 대상 실존(`ls localization Issue.md`).
-
-## Issue201: [Docs] CLAUDE.md REST API v1 설명이 실제 구현(전면 deprecated/410)과 불일치 (등록: 2026-08-18)
-* 목적: CLAUDE.md 가 v1 을 정상 서빙되는 API 로 기술하고 Quick Start 예제도 v1 엔드포인트를 제시하나, 실제로는 모든 v1 요청이 410 GONE 으로 거부됨. 문서대로 실행한 신규 기여자가 정상 상태 대신 deprecated 에러를 받아 혼란을 겪음. consultant-m 검토(2026-08-18)에서 발견.
-* 상세:
-    - 구현: `cli/fSnippetCli/Managers/APIRouter.swift` `routeInternal` 진입부에서 `decodedPath.hasPrefix("/api/v1/")` 이면 무조건 `410 GONE "API v1 is deprecated. Use /api/v2/ instead."` 반환. 개별 v1 핸들러 도달 불가.
-    - 문서: CLAUDE.md "REST API 명세" 절 v1 항목이 "스니펫/클립보드/통계/상태 조회" 로 정상 기능처럼 기술. Quick Start 는 `curl http://localhost:3015/api/v1/status`.
-    - noteForHuman.md 상단 경고는 이미 v1 폐기를 명시하고 있어 문서 간에도 불일치.
-    - 실제 상태 조회 경로는 `GET /api/v2/status` (APIRouter 라우팅 실측). README.md 는 이미 `/api/v2/status` 로 정확히 표기.
-* 구현 명세:
-    - 로직: CLAUDE.md v1 항목을 "전면 deprecated — 모든 요청 410 GONE, 신규 구현 금지" 로 정정하고 `api/openapi_v1.yaml` 은 폐기 이력 보존용임을 명시. Quick Start 예제를 `curl http://localhost:3015/api/v2/status` 로 교체.
-    - 검증: `grep -n "api/v1" CLAUDE.md` 결과가 전부 deprecated 문맥인지 육안 확인. 앱 코드 무변경.
-
-## Issue202: [Docs] README.md / README_ko.md 버전 표기가 v1.0.1 로 정체 — 실제 VERSION 은 1.1.1 (등록: 2026-08-18)
-* 목적: 공개(오픈소스) 저장소의 사용자 대면 문서가 실제 배포 버전과 어긋남. 에디션 표 버전 배지와 "최근 개선사항" 절이 v1.0.1 기준에 멈춰 있음. consultant-m 검토(2026-08-18)에서 발견.
-* 상세:
-    - README.md·README_ko.md 에디션 표의 fSnippetCli 버전 셀이 `v1.0.1`, "Recent Improvements (v1.0.1)"/"최근 개선사항 (v1.0.1)" 절도 동일 기준.
-    - 마지막 README 수정 커밋(974ca93, "Update README with v1.0.1 release info")이 cli-v1.0.2·cli-v1.1.0 태그 지점에 머물러 있고, 이후 VERSION 은 1.1.0 → 1.1.1(Issue198)로 갱신되며 `cli/` 에 40커밋이 누적됨.
-* 구현 명세:
-    - 로직: 양 README 의 버전 셀을 `v1.1.1`(VERSION 파일 SSOT)로 갱신. 개선사항 절을 v1.1.1 기준으로 재작성 — 근거는 974ca93 이후 완료 이슈(Issue172·177 단축키 즉시 반영, Issue178·183·184 설정 stale-revert, Issue182·183 설정 파일 포맷 가독화, Issue185 팝업 마침표, Issue186 빈 폴더 누락, Issue187~192 히스토리 미리보기·스니펫 등록, Issue190 폴더 rename, Issue194·195·196 죽은 코드 제거).
-    - 검증: `grep -n "v1.0.1" README.md README_ko.md` 0건 + 표기 버전 == `cat VERSION`. 한/영 양쪽 동일 항목 수 유지.
 
 # 📗 선택
-## Issue204: [Chore] 이슈후보 섹션에 종결된 Issue196 컨펌 항목이 잔존 — 규칙4 위반 (등록: 2026-08-18)
+
+# ✅ 완료
+## Issue204: [Chore] 이슈후보 섹션에 종결된 Issue196 컨펌 항목이 잔존 — 규칙4 위반 (등록: 2026-08-18, 완료: 2026-08-18) (Hash: 995c4a5) ✅
 * 목적: `🌱 이슈후보` 의 "[컨펌] Issue196 Collision 0.4초 지연 타이머 죽은 코드 해결 방향 결정" 항목이 컨펌·종결 후에도 삭제되지 않아 미결 항목처럼 보임. consultant-m 검토(2026-08-18)에서 발견.
 * 상세:
     - 해당 항목은 ACK 2026-07-21 에 A안(제거)으로 컨펌되었고, Issue196 이 2026-07-22 "제거" 결정으로 완료(Hash: 5a7eafe)됨.
     - 그럼에도 이슈후보 목록에 그대로 남아 issue-g 규칙4("이슈 등록 시 이슈후보 섹션의 중복 항목은 삭제")를 위반한 상태.
 * 구현 명세:
     - 로직: 이슈후보에서 해당 1줄 삭제. 결정 내용은 이미 Issue196 본문 "사용자 결정(2026-07-22): **제거**" 에 보존되어 있어 정보 손실 없음. handoff 원문(`handoff/z_consumed/20260721-162512-001.json`)도 별도 보존.
-    - 검증: `grep -n "Issue196" Issue.md` 결과에 이슈후보 섹션 라인이 없을 것.
+    - 검증: `grep -n "Issue196" Issue.md` 결과에 이슈후보 섹션 라인 없음 — 실측 통과(이슈후보 섹션 공란).
 
-# ✅ 완료
+## Issue202: [Docs] README.md / README_ko.md 버전 표기가 v1.0.1 로 정체 — 실제 VERSION 은 1.1.1 (등록: 2026-08-18, 완료: 2026-08-18) (Hash: 995c4a5) ✅
+* 목적: 공개(오픈소스) 저장소의 사용자 대면 문서가 실제 배포 버전과 어긋남. 에디션 표 버전 배지와 "최근 개선사항" 절이 v1.0.1 기준에 멈춰 있음. consultant-m 검토(2026-08-18)에서 발견.
+* 상세:
+    - README.md·README_ko.md 에디션 표의 fSnippetCli 버전 셀이 `v1.0.1`, "Recent Improvements (v1.0.1)"/"최근 개선사항 (v1.0.1)" 절도 동일 기준.
+    - 마지막 README 수정 커밋(974ca93, "Update README with v1.0.1 release info")이 cli-v1.0.2·cli-v1.1.0 태그 지점에 머물러 있고, 이후 VERSION 은 1.1.0 → 1.1.1(Issue198)로 갱신되며 `cli/` 에 40커밋이 누적됨.
+* 구현:
+    - 양 README 에디션 표 버전 셀 `v1.0.1` → `v1.1.1` (VERSION 파일 SSOT 일치).
+    - "Recent Improvements"/"최근 개선사항" 절을 v1.1.1 기준 7항목으로 재작성 — 974ca93 이후 완료 이슈에서 사용자 대면 변경만 선별(Issue172·177 단축키 즉시 반영 / Issue178·183·184 설정 원복 / Issue182·183 설정 포맷 가독화 / Issue185 팝업 마침표 / Issue186·190 폴더 목록·rename / Issue187~192 히스토리 미리보기·스니펫 등록 / Issue194~196 죽은 코드 정리).
+    - REST API v1 폐기(410 GONE) 안내 1줄을 양 README 에 추가 — Issue201 과 동일 사실을 사용자 대면 문서에도 반영.
+* 검증:
+    - `grep -n "v1\.0\.1" README.md README_ko.md` → 0건 (exit 1) 실측.
+    - 표기 버전 == `cat VERSION`(1.1.1) 실측. 한/영 항목 수 7개로 동일.
+    - 앱 소스·빌드 설정 무변경 — `git diff --name-only` 에 `.swift`/`.yml`/`.pbxproj` 0건 실측(App Store 제출 빌드 영향 없음).
+
+## Issue201: [Docs] CLAUDE.md REST API v1 설명이 실제 구현(전면 deprecated/410)과 불일치 (등록: 2026-08-18, 완료: 2026-08-18) (Hash: 995c4a5 — Issue.md 이력, 문서 본체 CLAUDE.md 는 gitignored) ✅
+* 목적: CLAUDE.md 가 v1 을 정상 서빙되는 API 로 기술하고 Quick Start 예제도 v1 엔드포인트를 제시하나, 실제로는 모든 v1 요청이 410 GONE 으로 거부됨. 문서대로 실행한 신규 기여자가 정상 상태 대신 deprecated 에러를 받아 혼란을 겪음. consultant-m 검토(2026-08-18)에서 발견.
+* 상세:
+    - 구현: `cli/fSnippetCli/Managers/APIRouter.swift` `routeInternal` 진입부에서 `decodedPath.hasPrefix("/api/v1/")` 이면 무조건 `410 GONE "API v1 is deprecated. Use /api/v2/ instead."` 반환. 개별 v1 핸들러 도달 불가.
+    - 실제 상태 조회 경로는 `GET /api/v2/status` (APIRouter 라우팅 실측). README.md 는 이미 `/api/v2/status` 로 정확히 표기.
+* 구현:
+    - "REST API 명세" 절 v1 항목을 "⛔ 전면 deprecated — 모든 요청 410 GONE, 신규 구현·호출 금지, `api/openapi_v1.yaml` 은 폐기 이력 보존용" 으로 교체. v2 항목에 v1 이 담당하던 조회 기능을 흡수 명기.
+    - SSOT 문장을 "두 yaml" → `api/openapi_v2.yaml` 단수로 정정. "중요 관련 파일" 표 v1 yaml 행도 (폐기 — 이력 보존용) 표기.
+    - Quick Start 예제 `curl .../api/v1/status` → `curl .../api/v2/status` + 폐기 주석 1줄.
+* 검증:
+    - `grep -n "api/v1" CLAUDE.md` 결과가 전부 deprecated 문맥임을 육안 확인 — 실행 예제로 남은 v1 호출 0건.
+    - 앱 코드 무변경(문서 전용).
+* ⚠️ 커밋 범위 주의: 본 저장소는 `.gitignore:3` 에서 `CLAUDE.md` 를 제외하고 있어 문서 본체는 버전관리 대상이 아님(공개 레포 특성상 의도된 설정으로 판단). 파일 수정은 워킹트리에 반영 완료, 커밋 해시는 본 Issue.md 이력 기준. Issue193 과 동일 표기 관례.
+
+## Issue200: [Docs] CLAUDE.md 에 존재하지 않는 경로 참조 — locales/, cli/Issue.md (등록: 2026-08-18, 완료: 2026-08-18) (Hash: 995c4a5 — Issue.md 이력, 문서 본체 CLAUDE.md 는 gitignored) ✅
+* 목적: CLAUDE.md 가 실재하지 않는 폴더·파일을 가리켜 신규 기여자·에이전트가 잘못된 경로를 탐색함. consultant-m 검토(2026-08-18)에서 발견.
+* 상세:
+    - "구조" 절 `locales/` · "다국어 (locales/)" 절 제목 — 실제 폴더명은 저장소 루트의 `localization/`. README.md 문서 표 링크도 `./localization/` 으로 정확히 표기됨.
+    - "중요 관련 파일" 표 `[cli/Issue.md](cli/Issue.md)` — 실재하지 않음(`ls cli/Issue.md` No such file). 이슈 관리 파일은 저장소 **루트**의 `Issue.md`.
+* 구현:
+    - `locales/` → `localization/` 2곳(구조 목록·다국어 절 제목) 정정.
+    - `[cli/Issue.md](cli/Issue.md)` → `[Issue.md](Issue.md)` + 설명에 "저장소 루트, cli/ 아님" 명기하여 재발 방지.
+* 검증:
+    - `grep -n "locales/\|cli/Issue\.md" CLAUDE.md` → 0건 (exit 1) 실측.
+    - 참조 대상 실존 확인 — `ls -d localization Issue.md` 양쪽 존재 실측.
+* ⚠️ 커밋 범위 주의: Issue201 과 동일 — `CLAUDE.md` 는 `.gitignore` 대상이라 워킹트리 반영만 되고 커밋에는 포함되지 않음.
+
+## Issue199: [Docs] CLAUDE.md brew 패키지명 오기재 — fsnippetcli(하이픈 없음) vs 실제 fsnippet-cli (등록: 2026-08-18, 완료: 2026-08-18) (Hash: 995c4a5 — Issue.md 이력, 문서 본체 CLAUDE.md 는 gitignored) ✅
+* 목적: CLAUDE.md 의 Formula 파일명·Quick Start brew 명령이 하이픈 없는 `fsnippetcli` 로 적혀 있어, 문서를 그대로 복붙 실행하면 formula 를 찾지 못해 실패함. consultant-m 검토(2026-08-18)에서 발견.
+* 상세:
+    - CLAUDE.md "중요 관련 파일" 표 배포 행: `cli/Formula/fsnippetcli.rb` — 실제 파일명은 `cli/Formula/fsnippet-cli.rb`.
+    - CLAUDE.md Quick Start: `brew install finfra/tap/fsnippetcli` · `brew services start fsnippetcli` — 실제 tap 패키지명은 `fsnippet-cli`.
+    - 대조 근거: `cli/_tool/fsc-deploy-brew.sh` 전역이 `fsnippet-cli` 로 통일(TAP_FORMULA·brew install/services/uninstall 전부), README.md·README_ko.md 도 하이픈 포함으로 정확히 표기. 오기재는 CLAUDE.md 단독.
+* 구현:
+    - "중요 관련 파일" 표 배포 행 `cli/Formula/fsnippetcli.rb` → `cli/Formula/fsnippet-cli.rb`.
+    - Quick Start `brew install finfra/tap/fsnippetcli` → `.../fsnippet-cli`, `brew services start fsnippetcli` → `fsnippet-cli`.
+* 검증:
+    - `grep -n "fsnippetcli" CLAUDE.md` → 0건 (exit 1) 실측.
+    - 정정된 Formula 경로 실존 확인 — `ls cli/Formula/fsnippet-cli.rb` 존재 실측. 배포 스크립트(`cli/_tool/fsc-deploy-brew.sh`)의 명칭과 일치.
+    - 소스코드·빌드 산출물 무변경(문서 전용).
+* ⚠️ 커밋 범위 주의: Issue201 과 동일 — `CLAUDE.md` 는 `.gitignore` 대상이라 워킹트리 반영만 되고 커밋에는 포함되지 않음.
+
 ## Issue198: [Release] 버전 1.1.1 bump — brew publish 사전 준비 (등록: 2026-08-18, 완료: 2026-08-18) (Hash: 134d1dd) ✅
 * 목적: cli-v1.1.0 공개(2026-07-13) 이후 cli/ 에 40커밋 누적 — 같은 버전 번호에 다른 바이너리 배포를 막기 위해 패치 상승(사용자 승인, pm-do 위임 작업). GitHub API outage 로 원격 publish 는 보류, 로컬 준비까지만.
 * 상세:
