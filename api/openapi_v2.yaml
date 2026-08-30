@@ -791,6 +791,17 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/InputSettings' }
 
+  /settings/input-sources:
+    get:
+      tags: [Settings Advanced]
+      summary: 시스템에 등록된 키보드 입력 소스 목록 (Issue971)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InputSourcesResponse' }
+
   /settings/advanced/debug:
     get:
       tags: [Settings Advanced]
@@ -2352,6 +2363,18 @@ components:
       type: object
       properties:
         forceSearchInputLanguage: { type: string, nullable: true }
+
+    InputSourceInfo:
+      type: object
+      properties:
+        id:   { type: string, example: "com.apple.keylayout.US" }
+        name: { type: string, example: "U.S." }
+    InputSourcesResponse:
+      type: object
+      properties:
+        sources:
+          type: array
+          items: { $ref: '#/components/schemas/InputSourceInfo' }
 
     DebugSettings:
       type: object

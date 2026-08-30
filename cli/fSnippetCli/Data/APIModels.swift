@@ -501,6 +501,16 @@ struct APIV2InputSettings: Codable {
   let forceSearchInputLanguage: String?
 }
 
+/// Issue971: GET /api/v2/settings/input-sources — 시스템에 등록된 키보드 입력 소스 목록
+struct APIV2InputSourceInfo: Codable {
+  let id: String
+  let name: String
+}
+
+struct APIV2InputSourcesResponse: Codable {
+  let sources: [APIV2InputSourceInfo]
+}
+
 // MARK: - v2 Patch Requests (partial, all fields optional)
 
 struct APIV2PopupPatch: Decodable {

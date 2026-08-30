@@ -131,6 +131,8 @@ class APIRouter {
       return handleV2GetInput()
     case ("PATCH", "/api/v2/settings/advanced/input"):
       return handleV2PatchInput(request: request)
+    case ("GET", "/api/v2/settings/input-sources"):
+      return handleV2GetInputSources()
     // Danger Zone — Settings Actions
     case ("POST", "/api/v2/settings/actions/reset-settings"):
       return handleV2ActionResetSettings(request: request)
@@ -1142,6 +1144,14 @@ class APIRouter {
 
   private func handleV2GetInput() -> APIServer.HTTPResponse {
     return jsonResponse(buildV2Input())
+  }
+
+  // Issue971: GET /api/v2/settings/input-sources — 시스템에 등록된 키보드 입력 소스 목록
+  private func handleV2GetInputSources() -> APIServer.HTTPResponse {
+    let sources = InputSourceManager.shared.getAvailableInputSources().map {
+      APIV2InputSourceInfo(id: $0.id, name: $0.name)
+    }
+    return jsonResponse(APIV2InputSourcesResponse(sources: sources))
   }
 
   // MARK: - v2 PATCH handlers
