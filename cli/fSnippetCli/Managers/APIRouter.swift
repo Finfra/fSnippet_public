@@ -1343,6 +1343,14 @@ class APIRouter {
     return jsonResponse(snapshot)
   }
 
+  /// Issue203: per-section outcome of PUT /settings/snapshot (documented in openapi_v2.yaml).
+  private struct V2SnapshotRestoreResult: Encodable {
+    let ok: Bool
+    let restored: [String]
+    let skipped: [String]
+    let failed: [String]
+  }
+
   private func handleV2PutSnapshot(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
     if let denied = requireLocalWrite(request) { return denied }
     let (snap, err) = decodeV2Body(request, as: APIV2SettingsSnapshot.self)
@@ -1351,35 +1359,156 @@ class APIRouter {
       return v2Error(code: "invalid_argument", message: "snapshot is required", statusCode: 400)
     }
 
-    // 부분 복원 (개선 전): 스냅샷 구조 검증만. 세부 필드 매핑은 향후 개선.
-    // 현재는 요청이 유효함을 확인하고 수락함.
-    // TODO: PreferencesManager 키 매핑을 정확히 파악 후 각 섹션 복원 구현
+    // Issue203: restore by delegating each provided section to the proven PATCH/PUT
+    // handlers, so field validation and side effects (hotkey re-registration,
+    // TriggerKeyManager reload, launchAtLogin plist sync) are reused instead of
+    // re-implemented — avoiding the stale-mirror regression family (Issue178/183/184).
+    // Semantics (fixed in openapi_v2.yaml): best-effort partial restore. Absent (nil)
+    // sections are skipped; a failing section is reported in `failed` and does NOT
+    // roll back sections already applied.
+    var restored: [String] = []
+    var skipped: [String] = []
+    var failed: [String] = []
 
-    // 제공된 섹션만 적용 (개선 전 패스스루)
-    if snapshot.general != nil {
-      logD("Snapshot: general 섹션 제공됨 (현재 무시)")
-    }
-    if snapshot.popup != nil {
-      logD("Snapshot: popup 섹션 제공됨 (현재 무시)")
-    }
-    if snapshot.behavior != nil {
-      logD("Snapshot: behavior 섹션 제공됨 (현재 무시)")
-    }
-    if snapshot.history != nil {
-      logD("Snapshot: history 섹션 제공됨 (현재 무시)")
-    }
-    if snapshot.advanced != nil {
-      logD("Snapshot: advanced 섹션 제공됨 (현재 무시)")
-    }
-    if snapshot.perFolderExcludedFiles != nil {
-      logD("Snapshot: perFolderExcludedFiles 제공됨 (현재 무시)")
-    }
-    if snapshot.snippetFolders != nil {
-      logD("Snapshot: snippetFolders 제공됨 (현재 무시)")
+    // Synthetic localhost sub-request so delegated handlers run their own decode +
+    // validation exactly as if called directly. remoteIP is inherited from the outer
+    // request, which already passed requireLocalWrite.
+    func subRequest(_ bodyData: Data) -> APIServer.HTTPRequest {
+      APIServer.HTTPRequest(
+        method: "PATCH",
+        path: request.path,
+        query: [:],
+        headers: request.headers,
+        body: bodyData,
+        remoteIP: request.remoteIP
+      )
     }
 
-    logI("🌐 Snapshot PUT 요청 유효성 검증 완료 (복원은 향후 구현)")
-    return v2NoContent()
+    func apply(_ name: String, body: Data?, handler: (APIServer.HTTPRequest) -> APIServer.HTTPResponse) {
+      guard let body = body else {
+        skipped.append(name)
+        return
+      }
+      let res = handler(subRequest(body))
+      if (200...299).contains(res.statusCode) {
+        restored.append(name)
+      } else {
+        failed.append(name)
+        logW("🌐 Snapshot restore failed: section=\(name) status=\(res.statusCode) body=\(res.body.prefix(200))")
+      }
+    }
+
+    func encodeBody<T: Encodable>(_ value: T?) -> Data? {
+      guard let value = value else { return nil }
+      return try? encoder.encode(value)
+    }
+
+    // general — custom mapping: the snapshot carries triggerKey as an object while the
+    // PATCH expects its token string. settingsFolder/snippetFolder are intentionally NOT
+    // restored: importing a snapshot exported on another machine must never repoint the
+    // data folders of this one. settingsHotkey/popupHotkey/permissions are read-only here
+    // (popup hotkey is restored via the popup section; permissions are system state).
+    if let general = snapshot.general {
+      var dict: [String: Any] = [
+        "language": general.language,
+        "appearance": general.appearance,
+        "triggerBias": general.triggerBias,
+        "quickSelectModifier": general.quickSelectModifier,
+        "excludedFiles": general.excludedFiles,
+      ]
+      if !general.triggerKey.token.isEmpty { dict["triggerKey"] = general.triggerKey.token }
+      apply("general", body: try? JSONSerialization.data(withJSONObject: dict), handler: handleV2PatchGeneral)
+    } else {
+      skipped.append("general")
+    }
+
+    // popup/behavior/history: snapshot section field names match the PATCH models 1:1,
+    // so re-encoding the section is a valid PATCH body carrying every exported field.
+    apply("popup", body: encodeBody(snapshot.popup), handler: handleV2PatchPopup)
+    apply("behavior", body: encodeBody(snapshot.behavior), handler: handleV2PatchBehavior)
+    apply("history", body: encodeBody(snapshot.history), handler: handleV2PatchHistory)
+    apply("advanced.performance", body: encodeBody(snapshot.advanced?.performance), handler: handleV2PatchPerformance)
+    apply("advanced.debug", body: encodeBody(snapshot.advanced?.debug), handler: handleV2PatchDebug)
+
+    // advanced.input — nil forceSearchInputLanguage in an exported snapshot means "unset",
+    // and the input PATCH clears via empty string, so map nil -> "" for a faithful restore.
+    if let input = snapshot.advanced?.input {
+      let dict: [String: Any] = ["forceSearchInputLanguage": input.forceSearchInputLanguage ?? ""]
+      apply("advanced.input", body: try? JSONSerialization.data(withJSONObject: dict), handler: handleV2PatchInput)
+    } else {
+      skipped.append("advanced.input")
+    }
+    // advanced.api is read-only in the snapshot (server runtime state) — never restored.
+
+    // advanced.globalExcludedFiles duplicates general.excludedFiles (same config key);
+    // apply it only when the general section did not already carry the list.
+    if snapshot.general == nil, let globalExcluded = snapshot.advanced?.globalExcludedFiles {
+      let dict: [String: Any] = ["excludedFiles": globalExcluded]
+      apply("advanced.globalExcludedFiles", body: try? JSONSerialization.data(withJSONObject: dict), handler: handleV2PatchGeneral)
+    }
+
+    // snippetFolders — per-folder delegation. Folders absent on this machine are counted
+    // as missing (404 from the handler) and skipped; `name` is deliberately omitted so the
+    // restore can never trigger rename semantics (Issue957). ruleManaged is read-only.
+    if let folders = snapshot.snippetFolders, !folders.isEmpty {
+      var applied = 0, missing = 0, folderFailed = 0
+      for rule in folders {
+        var dict: [String: Any] = ["openable": rule.openable]
+        if let p = rule.prefix { dict["prefix"] = p }
+        if let s = rule.suffix { dict["suffix"] = s }
+        guard let body = try? JSONSerialization.data(withJSONObject: dict) else {
+          folderFailed += 1
+          continue
+        }
+        let res = handleV2PatchSnippetFolder(folder: rule.folder, request: subRequest(body))
+        if (200...299).contains(res.statusCode) {
+          applied += 1
+        } else if res.statusCode == 404 {
+          missing += 1
+        } else {
+          folderFailed += 1
+          logW("🌐 Snapshot restore failed: snippetFolders/\(rule.folder) status=\(res.statusCode)")
+        }
+      }
+      if folderFailed > 0 {
+        failed.append("snippetFolders(\(folderFailed) failed, \(applied) applied)")
+      } else if applied > 0 {
+        restored.append("snippetFolders(\(applied) applied, \(missing) missing)")
+      } else {
+        skipped.append("snippetFolders(all \(missing) missing)")
+      }
+    } else {
+      skipped.append("snippetFolders")
+    }
+
+    // perFolderExcludedFiles — per-folder PUT delegation (whole-list replace per folder).
+    if let perFolder = snapshot.perFolderExcludedFiles, !perFolder.isEmpty {
+      var applied = 0, folderFailed = 0
+      for (folder, files) in perFolder {
+        guard let body = try? encoder.encode(files) else {
+          folderFailed += 1
+          continue
+        }
+        let res = handleV2PutPerFolderExcluded(folder: folder, request: subRequest(body))
+        if (200...299).contains(res.statusCode) {
+          applied += 1
+        } else {
+          folderFailed += 1
+          logW("🌐 Snapshot restore failed: perFolderExcludedFiles/\(folder) status=\(res.statusCode)")
+        }
+      }
+      if folderFailed > 0 {
+        failed.append("perFolderExcludedFiles(\(folderFailed) failed, \(applied) applied)")
+      } else {
+        restored.append("perFolderExcludedFiles(\(applied) applied)")
+      }
+    } else {
+      skipped.append("perFolderExcludedFiles")
+    }
+
+    let result = V2SnapshotRestoreResult(ok: failed.isEmpty, restored: restored, skipped: skipped, failed: failed)
+    logI("🌐 Snapshot restore done: restored=\(restored) skipped=\(skipped) failed=\(failed)")
+    return jsonResponse(result)
   }
 
   // MARK: - 헬퍼

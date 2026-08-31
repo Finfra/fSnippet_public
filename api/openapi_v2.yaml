@@ -996,13 +996,31 @@ paths:
     put:
       tags: [Settings Snapshot]
       summary: 전체 설정 스냅샷 복원 (import, 부분 허용)
+      description: |
+        제공된 섹션만 복원한다 (Issue203). 각 섹션은 검증된 기존 PATCH/PUT 핸들러로
+        위임되어 필드 검증·부수효과(핫키 재등록, TriggerKeyManager reload,
+        launchAtLogin 동기화)가 동일하게 적용된다.
+
+        **복원 시맨틱 (best-effort, 롤백 없음)**:
+        - 누락(nil) 섹션은 건너뛰고 `skipped` 로 보고
+        - 실패한 섹션은 `failed` 로 보고하며, 이미 적용된 다른 섹션을 롤백하지 않음
+        - `general.settingsFolder` / `general.snippetFolder` 는 복원하지 않음
+          (타 머신에서 export 한 스냅샷이 이 머신의 데이터 폴더 경로를 오염시키는 것 방지)
+        - `general.settingsHotkey` / `general.popupHotkey` / `general.permissions` 는 read-only
+          (popup 핫키는 popup 섹션의 popupModifierFlags/popupKeyCode 로 복원됨)
+        - `advanced.api` 는 read-only (서버 런타임 상태) — 복원하지 않음
+        - `snippetFolders` 중 이 머신에 없는 폴더는 missing 으로 건너뜀 (rename 미수행)
       requestBody:
         required: true
         content:
           application/json:
             schema: { $ref: '#/components/schemas/SettingsSnapshot' }
       responses:
-        '200': { description: Restored }
+        '200':
+          description: 섹션별 복원 결과. failed 가 비어 있으면 ok=true.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SnapshotRestoreResult' }
         '400': { $ref: '#/components/responses/BadRequest' }
 
   # ========================================================================
@@ -2434,6 +2452,27 @@ components:
           additionalProperties:
             type: array
             items: { type: string }
+
+    SnapshotRestoreResult:
+      type: object
+      description: PUT /settings/snapshot 의 섹션별 복원 결과 (Issue203).
+      required: [ok, restored, skipped, failed]
+      properties:
+        ok:
+          type: boolean
+          description: failed 가 비어 있으면 true
+        restored:
+          type: array
+          items: { type: string }
+          description: 적용된 섹션 이름 목록 (ex. "general", "snippetFolders(3 applied, 1 missing)")
+        skipped:
+          type: array
+          items: { type: string }
+          description: 요청에 없어(nil) 건너뛴 섹션 목록
+        failed:
+          type: array
+          items: { type: string }
+          description: 적용 실패 섹션 목록 (부분 적용 상세 포함, 롤백 없음)
 
     ConfirmRequest:
       type: object
