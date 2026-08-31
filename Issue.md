@@ -46,14 +46,6 @@ date: 2026-04-07
 * 관련: 메인 레포 fSnippet#Issue972 — 원인 ①(paidApp 읽기 누락)은 `721c74e5` 로 해결 완료. 본 이슈가 잔여 ②이며, Issue972 본문은 `da082083` 에서 위 실측으로 2차 정정 완료
 
 # 📙 일반
-## Issue156: [Runtime/Karabiner] `..0{keypad_comma}` 입력 차단 — bufferClear `.` 충돌 (등록: 2026-05-27)
-* 목적: noteForHuman.md line 31 — 매칭 실패
-* 상세:
-    - `appSetting.json` bufferClearKeys 에 `.` 포함 → `.` 입력 시 버퍼 클리어. `..0` 시퀀스 입력 자체 불가
-    - doc `..` 은 Karabiner remap (`.` → `,`) 입력 시각화 추정. 매칭 대상은 `_Bullets/0===0.txt` (룰 prefix=`,,` suffix=`{keypad_comma}`) → `,,0{keypad_comma}`
-* 구현 명세:
-    - Karabiner 설정 확인 (`~/.config/karabiner/karabiner.json`)
-    - remap 작동 시 매칭 실패 원인 별도 조사. 미작동 시 doc 표기 수정 또는 bufferClear 정책 재검토
 
 # 📗 선택
 
@@ -1506,6 +1498,16 @@ date: 2026-04-07
 > 누적된 완료 이슈는 [z_old/old_issue.md](z_old/old_issue.md)로 아카이브됨 (2026-05-03 1.0.1 release 시점 분리).
 
 # ⏸️ 보류
+
+## Issue156: [Runtime/Karabiner] `..0{keypad_comma}` 입력 차단 — bufferClear `.` 충돌 (등록: 2026-05-27, 보류: 2026-09-01)
+* 목적: noteForHuman.md line 31 — 매칭 실패
+* 보류 사유: 사용자 판정 (2026-09-01). 원인 규명에 Karabiner 외부 설정(`~/.config/karabiner/karabiner.json`) 확인이 선행되어야 하는데 그 조사가 아직 이뤄지지 않았다
+* 상세:
+    - `appSetting.json` bufferClearKeys 에 `.` 포함 → `.` 입력 시 버퍼 클리어. `..0` 시퀀스 입력 자체 불가
+    - doc `..` 은 Karabiner remap (`.` → `,`) 입력 시각화 추정. 매칭 대상은 `_Bullets/0===0.txt` (룰 prefix=`,,` suffix=`{keypad_comma}`) → `,,0{keypad_comma}`
+* 구현 명세:
+    - Karabiner 설정 확인 (`~/.config/karabiner/karabiner.json`)
+    - remap 작동 시 매칭 실패 원인 별도 조사. 미작동 시 doc 표기 수정 또는 bufferClear 정책 재검토
 
 ## Issue73: [Refactor] PopupController 책임 분리 — UI 위젯 직접 소유 해소 (등록: 2026-04-25, 보류: 2026-04-26)
 * 목적: `Core/PopupController.swift`가 UI 위젯(`SnippetNonActivatingWindow`)을 직접 소유 + 상태 관리 + Core 콜백 수신까지 수행 → 책임 분리로 SRP 준수 및 테스트성 확보
