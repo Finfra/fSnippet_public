@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 204
+* Issue HWM: 205
 * Checkpoints:
       - 2026.07.20: d372aff (_doc_arch 정합성 검토(Issue193) 진행 중 작업 트리 스냅샷)
       - 2026.07.19: a494408 (Fix Issue192 Edit Mode ⌘S 스니펫 등록 오작동 회귀)
@@ -22,24 +22,56 @@ date: 2026-04-07
 # 🚧 진행중
 
 # 📕 중요
-## Issue203: [API] PUT /api/v2/settings/snapshot 이 명세와 달리 아무 설정도 복원하지 않는 no-op (등록: 2026-08-18)
-* 목적: `api/openapi_v2.yaml:985-995` 는 PUT snapshot 을 "전체 설정 스냅샷 복원(import, 부분 허용)" 으로 명세하고 성공 응답을 규정하나, 구현부는 각 섹션에 대해 로그만 남기고 실제 반영 로직이 전무함. 호출측(paidApp import 기능 등)이 성공 응답을 받고도 설정이 하나도 복원되지 않는 **조용한 실패**. consultant-m 검토(2026-08-18)에서 발견.
-* ⏸️ **착수 보류 — App Store 제출 후 처리 (런타임 동작 변경)**: 제출 예정 빌드와 코드가 달라지면 재검증이 필요하므로 본 이슈는 등록만 하고 해결하지 않음. 제출·심사 통과 후 착수.
+## Issue205: [Settings] history 설정 저장 직후 stale 미러가 `_config.yml` 을 되쓰며 forceInputSource 가 소실됨 (등록: 2026-08-31)
+* 목적: `history.forceInputSource` 를 저장하면 **추가 요청이 없어도 수 초 뒤 저절로 옛 값으로 돌아간다**. 사용자가 "검색창 입력 언어 강제" 를 사실상 쓸 수 없다 (메인 레포 fSnippet#Issue972 의 잔여 원인 ②)
+* ⏸️ **착수 보류 — App Store 제출 후 처리 (런타임 동작 변경)**: `release/1.1.1` 제출 예정 빌드와 코드가 달라지면 재검증이 필요하므로 본 이슈는 **기술 정정만 하고 해결하지 않음**. Issue203·fSnippet#Issue968 과 동일 정책. 제출·심사 통과 후 착수. (2026-08-31 판정)
+* ⚠️ **등록 당시 원인 기술은 오진이었다 — 2026-08-31 실측으로 정정**:
+    - 등록본 가설: "PATCH 가 부분 갱신이 아니라 stale 스냅샷 전체 flush 로 동작해, 두 번째 PATCH 가 요청에 없던 필드를 되돌려 쓴다"
+    - **반증**: PATCH 를 1회만 보내고 아무 요청도 하지 않아도 원복된다. 등록본 재현 절차의 두 번째 curl 은 트리거가 아니라 **그 사이 시간이 흐른 것뿐**이었다
+    - 코드 실측도 일치: `cli/fSnippetCli/Managers/APIRouter.swift` `handleV2PatchHistory` 는 `if let v = patch.X { config[...] = v }` 형태의 정상적 부분 갱신이고, `cli/fSnippetCli/Data/PreferencesManager.swift:522` `batchUpdate` 도 `cachedConfig` 수정 후 1회 저장할 뿐 — **두 곳 모두 결함 없음**
+* 최소 재현 (cliApp v1.1.1 단독 · paidApp 미실행 · 2026-08-31 실측):
+```bash
+curl -X PATCH localhost:3015/api/v2/settings/history -H 'Content-Type: application/json' \
+  -d '{"historyForceInputSource":"com.apple.keylayout.US"}'
+# 이후 추가 요청 없이 _config.yml 관찰
+# t= 1s  history.forceInputSource: "com.apple.keylayout.US"       ✅ 반영
+# t= 3s  history.forceInputSource: "org.youknowone...han390"      ❌ 자동 원복
+# t= 6s / 10s / 15s                                               옛 값 유지
+```
 * 상세:
-    - 구현부: `cli/fSnippetCli/Managers/APIRouter.swift` `handleV2PutSnapshot` — `snapshot.general`/`popup`/`behavior`/`history`/`advanced`/`perFolderExcludedFiles`/`snippetFolders` 7개 섹션 각각에 `logD("... 현재 무시")` 만 존재. 코드 주석도 `// TODO: PreferencesManager 키 매핑을 정확히 파악 후 각 섹션 복원 구현` 으로 미구현을 자인.
-    - 반환값은 `v2NoContent()` (204) — 명세의 200 "Restored" 와도 불일치. 어느 쪽이든 호출측은 성공으로 판정함.
-    - 명세: `api/openapi_v2.yaml` PUT `/settings/snapshot`.
+    - **되쓰기는 요청 처리 경로 밖에서 일어난다** — PATCH 응답 본문은 새 값(`com.apple.keylayout.US`)을 정확히 반환하고 디스크에도 t=1s 까지 새 값이 남는다. 그 뒤 별개 주체가 자기 사본으로 파일을 덮는다
+    - 증상의 정체는 "부분 갱신 실패" 가 아니라 **지연된 stale mirror flush**. 과거 Issue178·183·184 와 같은 계열
+    - 조용한 실패: HTTP 200 + 요청 값 반향이라 호출측은 성공으로 판정하고, 원복이 응답 이후에 일어나 감지되지 않는다
+    - paidApp 은 history 저장 시 19개 필드 전체 payload 를 보내므로 실사용에서 100% 재현된다
 * 구현 명세:
-    - 로직: 각 섹션을 기존 PATCH 핸들러(`handleV2PatchGeneral`/`handleV2PatchPopup`/`handleV2PatchBehavior`/`handleV2PatchHistory`/`handleV2PatchAdvanced*`)로 위임 재사용. 섹션별 PreferencesManager 키 매핑을 신규 작성하지 말고 **이미 검증된 PATCH 경로를 재사용**하여 stale-mirror 계열 회귀(Issue178·183·184) 재발을 피할 것.
-    - 부분 복원 시맨틱 유지: `nil` 섹션은 건너뛰고, 제공된 섹션만 적용. 한 섹션 실패 시 전체 롤백 여부를 명세에 먼저 확정.
-    - 대안(미구현 확정 시): 명세를 501 Not Implemented 로 정정하고 구현부도 501 반환 — 조용한 실패만은 제거.
-    - 검증: curl 로 스냅샷 GET → 값 일부 변경 → PUT → 재 GET 으로 반영 확인. paidApp import 왕복 1회 실측.
+    - **1단계 — 되쓰기 주체 특정이 먼저다.** 코드 추론으로 건너뛰지 말 것. `_config.yml` write 직전에 호출 주체를 남기는 로그를 넣고 t=1~3s 구간에서 누가 저장하는지 실측한다
+    - 유력 후보: `cli/fSnippetCli/Managers/SettingsManager.swift:483` — `historyForceInputSourceKey` 를 포함해 history 전 키를 자체 보유하는 미러. 이 미러가 언제·무엇을 계기로 전체 저장하는지 확인
+    - 2단계 — 미러가 stale 인 채로 전체 저장하지 않도록 수정. 저장 직전 `cachedConfig` 재조회 또는 미러 제거 중 택일
+    - 검증: 위 최소 재현으로 **t=15s 까지 새 값이 유지**되어야 함. **t=1s 만 보는 검증은 이 버그를 원리적으로 못 잡는다** — fSnippet#Issue972 1차 시도(`ef45f2dc` → revert `1c285c33`)가 정확히 그렇게 실패했다
+* 재확인 (2026-09-01, brew 1.1.1 신규 빌드): PUT /settings/snapshot(Issue203) 경유 실측에서도 동일 재현 — **history 키(retentionDays.plainText 45→90)만 t≈3s 에 원복**되고 popup(`snippet_popup_rows`)·performance(`performance.key_buffer_size`) 키는 t=15s 까지 유지됨. 미러의 되쓰기 범위가 history 키에 국한됨을 지지하는 관찰
+* 관련: 메인 레포 fSnippet#Issue972 — 원인 ①(paidApp 읽기 누락)은 `721c74e5` 로 해결 완료, 본 이슈가 잔여 ②. ⚠️ **Issue972 본문의 ② 기술도 같은 오진("2회 PATCH" 재현 절차·전체 flush 가설)을 담고 있어 정정 필요** — 타 repo 이므로 본 세션에서 수정하지 않음
 
 # 📙 일반
 
 # 📗 선택
 
 # ✅ 완료
+## Issue203: [API] PUT /api/v2/settings/snapshot 이 명세와 달리 아무 설정도 복원하지 않는 no-op (등록: 2026-08-18, 완료: 2026-09-01) (Hash: 7853984) ✅
+* 목적: `api/openapi_v2.yaml` 은 PUT snapshot 을 "전체 설정 스냅샷 복원(import, 부분 허용)" 으로 명세하고 성공 응답을 규정하나, 구현부는 각 섹션에 대해 로그만 남기고 실제 반영 로직이 전무함. 호출측(paidApp import 기능 등)이 성공 응답을 받고도 설정이 하나도 복원되지 않는 **조용한 실패**. consultant-m 검토(2026-08-18)에서 발견.
+* 보류 해제 (2026-09-01): 등록 시 "App Store 제출 후 처리" 보류였으나 사용자 명시 지시로 착수·해결. 세션 2ed3956a(Issue972 조사) 맥락 반영.
+* 상세:
+    - 구현부: `cli/fSnippetCli/Managers/APIRouter.swift` `handleV2PutSnapshot` — 7개 섹션 각각에 `logD("... 현재 무시")` 만 존재. 반환값도 `v2NoContent()` (204) 로 명세의 200 "Restored" 와 불일치.
+* 구현 (2026-09-01):
+    - `handleV2PutSnapshot` 실복원 구현 — 제공된 각 섹션을 **검증된 기존 PATCH/PUT 핸들러로 위임 재사용** (synthetic localhost sub-request 로 각 핸들러의 decode·검증·부수효과를 그대로 통과). 신규 키 매핑을 만들지 않아 stale-mirror 계열 회귀(Issue178·183·184) 위험 회피 — 이슈 구현 명세 그대로.
+    - 위임 대상: general(triggerKey 는 객체→token 문자열 변환) / popup / behavior / history / advanced.{performance, debug, input(nil→"" clear 매핑)} / snippetFolders(폴더별 PATCH, 없는 폴더 404→missing skip, rename 미수행) / perFolderExcludedFiles(폴더별 PUT 전체 교체)
+    - 복원 제외: `settingsFolder`·`snippetFolder`(타 머신 스냅샷 import 시 데이터 폴더 경로 오염 방지), `settingsHotkey`·`popupHotkey`·`permissions`·`advanced.api`(read-only. popup 핫키는 popup 섹션으로 복원됨)
+    - 시맨틱 확정(명세 기록): **best-effort 부분 복원·롤백 없음**. nil 섹션 skip. 응답 204 → **200 + `{ok, restored, skipped, failed}`** 섹션별 결과로 조용한 실패 제거. `api/openapi_v2.yaml` 에 `SnapshotRestoreResult` 스키마 신설·PUT 명세 동기화.
+* 검증 (2026-09-01, brew 1.1.1 실측):
+    - 원본 스냅샷 GET → 그대로 PUT: `ok=true`, 7개 섹션 + snippetFolders 56개 적용, failed 0건.
+    - popupRows 10→7 / retentionDaysPlainText 90→45 / keyBufferSize 100→200 변경 PUT → REST GET·`_config.yml` 디스크 모두 반영. 원본 PUT 로 완전 원복. 잘못된 body 는 400 invalid_argument. 사용자 입력소스(Gureum han390) 보존.
+    - **t=15s 지속 관찰**: popup·performance 키는 t=15s 까지 유지. **history 키만 t≈3s 에 원복** — 이는 본 이슈 코드가 아니라 Issue205(지연 stale mirror flush, history 전 키 소유)의 결함이며 위임한 PATCH /history 직접 호출과 동일하게 영향받음.
+* 관련: **Issue205 미해결 동안 history 섹션 복원의 내구성은 보장되지 않음** (t≈3s 후 미러가 되씀). Issue205 해결 시 별도 코드 변경 없이 함께 안정화됨.
+
 ## Issue204: [Chore] 이슈후보 섹션에 종결된 Issue196 컨펌 항목이 잔존 — 규칙4 위반 (등록: 2026-08-18, 완료: 2026-08-18) (Hash: 995c4a5) ✅
 * 목적: `🌱 이슈후보` 의 "[컨펌] Issue196 Collision 0.4초 지연 타이머 죽은 코드 해결 방향 결정" 항목이 컨펌·종결 후에도 삭제되지 않아 미결 항목처럼 보임. consultant-m 검토(2026-08-18)에서 발견.
 * 상세:
