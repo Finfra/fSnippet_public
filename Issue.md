@@ -22,36 +22,38 @@ date: 2026-04-07
 # 🚧 진행중
 
 # 📕 중요
-## Issue205: [Settings] history 설정 저장 직후 stale 미러가 `_config.yml` 을 되쓰며 forceInputSource 가 소실됨 (등록: 2026-08-31)
-* 목적: `history.forceInputSource` 를 저장하면 **추가 요청이 없어도 수 초 뒤 저절로 옛 값으로 돌아간다**. 사용자가 "검색창 입력 언어 강제" 를 사실상 쓸 수 없다 (메인 레포 fSnippet#Issue972 의 잔여 원인 ②)
-* ⏸️ **착수 보류 — App Store 제출 후 처리 (런타임 동작 변경)**: `release/1.1.1` 제출 예정 빌드와 코드가 달라지면 재검증이 필요하므로 본 이슈는 **기술 정정만 하고 해결하지 않음**. Issue203·fSnippet#Issue968 과 동일 정책. 제출·심사 통과 후 착수. (2026-08-31 판정)
-* ⚠️ **등록 당시 원인 기술은 오진이었다 — 2026-08-31 실측으로 정정**:
-    - 등록본 가설: "PATCH 가 부분 갱신이 아니라 stale 스냅샷 전체 flush 로 동작해, 두 번째 PATCH 가 요청에 없던 필드를 되돌려 쓴다"
-    - **반증**: PATCH 를 1회만 보내고 아무 요청도 하지 않아도 원복된다. 등록본 재현 절차의 두 번째 curl 은 트리거가 아니라 **그 사이 시간이 흐른 것뿐**이었다
-    - 코드 실측도 일치: `cli/fSnippetCli/Managers/APIRouter.swift` `handleV2PatchHistory` 는 `if let v = patch.X { config[...] = v }` 형태의 정상적 부분 갱신이고, `cli/fSnippetCli/Data/PreferencesManager.swift:522` `batchUpdate` 도 `cachedConfig` 수정 후 1회 저장할 뿐 — **두 곳 모두 결함 없음**
-* 최소 재현 (cliApp v1.1.1 단독 · paidApp 미실행 · 2026-08-31 실측):
-```bash
-curl -X PATCH localhost:3015/api/v2/settings/history -H 'Content-Type: application/json' \
-  -d '{"historyForceInputSource":"com.apple.keylayout.US"}'
-# 이후 추가 요청 없이 _config.yml 관찰
-# t= 1s  history.forceInputSource: "com.apple.keylayout.US"       ✅ 반영
-# t= 3s  history.forceInputSource: "org.youknowone...han390"      ❌ 자동 원복
-# t= 6s / 10s / 15s                                               옛 값 유지
-```
-* 상세:
-    - **되쓰기는 요청 처리 경로 밖에서 일어난다** — PATCH 응답 본문은 새 값(`com.apple.keylayout.US`)을 정확히 반환하고 디스크에도 t=1s 까지 새 값이 남는다. 그 뒤 별개 주체가 자기 사본으로 파일을 덮는다
-    - 증상의 정체는 "부분 갱신 실패" 가 아니라 **지연된 stale mirror flush**. 과거 Issue178·183·184 와 같은 계열
-    - 조용한 실패: HTTP 200 + 요청 값 반향이라 호출측은 성공으로 판정하고, 원복이 응답 이후에 일어나 감지되지 않는다
-    - paidApp 은 history 저장 시 19개 필드 전체 payload 를 보내므로 실사용에서 100% 재현된다
+## Issue205: [Settings] cliApp UI 미러의 전체 덤프로 REST 로 저장한 history 설정이 소실됨 (등록: 2026-08-31)
+* 목적: REST 로 `history.*` 설정을 바꾼 뒤 특정 필드가 낀 PATCH 가 한 번 더 들어오면 **앞서 바꾼 값이 앱 시작 시점 값으로 소실**된다. 사용자 증상은 "검색창 입력 언어 강제" 가 원복되는 것으로 나타났다 (메인 레포 fSnippet#Issue972 의 잔여 원인 ②)
+* ⏸️ **착수 보류 — App Store 제출 후 처리 (런타임 동작 변경)**: `release/1.1.1` 심사 전 런타임 동작 변경을 피한다. Issue203·fSnippet#Issue968 과 동일 정책. 제출·심사 통과 후 착수. (2026-08-31 사용자 판정)
+* **원인 확정** (prj15 2026-09-01 실측 — 본 이슈의 정본 근거):
+    - cliApp `SettingsObservableObject` 가 history 미러를 **앱 시작 시 1회만 로드**하고 REST PATCH 로는 갱신하지 않는다
+    - `APIRouter.handleV2PatchHistory`(L2942~2947, Issue900) 가 `showStatusBar`·`showPreview`·`imageDetailIsFloating` **3개만** 미러에 대입하는데, 이 셋은 `didSet → syncHistorySetting()` 을 갖고 그 함수가 **stale 구조체 전체를 `_config.yml` 에 덤프**한다 (L1100~1135)
+    - 따라서 **위 3개 중 하나가 낀 PATCH 가 트리거**이고, 덤프되는 값은 *앱 시작 시점* 스냅샷이다
+* 실측 근거 (prj15, cliApp 단독 · paidApp 종료):
+    - `PATCH {force:US}` 1회 후 **추가 요청 없이 20초 관찰 → 유지**
+    - `PATCH {force:US, moveDuplicatesToTop}` 후 20초 → 유지. 이어서 `PATCH {showStatusBar:true}` 1개만 → **t=1s 즉시 원복**
+    - 필드별 예측 **6/6 적중** — 위 3개가 낀 PATCH 만 오염되고 `moveDuplicatesToTop`·`ignoreImages`·`viewerHotkey` 는 유지
+    - **결정적 대조**: `force=US` 저장 후 **cliApp 재시작**(미러가 US 를 로드) → 동일한 `showStatusBar` PATCH 로 **원복되지 않음**
+* ⚠️ **영향 범위는 forceInputSource 에 국한되지 않는다 — 심각도 상향**: `retentionDays.plainText` 를 45 로 PATCH 후 `showStatusBar` PATCH → **90 으로 소실**. **REST 로 변경한 history 설정 전부**가 대상이다
+* ⚠️ **폐기된 가설 2건 — 다시 조사하지 말 것**:
+    - 등록본(2026-08-31): "PATCH 가 부분 갱신이 아니라 stale 스냅샷 전체 flush" → **전체 덤프라는 방향은 옳았으나 위치가 틀렸다**. `handleV2PatchHistory` 의 `if let v = patch.X` 부분 갱신과 `PreferencesManager.batchUpdate` 는 둘 다 정상이며, 범인은 그 밖의 `SettingsObservableObject` 다
+    - 1차 정정본(2026-08-31, prj25): "추가 요청 없이 시간 경과만으로 t=3s 에 자동 원복된다(지연 flush)" → **반증됨**. 20초 관찰에서 유지된다. 당시 관측은 **직전 실험의 `showStatusBar` PATCH 로 조건이 오염된 상태**에서 나온 것이었다
 * 구현 명세:
-    - **1단계 — 되쓰기 주체 특정이 먼저다.** 코드 추론으로 건너뛰지 말 것. `_config.yml` write 직전에 호출 주체를 남기는 로그를 넣고 t=1~3s 구간에서 누가 저장하는지 실측한다
-    - 유력 후보: `cli/fSnippetCli/Managers/SettingsManager.swift:483` — `historyForceInputSourceKey` 를 포함해 history 전 키를 자체 보유하는 미러. 이 미러가 언제·무엇을 계기로 전체 저장하는지 확인
-    - 2단계 — 미러가 stale 인 채로 전체 저장하지 않도록 수정. 저장 직전 `cachedConfig` 재조회 또는 미러 제거 중 택일
-    - 검증: 위 최소 재현으로 **t=15s 까지 새 값이 유지**되어야 함. **t=1s 만 보는 검증은 이 버그를 원리적으로 못 잡는다** — fSnippet#Issue972 1차 시도(`ef45f2dc` → revert `1c285c33`)가 정확히 그렇게 실패했다
-* 재확인 (2026-09-01, brew 1.1.1 신규 빌드): PUT /settings/snapshot(Issue203) 경유 실측에서도 동일 재현 — **history 키(retentionDays.plainText 45→90)만 t≈3s 에 원복**되고 popup(`snippet_popup_rows`)·performance(`performance.key_buffer_size`) 키는 t=15s 까지 유지됨. 미러의 되쓰기 범위가 history 키에 국한됨을 지지하는 관찰
-* 관련: 메인 레포 fSnippet#Issue972 — 원인 ①(paidApp 읽기 누락)은 `721c74e5` 로 해결 완료, 본 이슈가 잔여 ②. ⚠️ **Issue972 본문의 ② 기술도 같은 오진("2회 PATCH" 재현 절차·전체 flush 가설)을 담고 있어 정정 필요** — 타 repo 이므로 본 세션에서 수정하지 않음
+    - `SettingsObservableObject` 의 history 미러가 **저장 직전 최신 상태를 반영**하도록 고친다. 선택지는 ① `syncHistorySetting()` 이 덤프 대신 변경 필드만 반영 ② PATCH 경로에서 미러 전체를 재동기화 ③ 미러 제거 — 셋 중 택일하되 **전체 덤프를 남긴 채 필드만 추가하는 미봉책은 금지**(대입 필드가 늘 때마다 같은 버그가 재발한다)
+    - 검증은 **필드 교차 조합**으로 한다: `retentionDays.plainText`·`forceInputSource` 등을 바꾼 뒤 `showStatusBar`·`showPreview`·`imageDetailIsFloating` 각각으로 PATCH → 전부 유지되어야 함
+    - ⚠️ 단일 PATCH 후 시간 관찰만 하는 검증은 **이 버그를 못 잡는다** — 트리거가 시간이 아니라 특정 필드이기 때문이다. 1차 시도(fSnippet#Issue972 의 `ef45f2dc` → revert `1c285c33`)가 그 함정에 빠졌다
+* 재확인 (2026-09-01, brew 1.1.1 신규 빌드 · 타 세션 관찰): PUT `/settings/snapshot`(Issue203) 경유 실측에서도 동일 재현 — **history 키(`retentionDays.plainText` 45→90)만 원복**되고 popup(`snippet_popup_rows`)·performance(`performance.key_buffer_size`) 키는 t=15s 까지 유지됨. 되쓰기 범위가 **history 미러에 국한**됨을 지지하는 관찰이며, 위 원인 확정(`SettingsObservableObject` 의 history 미러 전체 덤프)과 정합한다
+* 관련: 메인 레포 fSnippet#Issue972 — 원인 ①(paidApp 읽기 누락)은 `721c74e5` 로 해결 완료. 본 이슈가 잔여 ②이며, Issue972 본문은 `da082083` 에서 위 실측으로 2차 정정 완료
 
 # 📙 일반
+## Issue156: [Runtime/Karabiner] `..0{keypad_comma}` 입력 차단 — bufferClear `.` 충돌 (등록: 2026-05-27)
+* 목적: noteForHuman.md line 31 — 매칭 실패
+* 상세:
+    - `appSetting.json` bufferClearKeys 에 `.` 포함 → `.` 입력 시 버퍼 클리어. `..0` 시퀀스 입력 자체 불가
+    - doc `..` 은 Karabiner remap (`.` → `,`) 입력 시각화 추정. 매칭 대상은 `_Bullets/0===0.txt` (룰 prefix=`,,` suffix=`{keypad_comma}`) → `,,0{keypad_comma}`
+* 구현 명세:
+    - Karabiner 설정 확인 (`~/.config/karabiner/karabiner.json`)
+    - remap 작동 시 매칭 실패 원인 별도 조사. 미작동 시 doc 표기 수정 또는 bufferClear 정책 재검토
 
 # 📗 선택
 
@@ -394,13 +396,6 @@ curl -X PATCH localhost:3015/api/v2/settings/history -H 'Content-Type: applicati
 * 구현 명세: `saveUISettings()`의 quick-select 리싱크 블록 바로 다음에 `snippet_popup_rows`/`snippet_popup_search_scope`/`snippet_popup_width`/`snippet_popup_preview_width` 4개 항목 리싱크 추가(동일 패턴).
 * 검증: curl로 popup PATCH(rows: 9→9로 세팅) 직후 history PATCH(다른 필드 토글, Issue900 경로 강제 발동) → 0.5s 대기 → popupRows 값 유지 확인(수정 전 이 경로로 원복 가능, 수정 후 미재현).
 
-# 📕 중요
-
-# 📙 일반
-
-# 📗 선택
-
-# ✅ 완료
 ## Issue183: [Settings] snippet_popup_hotkey 문자열 단일 SSOT 화 — key_code/modifier_flags 파일 저장 제거 (등록: 2026-07-06) (✅ 완료, ea3eb83) ✅
 * 목적: `_config.yml` 팝업 단축키가 `snippet_popup_hotkey`(문자열) + `snippet_popup_key_code` + `snippet_popup_modifier_flags` 3키로 중복 저장됨. 정수 2키는 사람이 직접 편집 불가(raw `NSEvent.ModifierFlags` — device-dependent 비트 노이즈 포함, 현재 값 393475 = ⌃⇧ 393216 + 노이즈 259)하고, 3키 수동 동기화가 불일치 버그 원천(Issue172·173·175·176·178 계열). 문자열 1키만 SSOT로 남기고 flags/code는 로드 시 파생.
 * task: `cli/_doc_work/tasks/popup-hotkey-single-ssot_task.md`
@@ -677,16 +672,6 @@ curl -X PATCH localhost:3015/api/v2/settings/history -H 'Content-Type: applicati
 * 목적: Create 버튼 → handleNewSnippet() → URL Scheme fsnippet://command?action=new-snippet&keyword=
 * 수정: SnippetPopupView 버튼 액션 + PaidAppManager.handleNewSnippet() + PaidAppDetector.openNewSnippet()
 * 연동: prj15#Issue907 (paidApp new-snippet 핸들러)
-## Issue156: [Runtime/Karabiner] `..0{keypad_comma}` 입력 차단 — bufferClear `.` 충돌 (등록: 2026-05-27)
-* 목적: noteForHuman.md line 31 — 매칭 실패
-* 상세:
-    - `appSetting.json` bufferClearKeys 에 `.` 포함 → `.` 입력 시 버퍼 클리어. `..0` 시퀀스 입력 자체 불가
-    - doc `..` 은 Karabiner remap (`.` → `,`) 입력 시각화 추정. 매칭 대상은 `_Bullets/0===0.txt` (룰 prefix=`,,` suffix=`{keypad_comma}`) → `,,0{keypad_comma}`
-* 구현 명세:
-    - Karabiner 설정 확인 (`~/.config/karabiner/karabiner.json`)
-    - remap 작동 시 매칭 실패 원인 별도 조사. 미작동 시 doc 표기 수정 또는 bufferClear 정책 재검토
-
-# ✅ 완료
 ## Issue155 (3회 재오픈→완료): [Runtime/Match] folderPrefix shortcut 처리로 cleanBuffer 에서 prefix char 누락 — hasLongerMatches 변형 검사 추가 (등록: 2026-05-27, 완료: 2026-05-28) (✅ 완료, 82a7f8e + 3700aa3 + fc4c7cc + 24a546b + f6f4fe7) ✅
 * 목적: fb1a9dc fix 후에도 라이브 `,ant + right_command` 회귀 → checkForSuffixMatches 경로 미보호 + modifier press/release 시 token 중복 누적 발견 → fix + XCTest 회귀 보호 추가
 * 원인 (라이브 로그 01:57:27 추적):
