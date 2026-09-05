@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 207
+* Issue HWM: 210
 * Checkpoints:
       - 2026.07.20: d372aff (_doc_arch 정합성 검토(Issue193) 진행 중 작업 트리 스냅샷)
       - 2026.07.19: a494408 (Fix Issue192 Edit Mode ⌘S 스니펫 등록 오작동 회귀)
@@ -28,11 +28,60 @@ date: 2026-04-07
 
 # 📕 중요
 
+
 # 📙 일반
 
 # 📗 선택
 
 # ✅ 완료
+## Issue210: [Critical][Brew] launchd 로 뜬 인스턴스가 `brew services stop` 을 호출해 자멸 — cliApp 완전 소실 (등록: 2026-09-05, 완료: 2026-09-05) (Hash: 4a106b1) ✅
+* depends: Issue209
+* 목적: 인스턴스 교체 과정에서 신규 인스턴스가 **자기 자신의 서비스를 정지시켜 cliApp 이 아예 사라짐**. 사용자는 앱이 죽은 줄 모른 채 스니펫이 동작하지 않는 상태에 놓임.
+* 상세:
+    - **실측 근거 (2026-09-05 19:55:57~58, PID 28923)** — 1.5초 안에 벌어진 일:
+        - `19:55:57.930` `[single-instance] launchd-spawned (PID 28923, XPC=sh.brew.fsnippet-cli) — 기존 인스턴스 terminate (PIDs: [1250])` (승자 경로 진입)
+        - `19:55:58.003` `다른 cliApp 인스턴스 활동 중 (PIDs: [28923]) — paidApp 종료 신호 스킵 (인스턴스 교체)` ← **자기 PID 28923 을 남으로 인식**
+        - `19:55:58.022` `[brew-sync] brew services stop fsnippet-cli — app stop × brew=started`
+        - `19:55:58.443` `✅ brew services stop 성공 → brew=stopped` → `fSnippetCli 종료`
+    - 조사 시점(19:57) `ps` 에 `fSnippetCli` 없음, `launchctl list` 에 `sh.brew.fsnippet-cli` 없음 — **완전 소실 확인**
+* 구현 명세:
+    - **원인1 (자기 서비스 정지)**: launchd 로 뜬 프로세스가 `brew services stop` 을 호출하면 launchd 가 그 프로세스를 정지시킴 → 자살. `isLaunchedByLaunchd()` 가 true 면 `brew services stop` 을 **절대 호출하지 않아야** 함
+    - **원인2 (자기 PID 미제외)**: 활동 인스턴스 스캔이 `ProcessInfo.processInfo.processIdentifier` 를 제외하지 않아 자기를 "다른 인스턴스" 로 셈. 이 오판이 종료 경로 분기를 오염시킴
+    - **수정 방향**: (a) launchd 기동 인스턴스는 brew stop 금지 (b) 인스턴스 스캔에서 자기 PID 제외 (c) 앱 종료 시 brew stop 은 **사용자가 명시적으로 종료를 지시한 경우로 한정** — 인스턴스 교체 중에는 호출 금지
+    - **검증**: 인스턴스 교체 후 `launchctl list | grep fsnippet` 에 PID 가 남아 있는가
+* 검증: 인스턴스 교체 재현(20:16:22 open → handoff → 20:16:23 launchd) 후 **신 인스턴스 생존·API 정상**. 죽은 인스턴스 로그에 `brew services stop` **0건**(사고 당시에는 존재). ⚠️ 새 가드 `hasOtherRunningInstance()` 자체의 발화는 미확인 — 이번 경로는 기존 `handoffInProgress` 가드가 커버.
+
+## Issue209: [Startup] 부팅 시 cliApp 인스턴스 2개 기동 — 권한 alert 2회 + modal alert 가 terminate 를 차단 (등록: 2026-09-05, 완료: 2026-09-05) (Hash: 4a106b1) ✅
+* 목적: 재부팅 때마다 시스템 설정 안내 alert 가 2회 뜸. 나아가 중복 인스턴스가 정리되지 않아 Issue206 이 고쳤던 좀비 상태가 **다른 경로로 재현**됨.
+* 상세:
+    - **실측 근거 (2026-09-05 재부팅 19:20:32 직후)**:
+        - A = PID 1250 (19:22:09) — `접근성 권한: 미승인 — alert 표시` **1회차**
+        - B = PID 9013 (19:22:38) — `[single-instance] launchd-spawned … 기존 인스턴스 terminate (PIDs: [1250])` → `⚠️ 기존 인스턴스 종료 대기 타임아웃 (3.0s) — 포트 충돌 가능` → `접근성 권한: 미승인 — alert 표시` **2회차**
+    - A 는 19:55 까지 생존 — B 도, 이후 C(PID 28923) 도 죽이지 못함. 라벨 판정 자체는 Issue206 수정이 반영되어 정상(`기대=sh.brew.fsnippet-cli|homebrew.mxcl.fsnippet-cli`)
+* 구현 명세:
+    - **원인1 (기동 경로 이중화)**: 부팅 시 launchd(`RunAtLoad=true`)와 로그인 항목/paidApp 경로가 각각 앱을 띄움. A 는 `[brew-sync] onAppStart skip — brew state 이미 started` 로 자기 판단상 정상 기동이라 스스로를 중복으로 인지하지 못함
+    - **원인2 (modal alert 가 자기 종료를 막음 — 검증 필요)**: 권한 미승인 alert 가 modal 이라 A 의 run loop 이 잡혀 `terminate()` 요청을 처리하지 못한 것으로 추정. 3초 타임아웃의 유력한 설명
+    - **수정 방향**: (a) alert 를 **single-instance 판정이 끝난 뒤**에만 띄운다 — 패자는 alert 를 띄우지 않음 (b) alert 를 non-modal 로 전환하거나 terminate 신호 수신 시 alert 를 먼저 닫는다 (c) 타임아웃 후 `SIGKILL` 폴백 (d) 부팅 기동 경로를 launchd 하나로 단일화
+    - **검증**: 재부팅 후 alert 가 정확히 **1회**만 뜨고, `ps` 에 인스턴스가 1개만 남는가
+* 검증: 빌드 통과 · 중복 기동 시 원래 인스턴스 생존 확인. ⚠️ **재부팅 시 alert 1회 E2E 미검증**(재부팅 필요) · SIGKILL 폴백은 terminate 성공 시 발화하지 않아 미발화.
+* 남은 과제: 부팅 시 인스턴스 2개가 뜨는 근본(launchd RunAtLoad + 로그인 항목/paidApp 이중 경로)은 미해결. 폴백은 "결국 1개만 남는다"를 보장할 뿐 중복 기동 자체를 막지 못함.
+
+## Issue208: [Critical][KeyEvent] 접근성 권한 박탈 후 CGEventTap 무한 재활성화 — 키보드·마우스 전체 입력 프리즈 (OS 재부팅 외 복구 불가) (등록: 2026-09-05, 완료: 2026-09-05) (Hash: 4a106b1) ✅
+* 목적: 실사용 중 접근성 권한이 회수되면 **시스템 전체 입력이 잠겨 OS 재부팅 외 복구 수단이 없음**. 작업 중이던 모든 앱의 데이터 손실 위험이 있어 본 프로젝트 최고 severity.
+* 상세:
+    - **실측 근거 (2026-09-05 19:02~19:20, Issue207 E2E 검증 중 실발생)**: 권한 OFF 후 마우스만 동작, 키보드 미입력, 타이핑하면 마우스까지 잠김 → 사용자가 OS 재부팅으로 탈출
+    - 로그 `flog_cliApp_2026-09-05_18-45-28.log`: `🚨 Event Tap Disabled! Auto-reenabling...` → `Tap re-enabled. Attempt: 1/5` 가 19:02:14 · 19:02:27 · 19:03:29 · 19:14:03 **4회 반복, 매번 `1/5`**
+    - 같은 구간에 `접근성 권한: 미승인` 로그 없음 — 앱은 권한이 사라진 사실 자체를 모름
+* 구현 명세:
+    - **원인1 (재시도 카운터 미누적)**: `CGEventTapManager.handleTapDisabled()` 가 `now - lastReenableTime > resetInterval(5.0s)` 이면 `reenableRetryCount = 0`. 실측 disable 간격은 13s·62s·10분으로 **전부 5초 초과** → 항상 1 로 리셋 → `maxRetries(5)` 에 영원히 도달 못 함 → cooldown 경로가 사문화되어 **무한 재활성화**
+    - **원인2 (권한 재확인 없음)**: `handleTapDisabled()` 가 `CGEvent.tapEnable(enable: true)` 만 호출하고 접근성 권한을 확인하지 않음. 권한이 없으면 재활성화가 무의미한데 무한 반복
+    - **원인3 (blocking tap 잔존 = 프리즈 직접 원인)**: tap 이 `.cghidEventTap` + `options: .defaultTap`(active) + `place: .headInsertEventTap`. HID 레벨 최선두라 **마우스 포함 전 입력**이 이 tap 을 통과함. 권한 없는 tap 이 스트림에 남아 이벤트를 소비·지연시켜 키보드 무반응 → 타이핑 시 처리 지연 누적 → 마우스까지 프리즈
+    - **수정 방향**: `handleTapDisabled()` 진입부에서 `AXIsProcessTrusted()` 확인 → 미승인이면 **재활성화를 금지하고 `stop()` 으로 tap 을 이벤트 스트림에서 완전 제거** + `AccessibilityGrantWatcher.startIfNeeded()` 기동(Issue207 자산 재사용). tap 이 빠지면 시스템 입력은 즉시 정상화됨
+    - 재시도 카운터는 시간 기반 리셋을 폐기하고 **정상 이벤트를 수신했을 때만 리셋**으로 변경. 저빈도 반복 disable 도 누적되어야 cooldown 이 실제로 작동함
+    - **부수 (죽은 코드)**: `setupEventTap()` 의 `(1 << 0xFFFF_FFFE)` · `(1 << 0xFFFF_FFFF)` 는 Swift smart shift 오버시프트라 **항상 0** — 마스크에 아무 효과 없음. tap disabled 이벤트는 마스크와 무관하게 콜백에 전달되므로 주석과 함께 제거
+    - **검증**: 권한 OFF 후 ① 시스템 입력이 정상 유지되는가 ② tap 이 스트림에서 빠졌는가 ③ 권한 ON 시 watcher 가 복구하는가
+* 검증: `/run` 9 PASS/0 FAIL · 키 입력 처리 정상(39건+) · 코드 경로 정적 확인. ⚠️ **권한 OFF E2E 미검증** — 재현 시 시스템 프리즈 위험이 있어 사용자 판단 대기.
+
 ## Issue207: [Permission] 접근성 권한 미승인으로 뜬 인스턴스가 권한 부여 후에도 CGEventTap 을 재생성하지 않음 (등록: 2026-09-05, 완료: 2026-09-05) (Hash: f6ee4c5) ✅
 * depends: Issue206 (선행 완료)
 * 목적: 앱이 접근성 권한 없는 상태로 시작하면 안내만 남기고 CGEventTap 생성을 포기하는데, 사용자가 안내대로 시스템 설정에서 권한을 켜도 **그 프로세스는 끝까지 살아나지 않음**. macOS 접근성 권한은 프로세스 시작 시점에 평가되고 소급 적용되지 않기 때문. 신규 설치자는 최초 실행 시 반드시 권한 미승인 상태이므로 **전원이 겪는 경로**임.
