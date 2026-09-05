@@ -29,6 +29,19 @@ date: 2026-04-07
 
 # 📕 중요
 
+## Issue224: [Permission] probe tap 제거 — 평상시 권한 요청 창이 뜨던 원인 (등록: 2026-09-05)
+* depends: Issue223
+* 목적: Issue223 에서 probe 의 `eventsOfInterest` 를 `keyDown` 으로 고치자 **권한이 정상인 평상시에도 macOS 권한 요청 창(`universalAccessAuthWarn`)이 떴다.** 판정을 얻으려고 사용자를 방해한 셈이다.
+* 상세:
+    - probe 는 2초마다 `CGEvent.tapCreate` 를 시도한다. `eventsOfInterest: 0` 일 때는 권한이 필요 없어 조용했으나, `keyDown` 을 실제로 구독하자 macOS 가 매번 권한을 확인하며 창을 띄웠다
+    - 실측 로그: `앱 활성화 변경: Code → universalAccessAuthWarn(com.apple.accessibility.universalAccessAuthWarn)`
+* 구현 명세:
+    - **probe 전면 제거** — `probeAccessibilityByTapCreation()`·`lastProbeAt`·`probeInterval` 삭제
+    - 애초에 필요 없었다. **Issue220 의 경로 비대칭**이 더 정확하고 부작용이 없다 — 우리 앱이 실제로 겪는 사실이라 캐시에 속지 않으면서, **시스템에 아무것도 묻지 않으므로 창도 뜨지 않는다**
+    - 권한 상실 시 **목록 재등록**은 실제 tap 생성 경로(`setupEventTap` 의 `tapCreate` 실패)에서 자연히 일어난다. 그때는 권한이 정말 없으므로 창이 뜨는 것이 옳다
+    - **검증 (2026-09-05 23:30)**: `/run` 9 PASS/0 FAIL · probe 흔적 0건 · `universalAccessAuthWarn` 0건(창 미발생) · `noteMonitorKeyEvent` 심볼 생존(비대칭 판정 유지)
+
+
 ## Issue221: [Permission] 권한 상실 감지 시 접근성 등록 안내 창 재표시 — 중복 방지 (등록: 2026-09-05)
 * depends: Issue220
 * 목적: Issue220 으로 **키보드 락은 해결**됐다(사용자 확인). 다만 tap 을 떼어내 입력을 돌려주는 데서 끝나므로 사용자는 **왜 스니펫이 죽었는지 모른다.** 부팅 때와 같은 안내 창을 그 시점에도 띄워 등록 경로를 알린다.

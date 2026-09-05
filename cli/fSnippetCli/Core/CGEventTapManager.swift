@@ -86,10 +86,6 @@ class CGEventTapManager {
     private var lastPermissionPromptAt: Date = .distantPast
     // Issue218: 워치독이 직접 권한을 폴링한다. timeout 은 오지 않을 수 있다.
     private var lastKnownAccess: Bool?
-    // Issue219: probe tap 실측 주기 — 모든 권한 조회 API 가 revoke 를 반영하지 않아
-    // 실제로 tap 을 만들어 보는 것만이 유일하게 믿을 수 있는 판정이다.
-    private var lastProbeAt: CFAbsoluteTime = 0
-    private static let probeInterval: CFAbsoluteTime = 2.0
 
     // Issue220: 두 입력 경로의 **비대칭**으로 권한 상실을 감지한다.
     //
@@ -323,34 +319,6 @@ class CGEventTapManager {
         reenableRetryCount = 0
     }
 
-    /// Issue219: tap 을 실제로 만들어 접근성 권한을 실측한다.
-    ///
-    /// 모든 조회 API 가 revoke 를 반영하지 않으므로 남은 방법은 이것뿐이다. `tapCreate` 는
-    /// 권한이 없으면 `nil` 을 돌려주며, 이 값은 캐시되지 않는다.
-    ///
-    /// 부작용을 없애기 위해 `eventsOfInterest: 0`(아무 이벤트도 구독하지 않음) +
-    /// `.listenOnly`(가로채지 않음) 로 만들고, 즉시 무효화해 버린다. run loop 에 붙이지도
-    /// 않으므로 콜백은 호출되지 않는다.
-    static func probeAccessibilityByTapCreation() -> Bool {
-        // ⚠️ Issue223: `eventsOfInterest: 0` 은 **아무 이벤트도 구독하지 않으므로 권한이
-        // 필요 없다.** 그래서 권한이 없어도 생성에 성공했고, probe 가 계속 "허용" 이라고
-        // 거짓말했다(실측 2026-09-05 23:21 — 실제 tapCreate 는 실패하는데 probe 는 granted).
-        // keyDown 을 실제로 구독해야 macOS 가 권한을 확인한다.
-        guard
-            let probe = CGEvent.tapCreate(
-                tap: .cgSessionEventTap,
-                place: .tailAppendEventTap,
-                options: .listenOnly,
-                eventsOfInterest: CGEventMask(1 << CGEventType.keyDown.rawValue),
-                callback: { _, _, event, _ in Unmanaged.passUnretained(event) },
-                userInfo: nil)
-        else {
-            return false
-        }
-        CFMachPortInvalidate(probe)
-        return true
-    }
-
     /// Issue217: timeout 시 **키보드를 먼저 놓아주고** 권한을 판정한다.
     ///
     /// 핵심은 순서다. `tapEnable(false)` 를 먼저 부르면 그 즉시 대기 중이던 키 이벤트가
@@ -473,29 +441,18 @@ class CGEventTapManager {
             // 그래서 통지를 기다리지 않고 0.5초마다 직접 묻는다. 권한이 사라진 것이 보이면
             // 그 자리에서 tap 을 꺼서 키보드를 놓아준다. 이 검사는 워치독 큐에서 돌므로
             // 메인 스레드 상태와 무관하게 동작한다.
-            // ✅ Issue219: 권한 조회 API 는 전부 revoke 를 반영하지 않는다.
+            // ⚠️ Issue224: probe tap 을 제거했다.
             //
-            // 실측으로 확인된 것 — `AXIsProcessTrusted()`(Issue211)도,
-            // `CGPreflightListenEventAccess()`(Issue218)도 권한을 제거한 뒤에 계속 `허용` 을
-            // 반환했다. 2026-09-05 22:14 재현에서 `허용 → 없음` 로그가 단 한 건도 남지 않았고
-            // 그동안 키보드는 잠겨 있었다.
+            // Issue219 의 probe 는 2초마다 `tapCreate` 를 시도했는데, Issue223 에서 keyDown 을
+            // 실제로 구독하도록 고치자 **권한이 정상인 평상시에도 macOS 권한 요청 창이
+            // 떴다**(`universalAccessAuthWarn`). 판정을 얻으려고 사용자를 방해한 셈이다.
             //
-            // 그래서 **실제로 tap 을 만들어 본다.** `CGEvent.tapCreate` 는 권한이 없으면
-            // `nil` 을 돌려준다 — 캐시가 없는 유일한 판정이다. 이벤트를 하나도 구독하지 않는
-            // (`eventsOfInterest: 0`) listen-only probe 라 부작용이 없고, 만들자마자 버린다.
+            // 애초에 probe 는 필요 없다. Issue220 의 **경로 비대칭**이 더 정확하고 부작용이
+            // 없다 — 우리 앱이 실제로 겪는 사실이라 캐시에 속지 않으면서, 시스템에 아무것도
+            // 묻지 않으므로 창도 뜨지 않는다. 권한 상실 시 목록 재등록은 실제 tap 생성
+            // 경로(`setupEventTap` 의 `tapCreate` 실패)에서 자연히 일어난다.
             let now = CFAbsoluteTimeGetCurrent()
-            var access = self.lastKnownAccess ?? true
-            if now - self.lastProbeAt >= Self.probeInterval {
-                self.lastProbeAt = now
-                access = CGEventTapManager.probeAccessibilityByTapCreation()
-            }
-            if self.lastKnownAccess != access {
-                logW(
-                    "💉 ⚙️ [Watchdog] 접근성 권한 상태 변화 감지(probe): "
-                        + "\(self.lastKnownAccess.map { $0 ? "허용" : "없음" } ?? "최초") → "
-                        + "\(access ? "허용" : "없음")")
-                self.lastKnownAccess = access
-            }
+            var access = true
             // ✅ Issue220: 경로 비대칭 판정 — 조회 API 가 전부 실패한 뒤 남은 관측 증거.
             if now - self.lastAsymmetryCheckAt >= Self.asymmetryWindow {
                 self.lastAsymmetryCheckAt = now
