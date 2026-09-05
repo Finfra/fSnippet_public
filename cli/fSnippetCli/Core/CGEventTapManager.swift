@@ -55,6 +55,9 @@ class CGEventTapManager {
     private static var lastKeyEventTime: CFTimeInterval = 0
     private static var lastKeyCode: UInt16 = 0
 
+    // Issue208: permission probe used to decide whether re-enabling the tap makes sense.
+    private let accessibilityService: AccessibilityService = SystemAccessibilityService()
+
     // ✅ Issue 583_2: Backoff Strategy for Event Tap Re-enabling
     private var reenableRetryCount: Int = 0
     private var lastReenableTime: Date = Date.distantPast
@@ -101,11 +104,12 @@ class CGEventTapManager {
     // MARK: - Internal Setup
 
     private func setupEventTap() {
+        // Issue208: the former `(1 << 0xFFFF_FFFE)` / `(1 << 0xFFFF_FFFF)` terms (Issue 385)
+        // were dead code. Swift's smart shift yields 0 on overshift, so both always evaluated
+        // to 0 and contributed nothing. Tap-disabled notifications reach the callback
+        // regardless of the mask, so no dedicated bit is required.
         let eventMask =
             (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.flagsChanged.rawValue)
-            // Issue 385: Resilience
-            | (1 << 0xFFFF_FFFE)  // kCGEventTapDisabledByTimeout
-            | (1 << 0xFFFF_FFFF)  // kCGEventTapDisabledByUser
 
         guard
             let eventTap = CGEvent.tapCreate(
@@ -130,20 +134,44 @@ class CGEventTapManager {
     }
 
     func handleTapDisabled() {
+        // ✅ Issue208: never keep re-enabling a tap we no longer have permission for.
+        //
+        // The tap is `.cghidEventTap` + `.defaultTap` (active) + `.headInsertEventTap`, so
+        // EVERY HID input — mouse included — flows through it at the very head of the stream.
+        // Leaving an unusable tap in place and re-enabling it forever makes events be consumed
+        // or delayed: the keyboard goes dead first, then the mouse locks up too. Observed on
+        // 2026-09-05: the machine had to be rebooted to recover.
+        //
+        // So when the permission is gone we do NOT re-enable — we remove the tap from the
+        // event stream entirely. Input returns to normal the moment the tap is gone. Recovery
+        // is delegated to the Issue207 grant watcher.
+        guard accessibilityService.isAccessibilityGranted() else {
+            logE(
+                "💉 ⚙️ 🚨 [CGEventTapManager] Accessibility permission lost — removing the tap "
+                    + "from the event stream instead of re-enabling it (prevents input freeze). "
+                    + "It will be recreated automatically once permission is granted."
+            )
+            stop()
+            reenableRetryCount = 0
+            startGrantWatchdog()
+            return
+        }
+
         guard let eventTap = cgEventTap else {
             reinitialize()
             return
         }
 
-        // ✅ Issue 583_2: Backoff Logic
-        let now = Date()
-        if now.timeIntervalSince(lastReenableTime) > resetInterval {
-            reenableRetryCount = 0
-        }
-
+        // ✅ Issue208: the retry counter is no longer reset by elapsed time.
+        //
+        // The previous logic reset it whenever `now - lastReenableTime > resetInterval` (5s).
+        // Real disable intervals were 13s / 62s / 10min — all above 5s — so the counter was
+        // pinned at 1, `maxRetries` was never reached and the cooldown branch was dead code,
+        // leaving an unbounded re-enable loop. The counter is now cleared only by
+        // `noteHealthyEvent()`, i.e. when an actual event has been received.
         if reenableRetryCount < maxRetries {
             reenableRetryCount += 1
-            lastReenableTime = now
+            lastReenableTime = Date()
 
             // Exponential Backoff (Optional) or simply slight delay
             let delay = 0.1 * Double(reenableRetryCount)
@@ -167,6 +195,31 @@ class CGEventTapManager {
         }
     }
 
+    /// Issue208: records that a real event came through — the only place the retry counter
+    /// is cleared. Time-based resets used to mask a permanently broken tap as healthy.
+    private func noteHealthyEvent() {
+        guard reenableRetryCount != 0 else { return }
+        logD(
+            "💉 ⚙️ [CGEventTapManager] Healthy event received — retry counter reset "
+                + "(\(reenableRetryCount) -> 0)"
+        )
+        reenableRetryCount = 0
+    }
+
+    /// Issue208: recreate the tap once the user grants accessibility again.
+    ///
+    /// Reuses the Issue207 watcher, which polls only while permission is missing, stops itself
+    /// on grant, and invokes the callback on the main thread — required because
+    /// `setupEventTap()` registers its run loop source on `CFRunLoopGetCurrent()`.
+    private func startGrantWatchdog() {
+        AccessibilityGrantWatcher.shared.startIfNeeded(service: accessibilityService) {
+            [weak self] in
+            guard let self = self else { return }
+            logI("💉 ⚙️ [CGEventTapManager] Accessibility re-granted — recreating Event Tap")
+            self.start()
+        }
+    }
+
     // MARK: - Logic Methods (Called from Callback)
 
     fileprivate func handleCallback(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent)
@@ -184,6 +237,9 @@ class CGEventTapManager {
         guard type == .keyDown || type == .flagsChanged else {
             return Unmanaged.passUnretained(event)
         }
+
+        // Issue208: a real event proves the tap is functional again.
+        noteHealthyEvent()
 
         let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
 

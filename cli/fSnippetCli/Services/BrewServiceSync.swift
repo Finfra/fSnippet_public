@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 /// Issue51 (pairApp Issue39 Full Mirror): `brew services` (launchd) ↔ 메뉴바 앱 상태를
@@ -150,6 +151,18 @@ enum BrewServiceSync {
             return
         }
 
+        // Issue210: 다른 cliApp 인스턴스가 이미 서비스를 이어받았으면 stop 하지 않는다.
+        //
+        // 실측 2026-09-05 19:55 — SingleInstanceGuard 에 의해 terminate 되는 구(舊) 인스턴스가
+        // 종료 경로에서 이 함수를 호출했다. 그 시점 launchd 에는 방금 뜬 신(新) 인스턴스가
+        // 등록돼 있었고, `brew services stop` 은 프로세스가 아니라 **라벨 단위**로 동작하므로
+        // 신 인스턴스가 정지됐다. 결과적으로 구·신 양쪽이 사라져 cliApp 이 완전히 소실됐다
+        // (ps·launchctl 양쪽에서 소멸 확인). 교체 중에는 서비스를 건드리지 않는다.
+        if hasOtherRunningInstance() {
+            logI("[brew-sync] onAppStop skip — 다른 cliApp 인스턴스 활동 중 (인스턴스 교체, brew stop 억제)")
+            return
+        }
+
         guard let brewPath = findBrewPath() else {
             logI("[brew-sync] onAppStop skip — brew 미설치")
             return
@@ -239,6 +252,17 @@ enum BrewServiceSync {
     }
 
     /// brew state == `started` 와 등가. `launchctl list` 출력에 label 이 포함됐는지.
+    /// Issue210: 이 프로세스 외에 살아 있는 cliApp 인스턴스가 있는지.
+    ///
+    /// `brew services stop` 은 라벨 단위라 "누가 호출했는가" 와 무관하게 그 라벨의 프로세스를
+    /// 정지시킨다. 교체 중 구 인스턴스가 호출하면 신 인스턴스가 죽으므로 반드시 선행 확인한다.
+    private static func hasOtherRunningInstance() -> Bool {
+        let myPID = ProcessInfo.processInfo.processIdentifier
+        return NSWorkspace.shared.runningApplications.contains {
+            $0.bundleIdentifier == "kr.finfra.fSnippetCli" && $0.processIdentifier != myPID
+        }
+    }
+
     static func isServiceLoaded() -> Bool {
         let output = runCommand("/bin/launchctl", args: ["list"]) ?? ""
         // Issue206: 어느 네임스페이스로 로드됐든 "started" 로 판정.

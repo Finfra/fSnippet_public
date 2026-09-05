@@ -89,6 +89,43 @@ enum SingleInstanceGuard {
             }
             Thread.sleep(forTimeInterval: 0.1)
         }
-        logW("[single-instance] ⚠️ 기존 인스턴스 종료 대기 타임아웃 (\(timeout)s) — 포트 충돌 가능")
+
+        // Issue209: 타임아웃을 경고만 하고 넘어가면 구 인스턴스가 그대로 살아남는다.
+        //
+        // 실측 2026-09-05 재부팅 직후 — PID 1250(구) 이 terminate·forceTerminate 에 모두
+        // 응답하지 않아 3초 타임아웃 후 방치됐고, 33분 뒤까지 생존하며 권한 안내 alert 를
+        // 두 개(구·신) 띄웠다. 미승인 alert 가 modal 로 run loop 을 잡고 있으면 Cocoa 종료
+        // 요청이 처리되지 않는다. 최후 수단으로 SIGKILL 을 보낸다 — terminate·forceTerminate
+        // 가 이미 실패한 뒤이므로 정상 종료 기회는 충분히 준 상태다.
+        let stubborn = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+            .filter { $0.processIdentifier != myPID }
+        guard !stubborn.isEmpty else {
+            logI("[single-instance] 기존 인스턴스 종료 확인 (타임아웃 직전)")
+            return
+        }
+
+        let stubbornPIDs = stubborn.map(\.processIdentifier)
+        logW(
+            "[single-instance] ⚠️ 기존 인스턴스 종료 대기 타임아웃 (\(timeout)s) — "
+                + "SIGKILL 폴백 (PIDs: \(stubbornPIDs))"
+        )
+        for app in stubborn {
+            if kill(app.processIdentifier, SIGKILL) != 0 {
+                logE("[single-instance] ❌ SIGKILL 실패 PID \(app.processIdentifier) — 포트 충돌 가능")
+            }
+        }
+
+        // SIGKILL 은 즉시 반영되지만 프로세스 테이블 정리에 약간의 여유를 준다 (포트 3015 해제).
+        Thread.sleep(forTimeInterval: 0.3)
+        let survivors = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+            .filter { $0.processIdentifier != myPID }
+        if survivors.isEmpty {
+            logI("[single-instance] ✅ SIGKILL 후 기존 인스턴스 종료 확인")
+        } else {
+            logE(
+                "[single-instance] ❌ SIGKILL 후에도 잔존 (PIDs: "
+                    + "\(survivors.map(\.processIdentifier))) — 포트 충돌 가능"
+            )
+        }
     }
 }
