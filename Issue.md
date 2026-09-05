@@ -28,27 +28,37 @@ date: 2026-04-07
 
 # 📕 중요
 
-## Issue207: [Permission] 접근성 권한 미승인으로 뜬 인스턴스가 권한 부여 후에도 CGEventTap 을 재생성하지 않음 (등록: 2026-09-05)
-* depends: Issue206
-* 목적: 앱이 접근성 권한 없는 상태로 시작하면 안내만 남기고 CGEventTap 생성을 포기하는데, 사용자가 안내대로 시스템 설정에서 권한을 켜도 **그 프로세스는 끝까지 살아나지 않음**. macOS 접근성 권한은 프로세스 시작 시점에 평가되고 소급 적용되지 않기 때문. 신규 설치자는 최초 실행 시 반드시 권한 미승인 상태이므로 **전원이 겪는 경로**임.
-* 상세:
-    - **실측 근거 (2026-09-05 세션)**: 시작 시 `⚠️ 접근성 권한: 미승인 — 사용자 안내 alert 표시` / `❌ 접근성 권한이 없습니다. 시스템 설정 > 개인정보 > 접근성에서 fSnippetCli를 추가해 주세요`. 사용자가 이후 토글을 켰으나 **로그에 CGEventTap 관련 항목 0건** — 재생성 시도조차 없음.
-    - 혼동 요인: `AppActivationMonitor` 는 `NSWorkspace` 알림 기반이라 접근성 권한 없이도 계속 동작함. 로그가 흐르고 API `/api/v2/status` 도 `ok` 를 반환하여 **정상으로 오인**되기 쉬움. 실제로는 키 감지만 죽어 있음.
-    - 안내 문구가 "접근성에서 fSnippetCli 를 추가해 주세요" 로 끝나 **재시작이 필요하다는 사실을 알리지 않음**. 사용자는 지시대로 했는데 작동하지 않는 상태에 놓임.
-    - Issue206 이 함께 있으면 정상 재시작 경로마저 막혀 자력 복구가 불가능했음 (실제 발생). Issue206 선행 해결 필요.
-* 구현 명세:
-    - 관련 코드 — `cli/fSnippetCli/fSnippetCliApp.swift:263~273` (권한 체크·alert), `cli/fSnippetCli/Core/KeyEventProcessor.swift:180, 1154~1163` (tap 생성·권한 확인).
-    - **택1 또는 병행**:
-        - (a) 권한 부여 감지 후 자동 복구 — `AXIsProcessTrusted()` 폴링 또는 `com.apple.accessibility.api` 분산 알림 구독으로 승인 전환을 감지해 CGEventTap 을 재생성.
-        - (b) 최소 조치 — alert 문구에 **"권한을 켠 뒤 앱을 재시작해야 적용됩니다"** 를 명시하고, alert 에 재시작 버튼 제공.
-    - (a) 채택 시 tap 재생성이 중복 생성·핸들 누수를 일으키지 않도록 기존 tap 해제 경로 확인.
-    - 검증: 권한을 끈 상태로 기동 → 설정에서 권한 부여 → 재시작 없이 스니펫 확장이 동작하는지 (a), 또는 안내대로 재시작하여 동작하는지 (b).
-
 # 📙 일반
 
 # 📗 선택
 
 # ✅ 완료
+## Issue207: [Permission] 접근성 권한 미승인으로 뜬 인스턴스가 권한 부여 후에도 CGEventTap 을 재생성하지 않음 (등록: 2026-09-05, 완료: 2026-09-05) (Hash: f6ee4c5) ✅
+* depends: Issue206 (선행 완료)
+* 목적: 앱이 접근성 권한 없는 상태로 시작하면 안내만 남기고 CGEventTap 생성을 포기하는데, 사용자가 안내대로 시스템 설정에서 권한을 켜도 **그 프로세스는 끝까지 살아나지 않음**. macOS 접근성 권한은 프로세스 시작 시점에 평가되고 소급 적용되지 않기 때문. 신규 설치자는 최초 실행 시 반드시 권한 미승인 상태이므로 **전원이 겪는 경로**임.
+* 상세:
+    - **실측 근거 (2026-09-05 세션)**: 시작 시 `⚠️ 접근성 권한: 미승인 — 사용자 안내 alert 표시`. 사용자가 이후 토글을 켰으나 **로그에 CGEventTap 관련 항목 0건** — 재생성 시도조차 없음.
+    - 혼동 요인: `AppActivationMonitor` 는 `NSWorkspace` 알림 기반이라 접근성 권한 없이도 계속 동작하고, API `/api/v2/status` 도 `ok` 를 반환하여 **정상으로 오인**되기 쉬움. 실제로는 키 감지만 죽어 있음.
+    - 안내 문구가 "접근성에서 fSnippetCli 를 추가해 주세요" 로 끝나 **재시작이 필요하다는 사실을 알리지 않음**.
+* 채택 방향: **(a) 자동 복구 + (b) 안내·재시작 버튼 병행** (사용자 결정, 2026-09-05)
+* 구현 명세 (실제 반영):
+    - **(a) `AccessibilityGrantWatcher` 신설** (`cli/fSnippetCli/Services/AccessibilityService.swift`) — 미승인 기동 시에만 2초 간격 폴링, 승인 감지 즉시 자체 종료, 상한 10분.
+        - ⚠️ **복구는 반드시 메인 스레드** — `CGEventTapManager.setupEventTap()` 이 `CFRunLoopGetCurrent()` 에 소스를 등록하므로, 백그라운드 스레드에서 재생성하면 돌지 않는 run loop 에 붙어 이벤트가 영영 오지 않음. 감시자가 `DispatchQueue.main.async` 로 호출을 보장.
+        - **Issue150 회귀 아님** — Issue150 이 제거한 것은 *revoke 감지 폴링·자동 dismiss·반복 alert* 였고 이것은 정반대 방향의 1회성 승격 감지. 판정 4조건(미승인 기동 시에만 시작 / 승인 시 자체 종료 / revoke 미감지 / alert 재표시 없음)을 코드 주석에 명시.
+        - tap 중복 생성·핸들 누수 없음 — `KeyEventProcessor.startMonitoring()` 의 모니터 가드와 `CGEventTapManager.start()` 의 `cgEventTap == nil` 가드 양쪽 확인. 미승인 기동 시 둘 다 미생성 상태.
+    - **(b) alert 개선** (`AccessibilityGuidePresenter.swift`) — 권한이 프로세스 시작 시점에 평가된다는 사실 + 자동 복구 시도 + 실패 시 재시작 필요를 문구에 명시. **"지금 재시작" 버튼** 추가.
+        - 재시작은 **자기 재실행이 아니라 launchd 위임** — `BrewServiceSync.restartViaBrewServices()` (자기 재실행은 Issue181 에서 제거된 패턴). `restartInProgress` 플래그로 `onAppStop` 의 brew stop race 차단. brew 미설치 시 수동 재시작 안내 alert 폴백(침묵 실패 방지).
+    - **배선** — `fSnippetCliApp.recoverKeyMonitoringAfterGrant()` 신설, `checkAccessibilityPermission()` 에서 미승인 분기에만 감시 시작.
+* 동반 수정 (같은 "권한 등록 안내" 도메인의 결함 2건, 조사 중 발견):
+    - **`Localizable.strings` 키 불일치** — `AccessibilityGuidePresenter` 가 `NSLocalizedString` 에 넘기던 키에 한글이 섞여 있어 테이블의 영문 키와 어긋남 → lookup 미스로 **모든 로케일에 영문+한글 혼합 리터럴이 그대로 출력**되고 있었음. 키를 바이트 단위로 정합화하고 신규 키 4종(`Restart Now`·`Restart Required`·수동 재시작 본문·`OK`) 추가. 재발 방지로 본문 키를 멀티라인 리터럴 대신 명시적 `+` 연결로 작성(공백·개행이 눈에 보이도록).
+    - **`SnippetError.accessibilityPermissionDenied` 구 문구** — 앱 이름이 paidApp(`fSnippet`)이고 macOS 명칭도 구버전("시스템 환경설정 > 보안 및 개인 정보 보호"). 오류 주체인 cliApp 이름과 macOS 13+ 명칭으로 교정하고 재시작 안내 추가.
+* 검증 (실측, 2026-09-05):
+    - `xcodebuild -configuration Release` **BUILD SUCCEEDED**, `brew local` 배포 **9 PASS / 0 FAIL**
+    - `plutil -lint ko.lproj/Localizable.strings` → OK
+    - 승인 상태 기동 시 `GrantWatcher` 로그 0건 = `startIfNeeded` guard 정상 (승인된 프로세스는 폴링하지 않음)
+    - 로그 → `접근성 권한: 승인됨` / `총 등록된 단축키: 18개` / `sh.brew.fsnippet-cli` PID 84019 · `brew services` started
+    - ⚠️ **미검증**: 권한 OFF → ON 전환 시 자동 복구 E2E. TCC 리셋과 시스템 설정 토글 조작이 필요해 사용자 협조 없이는 재현 불가. 코드 경로(감시 시작·메인 스레드 복구·가드)는 정적으로 확인했으나 실기 확인은 남아 있음.
+
 ## Issue206: [Brew] Homebrew 서비스 라벨 `homebrew.mxcl.*` → `sh.brew.*` 변경 미반영 — launchd 인스턴스가 자살하고 권한 없는 인스턴스가 영구 생존 (등록: 2026-09-05, 완료: 2026-09-05) (Hash: b638a1e) ✅
 * 목적: Homebrew 가 서비스 라벨 네임스페이스를 `homebrew.mxcl.<formula>` 에서 `sh.brew.<formula>` 로 변경했으나 코드는 구 라벨에 하드코딩되어 있었음. 그 결과 `SingleInstanceGuard` 가 launchd 기동 프로세스를 **non-launchd 로 오판**하여 승자 경로 대신 패자 경로를 타고 자살함. 판정과 실제 계약이 한쪽만 갱신되어 갈라진 전형적 사례.
 * 상세:
