@@ -1230,7 +1230,10 @@ class KeyEventProcessor: CGEventTapManagerDelegate {
 
     /// 활성 애플리케이션에 문자 직접 출력
     private func outputCharacterToActiveApplication(_ character: String, keyCode: UInt16) {
-        guard let event = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: true)
+        // Issue215: source 가 nil 이면 eventSourceUserData 가 남지 않는다 — 아래 태그 설정이
+        // 무효화되어 우리 키가 남의 키로 되돌아온다.
+        guard let event = CGEvent(
+            keyboardEventSource: CGEventPool.injectedSource, virtualKey: keyCode, keyDown: true)
         else {
             logE("🎮 [outputCharacterToActiveApplication] CGEvent 생성 실패")
             return
@@ -1244,7 +1247,7 @@ class KeyEventProcessor: CGEventTapManagerDelegate {
             stringLength: unicodeLength, unicodeString: Array(unicodeString))
 
         // ✅ Issue 524: 루프 방지를 위한 fSnippet 전용 태그 설정
-        event.setIntegerValueField(.eventSourceUserData, value: 54321)
+        event.setIntegerValueField(.eventSourceUserData, value: CGEventPool.selfInjectedTag)
 
         event.post(tap: .cghidEventTap)
 

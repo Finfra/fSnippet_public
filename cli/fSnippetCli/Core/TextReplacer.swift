@@ -6,6 +6,35 @@ import Foundation
 
 /// CGEvent 객체 풀 - 메모리 효율성 향상
 class CGEventPool {
+    /// Issue215: 자기 주입 이벤트 식별 태그.
+    ///
+    /// `CGEventTapManager` 의 콜백이 이 값으로 자기 이벤트를 걸러낸다. 태그가 빠지면 우리가
+    /// 주입한 키가 남의 키로 되돌아와 다시 처리되고, 그 처리가 또 키를 주입하는 **무한 루프**가
+    /// 된다. 실측 2026-09-05 21:46 — 백스페이스(keyCode 51)가 30ms 간격으로 24연타 되며
+    /// 사용자 입력이 그 사이에 묻혔다(= "타이핑 락"). exit mark 가 `exit.selfTag` 가 아니라
+    /// `nearEnd.ghostCheck` 로 찍힌 것이 증거다 — 필터가 한 번도 발동하지 않았다.
+    ///
+    /// ⚠️ **주입 이벤트를 만드는 모든 경로는 반드시 이 태그를 달아야 한다.** PID 필터는
+    /// 보조 수단일 뿐이다 — `CGEvent(keyboardEventSource: nil, ...)` 로 만든 이벤트는
+    /// 발신 PID 가 우리 프로세스로 잡히지 않아 그 필터를 통과한다.
+    static let selfInjectedTag: Int64 = 54321
+
+    /// Issue215: 태그를 실제로 실어 나르는 이벤트 소스.
+    ///
+    /// ⚠️ **`CGEvent(keyboardEventSource: nil, ...)` 로 만든 이벤트에는
+    /// `setIntegerValueField(.eventSourceUserData, ...)` 가 남지 않는다.** userData 는 이벤트가
+    /// 아니라 **소스의 속성**이라, 소스가 없으면 실어 나를 곳이 없다. 그래서 태그를 붙였다고
+    /// 믿었는데도 콜백에서는 계속 0 으로 읽혔고, 우리가 주입한 백스페이스가 남의 키로
+    /// 되돌아왔다(실측 2026-09-05 21:50 — 대체 직후 keyCode 51 이 14연타).
+    ///
+    /// `.combinedSessionState` 를 쓰는 이유는 modifier 상태를 세션과 공유해야 하기 때문이다.
+    /// `.privateState` 로 만들면 Cmd 상태가 전달되지 않아 Cmd+V 붙여넣기가 깨진다.
+    static let injectedSource: CGEventSource? = {
+        let source = CGEventSource(stateID: .combinedSessionState)
+        source?.userData = selfInjectedTag
+        return source
+    }()
+
     private let queue = DispatchQueue(label: "cgevent.pool", attributes: .concurrent)
     private var backspaceEventPool: [CGEvent] = []
     private var cmdEventPool: [CGEvent] = []
@@ -21,8 +50,10 @@ class CGEventPool {
             } else {
                 // Issue75: flags = [] 명시 — 풀이 비어있을 때(첫 실행) {right_command} modifier가
                 // 잔류하면 Cmd+Backspace로 동작해 줄 전체가 삭제되는 버그 방지
-                let event = CGEvent(keyboardEventSource: nil, virtualKey: 51, keyDown: keyDown)
-                event?.flags = []
+                guard let event = CGEvent(keyboardEventSource: Self.injectedSource, virtualKey: 51, keyDown: keyDown)
+                else { return nil }
+                // Issue215: pool miss 경로도 반드시 configure 를 거친다 — 태그 누락 방지
+                configureBackspaceEvent(event, keyDown: keyDown)
                 return event
             }
         }
@@ -35,8 +66,9 @@ class CGEventPool {
                 return reusableEvent
             } else {
                 // Issue75: flags 초기화 후 .maskCommand 설정 (pool miss 시 잔류 modifier 방지)
-                let event = CGEvent(keyboardEventSource: nil, virtualKey: 55, keyDown: keyDown)
-                event?.flags = []
+                guard let event = CGEvent(keyboardEventSource: Self.injectedSource, virtualKey: 55, keyDown: keyDown)
+                else { return nil }
+                configureCmdEvent(event, keyDown: keyDown)  // Issue215
                 return event
             }
         }
@@ -48,8 +80,9 @@ class CGEventPool {
                 configureVEvent(reusableEvent, keyDown: keyDown)
                 return reusableEvent
             } else {
-                let event = CGEvent(keyboardEventSource: nil, virtualKey: 9, keyDown: keyDown)
-                event?.flags = .maskCommand
+                guard let event = CGEvent(keyboardEventSource: Self.injectedSource, virtualKey: 9, keyDown: keyDown)
+                else { return nil }
+                configureVEvent(event, keyDown: keyDown)  // Issue215
                 return event
             }
         }
@@ -80,18 +113,21 @@ class CGEventPool {
         event.setIntegerValueField(.keyboardEventKeycode, value: 51)
         event.type = keyDown ? .keyDown : .keyUp
         event.flags = []
+        event.setIntegerValueField(.eventSourceUserData, value: Self.selfInjectedTag)  // Issue215
     }
 
     private func configureCmdEvent(_ event: CGEvent, keyDown: Bool) {
         event.setIntegerValueField(.keyboardEventKeycode, value: 55)
         event.type = keyDown ? .keyDown : .keyUp
         event.flags = []
+        event.setIntegerValueField(.eventSourceUserData, value: Self.selfInjectedTag)  // Issue215
     }
 
     private func configureVEvent(_ event: CGEvent, keyDown: Bool) {
         event.setIntegerValueField(.keyboardEventKeycode, value: 9)
         event.type = keyDown ? .keyDown : .keyUp
         event.flags = .maskCommand
+        event.setIntegerValueField(.eventSourceUserData, value: Self.selfInjectedTag)  // Issue215
     }
 }
 

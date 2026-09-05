@@ -534,8 +534,12 @@ class CursorTracker {
     /// - Parameter keyCode: 키코드 (123: Left, 124: Right, 125: Down, 126: Up)
     /// - Returns: 성공 여부
     private func sendArrowKey(keyCode: CGKeyCode) -> Bool {
-        guard let keyDownEvent = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: true),
-              let keyUpEvent = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: false) else {
+        // Issue215: 주입 이벤트는 반드시 태그가 실린 소스로 만든다 — 그러지 않으면
+        // CGEventTapManager 가 자기 이벤트를 못 걸러내고 되먹임이 생긴다.
+        guard let keyDownEvent = CGEvent(
+                keyboardEventSource: CGEventPool.injectedSource, virtualKey: keyCode, keyDown: true),
+              let keyUpEvent = CGEvent(
+                keyboardEventSource: CGEventPool.injectedSource, virtualKey: keyCode, keyDown: false) else {
             logE("📍 화살표 키 이벤트 생성 실패")
             return false
         }

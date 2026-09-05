@@ -545,7 +545,7 @@ class CGEventTapManager {
 
         // ✅ Issue 524: fSnippet 자체에서 발생시킨 이벤트 필터링하여 무한 루프 방지
         // 1. UserData 태그 확인 (가장 확실함)
-        if event.getIntegerValueField(.eventSourceUserData) == 54321 {
+        if event.getIntegerValueField(.eventSourceUserData) == CGEventPool.selfInjectedTag {
             setMark("exit.selfTag")
             return Unmanaged.passUnretained(event)
         }
