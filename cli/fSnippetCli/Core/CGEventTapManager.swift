@@ -150,7 +150,18 @@ class CGEventTapManager {
 
         guard
             let eventTap = CGEvent.tapCreate(
-                tap: .cghidEventTap,
+                // Issue216: `.cghidEventTap` 에서 세션 레벨로 낮춘다.
+                //
+                // HID 레벨 tap 은 **마우스를 포함한 모든 입력이 최선두에서 통과**한다. 콜백이
+                // 이벤트를 그대로 흘려보내도(실측: `nearEnd.ghostCheck`, 0.1ms) tap 이 거기
+                // 있다는 사실만으로 이벤트 경로가 바뀌고, 권한 상태가 흔들리면 시스템 입력
+                // 전체가 이 tap 에 인질로 잡힌다. 2026-09-05 프리즈에서 앱을 죽이는 즉시
+                // 입력이 돌아온 것이 그 증거다 — 프로세스가 사라지면 tap 도 스트림에서 빠진다.
+                //
+                // 세션 레벨은 로그인 세션 이벤트만 받으므로 HID 스트림을 막지 않는다.
+                // ⚠️ 대신 다른 앱보다 늦게 받는다 — 단축키 가로채기·트리거 감지에 회귀가
+                // 없는지 확인이 필요하다. `place` 는 세션 내 최선두를 유지한다.
+                tap: .cgSessionEventTap,
                 place: .headInsertEventTap,
                 options: .defaultTap,
                 eventsOfInterest: CGEventMask(eventMask),

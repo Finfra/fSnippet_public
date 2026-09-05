@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 214
+* Issue HWM: 216
 * Checkpoints:
       - 2026.07.20: d372aff (_doc_arch 정합성 검토(Issue193) 진행 중 작업 트리 스냅샷)
       - 2026.07.19: a494408 (Fix Issue192 Edit Mode ⌘S 스니펫 등록 오작동 회귀)
@@ -27,6 +27,20 @@ date: 2026-04-07
 # 🚧 진행중
 
 # 📕 중요
+
+## Issue216: [Critical][KeyEvent] tap 배치를 HID → 세션 레벨로 낮춤 — 입력 인질 구조 제거 (등록: 2026-09-05)
+* depends: Issue214, Issue215
+* 목적: 계측으로 가설 여섯을 반증하고 남은 유일한 후보가 **tap 배치 자체**였다. HID 레벨 tap 은 콜백이 이벤트를 그대로 흘려보내도 **존재만으로 시스템 입력 전체를 인질로 잡는다.**
+* 상세:
+    - **반증된 것들**: 권한 게이트(208)·probe 신뢰성(211)·콜백 stall(212)·메인 정지(213)·조기 종료/삼킴(214)·자기 주입 되먹임(215). 근거는 `cli/_doc_work/debug_TECH.md` "반증된 가설 3건과 진단 플로우"
+    - **남은 모순**: 콜백은 `nearEnd.ghostCheck` 로 **0.1ms 에 통과**시키고 `SWALLOW` 는 0건인데 입력이 안 된다. 그런데 **앱을 죽이면 즉시 정상화**된다 — 프로세스가 사라지면 tap 도 스트림에서 빠진다
+    - 이 모순을 설명하는 것은 tap 배치뿐이다: `.cghidEventTap` + `.headInsertEventTap` + `.defaultTap` 은 **마우스 포함 전 입력이 최선두에서 통과**하는 가장 침습적인 조합
+* 구현 명세:
+    - `tap: .cghidEventTap` → **`.cgSessionEventTap`**. 로그인 세션 이벤트만 받으므로 HID 스트림을 막지 않는다. `place` 는 세션 내 최선두 유지
+    - ⚠️ **회귀 확인 필요** — 세션 레벨은 다른 앱보다 늦게 받는다. 확인 항목: ① 트리거 키(`{right_command}`) 감지 ② 단축키 가로채기(`Registered Shortcut Detected`) ③ 텍스트 대체 ④ 팝업·히스토리 단축키
+    - **미검증 (2026-09-05 22:00)**: 배포는 9 PASS 로 끝났으나 접근성 권한이 미승인 상태라 tap 이 생성되지 않아 회귀 확인을 하지 못했다. 권한 승인 후 위 4항을 확인해야 한다
+    - 회귀가 크면 대안: `.cghidEventTap` 유지 + `options: .listenOnly` 는 텍스트 대체가 불가하므로 불가. `place: .tailAppendEventTap` 로 완화하는 중간안 검토
+
 
 ## Issue214: [Critical][KeyEvent] stall 도 메인 정지도 아니다 — 콜백 종료 지점 전수 계측 (등록: 2026-09-05)
 * depends: Issue213
