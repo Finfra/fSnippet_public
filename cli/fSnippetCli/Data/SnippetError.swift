@@ -192,7 +192,9 @@ enum SnippetError: LocalizedError, Equatable {
         case .permissionDenied:
             return "파일 또는 디렉토리의 권한을 확인하고 필요시 권한을 변경해주세요."
         case .accessibilityPermissionDenied:
-            return "시스템 환경설정 > 보안 및 개인 정보 보호 > 접근성에서 fSnippet을 허용해주세요."
+            // Issue207: 앱 이름이 paidApp(fSnippet) 이고 macOS 명칭도 구버전이었다.
+            // 이 오류를 내는 주체는 cliApp 이므로 fSnippetCli 로, 명칭은 macOS 13+ 기준으로 맞춘다.
+            return "시스템 설정 > 개인정보 보호 및 보안 > 접근성에서 fSnippetCli 를 허용해주세요. 권한은 앱 시작 시점에 평가되므로 켠 뒤에도 반영되지 않으면 앱을 재시작해 주세요."
         case .networkUnavailable:
             return "네트워크 연결을 확인하고 다시 시도해주세요."
         case .memoryAllocationFailed:

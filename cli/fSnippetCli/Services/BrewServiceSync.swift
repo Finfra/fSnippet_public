@@ -27,6 +27,11 @@ enum BrewServiceSync {
     /// 다시 stop 시키는 race 를 차단.
     private static var handoffInProgress = false
 
+    /// Issue207: 접근성 권한 반영을 위한 재시작 진행 중 flag.
+    /// `brew services restart` 가 이 프로세스를 종료시킬 때 `onAppStop` 의 brew stop 이
+    /// 방금 건 restart 를 무효화하는 race 를 차단한다.
+    private static var restartInProgress = false
+
     /// Issue206: handoff start 실패 여부. `true` 면 이 프로세스는 launchd 가 관리하지 않는
     /// 상태로 잔존한 것이며, 메뉴바가 경고를 표시한다.
     private(set) static var handoffFailed = false
@@ -138,6 +143,13 @@ enum BrewServiceSync {
             return
         }
 
+        // Issue207: 권한 반영 재시작 중이면 stop 을 억제한다. 그러지 않으면 방금 건
+        // restart 가 stop 으로 덮여 서비스가 내려간 채로 남는다.
+        if restartInProgress {
+            logI("[brew-sync] onAppStop skip — restart in progress (brew stop 억제)")
+            return
+        }
+
         guard let brewPath = findBrewPath() else {
             logI("[brew-sync] onAppStop skip — brew 미설치")
             return
@@ -165,6 +177,39 @@ enum BrewServiceSync {
             logI("[brew-sync] ✅ brew services stop 성공 → brew=stopped: \(trimmed)")
         } else {
             logW("[brew-sync] ⚠️ brew services stop 실패 (rc=\(result.0)): \(trimmed)")
+        }
+    }
+
+    // MARK: - Issue207: 권한 반영 재시작
+
+    /// 접근성 권한을 반영하기 위한 재시작. **자기 재실행이 아니라 launchd 에 위임**한다
+    /// (cliApp 자기 재실행은 Issue181 에서 제거된 패턴이다).
+    ///
+    /// macOS 접근성 권한은 프로세스 시작 시점에 평가되므로, 자동 복구가 불가능하거나
+    /// 사용자가 즉시 반영을 원할 때의 확실한 경로다.
+    ///
+    /// - Returns: restart 명령을 띄웠으면 `true`. brew 미설치 등으로 못 하면 `false`
+    ///   (이 경우 호출부가 사용자에게 수동 재시작을 안내해야 한다).
+    @discardableResult
+    static func restartViaBrewServices() -> Bool {
+        guard let brewPath = findBrewPath() else {
+            logW("[brew-sync] ⚠️ 재시작 불가 — brew 미설치. 사용자가 직접 앱을 재시작해야 함")
+            return false
+        }
+        // 종료 race 차단을 먼저 건다 — restart 가 이 프로세스를 죽이기 시작한 뒤에는 늦다.
+        restartInProgress = true
+        logI("[brew-sync] brew services restart \(formulaName) — 접근성 권한 반영 재시작 (Issue207)")
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: brewPath)
+        process.arguments = ["services", "restart", formulaName]
+        do {
+            // 완료를 기다리지 않는다 — 이 프로세스 자신이 restart 의 종료 대상이다.
+            try process.run()
+            return true
+        } catch {
+            restartInProgress = false
+            logE("[brew-sync] ❌ restart 실행 실패: \(error.localizedDescription)")
+            return false
         }
     }
 

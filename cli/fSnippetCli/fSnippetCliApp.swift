@@ -265,13 +265,42 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// Issue150: pairApp 패턴 차용 — 부팅 시 1회 alert 만.
     /// 폴링·revoke 핸들러·자동 dismiss·suppressBootAlertOnce 마커 모두 제거.
     /// 권한 박탈 시 system slowdown 위험은 `KeyEventMonitor.handleTapDisabled` 자체 fallback 에 위임.
-    /// 권한 부여 후 사용자가 cliApp 을 재시작해야 함 (brew services restart 또는 메뉴바).
+    ///
+    /// Issue207: "권한 부여 후 사용자가 재시작" 이 실제로는 성립하지 않았다. 안내 문구가 재시작
+    /// 필요를 말하지 않아, 토글을 켠 사용자는 시키는 대로 했는데 동작하지 않는 상태에 놓였다.
+    /// 이제 ① `AccessibilityGrantWatcher` 가 승인 전환을 감지해 재시작 없이 복구하고,
+    /// ② alert 가 재시작 필요를 명시하며 "지금 재시작" 버튼을 제공한다.
     private func checkAccessibilityPermission() {
         if accessibilityService.isAccessibilityGranted() {
             logI("접근성 권한: 승인됨")
         } else {
-            logW("접근성 권한: 미승인 — 사용자 안내 alert 표시")
+            logW("접근성 권한: 미승인 — 사용자 안내 alert 표시 + 승인 감시 시작")
             AccessibilityGuidePresenter.show(service: accessibilityService)
+            // Issue207 (a): 권한을 켜면 재시작 없이 스스로 살아난다.
+            // 감시자는 미승인일 때만 돌고 승인을 감지하면 스스로 멈춘다 (Issue150 회귀 아님).
+            AccessibilityGrantWatcher.shared.startIfNeeded(service: accessibilityService) {
+                [weak self] in
+                self?.recoverKeyMonitoringAfterGrant()
+            }
         }
+    }
+
+    /// Issue207: 접근성 권한이 승인된 직후 키 감지를 복구한다.
+    ///
+    /// ⚠️ **반드시 메인 스레드에서 호출**된다 — `CGEventTapManager.setupEventTap()` 이
+    /// `CFRunLoopGetCurrent()` 에 소스를 등록하므로, 백그라운드 스레드에서 재생성하면
+    /// 돌지 않는 run loop 에 붙어 이벤트가 영영 오지 않는다. 호출 보장은
+    /// `AccessibilityGrantWatcher` 가 한다.
+    ///
+    /// tap 중복 생성·핸들 누수 우려는 없다. `KeyEventProcessor.startMonitoring()` 은
+    /// 모니터가 이미 있으면 조기 반환하고, `CGEventTapManager.start()` 도
+    /// `cgEventTap == nil` 가드를 가진다. 미승인으로 기동한 경우 둘 다 미생성 상태다.
+    private func recoverKeyMonitoringAfterGrant() {
+        guard let monitor = keyEventMonitor else {
+            logW("♿️ 권한 복구 시점에 KeyEventMonitor 가 없음 — 기동 순서 확인 필요")
+            return
+        }
+        logI("♿️ 접근성 권한 승인 반영 — 키 모니터링 재시작 (앱 재시작 불필요)")
+        monitor.startMonitoring()
     }
 }

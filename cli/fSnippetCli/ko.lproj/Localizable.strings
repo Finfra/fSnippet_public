@@ -40,7 +40,11 @@
 
 /* fSnippetCliApp — Accessibility Permission Alert */
 "Accessibility Permission Required" = "접근성 권한 필요";
-"fSnippetCli requires accessibility permission to monitor keyboard input.\n\nPlease enable fSnippetCli in System Settings > Privacy & Security > Accessibility." = "fSnippetCli가 키보드 입력을 모니터링하려면 접근성 권한이 필요합니다.\n\n시스템 설정 > 개인정보 및 보안 > 접근성에서 fSnippetCli를 활성화해 주세요.";
+"fSnippetCli requires accessibility permission to monitor keyboard input.\n\nEnable fSnippetCli in System Settings > Privacy & Security > Accessibility.\n\nmacOS evaluates this permission when the process starts, so turning it on does not revive the running app on its own. fSnippetCli watches for the change and recovers automatically; if it does not, restart the app.\n\nIf permission matching broke right after a brew redeploy, toggle it OFF then ON again." = "fSnippetCli가 키보드 입력을 모니터링하려면 접근성 권한이 필요합니다.\n\n시스템 설정 > 개인정보 보호 및 보안 > 접근성에서 fSnippetCli를 활성화해 주세요.\n\nmacOS는 이 권한을 프로세스가 시작될 때 평가하므로, 켜는 것만으로는 실행 중인 앱에 반영되지 않습니다. fSnippetCli가 변경을 감지해 자동으로 복구하며, 복구되지 않으면 앱을 재시작해 주세요.\n\nbrew 재배포 직후 권한 매칭이 깨졌다면 토글을 OFF → ON 다시 눌러 주세요.";
+"Restart Now" = "지금 재시작";
+"Restart Required" = "재시작 필요";
+"Automatic restart is unavailable (Homebrew service not found). Quit fSnippetCli and start it again so the accessibility permission takes effect." = "자동 재시작을 사용할 수 없습니다 (Homebrew 서비스를 찾지 못함). fSnippetCli를 종료한 뒤 다시 실행해야 접근성 권한이 반영됩니다.";
+"OK" = "확인";
 "Open System Settings" = "시스템 설정 열기";
 "Later" = "나중에";
 
