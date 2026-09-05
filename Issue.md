@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 210
+* Issue HWM: 211
 * Checkpoints:
       - 2026.07.20: d372aff (_doc_arch 정합성 검토(Issue193) 진행 중 작업 트리 스냅샷)
       - 2026.07.19: a494408 (Fix Issue192 Edit Mode ⌘S 스니펫 등록 오작동 회귀)
@@ -27,6 +27,28 @@ date: 2026-04-07
 # 🚧 진행중
 
 # 📕 중요
+
+## Issue211: [Critical][KeyEvent] `AXIsProcessTrusted()` 가 권한 회수를 반영하지 않아 Issue208 게이트가 발화하지 않음 — 프리즈 재발 (등록: 2026-09-05)
+* depends: Issue208 (선행 완료, 그러나 E2E 실패)
+* 목적: Issue208 에서 넣은 권한 게이트가 **실측에서 한 번도 발화하지 않았고 프리즈가 그대로 재발**했다. 게이트 설계는 옳았으나 판정 함수가 거짓을 반환한다. 판정을 신뢰하지 않는 구조로 다시 세운다.
+* 상세:
+    - **실측 근거 (2026-09-05 20:29~20:30, 사용자 E2E 검증 중 재발)**:
+        - `20:29:20.325` `🚨 Event Tap Disabled!` → `Tap re-enabled. Attempt: 1/5`
+        - `20:29:36.091` `Healthy event received — retry counter reset (1 -> 0)` ← **Issue208 신규 코드가 실행 중임을 증명**
+        - `20:29:38.940` `🚨 Event Tap Disabled!` → `Tap re-enabled. Attempt: 1/5`
+        - `20:30:24` 이후 로그 침묵 = 입력 프리즈. 사용자가 별도 세션에서 프로세스를 kill 하여 복구
+    - **`permission lost — removing the tap` 로그 0건** — 게이트가 단 한 번도 발화하지 않았다. 즉 `AXIsProcessTrusted()` 가 권한 회수 후에도 `true` 를 반환했다
+    - `AXIsProcessTrusted()` 는 프로세스 시작 시점에 캐시된 값을 반영하며, **회수(revoke)는 전파되지 않는다**. Issue207 의 승인 감시가 동작한 것은 방향이 반대(미승인 → 승인)이기 때문
+* 구현 명세:
+    - **원칙: 판정 함수를 믿지 않는다.** 프리즈를 만드는 것은 "권한이 없다"는 사실이 아니라 **죽은 tap 이 스트림에 남아 있다는 상태**이고, 그 상태는 probe 와 무관하게 관측 가능하다
+    - **1차 — probe 2종 병용**: `AXIsProcessTrusted()` + `CGPreflightListenEventAccess()`. 둘 중 하나라도 false 면 tap 제거
+    - **2차 (핵심) — `CGEvent.tapIsEnabled()` 즉시 검증**: 권한이 없으면 `tapEnable(true)` 가 **조용히 실패**한다. re-enable 직후 실제 상태를 확인해 살아나지 않았으면 즉시 tap 제거. probe 가 거짓말해도 이 신호는 참
+    - **3차 — 지연 health check(3s)**: 표면상 성공 후 곧 죽는 경우 대비. 이벤트 트래픽이 아니라 **tap 자신의 상태**를 보므로 사용자가 타이핑하지 않아도 오탐 없음
+    - **복구 경로 이원화**: probe 가 `미승인` 이면 Issue207 감시자에 위임, probe 가 `승인` 인데 tap 이 죽었으면(캐시 거짓) 자체 backoff 재시도(5s→60s 상한). 감시자는 승인 상태에서 시작하지 않으므로 후자가 없으면 영구 미복구
+    - **`tapCreate` 실패 시에도 복구 경로 무장** — 없으면 재시작 전까지 영구히 tap 없는 상태로 남음
+    - **진단 로깅**: disable 사유를 `timeout` / `userInput/permission` 으로 구분 기록. 기존에는 두 경우가 같은 문구라 구분 불가했고 이것이 진단 1라운드를 소모시킴
+    - **검증**: 권한 OFF 시 ① 입력이 정상 유지 ② `tapIsEnabled=false` → `removing the tap` 로그 ③ 권한 ON 시 자동 복구
+
 
 
 # 📙 일반
@@ -80,7 +102,8 @@ date: 2026-04-07
     - 재시도 카운터는 시간 기반 리셋을 폐기하고 **정상 이벤트를 수신했을 때만 리셋**으로 변경. 저빈도 반복 disable 도 누적되어야 cooldown 이 실제로 작동함
     - **부수 (죽은 코드)**: `setupEventTap()` 의 `(1 << 0xFFFF_FFFE)` · `(1 << 0xFFFF_FFFF)` 는 Swift smart shift 오버시프트라 **항상 0** — 마스크에 아무 효과 없음. tap disabled 이벤트는 마스크와 무관하게 콜백에 전달되므로 주석과 함께 제거
     - **검증**: 권한 OFF 후 ① 시스템 입력이 정상 유지되는가 ② tap 이 스트림에서 빠졌는가 ③ 권한 ON 시 watcher 가 복구하는가
-* 검증: `/run` 9 PASS/0 FAIL · 키 입력 처리 정상(39건+) · 코드 경로 정적 확인. ⚠️ **권한 OFF E2E 미검증** — 재현 시 시스템 프리즈 위험이 있어 사용자 판단 대기.
+* 검증: `/run` 9 PASS/0 FAIL · 키 입력 처리 정상(39건+).
+* ⚠️ **E2E 실패 (2026-09-05 20:29)** — 사용자 검증에서 프리즈가 **재발**했다. 게이트가 한 번도 발화하지 않았고 (`permission lost` 로그 0건) 원인은 `AXIsProcessTrusted()` 가 권한 회수를 반영하지 않는 것이었다. 본 이슈의 재시도 카운터 수정·죽은 마스크 제거는 유효하나 **프리즈 차단은 미달성** → **Issue211 로 후속**.
 
 ## Issue207: [Permission] 접근성 권한 미승인으로 뜬 인스턴스가 권한 부여 후에도 CGEventTap 을 재생성하지 않음 (등록: 2026-09-05, 완료: 2026-09-05) (Hash: f6ee4c5) ✅
 * depends: Issue206 (선행 완료)

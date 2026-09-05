@@ -58,6 +58,14 @@ class CGEventTapManager {
     // Issue208: permission probe used to decide whether re-enabling the tap makes sense.
     private let accessibilityService: AccessibilityService = SystemAccessibilityService()
 
+    // Issue211: the permission probes cannot be trusted, so the tap's *actual* state is
+    // checked after every re-enable. See `handleTapDisabled()` for the full rationale.
+    private var healthCheckWork: DispatchWorkItem?
+    private var recoveryAttempt = 0
+    private static let healthCheckDelay: TimeInterval = 3.0
+    private static let recoveryBaseInterval: TimeInterval = 5.0
+    private static let recoveryMaxInterval: TimeInterval = 60.0
+
     // ✅ Issue 583_2: Backoff Strategy for Event Tap Re-enabling
     private var reenableRetryCount: Int = 0
     private var lastReenableTime: Date = Date.distantPast
@@ -121,7 +129,12 @@ class CGEventTapManager {
                 userInfo: UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
             )
         else {
-            logE("💉 ⚙️ ❌ [CGEventTapManager] Failed to create CGEventTap")
+            // Issue211: without arming recovery here, a failed creation leaves the app
+            // permanently without a tap — silent and unrecoverable short of a restart.
+            logE(
+                "💉 ⚙️ ❌ [CGEventTapManager] Failed to create CGEventTap "
+                    + "(likely missing accessibility permission) — arming recovery")
+            startGrantWatchdog()
             return
         }
 
@@ -145,15 +158,25 @@ class CGEventTapManager {
         // So when the permission is gone we do NOT re-enable — we remove the tap from the
         // event stream entirely. Input returns to normal the moment the tap is gone. Recovery
         // is delegated to the Issue207 grant watcher.
-        guard accessibilityService.isAccessibilityGranted() else {
+        // ⚠️ Issue211: the permission probes LIE. Measured 2026-09-05 20:29 — accessibility
+        // was revoked in System Settings, yet `AXIsProcessTrusted()` kept returning true, so
+        // the Issue208 gate never fired and the machine froze anyway. `AXIsProcessTrusted()`
+        // reflects the value cached at process start; revocation is not propagated.
+        //
+        // So the gate no longer relies on a single probe. Both probes are consulted, and —
+        // more importantly — the tap's REAL state is verified after every re-enable
+        // (`CGEvent.tapIsEnabled`). A dead tap left in the stream is what freezes input, and
+        // that state is observable regardless of what the probes claim.
+        let axTrusted = accessibilityService.isAccessibilityGranted()
+        let listenAccess = CGPreflightListenEventAccess()
+        guard axTrusted && listenAccess else {
             logE(
-                "💉 ⚙️ 🚨 [CGEventTapManager] Accessibility permission lost — removing the tap "
-                    + "from the event stream instead of re-enabling it (prevents input freeze). "
-                    + "It will be recreated automatically once permission is granted."
+                "💉 ⚙️ 🚨 [CGEventTapManager] Accessibility permission lost "
+                    + "(AXIsProcessTrusted=\(axTrusted), CGPreflightListenEventAccess=\(listenAccess)) "
+                    + "— removing the tap from the event stream instead of re-enabling it "
+                    + "(prevents input freeze). It will be recreated once permission returns."
             )
-            stop()
-            reenableRetryCount = 0
-            startGrantWatchdog()
+            removeTapForSafety()
             return
         }
 
@@ -175,11 +198,27 @@ class CGEventTapManager {
 
             // Exponential Backoff (Optional) or simply slight delay
             let delay = 0.1 * Double(reenableRetryCount)
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                guard let self = self else { return }
                 CGEvent.tapEnable(tap: eventTap, enable: true)
+
+                // Issue211: `tapEnable` fails SILENTLY when the permission is gone. This is the
+                // one signal that does not depend on a probe — if the tap did not come back up,
+                // it must leave the event stream immediately or input freezes.
+                guard CGEvent.tapIsEnabled(tap: eventTap) else {
+                    logE(
+                        "💉 ⚙️ 🚨 [CGEventTapManager] Re-enable did not take effect "
+                            + "(tapIsEnabled=false) — the tap is dead. Removing it from the "
+                            + "event stream to prevent an input freeze."
+                    )
+                    self.removeTapForSafety()
+                    return
+                }
+
                 logI(
                     "💉 ⚙️ [CGEventTapManager] Tap re-enabled. Attempt: \(self.reenableRetryCount)/\(self.maxRetries)"
                 )
+                self.scheduleHealthCheck(eventTap)
             }
         } else {
             logE(
@@ -198,6 +237,8 @@ class CGEventTapManager {
     /// Issue208: records that a real event came through — the only place the retry counter
     /// is cleared. Time-based resets used to mask a permanently broken tap as healthy.
     private func noteHealthyEvent() {
+        // Issue211: real traffic also clears the recovery backoff.
+        recoveryAttempt = 0
         guard reenableRetryCount != 0 else { return }
         logD(
             "💉 ⚙️ [CGEventTapManager] Healthy event received — retry counter reset "
@@ -206,16 +247,73 @@ class CGEventTapManager {
         reenableRetryCount = 0
     }
 
-    /// Issue208: recreate the tap once the user grants accessibility again.
+    /// Issue211: take the tap out of the event stream and arm a recovery path.
     ///
-    /// Reuses the Issue207 watcher, which polls only while permission is missing, stops itself
-    /// on grant, and invokes the callback on the main thread — required because
-    /// `setupEventTap()` registers its run loop source on `CFRunLoopGetCurrent()`.
+    /// This is the single exit used by every "the tap is unusable" branch. Removing the tap is
+    /// what actually unfreezes input — a dead tap sitting at the head of `.cghidEventTap`
+    /// swallows every HID event, mouse included.
+    private func removeTapForSafety() {
+        healthCheckWork?.cancel()
+        healthCheckWork = nil
+        stop()
+        reenableRetryCount = 0
+        startGrantWatchdog()
+    }
+
+    /// Issue211: a re-enable can report success and still be dead.
+    ///
+    /// `tapEnable` + an immediate `tapIsEnabled` check catches the common case, but the state
+    /// can also flip shortly after. This delayed check is the second net; it costs one timer
+    /// and never produces a false positive, because it inspects the tap's own state rather
+    /// than guessing from event traffic (the user may simply not be typing).
+    private func scheduleHealthCheck(_ eventTap: CFMachPort) {
+        healthCheckWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self = self, self.cgEventTap != nil else { return }
+            guard CGEvent.tapIsEnabled(tap: eventTap) else {
+                logE(
+                    "💉 ⚙️ 🚨 [CGEventTapManager] Health check failed "
+                        + "(\(Int(Self.healthCheckDelay))s after re-enable, tapIsEnabled=false) "
+                        + "— removing the tap from the event stream."
+                )
+                self.removeTapForSafety()
+                return
+            }
+            logD("💉 ⚙️ [CGEventTapManager] Health check passed — tap alive")
+        }
+        healthCheckWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.healthCheckDelay, execute: work)
+    }
+
+    /// Issue208/211: bring the tap back once the system lets us.
+    ///
+    /// Two paths, because the probes are unreliable:
+    /// * probe says *not granted* → the Issue207 watcher polls until the user flips the toggle
+    /// * probe says *granted* but the tap died anyway → retry on our own with a backoff, since
+    ///   the watcher refuses to start while it believes permission is present
     private func startGrantWatchdog() {
+        guard !accessibilityService.isAccessibilityGranted() else {
+            let interval = min(
+                Self.recoveryBaseInterval * pow(2.0, Double(recoveryAttempt)),
+                Self.recoveryMaxInterval
+            )
+            recoveryAttempt += 1
+            logW(
+                "💉 ⚙️ [CGEventTapManager] Probe still reports granted but the tap is dead — "
+                    + "retrying tap creation in \(Int(interval))s (attempt \(recoveryAttempt))"
+            )
+            DispatchQueue.main.asyncAfter(deadline: .now() + interval) { [weak self] in
+                guard let self = self, self.cgEventTap == nil else { return }
+                self.start()
+            }
+            return
+        }
+
         AccessibilityGrantWatcher.shared.startIfNeeded(service: accessibilityService) {
             [weak self] in
             guard let self = self else { return }
             logI("💉 ⚙️ [CGEventTapManager] Accessibility re-granted — recreating Event Tap")
+            self.recoveryAttempt = 0
             self.start()
         }
     }
@@ -229,7 +327,13 @@ class CGEventTapManager {
 
         // 타임아웃/비활성화 처리 (Timeout/Disabled Handling)
         if type == .tapDisabledByTimeout || type.rawValue == 0xFFFF_FFFF {
-            logW("💉 ⚙️ 🚨 [CGEventTapManager] Event Tap Disabled! Auto-reenabling...")
+            // Issue211: log WHICH disable this is. `timeout` means our callback was too slow;
+            // `userInput` is what macOS sends on permission changes. Without this the two are
+            // indistinguishable in the log, which cost a full diagnosis round.
+            let reason = (type == .tapDisabledByTimeout) ? "timeout" : "userInput/permission"
+            logW(
+                "💉 ⚙️ 🚨 [CGEventTapManager] Event Tap Disabled "
+                    + "(\(reason), raw=\(type.rawValue))! Auto-reenabling...")
             handleTapDisabled()
             return nil
         }
