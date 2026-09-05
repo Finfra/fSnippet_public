@@ -29,8 +29,9 @@ fi
 
 # Issue52 Phase0: delegate(applicationWillTerminate)가 정상 수행되면 brew=stopped 가 되지만,
 # SIGKILL(-9) / crash 경로는 delegate 를 건너뜀 → launchctl 잔존 시 명시적 fallback.
-if launchctl list 2>/dev/null | grep -q "homebrew.mxcl.fsnippet-cli"; then
-    echo "⚠️ brew service 잔존 — fallback: brew services stop fsnippet-cli"
+# Issue206: 라벨 판정은 fsc-config.sh 의 brew_service_running (신·구 라벨 모두 검사) 경유.
+if brew_service_running; then
+    echo "⚠️ brew service 잔존 (label: $(brew_service_loaded_label)) — fallback: brew services stop ${BREW_FORMULA}"
     brew services stop fsnippet-cli 2>&1 | tail -1 || true
 else
     echo "✅ brew service 정상 정지 (delegate 경유)"

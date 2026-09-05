@@ -32,8 +32,8 @@ struct MenuBarView: View {
     @State private var isPaused: Bool = PreferencesManager.shared.bool(
         forKey: "history.isPaused", defaultValue: false)
     @State private var isApiPaused: Bool = false
-    @State private var launchAtLoginEnabled: Bool = FileManager.default.fileExists(
-        atPath: NSHomeDirectory() + "/Library/LaunchAgents/homebrew.mxcl.fsnippet-cli.plist")
+    // Issue206: LaunchAgent 파일명이 Homebrew 버전에 따라 갈리므로 신·구 후보를 모두 본다.
+    @State private var launchAtLoginEnabled: Bool = BrewServiceLabel.isLaunchAgentInstalled
     var body: some View {
         // ─── About (Issue103: paidApp 동작 시 fSnippet 모드로 분기) ───
         let isPaidMode = appState.paidAppStatus == .started
@@ -42,6 +42,22 @@ struct MenuBarView: View {
         } label: {
             // Issue108: ternary returns String → wrap LocalizedStringKey for translation
             Label(LocalizedStringKey(isPaidMode ? "About fSnippet" : "About fSnippetCli"), systemImage: "info.circle")
+        }
+
+        // ─── Issue206: launchd 인계 실패 경고 ───
+        // handoff start 가 실패하면 이 프로세스는 launchd 가 관리하지 않는 상태로 잔존한다.
+        // `brew services` 는 stopped 로 남고, 접근성 권한이 없으면 키 감지가 불능인 채
+        // 앱만 살아 있어 정상으로 오인되기 쉬우므로 메뉴에 드러낸다.
+        if BrewServiceSync.handoffFailed {
+            Button {
+                NSWorkspace.shared.open(
+                    URL(fileURLWithPath: PreferencesManager.resolveAppRootPath())
+                        .appendingPathComponent("logs"))
+            } label: {
+                Label(
+                    "⚠️ Service handoff failed — restart via brew services",
+                    systemImage: "exclamationmark.triangle.fill")
+            }
         }
 
         Divider()

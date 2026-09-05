@@ -14,8 +14,11 @@ import Foundation
 /// `SingleInstanceGuard` + Formula `keep_alive: successful_exit: false` 가 담당.
 enum BrewServiceSync {
 
-    static let serviceLabel = "homebrew.mxcl.fsnippet-cli"
-    static let formulaName = "fsnippet-cli"
+    /// Issue206: 라벨 SSOT 는 `BrewServiceLabel`. 여기서는 신 라벨을 대표값으로 노출만 한다.
+    /// **판정에 직접 쓰지 말 것** — 설치된 Homebrew 버전에 따라 구 라벨이 올 수 있으므로
+    /// 비교는 반드시 `BrewServiceLabel.matches(_:)` / `BrewServiceLabel.all` 을 경유한다.
+    static let serviceLabel = BrewServiceLabel.current
+    static let formulaName = BrewServiceLabel.formula
     /// 명시적 `false` 일 때만 Phase 3 를 skip. 미설정·`true` 는 활성.
     static let optOutKey = "fsc.autoStartBrewService"
 
@@ -23,6 +26,10 @@ enum BrewServiceSync {
     /// applicationWillTerminate → onAppStop → brew stop 이 방금 start 한 서비스를
     /// 다시 stop 시키는 race 를 차단.
     private static var handoffInProgress = false
+
+    /// Issue206: handoff start 실패 여부. `true` 면 이 프로세스는 launchd 가 관리하지 않는
+    /// 상태로 잔존한 것이며, 메뉴바가 경고를 표시한다.
+    private(set) static var handoffFailed = false
 
     static let brewCandidates = [
         "/opt/homebrew/bin/brew",
@@ -82,7 +89,7 @@ enum BrewServiceSync {
 
     /// Issue53 v2: open/LaunchServices 경로 전용 — brew start 동기 호출 후 exit(0).
     /// applicationWillTerminate 를 우회하여 Phase0 brew stop 이 실행되지 않도록 함.
-    /// launchd-bootstrap 프로세스(XPC=homebrew.mxcl.*) 가 survive 하여 메뉴바 아이콘 재등장.
+    /// launchd-bootstrap 프로세스(XPC=`BrewServiceLabel.all` 중 하나) 가 survive 하여 메뉴바 아이콘 재등장.
     private static func performHandoffStart(brewPath: String) {
         // race 방어: brew start 호출 전에 flag set → onAppStop 이 trigger 되어도 brew stop 스킵
         handoffInProgress = true
@@ -90,7 +97,15 @@ enum BrewServiceSync {
         let (rc, output) = runCommandWithStatus(brewPath, args: ["services", "start", formulaName])
         let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
         if rc != 0 {
-            logW("[brew-sync] ⚠️ handoff start 실패 (rc=\(rc)): \(trimmed) — self-exit 취소, 기존 앱 유지")
+            // Issue206: 이 지점이 곧 "좀비 인스턴스" 다. launchd 미관리 상태로 살아남으므로
+            // brew services 는 stopped 로 남고, 접근성 권한이 없으면 키 감지가 영구 불능이 된다.
+            // 사용자가 인지할 수 있도록 logE 로 승격하고 메뉴바 경고 플래그를 세운다.
+            logE("[brew-sync] ❌ handoff start 실패 (rc=\(rc)): \(trimmed) — self-exit 취소, 기존 앱 유지. "
+                + "launchd 미관리 상태로 잔존하므로 brew services 는 stopped 로 남는다.")
+            // 실패했으므로 handoff 억제 플래그를 되돌린다 — 그대로 두면 onAppStop 의
+            // brew stop 이 앱 수명 내내 억제된 채로 남는다.
+            handoffInProgress = false
+            handoffFailed = true
             return
         }
         logI("[brew-sync] ✅ handoff start 성공: \(trimmed). self-exit(0) — launchd-bootstrap 승계")
@@ -160,13 +175,14 @@ enum BrewServiceSync {
     /// PPID 기반 판정은 상시 true 가 되어 무한 루프 방지 조건으로만 사용 불가.
     /// `XPC_SERVICE_NAME` 이 서비스 label 과 일치하는 경우만 launchd 기동으로 간주.
     static func isLaunchedByLaunchd() -> Bool {
-        return xpcServiceName() == serviceLabel
+        // Issue206: 신(`sh.brew.*`)·구(`homebrew.mxcl.*`) 라벨 양쪽 허용.
+        return BrewServiceLabel.matches(xpcServiceName())
     }
 
     /// Issue53: open / Finder / LaunchServices 경로로 기동됐는지 판정.
     /// 이 경로는 `XPC_SERVICE_NAME` 이 `application.<BundleID>.<session>.<pid>` 포맷으로 주입됨.
     /// (ex: `application.kr.finfra.fSnippetCli.212453215.212453236`)
-    /// launchd-bootstrap 경로(`homebrew.mxcl.*`) 와 명확히 구분됨.
+    /// launchd-bootstrap 경로(`sh.brew.*` / 구 `homebrew.mxcl.*`) 와 명확히 구분됨.
     static func isLaunchedViaLaunchServices() -> Bool {
         guard let xpc = xpcServiceName() else { return false }
         return xpc.hasPrefix("application.")
@@ -180,7 +196,8 @@ enum BrewServiceSync {
     /// brew state == `started` 와 등가. `launchctl list` 출력에 label 이 포함됐는지.
     static func isServiceLoaded() -> Bool {
         let output = runCommand("/bin/launchctl", args: ["list"]) ?? ""
-        return output.contains(serviceLabel)
+        // Issue206: 어느 네임스페이스로 로드됐든 "started" 로 판정.
+        return BrewServiceLabel.loadedLabel(in: output) != nil
     }
 
     static func findBrewPath() -> String? {
@@ -213,5 +230,80 @@ enum BrewServiceSync {
         } catch {
             return (-1, "\(error)")
         }
+    }
+}
+
+// MARK: - Issue206: Homebrew 서비스 라벨 SSOT
+
+/// Homebrew 가 서비스 라벨 네임스페이스를 `homebrew.mxcl.<formula>` 에서
+/// `sh.brew.<formula>` 로 변경한 것에 대응하는 **단일 판정 지점**.
+///
+/// 그 전까지 라벨은 6개소에 하드코딩돼 있었고, Homebrew 가 실제 라벨만 바꾸자
+/// `SingleInstanceGuard` 가 launchd 기동 프로세스를 non-launchd 로 오판해
+/// 스스로 exit 하는 회귀가 발생했다(Issue206). 판정과 계약이 갈리지 않도록
+/// 라벨에 관한 모든 질문은 이 타입으로 모은다.
+///
+/// 규칙:
+/// * **판정은 항상 집합 매칭** — 설치된 Homebrew 버전에 따라 어느 쪽 라벨이든 올 수 있다.
+/// * **생성은 신 라벨 고정** — 새로 만드는 LaunchAgent plist 파일명은 `current` 를 쓴다.
+///
+/// 별도 파일이 아니라 이 파일에 함께 두는 이유: 본 프로젝트의 `project.pbxproj` 는
+/// 소스 파일을 개별 나열하므로 파일 추가는 XcodeGen 재생성을 동반한다. 라벨 상수 하나를
+/// 위해 프로젝트 파일 전체를 재생성하지 않는다.
+enum BrewServiceLabel {
+
+    /// Homebrew Formula 이름 (kebab-case).
+    static let formula = "fsnippet-cli"
+
+    /// 신 네임스페이스. 신규 생성 시 쓰는 대표값.
+    static let current = "sh.brew.\(formula)"
+
+    /// 구 네임스페이스. 구버전 Homebrew 및 Cellar 내 legacy plist 가 여전히 사용한다.
+    static let legacy = "homebrew.mxcl.\(formula)"
+
+    /// 판정용 후보 전체 (신 → 구 순).
+    static let all = [current, legacy]
+
+    /// `XPC_SERVICE_NAME` 등 임의 라벨이 이 서비스의 라벨인지 판정.
+    static func matches(_ label: String?) -> Bool {
+        guard let label else { return false }
+        return all.contains(label)
+    }
+
+    /// `launchctl list` 출력에서 실제 로드된 라벨을 찾아 반환. 미로드면 `nil`.
+    static func loadedLabel(in launchctlOutput: String) -> String? {
+        return all.first { launchctlOutput.contains($0) }
+    }
+
+    /// `~/Library/LaunchAgents/<label>.plist` 후보 (신 → 구).
+    static var launchAgentPaths: [String] {
+        return all.map { NSHomeDirectory() + "/Library/LaunchAgents/\($0).plist" }
+    }
+
+    /// 신규 등록 시 쓸 설치 경로. 파일명은 신 라벨로 고정한다.
+    static var launchAgentDestPath: String {
+        return NSHomeDirectory() + "/Library/LaunchAgents/\(current).plist"
+    }
+
+    /// 실제 존재하는 LaunchAgent plist 경로. 없으면 `nil`.
+    static var installedLaunchAgentPath: String? {
+        let fm = FileManager.default
+        return launchAgentPaths.first { fm.fileExists(atPath: $0) }
+    }
+
+    /// LaunchAgent 등록 여부 (= Launch at Login 켜짐 상태).
+    static var isLaunchAgentInstalled: Bool {
+        return installedLaunchAgentPath != nil
+    }
+
+    /// Homebrew Cellar 가 제공하는 plist 소스 후보 (prefix × 라벨).
+    ///
+    /// ⚠️ 실측(Homebrew 6.0.21): Cellar 쪽 파일명과 그 안의 `Label` 은 **구 라벨 그대로**이며,
+    /// `brew services` 가 `~/Library/LaunchAgents` 로 설치할 때 신 라벨로 재작성한다.
+    /// 따라서 이 소스를 그대로 복사하면 파일명과 `Label` 이 어긋나므로,
+    /// 복사 측에서 `Label` 을 설치 라벨에 맞춰 재작성해야 한다.
+    static var plistSourcePaths: [String] {
+        let prefixes = ["/opt/homebrew/opt/\(formula)", "/usr/local/opt/\(formula)"]
+        return prefixes.flatMap { prefix in all.map { "\(prefix)/\($0).plist" } }
     }
 }

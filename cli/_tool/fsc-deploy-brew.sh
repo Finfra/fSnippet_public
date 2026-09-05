@@ -121,7 +121,8 @@ cmd_local() {
     # 2-1: brew services stop (launchd 정상 경로)
     brew services stop fsnippet-cli 2>/dev/null || true
     # 2-2: stale LaunchAgent 잔존 시 강제 bootout (idempotent — 미등록 상태여도 무해)
-    launchctl bootout "gui/$(id -u)/homebrew.mxcl.fsnippet-cli" 2>/dev/null || true
+    # Issue206: 신·구 라벨 양쪽 bootout — 한쪽만 하면 잔존 등록이 남아 bootstrap 이 EIO(5) 로 실패.
+    brew_service_bootout_all
     sleep 0.3
     # 2-3: 잔여 프로세스 강제 종료
     if pgrep -f "MacOS/fSnippetCli" > /dev/null 2>&1; then
@@ -307,14 +308,18 @@ FORMULA
         # - brew services stop: LaunchAgents plist 제거 + launchd 해제
         # - brew services run: keg plist(/opt/homebrew/opt/...) 직접 사용, 재부팅 미지속
         echo "[sync] launchAtLogin=false → brew services run (keg plist, no LaunchAgents)"
-        local PLIST_PATH="$HOME/Library/LaunchAgents/homebrew.mxcl.fsnippet-cli.plist"
+        # Issue206: 파일명이 Homebrew 버전에 따라 sh.brew.* / homebrew.mxcl.* 로 갈리므로
+        # 존재하는 것을 모두 제거한다. 한쪽만 지우면 잔존 plist 로 재등록된다.
         local PLIST_PATH_ALT="$HOME/Library/LaunchAgents/kr.finfra.fSnippetCli.plist"
-        if [ -f "$PLIST_PATH" ]; then
-            brew services stop fsnippet-cli 2>/dev/null || true
-            launchctl bootout "gui/$(id -u)/homebrew.mxcl.fsnippet-cli" 2>/dev/null || true
-            rm -f "$PLIST_PATH"
-            echo "  ✅ LaunchAgents plist 제거: $PLIST_PATH"
-        fi
+        local _plist
+        for _plist in "$BREW_SERVICE_PLIST" "$BREW_SERVICE_PLIST_LEGACY"; do
+            if [ -f "$_plist" ]; then
+                brew services stop "$BREW_FORMULA" 2>/dev/null || true
+                brew_service_bootout_all
+                rm -f "$_plist"
+                echo "  ✅ LaunchAgents plist 제거: $_plist"
+            fi
+        done
         [ -f "$PLIST_PATH_ALT" ] && rm -f "$PLIST_PATH_ALT"
         sleep 0.3
         brew services run finfra/tap/fsnippet-cli 2>&1 | tail -3

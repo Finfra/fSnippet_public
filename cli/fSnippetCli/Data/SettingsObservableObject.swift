@@ -763,8 +763,9 @@ class SettingsObservableObject: ObservableObject {
         apiAllowedCIDR = prefs.string(forKey: "api_allowed_cidr", defaultValue: "127.0.0.1/32")
 
         // 4.7 Launch at Login 설정 — plist 존재 여부가 실제 등록 상태 (PreferencesManager는 fallback)
-        launchAtLogin = FileManager.default.fileExists(
-            atPath: NSHomeDirectory() + "/Library/LaunchAgents/homebrew.mxcl.fsnippet-cli.plist")
+        // Issue206: 파일명이 Homebrew 버전에 따라 `sh.brew.*` / `homebrew.mxcl.*` 로 갈리므로
+        // 두 후보를 모두 탐색한다. 구 라벨만 보면 신 네임스페이스 설치본을 "미등록" 으로 오판한다.
+        launchAtLogin = BrewServiceLabel.isLaunchAgentInstalled
 
         // 5. Appearance Mode (Issue 386)
         // PreferencesManager -> SnippetSettings via SettingsManager.load()
@@ -1167,46 +1168,77 @@ class SettingsObservableObject: ObservableObject {
         }
     }
 
-    private static let launchAgentLabel = "homebrew.mxcl.fsnippet-cli"
-    private static var launchAgentDestPath: String {
-        NSHomeDirectory() + "/Library/LaunchAgents/\(launchAgentLabel).plist"
-    }
-    private static let plistSourcePaths = [
-        "/opt/homebrew/opt/fsnippet-cli/homebrew.mxcl.fsnippet-cli.plist",
-        "/usr/local/opt/fsnippet-cli/homebrew.mxcl.fsnippet-cli.plist",
-    ]
+    // Issue206: 라벨·경로 SSOT 는 `BrewServiceLabel`. 등록은 신 라벨로 하고, 탐색은 신·구 모두 본다.
+    private static let launchAgentLabel = BrewServiceLabel.current
+    private static var launchAgentDestPath: String { BrewServiceLabel.launchAgentDestPath }
+    private static var plistSourcePaths: [String] { BrewServiceLabel.plistSourcePaths }
 
     private func registerLaunchAgent() {
         let dest = Self.launchAgentDestPath
         let fm = FileManager.default
-        guard !fm.fileExists(atPath: dest) else {
-            logI("📡 [Settings] LaunchAgent 이미 등록됨")
+        // Issue206: 구 라벨로 이미 설치돼 있으면 그것도 "등록됨" 이다. dest 만 보면 중복 설치된다.
+        if let existing = BrewServiceLabel.installedLaunchAgentPath {
+            logI("📡 [Settings] LaunchAgent 이미 등록됨: \(existing)")
             return
         }
         guard let src = Self.plistSourcePaths.first(where: { fm.fileExists(atPath: $0) }) else {
-            logW("📡 [Settings] ⚠️ LaunchAgent plist 소스를 찾을 수 없음")
+            logW("📡 [Settings] ⚠️ LaunchAgent plist 소스를 찾을 수 없음 (후보: \(Self.plistSourcePaths.count)개)")
             return
         }
         do {
             try fm.copyItem(atPath: src, toPath: dest)
-            logI("📡 [Settings] ✅ LaunchAgent 등록 완료")
+            // Issue206: Cellar 소스의 `Label` 은 구 네임스페이스인데 dest 파일명은 신 라벨이다.
+            // 그대로 두면 파일명과 Label 이 어긋나 brew 가 관리하는 서비스와 라벨이 갈린다.
+            rewriteLaunchAgentLabel(atPath: dest, to: Self.launchAgentLabel)
+            logI("📡 [Settings] ✅ LaunchAgent 등록 완료 (label: \(Self.launchAgentLabel), src: \(src))")
         } catch {
             logE("📡 [Settings] ❌ LaunchAgent 복사 실패: \(error.localizedDescription)")
         }
     }
 
+    /// Issue206: 복사한 plist 의 `Label` 을 설치 파일명과 동일한 라벨로 맞춘다.
+    /// 이미 일치하면 아무것도 하지 않는다.
+    private func rewriteLaunchAgentLabel(atPath path: String, to label: String) {
+        guard let data = FileManager.default.contents(atPath: path) else {
+            logW("📡 [Settings] ⚠️ LaunchAgent plist 읽기 실패 — Label 재작성 생략")
+            return
+        }
+        var format = PropertyListSerialization.PropertyListFormat.xml
+        guard
+            var dict = (try? PropertyListSerialization.propertyList(
+                from: data, options: [], format: &format)) as? [String: Any]
+        else {
+            logW("📡 [Settings] ⚠️ LaunchAgent plist 파싱 실패 — Label 재작성 생략")
+            return
+        }
+        guard (dict["Label"] as? String) != label else { return }
+        dict["Label"] = label
+        do {
+            let out = try PropertyListSerialization.data(
+                fromPropertyList: dict, format: format, options: 0)
+            try out.write(to: URL(fileURLWithPath: path))
+            logI("📡 [Settings] LaunchAgent Label 재작성 → \(label)")
+        } catch {
+            logE("📡 [Settings] ❌ LaunchAgent Label 재작성 실패: \(error.localizedDescription)")
+        }
+    }
+
     // plist 파일만 삭제 — launchctl unload 없음 → 현재 실행 중인 앱 유지
     private func unregisterLaunchAgentWithoutStopping() {
-        let dest = Self.launchAgentDestPath
-        guard FileManager.default.fileExists(atPath: dest) else {
+        // Issue206: 신·구 라벨 파일이 함께 남아 있을 수 있으므로 존재하는 것을 모두 제거한다.
+        let fm = FileManager.default
+        let targets = BrewServiceLabel.launchAgentPaths.filter { fm.fileExists(atPath: $0) }
+        guard !targets.isEmpty else {
             logI("📡 [Settings] LaunchAgent 이미 없음")
             return
         }
-        do {
-            try FileManager.default.removeItem(atPath: dest)
-            logI("📡 [Settings] ✅ LaunchAgent 등록 해제 완료 (앱 계속 실행)")
-        } catch {
-            logE("📡 [Settings] ❌ LaunchAgent 삭제 실패: \(error.localizedDescription)")
+        for target in targets {
+            do {
+                try fm.removeItem(atPath: target)
+                logI("📡 [Settings] ✅ LaunchAgent 등록 해제 완료: \(target) (앱 계속 실행)")
+            } catch {
+                logE("📡 [Settings] ❌ LaunchAgent 삭제 실패 (\(target)): \(error.localizedDescription)")
+            }
         }
     }
 }

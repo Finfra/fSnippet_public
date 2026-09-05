@@ -21,8 +21,14 @@ STABLE_LINK="${STABLE_LINK_DIR}/${APP_NAME}"
 CACHE_FILE_NAME=".last_build_path"
 CONFIGURATION="${CONFIGURATION:-Debug}"   # /run 경로 기본 Debug (TCC 회피)
 BREW_FORMULA="fsnippet-cli"               # Homebrew Formula 이름 (kebab-case)
-BREW_SERVICE_LABEL="homebrew.mxcl.${BREW_FORMULA}"
+# Issue206: Homebrew 가 서비스 라벨 네임스페이스를 homebrew.mxcl.* → sh.brew.* 로 변경함.
+# 설치된 Homebrew 버전에 따라 어느 쪽이든 올 수 있으므로 판정은 항상 두 라벨을 모두 본다.
+# 새로 만드는 쪽(대표값)만 신 라벨을 쓴다.
+BREW_SERVICE_LABEL="sh.brew.${BREW_FORMULA}"                # 신 네임스페이스 (대표값)
+BREW_SERVICE_LABEL_LEGACY="homebrew.mxcl.${BREW_FORMULA}"   # 구 네임스페이스
+BREW_SERVICE_LABELS=("${BREW_SERVICE_LABEL}" "${BREW_SERVICE_LABEL_LEGACY}")
 BREW_SERVICE_PLIST="${HOME}/Library/LaunchAgents/${BREW_SERVICE_LABEL}.plist"
+BREW_SERVICE_PLIST_LEGACY="${HOME}/Library/LaunchAgents/${BREW_SERVICE_LABEL_LEGACY}.plist"
 
 # ---------- 공용 헬퍼 ----------
 
@@ -69,8 +75,52 @@ resolve_app_path() {
 
 # brew service 가 현재 launchd 에 로드되어 있는지 확인
 # (plist 존재만으로는 부족 — brew services stop 후에도 plist 는 남음)
+# Issue206: 신·구 라벨 어느 쪽으로 로드됐든 "실행 중" 으로 판정한다.
 brew_service_running() {
-    launchctl list 2>/dev/null | awk '{print $3}' | grep -q "^${BREW_SERVICE_LABEL}$"
+    local _loaded
+    _loaded="$(launchctl list 2>/dev/null | awk '{print $3}')"
+    local _label
+    for _label in "${BREW_SERVICE_LABELS[@]}"; do
+        if printf '%s\n' "$_loaded" | grep -q "^${_label}$"; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Issue206: 실제 로드된 서비스 라벨을 표준출력으로 반환. 미로드면 1 반환.
+brew_service_loaded_label() {
+    local _loaded
+    _loaded="$(launchctl list 2>/dev/null | awk '{print $3}')"
+    local _label
+    for _label in "${BREW_SERVICE_LABELS[@]}"; do
+        if printf '%s\n' "$_loaded" | grep -q "^${_label}$"; then
+            printf '%s\n' "$_label"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Issue206: 신·구 라벨을 모두 bootout (idempotent — 미등록이어도 무해).
+# 한쪽만 하면 잔존 등록이 남아 다음 bootstrap 이 EIO(5) 로 실패한다.
+brew_service_bootout_all() {
+    local _label
+    for _label in "${BREW_SERVICE_LABELS[@]}"; do
+        launchctl bootout "gui/$(id -u)/${_label}" 2>/dev/null || true
+    done
+}
+
+# Issue206: 실제 존재하는 LaunchAgent plist 경로를 표준출력으로 반환. 없으면 1 반환.
+brew_service_installed_plist() {
+    local _p
+    for _p in "$BREW_SERVICE_PLIST" "$BREW_SERVICE_PLIST_LEGACY"; do
+        if [ -f "$_p" ]; then
+            printf '%s\n' "$_p"
+            return 0
+        fi
+    done
+    return 1
 }
 
 # Issue51 Phase1: 레거시 var 경로 감지 — 발견 시 경고 출력 (자동 삭제 없음)
