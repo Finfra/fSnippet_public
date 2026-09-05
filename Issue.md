@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 211
+* Issue HWM: 212
 * Checkpoints:
       - 2026.07.20: d372aff (_doc_arch 정합성 검토(Issue193) 진행 중 작업 트리 스냅샷)
       - 2026.07.19: a494408 (Fix Issue192 Edit Mode ⌘S 스니펫 등록 오작동 회귀)
@@ -28,8 +28,30 @@ date: 2026-04-07
 
 # 📕 중요
 
+## Issue212: [Critical][KeyEvent] 프리즈의 진짜 원인은 권한이 아니라 **콜백 stall** — tap timeout 반복 (등록: 2026-09-05)
+* depends: Issue211 (원인 오판 — 본 이슈가 정정)
+* 목적: Issue208·211 이 모두 "권한 상실" 을 전제로 고쳤으나 **전제 자체가 틀렸다.** 실측된 disable 은 전부 `timeout` 이었고 tap 은 살아 있었다. 콜백이 멈춰 있는 동안 **마우스를 포함한 모든 HID 이벤트가 콜백 반환을 기다리는 것**이 프리즈의 정체다.
+* 상세:
+    - **실측 근거 (2026-09-05 20:47~20:48, 3차 재발)** — Issue211 에서 추가한 사유 로깅이 원인을 특정했다:
+        - `20:47:54.216` `Event Tap Disabled (timeout, raw=4294967294)!` ← `0xFFFFFFFE` = `kCGEventTapDisabledByTimeout`
+        - `20:47:57.530` `Health check passed — tap alive` ← **tap 은 정상**
+        - `20:48:03.897` `Healthy event received` ← **이벤트도 들어온다**
+        - `20:48:15.288` / `20:48:27.039` 동일 패턴 반복
+    - **`permission lost`·`did not take effect` 는 0건** — 권한 경로가 아니다. `userInput/permission` 이 아니라 `timeout` 이 3회 전부
+    - **`[Typing]` 로그가 단 1건도 없다** — 콜백이 `noteHealthyEvent()`(guard 직후) 는 통과하지만 그 이후 어딘가에서 멈춘다
+    - 사용자는 jma(원격 SSH)에서 서비스를 죽여 복구
+* 구현 명세:
+    - **탈출구 (이번 배포)**: `timeout` 이 60초 창 안에 2회 발생하면 콜백 병목으로 판단하고 `removeTapForSafety()` 로 tap 을 스트림에서 제거한다. 실측 간격이 21s·12s 였으므로 두 번째에서 빠져나온다. 재활성화를 계속하면 매 사이클마다 stall 이 재개될 뿐이다
+    - **계측 (범인 확정용)**: 콜백 전체를 `CFAbsoluteTimeGetCurrent()` 로 감싸 80ms 초과 시 `SLOW callback ... lastMark=<체크포인트>` 를 남긴다. `lastCallbackMark` 는 마지막으로 통과한 지점을 기록하므로 **멈춘 위치가 로그에 이름으로 찍힌다**
+    - **`NSEvent(cgEvent:)` 개별 계측**: 콜백 안 3곳(`keyCapture`·`shortcut537`·`ghostKey`)을 `timedNSEvent()` 로 감싸 20ms 초과 시 기록
+    - **최유력 용의자 — Issue537 경로의 `NSEvent(cgEvent:)`**: `if type == .keyDown { if let nsEvent = NSEvent(cgEvent: event), ... }` 로 **매 keyDown 마다 무조건** 생성한다. 같은 패턴이 이미 두 번 사고를 냈다 — Issue865(무조건 생성이 tap timeout 유발) · Issue912(Karabiner 주입 flagsChanged 에서 블로킹). **두 이슈 모두 key-capture 경로만 고쳤고 이 경로는 그대로 남아 있다**
+    - **근본 수정 (계측 확인 후)**: `charactersIgnoringModifiers` 만 필요하므로 `NSEvent` 대신 `CGEvent.keyboardGetUnicodeString` + flags 제거 사본으로 대체 검토. 동작 회귀 위험이 있어 계측으로 범인을 확정한 뒤 착수
+    - **검증**: 권한 OFF 시 ① 21초 내 `N timeouts within 60s — the callback is stalling` 로그와 함께 입력 회복 ② `SLOW callback ... lastMark=` 로 병목 지점 특정
+
+
 ## Issue211: [Critical][KeyEvent] `AXIsProcessTrusted()` 가 권한 회수를 반영하지 않아 Issue208 게이트가 발화하지 않음 — 프리즈 재발 (등록: 2026-09-05)
 * depends: Issue208 (선행 완료, 그러나 E2E 실패)
+* ⚠️ **전제 오류 (2026-09-05 20:48 확인)** — 본 이슈는 프리즈 원인을 "권한 상실" 로 보았으나 **실제 원인은 콜백 stall**(→ Issue212)이었다. 3차 재발 로그의 disable 은 전부 `timeout` 이었고 `permission lost`·`did not take effect` 는 0건이다. 다만 본 이슈에서 넣은 **probe 2종 병용·`tapIsEnabled()` 검증·복구 경로 이원화는 진짜 권한 상실 시의 방어로 유효**하며, **disable 사유 로깅이 Issue212 의 원인 특정을 가능하게 했다**. 프리즈 차단이라는 목적은 미달성.
 * 목적: Issue208 에서 넣은 권한 게이트가 **실측에서 한 번도 발화하지 않았고 프리즈가 그대로 재발**했다. 게이트 설계는 옳았으나 판정 함수가 거짓을 반환한다. 판정을 신뢰하지 않는 구조로 다시 세운다.
 * 상세:
     - **실측 근거 (2026-09-05 20:29~20:30, 사용자 E2E 검증 중 재발)**:

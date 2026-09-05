@@ -62,6 +62,19 @@ class CGEventTapManager {
     // checked after every re-enable. See `handleTapDisabled()` for the full rationale.
     private var healthCheckWork: DispatchWorkItem?
     private var recoveryAttempt = 0
+
+    // Issue212: the freeze is a CALLBACK STALL, not a permission problem. Measured
+    // 2026-09-05 20:47~20:48 — every disable arrived as `timeout` (raw=0xFFFFFFFE) while
+    // `tapIsEnabled` stayed true. While the callback is stuck, EVERY HID event (mouse
+    // included) waits for it to return, which is exactly what "frozen" looks like.
+    private var recentTimeouts: [Date] = []
+    private var lastCallbackMark = "idle"
+    // 실측 간격은 21s·12s 였다. 창 60s·임계 2회면 두 번째 timeout 에서 빠져나온다.
+    // 임계를 1 로 두지 않는 이유는 바쁜 프레임 한 번으로도 timeout 이 날 수 있어서다.
+    private static let timeoutWindow: TimeInterval = 60.0
+    private static let timeoutBurstThreshold = 2
+    private static let slowCallbackThresholdMs: Double = 80.0
+    private static let slowNSEventThresholdMs: Double = 20.0
     private static let healthCheckDelay: TimeInterval = 3.0
     private static let recoveryBaseInterval: TimeInterval = 5.0
     private static let recoveryMaxInterval: TimeInterval = 60.0
@@ -247,6 +260,48 @@ class CGEventTapManager {
         reenableRetryCount = 0
     }
 
+    /// Issue212: record a timeout and decide whether the tap must leave the stream.
+    ///
+    /// A single timeout is normal — a slow frame, a busy main thread. A burst is not: it means
+    /// the callback is reliably too slow, and every re-enable buys another stall. Measured
+    /// 20:47:54 / 20:48:15 / 20:48:27 — three inside two minutes, with the machine unusable
+    /// throughout. Removing the tap is the only action that returns input to the user.
+    private func noteTimeoutAndShouldBail() -> Bool {
+        let now = Date()
+        recentTimeouts.append(now)
+        recentTimeouts.removeAll { now.timeIntervalSince($0) > Self.timeoutWindow }
+        guard recentTimeouts.count >= Self.timeoutBurstThreshold else { return false }
+
+        logE(
+            "💉 ⚙️ 🚨 [CGEventTapManager] \(recentTimeouts.count) timeouts within "
+                + "\(Int(Self.timeoutWindow))s — the callback is stalling, not the permission. "
+                + "Removing the tap from the event stream so input recovers. "
+                + "Last checkpoint before the stall: \(lastCallbackMark)")
+        recentTimeouts.removeAll()
+        removeTapForSafety()
+        return true
+    }
+
+    /// Issue212: time `NSEvent(cgEvent:)`, the known stall suspect.
+    ///
+    /// It has already dragged this callback past the tap timeout twice — Issue865 (built
+    /// unconditionally on every keystroke) and Issue912 (blocks on Karabiner-injected
+    /// flagsChanged). Both were fixed only on the key-capture path; the Issue537 shortcut path
+    /// still builds one for every keyDown. Measuring it settles the question.
+    private func timedNSEvent(_ event: CGEvent, mark: String) -> NSEvent? {
+        lastCallbackMark = mark
+        let t0 = CFAbsoluteTimeGetCurrent()
+        let ns = NSEvent(cgEvent: event)
+        let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000.0
+        if ms > Self.slowNSEventThresholdMs {
+            logW(
+                "💉 ⚙️ ⏱️ [CGEventTapManager] NSEvent(cgEvent:) took "
+                    + "\(String(format: "%.0f", ms))ms at \(mark)")
+        }
+        lastCallbackMark = mark + ".done"
+        return ns
+    }
+
     /// Issue211: take the tap out of the event stream and arm a recovery path.
     ///
     /// This is the single exit used by every "the tap is unusable" branch. Removing the tap is
@@ -323,6 +378,21 @@ class CGEventTapManager {
     fileprivate func handleCallback(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent)
         -> Unmanaged<CGEvent>?
     {
+        // Issue212: measure the whole callback. macOS disables the tap when this runs long,
+        // and until it returns the entire HID stream is stalled. `lastCallbackMark` records
+        // the last checkpoint entered, so a slow log names the culprit instead of guessing.
+        let cbStart = CFAbsoluteTimeGetCurrent()
+        lastCallbackMark = "enter"
+        defer {
+            let ms = (CFAbsoluteTimeGetCurrent() - cbStart) * 1000.0
+            if ms > Self.slowCallbackThresholdMs {
+                logW(
+                    "💉 ⚙️ ⏱️ [CGEventTapManager] SLOW callback "
+                        + "\(String(format: "%.0f", ms))ms (type=\(type.rawValue), "
+                        + "lastMark=\(lastCallbackMark)) — this is what stalls all input")
+            }
+        }
+
         guard let delegate = delegate else { return Unmanaged.passUnretained(event) }
 
         // 타임아웃/비활성화 처리 (Timeout/Disabled Handling)
@@ -330,10 +400,19 @@ class CGEventTapManager {
             // Issue211: log WHICH disable this is. `timeout` means our callback was too slow;
             // `userInput` is what macOS sends on permission changes. Without this the two are
             // indistinguishable in the log, which cost a full diagnosis round.
-            let reason = (type == .tapDisabledByTimeout) ? "timeout" : "userInput/permission"
+            let isTimeout = (type == .tapDisabledByTimeout)
+            let reason = isTimeout ? "timeout" : "userInput/permission"
             logW(
                 "💉 ⚙️ 🚨 [CGEventTapManager] Event Tap Disabled "
                     + "(\(reason), raw=\(type.rawValue))! Auto-reenabling...")
+
+            // Issue212: repeated timeouts mean the callback is the problem, and re-enabling
+            // just restarts the stall. Bail out and take the tap off the stream so the user
+            // gets their keyboard and mouse back.
+            if isTimeout, noteTimeoutAndShouldBail() {
+                return nil
+            }
+
             handleTapDisabled()
             return nil
         }
@@ -390,7 +469,7 @@ class CGEventTapManager {
             if type == .flagsChanged {
                 displayStr = ""
                 rawMods = UInt(event.flags.rawValue)
-            } else if let nsEv = NSEvent(cgEvent: event) {
+            } else if let nsEv = timedNSEvent(event, mark: "keyCapture") {
                 displayStr = nsEv.charactersIgnoringModifiers ?? ""
                 rawMods = nsEv.modifierFlags.rawValue
             } else {
@@ -417,6 +496,7 @@ class CGEventTapManager {
         }
 
         // Pass through 확인 (Passthrough Check)
+        lastCallbackMark = "isAppActive"
         if delegate.isAppActive() {
             if AboutWindowManager.shared.isAboutWindowVisible {
                 NSLog("[CGEventTap] About 창 활성 중 - keyCode: \(keyCode), type: \(type.rawValue)")
@@ -431,7 +511,7 @@ class CGEventTapManager {
         // ✅ [Issue 537] 통합 단축키 체크 (App Hotkey, Trigger Key, Folder Prefix 등 모든 등록된 단축키)
         // 텍스트 대체 중이 아닐 때만 체크 (대체 중이면 위에서 이미 차단됨)
         if type == .keyDown {
-            if let nsEvent = NSEvent(cgEvent: event),
+            if let nsEvent = timedNSEvent(event, mark: "shortcut537"),
                 let shortcut = delegate.isAnyShortcut(
                     keyCode: keyCode, modifiers: event.flags,
                     character: nsEvent.charactersIgnoringModifiers ?? "")
@@ -592,7 +672,7 @@ class CGEventTapManager {
             82, 83, 84, 85, 86, 87, 88, 89, 91, 92, 65, 67, 69, 75, 78, 81, 95,
         ]
         if ghostKeys.contains(keyCode) {
-            if let nsEvent = NSEvent(cgEvent: event) {
+            if let nsEvent = timedNSEvent(event, mark: "ghostKey") {
                 DispatchQueue.main.async { delegate.handleGhostKey(nsEvent) }
             }
         }
