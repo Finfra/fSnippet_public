@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 216
+* Issue HWM: 217
 * Checkpoints:
       - 2026.07.20: d372aff (_doc_arch 정합성 검토(Issue193) 진행 중 작업 트리 스냅샷)
       - 2026.07.19: a494408 (Fix Issue192 Edit Mode ⌘S 스니펫 등록 오작동 회귀)
@@ -27,6 +27,24 @@ date: 2026-04-07
 # 🚧 진행중
 
 # 📕 중요
+
+## Issue217: [Critical][KeyEvent] timeout 시 키보드를 먼저 놓아주고 권한 안내를 띄운다 — 순서 역전 (등록: 2026-09-05)
+* depends: Issue216
+* 목적: Issue216(세션 레벨 tap)으로 **마우스 잠김은 해소**됐으나 키보드는 여전히 잠겼다. 사용자 지적이 정확히 원인을 짚었다 — *"락이 걸릴 타이밍에 접근성 등록하라고 나와야 하는데 락이 걸린다."*
+* 상세:
+    - **Issue216 효과 (사용자 실측)**: 마우스는 더 이상 잠기지 않는다. HID → 세션 레벨 전환이 유효했다
+    - **남은 증상**: 접근성 제거 후 타이핑하면 **키보드만** 잠긴다. 이 시점에 나와야 할 것은 잠김이 아니라 **권한 등록 안내**다
+    - **원인은 순서**: `timeout` 을 받으면 곧바로 `tapEnable(true)` 로 re-enable 한다. 권한 없는 tap 이 스트림에 되돌아오니 키보드가 다시 잠긴다. 판정을 먼저 하고 해방을 나중에 하는 구조였다
+* 구현 명세:
+    - **해방 우선(release-first)** — `handleTimeoutReleaseFirst()`:
+        1. timeout 감지 **즉시** `CGEvent.tapEnable(tap:enable:false)` → 대기 중이던 키 이벤트가 곧바로 흐른다
+        2. 판정은 **비동기**로 넘긴다 (여기서 블로킹하면 해방의 의미가 없다)
+        3. `AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt: true])` — 권한이 없으면 **시스템이 접근성 등록 안내를 띄운다**. 사용자가 잠김 대신 보아야 할 화면이 이것이다
+        4. 권한 없음 → `removeTapForSafety()` + `AccessibilityGrantWatcher` 로 복구 대기 / 권한 정상(일시적 지연) → 다시 켜고 health check + Issue212 누적 판정
+    - **프롬프트 30초 쿨다운** — timeout 마다 띄우면 사용자를 괴롭힌다. 쿨다운 중에는 프롬프트 없이 조용히 확인만 한다
+    - **검증 (2026-09-05 22:06)**: `/run` 9 PASS/0 FAIL · 배포본 심볼 확인(`handleTimeoutReleaseFirst` 3건, `AXIsProcessTrustedWithOptions`·`kAXTrustedCheckOptionPrompt` 링크) · 워킹트리 clean
+    - **미검증**: 권한 OFF E2E. 확인할 것 — ① 키보드가 잠기지 않는가 ② **접근성 등록 안내가 뜨는가** ③ 권한 재승인 시 자동 복구
+
 
 ## Issue216: [Critical][KeyEvent] tap 배치를 HID → 세션 레벨로 낮춤 — 입력 인질 구조 제거 (등록: 2026-09-05)
 * depends: Issue214, Issue215
