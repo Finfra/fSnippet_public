@@ -86,6 +86,13 @@ class CGEventTapManager {
     private var lastPermissionPromptAt: Date = .distantPast
     // Issue218: 워치독이 직접 권한을 폴링한다. timeout 은 오지 않을 수 있다.
     private var lastKnownAccess: Bool?
+    /// Issue226: 운영 중 권한이 제거된 것이 확정된 상태.
+    ///
+    /// 이 상태에서는 **tap 생성을 다시 시도하지 않는다.** 권한 없이 keyDown tap 을 만들려
+    /// 하면 macOS 가 접근성 권한 요청 창(`universalAccessAuthWarn`)을 띄우는데, 실행 중인
+    /// 프로세스는 어차피 목록에 스스로를 되돌릴 수 없으므로 그 창은 아무것도 해결하지
+    /// 못한 채 backoff 주기마다 반복해서 뜬다. 복구 경로는 재시작 하나뿐이다.
+    private var permissionRevokedAtRuntime = false
 
     // Issue220: 두 입력 경로의 **비대칭**으로 권한 상실을 감지한다.
     //
@@ -127,6 +134,15 @@ class CGEventTapManager {
     func start() {
         guard cgEventTap == nil else {
             logW("💉 ⚙️ [CGEventTapManager] Event Tap already running.")
+            return
+        }
+        // Issue226: 운영 중 권한이 제거된 뒤에는 재생성을 시도하지 않는다.
+        // 시도할 때마다 macOS 권한 요청 창이 뜨는데, 실행 중인 프로세스로는 목록에
+        // 등록될 수 없어 창만 반복될 뿐이다. 복구는 재시작으로만 한다.
+        guard !permissionRevokedAtRuntime else {
+            logW(
+                "💉 ⚙️ [CGEventTapManager] 운영 중 권한 상실 상태 — tap 재생성을 건너뛴다 "
+                    + "(반복 권한 요청 창 방지). 복구는 재시작으로만 가능하다.")
             return
         }
         setupEventTap()
@@ -198,6 +214,7 @@ class CGEventTapManager {
                 "💉 ⚙️ ❌ [CGEventTapManager] Failed to create CGEventTap "
                     + "— 접근성 권한 없음 확정 (조회 API 가 무엇이라 하든 이 실패가 사실이다)")
             lastKnownAccess = false
+            permissionRevokedAtRuntime = true  // Issue226: 반복 시도 = 반복 권한 요청 창
 
             // Issue223: 목록 재등록은 **새 프로세스의 첫 tap 생성 시도**에서만 일어난다.
             // 같은 프로세스가 몇 번을 재시도해도 macOS 는 목록에 다시 올려주지 않는다 —
@@ -470,6 +487,7 @@ class CGEventTapManager {
                             + "있어야만 동작하므로 **권한 상실로 확정**한다. tap 을 제거해 키보드를 "
                             + "되돌린다.")
                     access = false
+                    self.permissionRevokedAtRuntime = true  // Issue226: 재생성 시도 금지
                 }
             }
 
@@ -638,6 +656,15 @@ class CGEventTapManager {
     /// * probe says *granted* but the tap died anyway → retry on our own with a backoff, since
     ///   the watcher refuses to start while it believes permission is present
     private func startGrantWatchdog() {
+        // Issue226: 운영 중 권한 상실이면 어떤 복구 시도도 하지 않는다. backoff 재시도는
+        // 곧 반복 `tapCreate` 이고, 그것이 권한 요청 창을 주기적으로 띄우던 원인이다.
+        guard !permissionRevokedAtRuntime else {
+            logW(
+                "💉 ⚙️ [CGEventTapManager] 운영 중 권한 상실 — 자동 복구를 시도하지 않는다. "
+                    + "안내 창의 재시작이 유일한 경로다.")
+            return
+        }
+
         guard !accessibilityService.isAccessibilityGranted() else {
             let interval = min(
                 Self.recoveryBaseInterval * pow(2.0, Double(recoveryAttempt)),
