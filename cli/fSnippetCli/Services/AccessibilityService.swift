@@ -9,9 +9,6 @@ import ApplicationServices
 protocol AccessibilityService {
     func isAccessibilityGranted() -> Bool
     func openAccessibilitySettings()
-    /// Issue222: 접근성 목록에 앱을 등록시키는 시스템 권한 요청.
-    @discardableResult
-    func requestAccessibilityPrompt() -> Bool
 }
 
 // MARK: - Default implementation
@@ -23,31 +20,15 @@ final class SystemAccessibilityService: AccessibilityService {
     }
 
     func openAccessibilitySettings() {
-        // Issue222: 설정을 열기 전에 **목록 등록부터** 시킨다.
+        // ⚠️ Issue227: 여기서 권한 요청 프롬프트를 띄우지 않는다.
         //
-        // 사용자가 접근성 목록에서 앱을 완전히 제거하면(체크 해제가 아니라 `−` 버튼) 그
-        // 항목 자체가 사라진다. 이 상태에서 설정 창만 열어봐야 켤 대상이 없고, 사용자는
-        // `+` 버튼으로 앱을 직접 찾아 추가해야 한다 — 실측 2026-09-05: 안내 창은 떴는데
-        // 목록에 fSnippetCli 가 없었다.
-        //
-        // `AXIsProcessTrustedWithOptions(prompt: true)` 는 권한이 없을 때 macOS 의 권한
-        // 요청을 띄우고, 그 과정에서 **앱을 목록에 다시 올려준다.** 그래야 설정 창에서
-        // 토글을 켤 수 있다.
-        requestAccessibilityPrompt()
-
+        // Issue222 는 목록 재등록을 노리고 `prompt: true` 를 넣었지만, 실행 중인 프로세스는
+        // 접근성 목록에 스스로를 되돌릴 수 없다. 아무것도 해결하지 못하는 창이 하나 더
+        // 뜨는 것으로만 끝났다. 목록 등록은 **새 프로세스의 첫 tap 생성 시도**에서 macOS 가
+        // 알아서 처리하므로, 이 앱이 직접 요청할 이유가 없다.
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
         }
-    }
-
-    /// Issue222: macOS 권한 요청을 띄워 접근성 목록에 앱을 등록시킨다.
-    ///
-    /// 이미 권한이 있으면 아무 창도 뜨지 않고 `true` 만 돌아온다. 반복 호출에 대한 억제는
-    /// macOS 가 자체적으로 처리하지만, 호출부에서도 쿨다운을 둔다.
-    @discardableResult
-    func requestAccessibilityPrompt() -> Bool {
-        let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
-        return AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
     }
 }
 

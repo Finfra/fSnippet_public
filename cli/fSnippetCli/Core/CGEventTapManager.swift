@@ -361,16 +361,14 @@ class CGEventTapManager {
             let now = Date()
             let mayPrompt =
                 now.timeIntervalSince(self.lastPermissionPromptAt) > Self.permissionPromptCooldown
-            let trusted: Bool
-            if mayPrompt {
-                // prompt: true → 권한이 없으면 **시스템이 접근성 등록 안내를 띄운다**.
-                // 이것이 사용자가 잠김 대신 보아야 할 화면이다.
-                let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
-                trusted = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
-                if !trusted { self.lastPermissionPromptAt = now }
-            } else {
-                trusted = self.accessibilityService.isAccessibilityGranted()
-            }
+            // ⚠️ Issue227: 여기서 `prompt: true` 를 쓰지 않는다.
+            //
+            // Issue217 은 "잠김 대신 등록 안내를 보여주자" 는 취지로 이 옵션을 넣었지만,
+            // 실행 중인 프로세스는 접근성 목록에 스스로를 되돌릴 수 없다. 결국 아무것도
+            // 해결하지 못하는 창이 timeout 마다 반복해서 뜨기만 했다. 복구 경로는
+            // 재시작 하나뿐이고, 그것은 Issue225 의 단일 버튼 안내 창이 맡는다.
+            _ = mayPrompt  // 쿨다운 계산은 남기되 프롬프트는 띄우지 않는다
+            let trusted = self.accessibilityService.isAccessibilityGranted()
 
             guard trusted else {
                 logE(
