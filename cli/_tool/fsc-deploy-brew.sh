@@ -94,7 +94,16 @@ cmd_local() {
     echo ""
     echo "=== Step 1: Release 빌드 ==="
     pushd "$CLI_DIR" > /dev/null || { record_result "Release 빌드" "FAIL" "cd $CLI_DIR 실패"; return 1; }
-    xcodebuild -scheme fSnippetCli -configuration Release build 2>&1 | tail -8
+    # DEPLOY_NO_SIGN=1: bypass codesign for SSH-only QA hosts (e.g. jma) where the
+    # login keychain isn't reachable from a non-interactive session and codesign
+    # fails with errSecInternalComponent. Ad-hoc/unsigned build for basic-run
+    # verification only — never use this for `publish`.
+    local sign_args=()
+    if [ "$DEPLOY_NO_SIGN" = "1" ]; then
+        echo "⚠️ DEPLOY_NO_SIGN=1 — bypassing codesign (ad-hoc build)"
+        sign_args=(CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO)
+    fi
+    xcodebuild -scheme fSnippetCli -configuration Release build "${sign_args[@]}" 2>&1 | tail -8
     local BUILD_STATUS=${PIPESTATUS[0]}
     popd > /dev/null || true
     if [ "$BUILD_STATUS" -eq 0 ]; then
