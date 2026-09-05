@@ -82,6 +82,9 @@ class CGEventTapManager {
     private var callbackEnteredAt: CFAbsoluteTime = 0  // 0 = 콜백 바깥
     private var callbackMarkShared = "idle"
     private var tapDisabledByWatchdog = false
+    // Issue217: 권한 요청 다이얼로그 쿨다운 — timeout 마다 띄우면 사용자를 괴롭힌다.
+    private var lastPermissionPromptAt: Date = .distantPast
+    private static let permissionPromptCooldown: TimeInterval = 30.0
     private static let watchdogInterval: TimeInterval = 0.5
     private static let stallThreshold: CFAbsoluteTime = 1.5
     // 실측 간격은 21s·12s 였다. 창 60s·임계 2회면 두 번째 timeout 에서 빠져나온다.
@@ -286,6 +289,69 @@ class CGEventTapManager {
                 + "(\(reenableRetryCount) -> 0)"
         )
         reenableRetryCount = 0
+    }
+
+    /// Issue217: timeout 시 **키보드를 먼저 놓아주고** 권한을 판정한다.
+    ///
+    /// 핵심은 순서다. `tapEnable(false)` 를 먼저 부르면 그 즉시 대기 중이던 키 이벤트가
+    /// 흐르기 시작한다 — 판정에 얼마가 걸리든 사용자는 타이핑을 계속할 수 있다. 판정 결과
+    /// 권한이 멀쩡하면 다시 켜면 그만이고, 없으면 그대로 두고 안내를 띄운다.
+    private func handleTimeoutReleaseFirst() {
+        guard let eventTap = cgEventTap else {
+            reinitialize()
+            return
+        }
+
+        // ① 즉시 해방 — 판정보다 사용자의 키보드가 먼저다.
+        CGEvent.tapEnable(tap: eventTap, enable: false)
+        logW(
+            "💉 ⚙️ [CGEventTapManager] timeout — tap 을 먼저 끄고 권한을 확인한다 "
+                + "(키보드 우선 해방). 권한이 정상이면 곧바로 다시 켠다.")
+
+        // ② 판정은 비동기로. 여기서 블로킹하면 해방의 의미가 없다.
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self, let tap = self.cgEventTap else { return }
+
+            // ③ 권한 확인. 쿨다운 안이면 프롬프트 없이 조용히 확인만 한다.
+            let now = Date()
+            let mayPrompt =
+                now.timeIntervalSince(self.lastPermissionPromptAt) > Self.permissionPromptCooldown
+            let trusted: Bool
+            if mayPrompt {
+                // prompt: true → 권한이 없으면 **시스템이 접근성 등록 안내를 띄운다**.
+                // 이것이 사용자가 잠김 대신 보아야 할 화면이다.
+                let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+                trusted = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
+                if !trusted { self.lastPermissionPromptAt = now }
+            } else {
+                trusted = self.accessibilityService.isAccessibilityGranted()
+            }
+
+            guard trusted else {
+                logE(
+                    "💉 ⚙️ 🚨 [CGEventTapManager] 접근성 권한 없음 확정 — tap 을 제거한다. "
+                        + "\(mayPrompt ? "시스템 권한 등록 안내를 표시했다." : "쿨다운 중이라 안내는 생략했다.") "
+                        + "권한을 켜면 자동으로 복구된다.")
+                self.removeTapForSafety()
+                return
+            }
+
+            // ④ 권한은 멀쩡했다 = 일시적 콜백 지연. 다시 켠다.
+            CGEvent.tapEnable(tap: tap, enable: true)
+            guard CGEvent.tapIsEnabled(tap: tap) else {
+                logE("💉 ⚙️ 🚨 [CGEventTapManager] 권한은 있으나 재활성화 실패 — tap 제거")
+                self.removeTapForSafety()
+                return
+            }
+            self.reenableRetryCount += 1
+            logI(
+                "💉 ⚙️ [CGEventTapManager] 권한 정상 — tap 재활성화 "
+                    + "(누적 \(self.reenableRetryCount)회)")
+            self.scheduleHealthCheck(tap)
+
+            // 짧은 창 안에 반복되면 콜백 병목이므로 Issue212 경로로 넘긴다.
+            if self.noteTimeoutAndShouldBail() { return }
+        }
     }
 
     // MARK: - Issue213: off-main watchdog
@@ -533,10 +599,17 @@ class CGEventTapManager {
                 "💉 ⚙️ 🚨 [CGEventTapManager] Event Tap Disabled "
                     + "(\(reason), raw=\(type.rawValue))! Auto-reenabling...")
 
-            // Issue212: repeated timeouts mean the callback is the problem, and re-enabling
-            // just restarts the stall. Bail out and take the tap off the stream so the user
-            // gets their keyboard and mouse back.
-            if isTimeout, noteTimeoutAndShouldBail() {
+            // ✅ Issue217: timeout 이면 **먼저 tap 을 끄고 나중에 판단한다.**
+            //
+            // 지금까지는 순서가 거꾸로였다 — 곧바로 re-enable 하니 권한이 없는 tap 이 스트림에
+            // 되돌아와 키보드가 다시 잠겼다. 사용자가 정확히 지적한 대로, 이 시점에 나와야 할
+            // 것은 잠김이 아니라 **"접근성 권한을 등록하라"는 시스템 안내**다.
+            //
+            // 그래서 ① 즉시 비활성화해 키보드를 놓아주고 ② 비동기로 권한을 확인하며
+            // ③ 권한이 없으면 `AXIsProcessTrustedWithOptions(prompt:)` 로 시스템 다이얼로그를
+            // 띄운 뒤 tap 을 제거한다. 권한이 멀쩡하면(일시적 지연이었다면) 다시 켠다.
+            if isTimeout {
+                handleTimeoutReleaseFirst()
                 return nil
             }
 
