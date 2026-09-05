@@ -44,8 +44,12 @@ date: 2026-04-07
     - **탈출구 (이번 배포)**: `timeout` 이 60초 창 안에 2회 발생하면 콜백 병목으로 판단하고 `removeTapForSafety()` 로 tap 을 스트림에서 제거한다. 실측 간격이 21s·12s 였으므로 두 번째에서 빠져나온다. 재활성화를 계속하면 매 사이클마다 stall 이 재개될 뿐이다
     - **계측 (범인 확정용)**: 콜백 전체를 `CFAbsoluteTimeGetCurrent()` 로 감싸 80ms 초과 시 `SLOW callback ... lastMark=<체크포인트>` 를 남긴다. `lastCallbackMark` 는 마지막으로 통과한 지점을 기록하므로 **멈춘 위치가 로그에 이름으로 찍힌다**
     - **`NSEvent(cgEvent:)` 개별 계측**: 콜백 안 3곳(`keyCapture`·`shortcut537`·`ghostKey`)을 `timedNSEvent()` 로 감싸 20ms 초과 시 기록
-    - **최유력 용의자 — Issue537 경로의 `NSEvent(cgEvent:)`**: `if type == .keyDown { if let nsEvent = NSEvent(cgEvent: event), ... }` 로 **매 keyDown 마다 무조건** 생성한다. 같은 패턴이 이미 두 번 사고를 냈다 — Issue865(무조건 생성이 tap timeout 유발) · Issue912(Karabiner 주입 flagsChanged 에서 블로킹). **두 이슈 모두 key-capture 경로만 고쳤고 이 경로는 그대로 남아 있다**
-    - **근본 수정 (계측 확인 후)**: `charactersIgnoringModifiers` 만 필요하므로 `NSEvent` 대신 `CGEvent.keyboardGetUnicodeString` + flags 제거 사본으로 대체 검토. 동작 회귀 위험이 있어 계측으로 범인을 확정한 뒤 착수
+    - **범인 — Issue537 경로의 `NSEvent(cgEvent:)`**: `if type == .keyDown { if let nsEvent = NSEvent(cgEvent: event), ... }` 로 **매 keyDown 마다 무조건** 생성했다. **Issue912(2026-06-13)가 정확히 같은 인과를 이미 규명**했다 — 커밋 `76d92d1` 원문: *"`NSEvent(cgEvent:)` 생성이 Karabiner VirtualHIDKeyboard inject 이벤트에서 blocking 발생 → CGEventTap callback timeout → tap disabled"*. 그 수정은 **key-capture 경로에만** 적용됐고 Issue537 경로는 손대지 않은 채 남아 있었다
+    - **근본 수정 (적용 완료)**: Issue912 와 동일한 처방 — 콜백에서 `NSEvent` 생성을 없애고 `charactersIgnoringModifiers(from:)` 헬퍼(`CGEvent.copy()` + `flags = []` + `keyboardGetUnicodeString`)로 대체
+    - **4차 사건(로그 전면 침묵)의 해석**: 같은 원인의 정도 차이로 본다. 부분 지연이면 macOS 가 timeout 으로 끊어 로그가 남고(3차), 완전 블로킹이면 **disable 콜백도 같은 콜백 경로라 처리되지 못해** 로그조차 없다(4차). 별도 원인을 가정하지 않는다
+    - **기각한 가설 — `ShortcutMgr.mapLock` 교차 스레드 경합**: `resolve()`(콜백 스레드)와 `rebuildCache()`(REST 스레드)가 같은 `NSLock` 을 공유하나, 두 임계 구역 모두 딕셔너리 조작뿐이고 `logD` 도 unlock 뒤에 있어 데드락을 만들 구조가 아니다
+    - **⚠️ 선행 이슈 번호 정정**: 본 이슈 최초 등록 시 "Issue865(무조건 생성이 tap timeout 유발)" 로 적었으나 **오기**다. 메인 repo `Issue865` 는 `{right_command}` modifier 트리거 미동작 건이다. 소스의 `Issue865-fix` 주석은 key-capture 최적화를 가리키며 실제 번호는 Issue863 계열로 추정된다
+    - **규칙 상시화**: Issue912 가 남긴 *"CGEventTap callback 은 blocking 금지"* 규칙이 **메인 repo `_doc_work/debug/CORE_tech.md` 에만** 있어 cliApp 작업 시 노출되지 않았고, 그 결과 같은 사고가 반복됐다. `_public/.claude/rules/coding-rules.md` 에 "6. CGEventTap 콜백 규칙" 으로 옮겨 상시 노출
     - **검증**: 권한 OFF 시 ① 21초 내 `N timeouts within 60s — the callback is stalling` 로그와 함께 입력 회복 ② `SLOW callback ... lastMark=` 로 병목 지점 특정
 
 

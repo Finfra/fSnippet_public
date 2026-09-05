@@ -282,6 +282,30 @@ class CGEventTapManager {
         return true
     }
 
+    /// Issue212: `charactersIgnoringModifiers` without building an `NSEvent`.
+    ///
+    /// This is the Issue912 remedy applied to the last remaining offender. That fix established
+    /// the rule — *do not construct `NSEvent` inside the tap callback* — because
+    /// `NSEvent(cgEvent:)` blocks on events injected by Karabiner VirtualHIDKeyboard, which
+    /// pushes the callback past macOS's tap timeout and gets the tap disabled. Issue912 applied
+    /// it only to the key-capture path (and the neighbouring "Issue865-fix" comment covers the
+    /// same path); the Issue537 shortcut path kept building one for EVERY keyDown, which is the
+    /// stall observed on 2026-09-05.
+    ///
+    /// `keyboardGetUnicodeString` reads the same character straight from the event. Modifiers
+    /// are cleared on a copy first, which is what makes the result "ignoring modifiers" — the
+    /// original event is never mutated.
+    private func charactersIgnoringModifiers(from event: CGEvent) -> String {
+        guard let bare = event.copy() else { return "" }
+        bare.flags = []
+        var length = 0
+        var buffer = [UniChar](repeating: 0, count: 8)
+        bare.keyboardGetUnicodeString(
+            maxStringLength: buffer.count, actualStringLength: &length, unicodeString: &buffer)
+        guard length > 0 else { return "" }
+        return String(utf16CodeUnits: buffer, count: min(length, buffer.count))
+    }
+
     /// Issue212: time `NSEvent(cgEvent:)`, the known stall suspect.
     ///
     /// It has already dragged this callback past the tap timeout twice — Issue865 (built
@@ -511,10 +535,13 @@ class CGEventTapManager {
         // ✅ [Issue 537] 통합 단축키 체크 (App Hotkey, Trigger Key, Folder Prefix 등 모든 등록된 단축키)
         // 텍스트 대체 중이 아닐 때만 체크 (대체 중이면 위에서 이미 차단됨)
         if type == .keyDown {
-            if let nsEvent = timedNSEvent(event, mark: "shortcut537"),
-                let shortcut = delegate.isAnyShortcut(
-                    keyCode: keyCode, modifiers: event.flags,
-                    character: nsEvent.charactersIgnoringModifiers ?? "")
+            // Issue212: no `NSEvent` here. This ran on every single keyDown and is the
+            // stall the 2026-09-05 freezes traced back to — same failure mode Issue912
+            // documented, just on the path that fix did not cover.
+            lastCallbackMark = "shortcut537"
+            let character = charactersIgnoringModifiers(from: event)
+            if let shortcut = delegate.isAnyShortcut(
+                keyCode: keyCode, modifiers: event.flags, character: character)
             {
 
                 logD(
