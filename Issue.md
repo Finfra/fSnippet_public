@@ -8,6 +8,7 @@ date: 2026-04-07
 
 * Issue HWM: 217
 * Checkpoints:
+      - f30acbc (2026-09-05) Issue220 입력 경로 비대칭 판정 — 키보드 락 해결 확인
       - 2026.07.20: d372aff (_doc_arch 정합성 검토(Issue193) 진행 중 작업 트리 스냅샷)
       - 2026.07.19: a494408 (Fix Issue192 Edit Mode ⌘S 스니펫 등록 오작동 회귀)
       - 2026.07.18: c3fe0c7 (Fix Issue191 "스니펫으로 등록" 전역 단축키·메뉴바 스텁)
@@ -27,6 +28,21 @@ date: 2026-04-07
 # 🚧 진행중
 
 # 📕 중요
+
+## Issue221: [Permission] 권한 상실 감지 시 접근성 등록 안내 창 재표시 — 중복 방지 (등록: 2026-09-05)
+* depends: Issue220
+* 목적: Issue220 으로 **키보드 락은 해결**됐다(사용자 확인). 다만 tap 을 떼어내 입력을 돌려주는 데서 끝나므로 사용자는 **왜 스니펫이 죽었는지 모른다.** 부팅 때와 같은 안내 창을 그 시점에도 띄워 등록 경로를 알린다.
+* 상세:
+    - Issue220 이 만든 확실한 트리거(입력 경로 비대칭)가 생겨, Issue217 에서 준비했으나 timeout 미발생으로 실행되지 못했던 안내 경로를 이제 붙일 수 있다
+    - **사용자 요구**: 창이 떠 있는 동안 **중복으로 계속 뜨면 안 된다**
+* 구현 명세:
+    - **중복 방지** — `AccessibilityGuidePresenter` 에 `isPresenting` 플래그(`NSLock` 보호). `runModal()` 이 블로킹이라 가드가 없으면 호출이 큐에 쌓여 **닫는 즉시 또 뜬다**(사용자가 창을 닫을 수 없게 되는 것과 같다). 표시 중이면 조용히 생략하고 로그만 남긴다
+    - **호출 지점** — 워치독의 권한 상실 분기. `removeTapForSafety()` 로 키보드를 돌려준 **직후** 안내 창을 띄운다
+    - **자동 닫기 — `dismissIfPresenting()`**: 권한이 다시 승인되면 `NSApp.abortModal()` 로 창을 닫는다. 단순한 편의가 아니라 **필수**다 — `runModal()` 이 메인 스레드를 잡고 있으면 `AccessibilityGrantWatcher` 의 복구 콜백(메인에서 tap 을 재생성한다)이 실행되지 못해 자동 복구가 완결되지 않는다
+    - `AccessibilityGrantWatcher` 승인 콜백에서 `dismissIfPresenting()` → `start()` 순서로 호출
+    - **검증 (2026-09-05 22:40)**: `/run` 9 PASS/0 FAIL · 심볼 확인(`dismissIfPresenting` 2건) · 권한 정상 상태에서 안내 창 미표시(오탐 없음)
+    - **미검증**: 권한 OFF E2E — ① 창이 뜨는가 ② 계속 눌러도 **한 번만** 뜨는가 ③ 권한 재승인 시 창이 닫히고 자동 복구되는가
+
 
 ## Issue217: [Critical][KeyEvent] timeout 시 키보드를 먼저 놓아주고 권한 안내를 띄운다 — 순서 역전 (등록: 2026-09-05)
 * depends: Issue216

@@ -508,7 +508,12 @@ class CGEventTapManager {
                         + "(키보드 해방). 권한을 다시 켜면 자동 복구된다.")
                 CGEvent.tapEnable(tap: deadTap, enable: false)
                 DispatchQueue.main.async { [weak self] in
-                    self?.removeTapForSafety()
+                    guard let self = self else { return }
+                    self.removeTapForSafety()
+                    // Issue221: 키보드만 돌려주고 끝내면 사용자는 **왜** 스니펫이 죽었는지
+                    // 알 수 없다. 부팅 때와 같은 안내 창을 띄워 등록 경로를 알려준다.
+                    // 중복 표시는 Presenter 가 막는다.
+                    AccessibilityGuidePresenter.show(service: self.accessibilityService)
                 }
                 return
             }
@@ -675,6 +680,9 @@ class CGEventTapManager {
             [weak self] in
             guard let self = self else { return }
             logI("💉 ⚙️ [CGEventTapManager] Accessibility re-granted — recreating Event Tap")
+            // Issue221: 안내 창이 떠 있으면 먼저 닫는다. modal 이 메인 스레드를 잡고 있으면
+            // 바로 아래 `start()`(메인에서 run loop 소스를 등록한다)가 실행되지 못한다.
+            AccessibilityGuidePresenter.dismissIfPresenting()
             self.recoveryAttempt = 0
             self.start()
         }

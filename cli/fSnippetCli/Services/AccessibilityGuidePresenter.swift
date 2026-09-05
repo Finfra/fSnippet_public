@@ -26,8 +26,45 @@ enum AccessibilityGuidePresenter {
         + "macOS evaluates this permission when the process starts, so turning it on does not revive the running app on its own. fSnippetCli watches for the change and recovers automatically; if it does not, restart the app.\n\n"
         + "If permission matching broke right after a brew redeploy, toggle it OFF then ON again."
 
-    static func show(service: AccessibilityService) {
+    /// Issue221: 표시 중 여부. 이 창은 여러 경로에서 호출된다 — 부팅 시 미승인, 워치독의
+    /// 권한 상실 감지 등. `runModal()` 은 블로킹이므로 가드가 없으면 호출이 큐에 쌓여
+    /// 닫는 즉시 또 뜬다. 사용자가 창을 닫을 수 없게 되는 것과 같다.
+    private static let presentLock = NSLock()
+    private static var isPresenting = false
+    /// Issue221: 현재 표시 중인 안내 창을 닫는다.
+    ///
+    /// 권한이 다시 승인되면 창을 남겨둘 이유가 없다. 더 중요한 이유가 있는데,
+    /// `runModal()` 이 메인 스레드를 잡고 있으면 `AccessibilityGrantWatcher` 가 감지한
+    /// 복구 콜백(메인 스레드에서 tap 을 재생성한다)이 실행되지 못한다. 즉 창을 닫아야
+    /// 자동 복구가 완료된다.
+    static func dismissIfPresenting() {
         DispatchQueue.main.async {
+            presentLock.lock()
+            let showing = isPresenting
+            presentLock.unlock()
+            guard showing else { return }
+            logI("♿️ [GuidePresenter] 권한 복구 — 안내 창을 닫는다")
+            NSApp.abortModal()
+        }
+    }
+
+    static func show(service: AccessibilityService) {
+        // Issue221: 이미 떠 있으면 새로 띄우지 않는다.
+        presentLock.lock()
+        if isPresenting {
+            presentLock.unlock()
+            logD("♿️ [GuidePresenter] 안내 창이 이미 표시 중 — 중복 표시 생략")
+            return
+        }
+        isPresenting = true
+        presentLock.unlock()
+
+        DispatchQueue.main.async {
+            defer {
+                presentLock.lock()
+                isPresenting = false
+                presentLock.unlock()
+            }
             let alert = NSAlert()
             alert.alertStyle = .warning
             alert.messageText = NSLocalizedString(
