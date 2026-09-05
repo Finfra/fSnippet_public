@@ -69,6 +69,21 @@ class CGEventTapManager {
     // included) waits for it to return, which is exactly what "frozen" looks like.
     private var recentTimeouts: [Date] = []
     private var lastCallbackMark = "idle"
+
+    // Issue213: 메인 스레드에 있는 방어는 메인 스레드가 멈추면 함께 멈춘다.
+    //
+    // 실측 2026-09-05 21:28 — re-enable 직후 콜백이 반환하지 않아 `defer` 의 SLOW 로그도,
+    // 3초 뒤 health check 도, timeout 누적 탈출구도 전부 실행되지 못했다. 전부 메인 큐에
+    // 얹혀 있었기 때문이다. 그래서 감시자는 **별도 큐**에 둔다. 콜백이 일정 시간 안에
+    // 돌아오지 않으면 워치독이 tap 을 꺼서 입력을 되돌린다 — 메인 스레드가 죽어 있어도.
+    private let watchdogQueue = DispatchQueue(label: "kr.finfra.fSnippetCli.tap-watchdog")
+    private var watchdogTimer: DispatchSourceTimer?
+    private let callbackStateLock = NSLock()
+    private var callbackEnteredAt: CFAbsoluteTime = 0  // 0 = 콜백 바깥
+    private var callbackMarkShared = "idle"
+    private var tapDisabledByWatchdog = false
+    private static let watchdogInterval: TimeInterval = 0.5
+    private static let stallThreshold: CFAbsoluteTime = 1.5
     // 실측 간격은 21s·12s 였다. 창 60s·임계 2회면 두 번째 timeout 에서 빠져나온다.
     // 임계를 1 로 두지 않는 이유는 바쁜 프레임 한 번으로도 timeout 이 날 수 있어서다.
     private static let timeoutWindow: TimeInterval = 60.0
@@ -97,6 +112,7 @@ class CGEventTapManager {
     }
 
     func stop() {
+        stopWatchdog()  // Issue213
         if let eventTap = cgEventTap {
             CGEvent.tapEnable(tap: eventTap, enable: false)
             if let runLoopSource = runLoopSource {
@@ -156,6 +172,7 @@ class CGEventTapManager {
         self.runLoopSource = runLoopSource
         CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
         CGEvent.tapEnable(tap: eventTap, enable: true)
+        startWatchdog()  // Issue213
         logV("💉 ⚙️ [CGEventTapManager] Event Tap Created and Enabled")
     }
 
@@ -260,6 +277,74 @@ class CGEventTapManager {
         reenableRetryCount = 0
     }
 
+    // MARK: - Issue213: off-main watchdog
+
+    /// 콜백 진입을 워치독에 알린다.
+    private func noteCallbackEnter(at time: CFAbsoluteTime) {
+        callbackStateLock.lock()
+        callbackEnteredAt = time
+        callbackMarkShared = "enter"
+        callbackStateLock.unlock()
+    }
+
+    /// 콜백 이탈을 워치독에 알린다.
+    private func noteCallbackExit() {
+        callbackStateLock.lock()
+        callbackEnteredAt = 0
+        callbackStateLock.unlock()
+    }
+
+    /// 콜백 안의 현재 위치를 기록한다 — 멈췄을 때 어디였는지가 유일한 단서다.
+    private func setMark(_ mark: String) {
+        lastCallbackMark = mark
+        callbackStateLock.lock()
+        callbackMarkShared = mark
+        callbackStateLock.unlock()
+    }
+
+    /// Issue213: 별도 큐에서 콜백 지연을 감시하고, 멈췄으면 tap 을 꺼서 입력을 되살린다.
+    ///
+    /// 이것이 프리즈에 대한 유일하게 신뢰할 수 있는 방어다. 메인 스레드에 얹은 방어는
+    /// 메인 스레드가 멈추는 순간 같이 멈추므로 정의상 이 상황을 처리할 수 없다.
+    /// `CGEvent.tapEnable(false)` 는 tap 을 이벤트 스트림에서 떼어내므로, 호출되는 즉시
+    /// 대기 중이던 HID 이벤트가 흐르기 시작한다.
+    private func startWatchdog() {
+        guard watchdogTimer == nil else { return }
+        let timer = DispatchSource.makeTimerSource(queue: watchdogQueue)
+        timer.schedule(
+            deadline: .now() + Self.watchdogInterval, repeating: Self.watchdogInterval)
+        timer.setEventHandler { [weak self] in
+            guard let self = self else { return }
+            self.callbackStateLock.lock()
+            let enteredAt = self.callbackEnteredAt
+            let mark = self.callbackMarkShared
+            self.callbackStateLock.unlock()
+
+            guard enteredAt > 0 else { return }  // 콜백 바깥 — 정상
+            let elapsed = CFAbsoluteTimeGetCurrent() - enteredAt
+            guard elapsed >= Self.stallThreshold else { return }
+
+            guard let tap = self.cgEventTap, !self.tapDisabledByWatchdog else { return }
+            self.tapDisabledByWatchdog = true
+            logE(
+                "💉 ⚙️ 🚨 [Watchdog] 콜백이 \(String(format: "%.1f", elapsed))초째 반환하지 않는다 "
+                    + "(mark=\(mark)) — tap 을 꺼서 입력을 회복시킨다. "
+                    + "메인 스레드가 멈춰 있으므로 이 조치는 워치독 큐에서 수행된다.")
+            CGEvent.tapEnable(tap: tap, enable: false)
+        }
+        timer.resume()
+        watchdogTimer = timer
+        logD("💉 ⚙️ [Watchdog] 시작 (\(Self.watchdogInterval)s 간격, stall 임계 \(Self.stallThreshold)s)")
+    }
+
+    /// 워치독 정지.
+    private func stopWatchdog() {
+        watchdogTimer?.cancel()
+        watchdogTimer = nil
+        tapDisabledByWatchdog = false
+        noteCallbackExit()
+    }
+
     /// Issue212: record a timeout and decide whether the tap must leave the stream.
     ///
     /// A single timeout is normal — a slow frame, a busy main thread. A burst is not: it means
@@ -313,7 +398,7 @@ class CGEventTapManager {
     /// flagsChanged). Both were fixed only on the key-capture path; the Issue537 shortcut path
     /// still builds one for every keyDown. Measuring it settles the question.
     private func timedNSEvent(_ event: CGEvent, mark: String) -> NSEvent? {
-        lastCallbackMark = mark
+        setMark(mark)
         let t0 = CFAbsoluteTimeGetCurrent()
         let ns = NSEvent(cgEvent: event)
         let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000.0
@@ -322,7 +407,7 @@ class CGEventTapManager {
                 "💉 ⚙️ ⏱️ [CGEventTapManager] NSEvent(cgEvent:) took "
                     + "\(String(format: "%.0f", ms))ms at \(mark)")
         }
-        lastCallbackMark = mark + ".done"
+        setMark(mark + ".done")
         return ns
     }
 
@@ -407,7 +492,9 @@ class CGEventTapManager {
         // the last checkpoint entered, so a slow log names the culprit instead of guessing.
         let cbStart = CFAbsoluteTimeGetCurrent()
         lastCallbackMark = "enter"
+        noteCallbackEnter(at: cbStart)  // Issue213: 워치독이 읽는 상태
         defer {
+            noteCallbackExit()
             let ms = (CFAbsoluteTimeGetCurrent() - cbStart) * 1000.0
             if ms > Self.slowCallbackThresholdMs {
                 logW(
@@ -520,7 +607,7 @@ class CGEventTapManager {
         }
 
         // Pass through 확인 (Passthrough Check)
-        lastCallbackMark = "isAppActive"
+        setMark("isAppActive")
         if delegate.isAppActive() {
             if AboutWindowManager.shared.isAboutWindowVisible {
                 NSLog("[CGEventTap] About 창 활성 중 - keyCode: \(keyCode), type: \(type.rawValue)")
@@ -538,8 +625,9 @@ class CGEventTapManager {
             // Issue212: no `NSEvent` here. This ran on every single keyDown and is the
             // stall the 2026-09-05 freezes traced back to — same failure mode Issue912
             // documented, just on the path that fix did not cover.
-            lastCallbackMark = "shortcut537"
+            setMark("shortcut537")
             let character = charactersIgnoringModifiers(from: event)
+            setMark("shortcut537.isAnyShortcut")
             if let shortcut = delegate.isAnyShortcut(
                 keyCode: keyCode, modifiers: event.flags, character: character)
             {
