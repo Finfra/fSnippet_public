@@ -482,24 +482,17 @@ class CGEventTapManager {
                     guard let self = self else { return }
                     self.removeTapForSafety()
 
-                    // Issue222: 안내 창보다 **목록 등록이 먼저**다. 사용자가 목록에서 앱을
-                    // 제거했다면 설정 창을 열어도 켤 항목이 없다. 시스템 권한 요청을 띄워
-                    // macOS 가 앱을 목록에 다시 올리게 한다. 30초 쿨다운으로 반복 억제.
-                    let now = Date()
-                    if now.timeIntervalSince(self.lastPermissionPromptAt)
-                        > Self.permissionPromptCooldown
-                    {
-                        self.lastPermissionPromptAt = now
-                        self.accessibilityService.requestAccessibilityPrompt()
-                        logI(
-                            "♿️ [CGEventTapManager] 시스템 권한 요청 표시 — 접근성 목록에 "
-                                + "앱을 등록시킨다(목록에서 제거된 경우 대비)")
-                    }
-
-                    // Issue221: 키보드만 돌려주고 끝내면 사용자는 **왜** 스니펫이 죽었는지
-                    // 알 수 없다. 부팅 때와 같은 안내 창을 띄워 등록 경로를 알려준다.
-                    // 중복 표시는 Presenter 가 막는다.
-                    AccessibilityGuidePresenter.show(service: self.accessibilityService)
+                    // ⚠️ Issue225: 여기서 `requestAccessibilityPrompt()` 를 부르지 않는다.
+                    //
+                    // Issue222 는 목록 재등록을 노리고 이 호출을 넣었지만, 실행 중인
+                    // 프로세스에는 효과가 없으면서 macOS 권한 요청 창
+                    // (`universalAccessAuthWarn`)만 띄웠다. 사용자에게는 아무것도 해결하지
+                    // 못하는 창이 하나 더 뜨는 것으로만 보인다.
+                    //
+                    // 목록 등록은 **새 프로세스의 첫 접근 요청**에서만 일어난다. 그래서
+                    // 이 상황의 해법은 재시작 하나뿐이고, 안내 창이 그것만 제시한다.
+                    AccessibilityGuidePresenter.show(
+                        service: self.accessibilityService, emphasizeRestart: true)
                 }
                 return
             }

@@ -78,21 +78,22 @@ enum AccessibilityGuidePresenter {
                 bodyKey,
                 comment: "Alert body explaining how to grant accessibility permission"
             )
-            // Issue223: 목록에서 항목이 사라진 경우 설정 창은 소용이 없다 — 재시작이 기본.
-            // NSAlert 는 첫 번째로 추가한 버튼이 기본 버튼(오른쪽)이 된다.
+            // Issue225: 운영 중 권한이 제거된 경우는 **재시작 외에 길이 없다.**
+            //
+            // 이 상황에서는 접근성 목록에 fSnippetCli 항목 자체가 사라져 있다. 설정 창을
+            // 열어봐야 켤 대상이 없고, 같은 프로세스가 아무리 재시도해도 macOS 는 목록에
+            // 다시 올려주지 않는다. 반면 재시작하면 **새 프로세스의 첫 접근 요청**이므로
+            // 목록에 정상 등록된다.
+            //
+            // 그래서 선택지를 주지 않고 버튼 하나만 둔다. 고를 것이 없는데 고르게 하면
+            // 사용자는 소용없는 경로(설정 창 열기)로 새기만 한다.
             if emphasizeRestart {
-                alert.informativeText +=
-                    "\n\n"
-                    + NSLocalizedString(
-                        "If fSnippetCli is missing from the Accessibility list, restarting is the only way to get it back — macOS only re-registers the app when a fresh process first requests access.",
-                        comment: "Extra guidance when the app is absent from the Accessibility list")
+                alert.informativeText = NSLocalizedString(
+                    "Accessibility permission was revoked while fSnippetCli was running, so keyboard monitoring has stopped.\n\nmacOS removed fSnippetCli from the Accessibility list, and a running process cannot put itself back — only a fresh launch can. Restart now, then enable fSnippetCli in System Settings > Privacy & Security > Accessibility.",
+                    comment: "Alert body when accessibility was revoked at runtime")
                 alert.addButton(withTitle: NSLocalizedString(
                     "Restart Now",
                     comment: "Button to restart the app so the permission takes effect"
-                ))
-                alert.addButton(withTitle: NSLocalizedString(
-                    "Open System Settings",
-                    comment: "Button to open System Settings"
                 ))
             } else {
                 alert.addButton(withTitle: NSLocalizedString(
@@ -104,16 +105,24 @@ enum AccessibilityGuidePresenter {
                     comment: "Button to restart the app so the permission takes effect"
                 ))
             }
-            alert.addButton(withTitle: NSLocalizedString(
-                "Later",
-                comment: "Button to dismiss the alert"
-            ))
+            if !emphasizeRestart {
+                alert.addButton(withTitle: NSLocalizedString(
+                    "Later",
+                    comment: "Button to dismiss the alert"
+                ))
+            }
 
-            switch alert.runModal() {
+            let response = alert.runModal()
+            if emphasizeRestart {
+                // 버튼이 하나뿐이라 어떤 종료 경로든 재시작이다(ESC 포함).
+                restartNow()
+                return
+            }
+            switch response {
             case .alertFirstButtonReturn:
-                if emphasizeRestart { restartNow() } else { service.openAccessibilitySettings() }
+                service.openAccessibilitySettings()
             case .alertSecondButtonReturn:
-                if emphasizeRestart { service.openAccessibilitySettings() } else { restartNow() }
+                restartNow()
             default:
                 break
             }
