@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 212
+* Issue HWM: 213
 * Checkpoints:
       - 2026.07.20: d372aff (_doc_arch 정합성 검토(Issue193) 진행 중 작업 트리 스냅샷)
       - 2026.07.19: a494408 (Fix Issue192 Edit Mode ⌘S 스니펫 등록 오작동 회귀)
@@ -27,6 +27,28 @@ date: 2026-04-07
 # 🚧 진행중
 
 # 📕 중요
+
+## Issue213: [Critical][KeyEvent] 메인 스레드가 멈추면 메인 스레드 위의 방어도 함께 멈춘다 — off-main 워치독 (등록: 2026-09-05)
+* depends: Issue212
+* 목적: Issue212 에서 넣은 방어 3종(`SLOW callback` 로그·지연 health check·timeout 누적 탈출구)이 **하나도 발동하지 않았다.** 전부 메인 큐에 얹혀 있었고, **메인 스레드가 멈추는 것이 바로 이 사건**이므로 정의상 이 상황을 처리할 수 없었다. 감시자를 메인 밖으로 옮긴다.
+* 상세:
+    - **실측 근거 (2026-09-05 21:27~21:28, 커밋 `bf1ad67` 배포본)**:
+        - `21:27:51.700` `[GrantWatcher] ✅ 접근성 권한 승인 감지 (6s)` → tap 생성 (Issue207 자동 복구는 **정상 작동**)
+        - `21:27:52~53` `[Typing]` 3건 + `d{right_command}` → `docker` 확장 성공 — **콜백 정상 완주**
+        - `21:27:56` System Settings 이동(권한 제거) → `21:28:00` 복귀
+        - `21:28:04.155` `Event Tap Disabled (timeout, raw=4294967294)` → `.261` `Tap re-enabled. Attempt: 1/5`
+        - **이후 로그 전면 침묵** — `defer` 의 SLOW 로그도, 3초 뒤 health check 도 없음
+    - `defer` 가 실행되지 않았다는 것은 **콜백이 반환하지 않았다**는 뜻이고, `asyncAfter` 로 건 health check 가 오지 않았다는 것은 **메인 큐가 정지**했다는 뜻이다. 두 신호가 같은 결론을 가리킨다
+    - Issue212 의 NSEvent 제거는 유효한 수정이지만 **이 사건을 막지는 못했다** — 범인이 다른 곳에 있거나, 제거한 경로가 유일한 원인이 아니다
+* 구현 명세:
+    - **워치독을 별도 큐에 둔다**: `watchdogQueue`(전용 `DispatchQueue`) + `DispatchSourceTimer` 0.5초 간격
+    - 콜백 **진입·이탈 시각**과 **현재 mark** 를 `NSLock` 으로 공유한다
+    - 콜백이 **1.5초 이상 반환하지 않으면** `CGEvent.tapEnable(tap:enable:false)` 로 tap 을 이벤트 스트림에서 분리 → 대기 중이던 HID 이벤트가 즉시 흐른다. **메인 스레드가 죽어 있어도 동작한다**
+    - 멈춘 지점을 `mark` 로 로그에 남긴다 — 근본 원인 확정의 단서
+    - `start()`·`stop()` 에 워치독 생명주기 연동
+    - **이것이 프리즈에 대한 유일하게 신뢰할 수 있는 방어다.** 근본 원인(콜백이 왜 반환하지 않는가)은 mark 로그 또는 `sample` 스택으로 별도 확정한다
+    - **검증**: 권한 제거 시 ① 1.5초 내 `[Watchdog] 콜백이 N초째 반환하지 않는다 (mark=...)` 로그 ② 키보드·마우스 회복 ③ mark 값으로 범인 지목
+
 
 ## Issue212: [Critical][KeyEvent] 프리즈의 진짜 원인은 권한이 아니라 **콜백 stall** — tap timeout 반복 (등록: 2026-09-05)
 * depends: Issue211 (원인 오판 — 본 이슈가 정정)
