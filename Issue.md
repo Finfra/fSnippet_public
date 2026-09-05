@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 217
+* Issue HWM: 228
 * Checkpoints:
       - 69eb6a7 (2026-09-06) Issue220~227 키보드 락·권한 창 문제 해결 완료
       - f30acbc (2026-09-05) Issue220 입력 경로 비대칭 판정 — 키보드 락 해결 확인
@@ -27,6 +27,25 @@ date: 2026-04-07
 # 🌱 이슈후보
 
 # 🚧 진행중
+
+## Issue228: [Sync] jma 자립 디버깅 체계 — git·rsync 역할 분담으로 양방향 동기화 확립 (등록: 2026-09-06)
+* 목적: sync debug 를 jma 에서 진행하기로 함에 따라, jma 가 **재현·진단·수정·커밋까지 자립**할 수 있는 동기화 구조를 세운다. paidApp(prj15)과 cliApp(prj25)이 **동시에** 움직여야 한다는 것이 전제다.
+* 상세 (2026-09-06 실측 — 전부 SSH 로 확인):
+    - **`_public` 이 jma 에서 고아 repo 였다** — origin 이 GitHub `Finfra/fSnippet_public` 인데 jma 는 GitHub 인증(SSH 키·`gh` 토큰)이 둘 다 무효라 **당길 방법 자체가 없었다**. 20커밋(Issue212~227 전부) 뒤처진 진짜 원인. paidApp 은 fSnippet#Issue976 에서 origin 을 jm4 로 바꾸는 우회를 받았으나 `_public` 은 그 처리를 못 받았다
+    - **rsync·git 혼용이 워킹트리를 갈라 놓았다** — 9/5 에 `.git` 제외 rsync 로 밀어 파일만 최신이 되고 HEAD 는 옛날에 머물러, git 이 그 차이를 사용자 수정(`M`)으로 오해. 읽기 전용일 땐 무해했으나 "jma 에서 커밋" 으로 바뀌면 커밋에 20커밋치 잔재가 섞여 든다
+    - **jma 미커밋 3건은 회수 불필요로 판정** — blob 해시로 jm4 이력을 역추적한 결과 `Issue.md` 는 `6d598cf` 시점, `cli/_tool/fsc-deploy-brew.sh` 는 `1a0f920` 시점 내용과 동일(둘 다 jm4 에 이미 커밋됨). `.vscode/settings.json` 만 jma 고유이나 머신 로컬 에디터 설정이라 회수 대상 아님
+    - **`_public` 은 SCAR·설계문서 전체가 gitignored** — `.claude/`(51) · `CLAUDE.md` · `cli/_doc_arch/`(37) · `cli/_doc_base/`(14) · `cli/_doc_work/`(152) · `noteForHuman.md`. **git 으로는 절대 가지 않는다.** jma 에서 claude 를 돌리려면 이것들이 반드시 있어야 하므로 rsync 를 걷어내면 안 된다(사용자 지적)
+    - **PATH 함정**: jma 에 Claude Code 2.1.261 이 `~/.local/bin/claude` 에 있으나 `ssh jma 'claude …'` 는 **command not found**. `~/.local/bin` 이 대화형 쉘(`~/.zshrc`)에서만 PATH 에 붙기 때문. 절대경로나 `zsh -lic` 필요 — fSnippet#Issue976 의 keychain 문제와 같은 계열(비대화형 SSH 는 로그인 세션 자산을 물려받지 못한다)
+* 구현 명세:
+    - **전달 수단 분리 (핵심)**: git 추적 파일은 **git 으로만**, gitignored 자산은 **rsync 로만**. 한 파일을 둘이 다투면 위 혼용 사태가 재발한다
+    - **회수는 받는 쪽이 당긴다**: jma 는 jm4 에서 `git pull`(origin=jm4), jm4 는 jma 에서 `git fetch jma`. jm4 가 브랜치를 checkout 중이라 jma 의 push 는 거부되며(`refusing to update checked out branch`), 당기는 쪽이 능동이면 충돌 해결 책임도 명확해진다
+    - **GitHub 반출은 jm4 에서만** — jma 의 GitHub 인증 복구는 브라우저·GUI 가 필요해 범위 밖
+    - **rsync 화이트리스트**(`_public`): `.claude/` · `CLAUDE.md` · `cli/_doc_arch/` · `cli/_doc_base/` · `cli/_doc_work/` · `noteForHuman.md`. 제외: `graphify-out/` · `__pycache__/` · `cli/logs/` · `cli/_tool/qa/results/` · `.zed/` · `.DS_Store` · `_doc_work/z_log`
+    - **충돌 방지**: 한 이슈는 한 머신에서만 만진다. `Issue.md` 는 코드와 커밋을 분리한다(양쪽에서 섹션을 옮기면 merge 가 어려워진다)
+    - 검증: jma 양쪽 repo 가 jm4 와 동일 HEAD · `git status` 깨끗 · `bash _tool/run.sh --no-sign` 통과
+* 남은 작업 (사람만 가능): jma 에서 **접근성 권한**(fSnippetCli) 승인. 미승인 상태라 cliApp REST(`:3015`)가 뜨지 않아 검증이 9단계 중 8단계에서 멈춘다. ⚠️ 소스 정상화를 **먼저** 끝내고 승인해야 옛 버전으로 이미 고친 버그를 다시 만나지 않는다
+* 관련: fSnippet#Issue976(jma 파이프라인 정상화 — 본 이슈의 선행) · prj5 `bin/sync-jma`·`hosts/jma/sync-policy.yml`(동기화 인프라 SSOT)
+* 후속 후보: `_public/Issue.md` 가 `.gitignore` 에 있는데도 **tracked 라 공개 repo 에 올라간다**(이미 추적 중인 파일에는 gitignore 가 무효). 글로벌 결정 *"Issue.md 는 공개 미러 반출 금지"* 와 어긋남 — 본 이슈 범위 밖, 별도 판단 필요
 
 # 📕 중요
 
