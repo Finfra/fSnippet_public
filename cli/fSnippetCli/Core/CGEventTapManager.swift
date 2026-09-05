@@ -84,6 +84,8 @@ class CGEventTapManager {
     private var tapDisabledByWatchdog = false
     // Issue217: 권한 요청 다이얼로그 쿨다운 — timeout 마다 띄우면 사용자를 괴롭힌다.
     private var lastPermissionPromptAt: Date = .distantPast
+    // Issue218: 워치독이 직접 권한을 폴링한다. timeout 은 오지 않을 수 있다.
+    private var lastKnownAccess: Bool?
     private static let permissionPromptCooldown: TimeInterval = 30.0
     private static let watchdogInterval: TimeInterval = 0.5
     private static let stallThreshold: CFAbsoluteTime = 1.5
@@ -392,6 +394,36 @@ class CGEventTapManager {
             deadline: .now() + Self.watchdogInterval, repeating: Self.watchdogInterval)
         timer.setEventHandler { [weak self] in
             guard let self = self else { return }
+
+            // ✅ Issue218: 권한을 직접 폴링한다.
+            //
+            // 지금까지의 방어는 전부 `tapDisabledByTimeout` 통지에 매달려 있었다. 그런데
+            // 실측 2026-09-05 22:08 — 권한을 제거하고 타이핑해도 **timeout 이 한 건도 오지
+            // 않았다.** 콜백은 0.1ms 에 통과시키는데 화면에는 찍히지 않는다. 통지가 없으니
+            // 해방 우선(Issue217)도, 누적 탈출구(Issue212)도 발동할 기회가 없었다.
+            //
+            // 그래서 통지를 기다리지 않고 0.5초마다 직접 묻는다. 권한이 사라진 것이 보이면
+            // 그 자리에서 tap 을 꺼서 키보드를 놓아준다. 이 검사는 워치독 큐에서 돌므로
+            // 메인 스레드 상태와 무관하게 동작한다.
+            let access = CGPreflightListenEventAccess()
+            if self.lastKnownAccess != access {
+                logW(
+                    "💉 ⚙️ [Watchdog] 접근성 권한 상태 변화 감지: "
+                        + "\(self.lastKnownAccess.map { $0 ? "허용" : "없음" } ?? "최초") → "
+                        + "\(access ? "허용" : "없음")")
+                self.lastKnownAccess = access
+            }
+            if !access, let deadTap = self.cgEventTap {
+                logE(
+                    "💉 ⚙️ 🚨 [Watchdog] 접근성 권한 없음 — tap 을 즉시 끄고 제거한다 "
+                        + "(키보드 해방). 권한을 다시 켜면 자동 복구된다.")
+                CGEvent.tapEnable(tap: deadTap, enable: false)
+                DispatchQueue.main.async { [weak self] in
+                    self?.removeTapForSafety()
+                }
+                return
+            }
+
             self.callbackStateLock.lock()
             let enteredAt = self.callbackEnteredAt
             let mark = self.callbackMarkShared
