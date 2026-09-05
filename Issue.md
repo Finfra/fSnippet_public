@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 205
+* Issue HWM: 207
 * Checkpoints:
       - 2026.07.20: d372aff (_doc_arch 정합성 검토(Issue193) 진행 중 작업 트리 스냅샷)
       - 2026.07.19: a494408 (Fix Issue192 Edit Mode ⌘S 스니펫 등록 오작동 회귀)
@@ -27,6 +27,42 @@ date: 2026-04-07
 # 🚧 진행중
 
 # 📕 중요
+
+## Issue206: [Brew] Homebrew 서비스 라벨 `homebrew.mxcl.*` → `sh.brew.*` 변경 미반영 — launchd 인스턴스가 자살하고 권한 없는 인스턴스가 영구 생존 (등록: 2026-09-05)
+* 목적: Homebrew 가 서비스 라벨 네임스페이스를 `homebrew.mxcl.<formula>` 에서 `sh.brew.<formula>` 로 변경했으나 코드는 구 라벨에 하드코딩되어 있음. 그 결과 `SingleInstanceGuard` 가 launchd 기동 프로세스를 **non-launchd 로 오판**하여 승자 경로 대신 패자 경로를 타고 자살함. 판정과 실제 계약이 한쪽만 갱신되어 갈라진 전형적 사례.
+* 상세:
+    - **실측 근거 (2026-09-05 세션)**: 로그에 `[single-instance] non-launchd (PID 8363, XPC=sh.brew.fsnippet-cli) — 기존 인스턴스 유지 (PIDs: [1113]), 자신 exit`. XPC 가 명백히 brew 서비스 라벨인데 `non-launchd` 로 분류됨.
+    - `~/Library/LaunchAgents/sh.brew.fsnippet-cli.plist` 의 `Label` = `sh.brew.fsnippet-cli` (실측). 코드 상수는 `homebrew.mxcl.fsnippet-cli`.
+    - **연쇄 결과**: ① launchd 인스턴스 자살 → ② `brew services list` 가 `stopped` 로 남음 → ③ `open` 으로 먼저 뜬 인스턴스(접근성 권한 미승인 상태)가 영구 생존 → ④ 사용자가 접근성 토글을 켜도 CGEventTap 이 없어 **키 감지가 영구 불능**. Issue207 증상의 상위 원인.
+    - `SingleInstanceGuard.swift` 헤더 주석이 "과거 구현은 신규 프로세스가 무조건 exit 하여 `brew services list` 가 `stopped` 로 남는 문제 발생 → launchd-bootstrap 프로세스가 승자가 되도록 규칙 변경" 이라 명시하나, **라벨 불일치로 그 수정 자체가 무효화**됨.
+    - 부수 파손 (동일 원인): 메뉴바·설정의 서비스 상태 판정이 존재하지 않는 plist 경로를 조회하여 항상 미설치·미실행으로 표시될 것으로 추정 (검증 필요).
+* 구현 명세:
+    - **라벨 SSOT 단일화**: 하드코딩 6개소를 상수 1곳으로 통일. 대상 —
+        - `cli/fSnippetCli/Services/SingleInstanceGuard.swift:19` `launchdServiceLabel`
+        - `cli/fSnippetCli/Services/BrewServiceSync.swift:17` `serviceLabel`
+        - `cli/fSnippetCli/Data/SettingsObservableObject.swift:1170` `launchAgentLabel`, 동 1175~1176 plist 경로 2건
+        - `cli/fSnippetCli/MenuBarView.swift:36` plist 경로
+        - `cli/fSnippetCli/Managers/MenuBarManager.swift:295` `bootout` 인자
+    - **판정은 신·구 라벨 양쪽 허용**: Homebrew 버전에 따라 어느 쪽이든 올 수 있으므로 `XPC_SERVICE_NAME` 비교를 `sh.brew.<formula>` · `homebrew.mxcl.<formula>` 집합 매칭으로 변경. plist 경로 탐색도 두 후보를 순회.
+    - **로그 보강**: 판정 결과와 함께 기대 라벨·실제 XPC 값을 같이 남겨 다음 네임스페이스 변경 시 즉시 드러나게 함.
+    - **handoff 실패 가시화**: `BrewServiceSync.swift:93` 의 `handoff start 실패 … self-exit 취소, 기존 앱 유지` 는 현재 `logW` 로만 남아 사용자에게 보이지 않음. 이 상태가 곧 좀비 인스턴스이므로 메뉴바 경고 표시 등 사용자 인지 경로 필요.
+    - 검증: `brew services start fsnippet-cli` 후 `launchctl list | grep fsnippet` 에 PID 가 잡히고, 기존 open 기동분이 terminate 되며, `brew services list` 가 `started` 로 수렴하는지 확인.
+
+## Issue207: [Permission] 접근성 권한 미승인으로 뜬 인스턴스가 권한 부여 후에도 CGEventTap 을 재생성하지 않음 (등록: 2026-09-05)
+* depends: Issue206
+* 목적: 앱이 접근성 권한 없는 상태로 시작하면 안내만 남기고 CGEventTap 생성을 포기하는데, 사용자가 안내대로 시스템 설정에서 권한을 켜도 **그 프로세스는 끝까지 살아나지 않음**. macOS 접근성 권한은 프로세스 시작 시점에 평가되고 소급 적용되지 않기 때문. 신규 설치자는 최초 실행 시 반드시 권한 미승인 상태이므로 **전원이 겪는 경로**임.
+* 상세:
+    - **실측 근거 (2026-09-05 세션)**: 시작 시 `⚠️ 접근성 권한: 미승인 — 사용자 안내 alert 표시` / `❌ 접근성 권한이 없습니다. 시스템 설정 > 개인정보 > 접근성에서 fSnippetCli를 추가해 주세요`. 사용자가 이후 토글을 켰으나 **로그에 CGEventTap 관련 항목 0건** — 재생성 시도조차 없음.
+    - 혼동 요인: `AppActivationMonitor` 는 `NSWorkspace` 알림 기반이라 접근성 권한 없이도 계속 동작함. 로그가 흐르고 API `/api/v2/status` 도 `ok` 를 반환하여 **정상으로 오인**되기 쉬움. 실제로는 키 감지만 죽어 있음.
+    - 안내 문구가 "접근성에서 fSnippetCli 를 추가해 주세요" 로 끝나 **재시작이 필요하다는 사실을 알리지 않음**. 사용자는 지시대로 했는데 작동하지 않는 상태에 놓임.
+    - Issue206 이 함께 있으면 정상 재시작 경로마저 막혀 자력 복구가 불가능했음 (실제 발생). Issue206 선행 해결 필요.
+* 구현 명세:
+    - 관련 코드 — `cli/fSnippetCli/fSnippetCliApp.swift:263~273` (권한 체크·alert), `cli/fSnippetCli/Core/KeyEventProcessor.swift:180, 1154~1163` (tap 생성·권한 확인).
+    - **택1 또는 병행**:
+        - (a) 권한 부여 감지 후 자동 복구 — `AXIsProcessTrusted()` 폴링 또는 `com.apple.accessibility.api` 분산 알림 구독으로 승인 전환을 감지해 CGEventTap 을 재생성.
+        - (b) 최소 조치 — alert 문구에 **"권한을 켠 뒤 앱을 재시작해야 적용됩니다"** 를 명시하고, alert 에 재시작 버튼 제공.
+    - (a) 채택 시 tap 재생성이 중복 생성·핸들 누수를 일으키지 않도록 기존 tap 해제 경로 확인.
+    - 검증: 권한을 끈 상태로 기동 → 설정에서 권한 부여 → 재시작 없이 스니펫 확장이 동작하는지 (a), 또는 안내대로 재시작하여 동작하는지 (b).
 
 # 📙 일반
 
