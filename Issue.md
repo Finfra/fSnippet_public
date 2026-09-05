@@ -8,6 +8,7 @@ date: 2026-04-07
 
 * Issue HWM: 217
 * Checkpoints:
+      - 69eb6a7 (2026-09-06) Issue220~227 키보드 락·권한 창 문제 해결 완료
       - f30acbc (2026-09-05) Issue220 입력 경로 비대칭 판정 — 키보드 락 해결 확인
       - 2026.07.20: d372aff (_doc_arch 정합성 검토(Issue193) 진행 중 작업 트리 스냅샷)
       - 2026.07.19: a494408 (Fix Issue192 Edit Mode ⌘S 스니펫 등록 오작동 회귀)
@@ -29,7 +30,23 @@ date: 2026-04-07
 
 # 📕 중요
 
-## Issue224: [Permission] probe tap 제거 — 평상시 권한 요청 창이 뜨던 원인 (등록: 2026-09-05)
+
+# 📙 일반
+
+# 📗 선택
+
+# ✅ 완료
+## Issue227: [Permission] `prompt: true` 전면 제거 — 시스템 권한 요청 창 차단 (등록: 2026-09-05, 완료: 2026-09-05) (Hash: 69eb6a7) ✅
+* 목적: 전수 조사로 남은 두 곳을 제거 — `handleTimeoutReleaseFirst()`(Issue217 유래)와 `openAccessibilitySettings()`(Issue222 유래). `requestAccessibilityPrompt()` 는 함수·프로토콜 요구사항까지 삭제.
+* 나머지 `AXIsProcessTrustedWithOptions` 5곳은 전부 `prompt: false` 라 무해. **코드 전체에 `prompt: true` 리터럴 0건**.
+* 목록 등록은 새 프로세스의 첫 tap 생성 시도에서 macOS 가 처리하므로 앱이 직접 요청할 이유가 없다.
+## Issue226: [Permission] 운영 중 권한 상실 후 tap 재생성 차단 — 반복 창 제거 (등록: 2026-09-05, 완료: 2026-09-05) (Hash: d0065c4) ✅
+* 목적: Issue225 후에도 창이 계속 뜬 진짜 유발원은 **`tapCreate` 재시도**였다. backoff(10s→20s→40s→60s)가 `start()` → `setupEventTap()` → `tapCreate` 를 반복하는데, 권한 없이 keyDown tap 을 만들려 할 때마다 macOS 가 창을 띄운다.
+* `permissionRevokedAtRuntime` 플래그로 `start()`·`startGrantWatchdog()` 양쪽에서 재생성 전면 차단. 자동 복구를 포기하는 대신 사용자를 방해하지 않는다 — 어차피 실행 중 프로세스로는 목록 재등록이 불가능해 자동 복구가 성립하지 않았다.
+## Issue225: [Permission] 운영 중 권한 제거는 재시작 단일 경로 + 시스템 창 제거 (등록: 2026-09-05, 완료: 2026-09-05) (Hash: 07ece39) ✅
+* 목적: 사용자 요구 반영 — 안내 창을 **`Restart Now` 단일 버튼**으로. 이 상황에선 목록에 항목이 없어 설정 창이 무의미하고, 고를 것이 없는데 선택지를 주면 소용없는 경로로 새기만 한다.
+* 워치독 경로의 `requestAccessibilityPrompt()` 호출 제거(아무것도 해결 못 하는 창).
+## Issue224: [Permission] probe tap 제거 — 평상시 권한 요청 창이 뜨던 원인 (등록: 2026-09-05, 완료: 2026-09-05) (Hash: 8cd2eab) ✅
 * depends: Issue223
 * 목적: Issue223 에서 probe 의 `eventsOfInterest` 를 `keyDown` 으로 고치자 **권한이 정상인 평상시에도 macOS 권한 요청 창(`universalAccessAuthWarn`)이 떴다.** 판정을 얻으려고 사용자를 방해한 셈이다.
 * 상세:
@@ -40,9 +57,13 @@ date: 2026-04-07
     - 애초에 필요 없었다. **Issue220 의 경로 비대칭**이 더 정확하고 부작용이 없다 — 우리 앱이 실제로 겪는 사실이라 캐시에 속지 않으면서, **시스템에 아무것도 묻지 않으므로 창도 뜨지 않는다**
     - 권한 상실 시 **목록 재등록**은 실제 tap 생성 경로(`setupEventTap` 의 `tapCreate` 실패)에서 자연히 일어난다. 그때는 권한이 정말 없으므로 창이 뜨는 것이 옳다
     - **검증 (2026-09-05 23:30)**: `/run` 9 PASS/0 FAIL · probe 흔적 0건 · `universalAccessAuthWarn` 0건(창 미발생) · `noteMonitorKeyEvent` 심볼 생존(비대칭 판정 유지)
-
-
-## Issue221: [Permission] 권한 상실 감지 시 접근성 등록 안내 창 재표시 — 중복 방지 (등록: 2026-09-05)
+## Issue223: [Permission] probe 결함 수정 — 목록 재등록은 재시작만이 답 (등록: 2026-09-05, 완료: 2026-09-05) (Hash: d2e7a3b) ✅
+* 목적: `Failed to create CGEventTap` 과 `Probe still reports granted` 가 동시에 찍혔다. probe 의 `eventsOfInterest: 0` 은 **아무 이벤트도 구독하지 않아 권한이 필요 없다** — 그래서 계속 `허용` 을 반환했다. keyDown 구독으로 정정.
+* 아울러 **목록 재등록은 새 프로세스의 첫 tap 생성 시도에서만** 일어남을 확정 — 같은 프로세스의 재시도로는 불가.
+## Issue222: [Permission] 접근성 목록에서 제거된 경우 재등록 유도 (등록: 2026-09-05, 완료: 2026-09-05) (Hash: 577004d) ✅
+* 목적: 목록에서 `−` 버튼으로 제거하면 항목 자체가 사라져 설정 창을 열어도 켤 대상이 없다. `AXIsProcessTrustedWithOptions(prompt: true)` 로 macOS 가 앱을 목록에 다시 올리게 시도.
+* ⚠️ **실행 중 프로세스에는 효과가 없었다** — 창만 뜨고 목록은 그대로. 뒤이어 전량 철회(→ Issue225·227).
+## Issue221: [Permission] 권한 상실 감지 시 접근성 등록 안내 창 재표시 — 중복 방지 (등록: 2026-09-05, 완료: 2026-09-05) (Hash: 00374bf) ✅
 * depends: Issue220
 * 목적: Issue220 으로 **키보드 락은 해결**됐다(사용자 확인). 다만 tap 을 떼어내 입력을 돌려주는 데서 끝나므로 사용자는 **왜 스니펫이 죽었는지 모른다.** 부팅 때와 같은 안내 창을 그 시점에도 띄워 등록 경로를 알린다.
 * 상세:
@@ -55,9 +76,18 @@ date: 2026-04-07
     - `AccessibilityGrantWatcher` 승인 콜백에서 `dismissIfPresenting()` → `start()` 순서로 호출
     - **검증 (2026-09-05 22:40)**: `/run` 9 PASS/0 FAIL · 심볼 확인(`dismissIfPresenting` 2건) · 권한 정상 상태에서 안내 창 미표시(오탐 없음)
     - **미검증**: 권한 OFF E2E — ① 창이 뜨는가 ② 계속 눌러도 **한 번만** 뜨는가 ③ 권한 재승인 시 창이 닫히고 자동 복구되는가
-
-
-## Issue217: [Critical][KeyEvent] timeout 시 키보드를 먼저 놓아주고 권한 안내를 띄운다 — 순서 역전 (등록: 2026-09-05)
+## Issue220: [Critical][KeyEvent] 입력 경로 비대칭으로 권한 상실 감지 — 키보드 락 해결 (등록: 2026-09-05, 완료: 2026-09-05) (Hash: f30acbc) ✅
+* 목적: 키 입력 경로가 **둘**이라는 구조를 찾았다 — CGEventTap 콜백(단축키·트리거)과 NSEvent 글로벌 모니터(실제 타이핑 버퍼링, `[Typing]` 로그). **후자만 접근성 권한을 요구**하므로, tap 은 keyDown 을 받는데 모니터가 0건이면 권한 상실이 확정된다.
+* 조회 API 가 전부 캐시에 속는 상황에서 **관측 가능한 유일한 증거**다 — 우리 앱이 실제로 겪는 사실이라 속지 않는다.
+* 워치독이 3초 창으로 비교(`tap ≥ 3건 · monitor 0건`) → tap 제거 → 키보드 해방.
+* **사용자 확인: 키보드 락 해결** (delay 있으나 수용 가능 수준).
+## Issue219: [KeyEvent] probe tap 실측으로 권한 판정 — 조회 API 전부 무력 확정 (등록: 2026-09-05, 완료: 2026-09-05) (Hash: 6761eea) ✅
+* 목적: `AXIsProcessTrusted()`(Issue211)·`CGPreflightListenEventAccess()`(Issue218) **둘 다** 권한 제거 후에도 `허용` 을 반환함이 실측으로 확정됐다. 남은 수단으로 `CGEvent.tapCreate` 실측 probe 를 도입.
+* ⚠️ probe 도 `eventsOfInterest: 0` 이라 권한 없이 성공하는 결함이 있었다(→ Issue223·224에서 정정·제거).
+## Issue218: [KeyEvent] 워치독이 접근성 권한을 직접 폴링 (timeout 미의존) (등록: 2026-09-05, 완료: 2026-09-05) (Hash: 029c4db) ✅
+* 목적: Issue217 이 발동하지 못한 이유 — 권한을 제거해도 `tapDisabledByTimeout` 통지가 **오지 않는다**. 통지에 매달린 방어(Issue212·217)는 실행될 기회가 없었다. 워치독 큐에서 `CGPreflightListenEventAccess()` 를 0.5초마다 직접 폴링하도록 전환.
+* ⚠️ 이 API 도 revoke 를 반영하지 않음이 뒤이어 확인됐다(→ Issue219).
+## Issue217: [Critical][KeyEvent] timeout 시 키보드를 먼저 놓아주고 권한 안내를 띄운다 — 순서 역전 (등록: 2026-09-05, 완료: 2026-09-05) (Hash: 331b60e) ✅
 * depends: Issue216
 * 목적: Issue216(세션 레벨 tap)으로 **마우스 잠김은 해소**됐으나 키보드는 여전히 잠겼다. 사용자 지적이 정확히 원인을 짚었다 — *"락이 걸릴 타이밍에 접근성 등록하라고 나와야 하는데 락이 걸린다."*
 * 상세:
@@ -73,9 +103,7 @@ date: 2026-04-07
     - **프롬프트 30초 쿨다운** — timeout 마다 띄우면 사용자를 괴롭힌다. 쿨다운 중에는 프롬프트 없이 조용히 확인만 한다
     - **검증 (2026-09-05 22:06)**: `/run` 9 PASS/0 FAIL · 배포본 심볼 확인(`handleTimeoutReleaseFirst` 3건, `AXIsProcessTrustedWithOptions`·`kAXTrustedCheckOptionPrompt` 링크) · 워킹트리 clean
     - **미검증**: 권한 OFF E2E. 확인할 것 — ① 키보드가 잠기지 않는가 ② **접근성 등록 안내가 뜨는가** ③ 권한 재승인 시 자동 복구
-
-
-## Issue216: [Critical][KeyEvent] tap 배치를 HID → 세션 레벨로 낮춤 — 입력 인질 구조 제거 (등록: 2026-09-05)
+## Issue216: [Critical][KeyEvent] tap 배치를 HID → 세션 레벨로 낮춤 — 입력 인질 구조 제거 (등록: 2026-09-05, 완료: 2026-09-05) (Hash: 5b30048) ✅
 * depends: Issue214, Issue215
 * 목적: 계측으로 가설 여섯을 반증하고 남은 유일한 후보가 **tap 배치 자체**였다. HID 레벨 tap 은 콜백이 이벤트를 그대로 흘려보내도 **존재만으로 시스템 입력 전체를 인질로 잡는다.**
 * 상세:
@@ -87,9 +115,10 @@ date: 2026-04-07
     - ⚠️ **회귀 확인 필요** — 세션 레벨은 다른 앱보다 늦게 받는다. 확인 항목: ① 트리거 키(`{right_command}`) 감지 ② 단축키 가로채기(`Registered Shortcut Detected`) ③ 텍스트 대체 ④ 팝업·히스토리 단축키
     - **미검증 (2026-09-05 22:00)**: 배포는 9 PASS 로 끝났으나 접근성 권한이 미승인 상태라 tap 이 생성되지 않아 회귀 확인을 하지 못했다. 권한 승인 후 위 4항을 확인해야 한다
     - 회귀가 크면 대안: `.cghidEventTap` 유지 + `options: .listenOnly` 는 텍스트 대체가 불가하므로 불가. `place: .tailAppendEventTap` 로 완화하는 중간안 검토
-
-
-## Issue214: [Critical][KeyEvent] stall 도 메인 정지도 아니다 — 콜백 종료 지점 전수 계측 (등록: 2026-09-05)
+## Issue215: [KeyEvent] 주입 이벤트에 CGEventSource 태그 부여 (등록: 2026-09-05, 완료: 2026-09-05) (Hash: 673a42f) ✅
+* 목적: `CGEvent(keyboardEventSource: nil, ...)` 로 만든 이벤트에는 `eventSourceUserData` 가 남지 않는다 — userData 는 이벤트가 아니라 **소스의 속성**이다. 주입 전 경로를 태그가 실린 공유 소스로 통일하고 `54321` 하드코딩 3곳을 `CGEventPool.selfInjectedTag` 로 SSOT 화.
+* ⚠️ **본 프리즈의 원인은 아니었다** — 주입 이벤트는 `.cgSessionEventTap` 으로 post 되어 우리 tap 을 경유하지 않는다. 다만 원래 있어야 할 코드라 유지.
+## Issue214: [Critical][KeyEvent] stall 도 메인 정지도 아니다 — 콜백 종료 지점 전수 계측 (등록: 2026-09-05, 완료: 2026-09-05) (Hash: 0dda1b8) ✅
 * depends: Issue213
 * 목적: Issue212·213 의 가설이 **둘 다 실측으로 반증**됐다. 콜백은 멈추지 않고 메인 큐도 살아 있는데 입력만 안 된다. 추측을 중단하고 **콜백이 어느 지점으로 빠져나가는지**를 전수 기록한다.
 * 상세:
@@ -107,9 +136,7 @@ date: 2026-04-07
     - **정상 상태 기준선 확보 완료 (21:41)**: `isAppActive=false`(flagsChanged) · `shortcut537.isAnyShortcut`(Space) · `nearEnd.ghostCheck`(문자키), 전부 0.0~0.2ms
     - **판정**: 프리즈 시 mark 분포가 기준선과 어떻게 달라지는가. `SWALLOW` 가 늘면 삼킴, `isAppActive=true` 로 고착되면 상태 오염, mark 자체가 안 찍히면 콜백 미호출(tap 이 이벤트를 못 받음)
     - 원격 즉시 진단: `~/.bin/fsnippet-freeze-diag` (mark 분포 + 최근 로그 + sample 스택 + 복구 안내)
-
-
-## Issue213: [Critical][KeyEvent] 메인 스레드가 멈추면 메인 스레드 위의 방어도 함께 멈춘다 — off-main 워치독 (등록: 2026-09-05)
+## Issue213: [Critical][KeyEvent] 메인 스레드가 멈추면 메인 스레드 위의 방어도 함께 멈춘다 — off-main 워치독 (등록: 2026-09-05, 완료: 2026-09-05) (Hash: 7bd0916) ✅
 * depends: Issue212
 * 목적: Issue212 에서 넣은 방어 3종(`SLOW callback` 로그·지연 health check·timeout 누적 탈출구)이 **하나도 발동하지 않았다.** 전부 메인 큐에 얹혀 있었고, **메인 스레드가 멈추는 것이 바로 이 사건**이므로 정의상 이 상황을 처리할 수 없었다. 감시자를 메인 밖으로 옮긴다.
 * 상세:
@@ -129,9 +156,7 @@ date: 2026-04-07
     - `start()`·`stop()` 에 워치독 생명주기 연동
     - **이것이 프리즈에 대한 유일하게 신뢰할 수 있는 방어다.** 근본 원인(콜백이 왜 반환하지 않는가)은 mark 로그 또는 `sample` 스택으로 별도 확정한다
     - **검증**: 권한 제거 시 ① 1.5초 내 `[Watchdog] 콜백이 N초째 반환하지 않는다 (mark=...)` 로그 ② 키보드·마우스 회복 ③ mark 값으로 범인 지목
-
-
-## Issue212: [Critical][KeyEvent] 프리즈의 진짜 원인은 권한이 아니라 **콜백 stall** — tap timeout 반복 (등록: 2026-09-05)
+## Issue212: [Critical][KeyEvent] 프리즈의 진짜 원인은 권한이 아니라 **콜백 stall** — tap timeout 반복 (등록: 2026-09-05, 완료: 2026-09-05) (Hash: c9bf2f8) ✅
 * depends: Issue211 (원인 오판 — 본 이슈가 정정)
 * 목적: Issue208·211 이 모두 "권한 상실" 을 전제로 고쳤으나 **전제 자체가 틀렸다.** 실측된 disable 은 전부 `timeout` 이었고 tap 은 살아 있었다. 콜백이 멈춰 있는 동안 **마우스를 포함한 모든 HID 이벤트가 콜백 반환을 기다리는 것**이 프리즈의 정체다.
 * 상세:
@@ -154,9 +179,7 @@ date: 2026-04-07
     - **⚠️ 선행 이슈 번호 정정**: 본 이슈 최초 등록 시 "Issue865(무조건 생성이 tap timeout 유발)" 로 적었으나 **오기**다. 메인 repo `Issue865` 는 `{right_command}` modifier 트리거 미동작 건이다. 소스의 `Issue865-fix` 주석은 key-capture 최적화를 가리키며 실제 번호는 Issue863 계열로 추정된다
     - **규칙 상시화**: Issue912 가 남긴 *"CGEventTap callback 은 blocking 금지"* 규칙이 **메인 repo `_doc_work/debug/CORE_tech.md` 에만** 있어 cliApp 작업 시 노출되지 않았고, 그 결과 같은 사고가 반복됐다. `_public/.claude/rules/coding-rules.md` 에 "6. CGEventTap 콜백 규칙" 으로 옮겨 상시 노출
     - **검증**: 권한 OFF 시 ① 21초 내 `N timeouts within 60s — the callback is stalling` 로그와 함께 입력 회복 ② `SLOW callback ... lastMark=` 로 병목 지점 특정
-
-
-## Issue211: [Critical][KeyEvent] `AXIsProcessTrusted()` 가 권한 회수를 반영하지 않아 Issue208 게이트가 발화하지 않음 — 프리즈 재발 (등록: 2026-09-05)
+## Issue211: [Critical][KeyEvent] `AXIsProcessTrusted()` 가 권한 회수를 반영하지 않아 Issue208 게이트가 발화하지 않음 — 프리즈 재발 (등록: 2026-09-05, 완료: 2026-09-05) (Hash: 2022391) ✅
 * depends: Issue208 (선행 완료, 그러나 E2E 실패)
 * ⚠️ **전제 오류 (2026-09-05 20:48 확인)** — 본 이슈는 프리즈 원인을 "권한 상실" 로 보았으나 **실제 원인은 콜백 stall**(→ Issue212)이었다. 3차 재발 로그의 disable 은 전부 `timeout` 이었고 `permission lost`·`did not take effect` 는 0건이다. 다만 본 이슈에서 넣은 **probe 2종 병용·`tapIsEnabled()` 검증·복구 경로 이원화는 진짜 권한 상실 시의 방어로 유효**하며, **disable 사유 로깅이 Issue212 의 원인 특정을 가능하게 했다**. 프리즈 차단이라는 목적은 미달성.
 * 목적: Issue208 에서 넣은 권한 게이트가 **실측에서 한 번도 발화하지 않았고 프리즈가 그대로 재발**했다. 게이트 설계는 옳았으나 판정 함수가 거짓을 반환한다. 판정을 신뢰하지 않는 구조로 다시 세운다.
@@ -177,14 +200,6 @@ date: 2026-04-07
     - **`tapCreate` 실패 시에도 복구 경로 무장** — 없으면 재시작 전까지 영구히 tap 없는 상태로 남음
     - **진단 로깅**: disable 사유를 `timeout` / `userInput/permission` 으로 구분 기록. 기존에는 두 경우가 같은 문구라 구분 불가했고 이것이 진단 1라운드를 소모시킴
     - **검증**: 권한 OFF 시 ① 입력이 정상 유지 ② `tapIsEnabled=false` → `removing the tap` 로그 ③ 권한 ON 시 자동 복구
-
-
-
-# 📙 일반
-
-# 📗 선택
-
-# ✅ 완료
 ## Issue210: [Critical][Brew] launchd 로 뜬 인스턴스가 `brew services stop` 을 호출해 자멸 — cliApp 완전 소실 (등록: 2026-09-05, 완료: 2026-09-05) (Hash: 4a106b1) ✅
 * depends: Issue209
 * 목적: 인스턴스 교체 과정에서 신규 인스턴스가 **자기 자신의 서비스를 정지시켜 cliApp 이 아예 사라짐**. 사용자는 앱이 죽은 줄 모른 채 스니펫이 동작하지 않는 상태에 놓임.
