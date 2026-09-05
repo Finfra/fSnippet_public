@@ -28,26 +28,6 @@ date: 2026-04-07
 
 # 📕 중요
 
-## Issue206: [Brew] Homebrew 서비스 라벨 `homebrew.mxcl.*` → `sh.brew.*` 변경 미반영 — launchd 인스턴스가 자살하고 권한 없는 인스턴스가 영구 생존 (등록: 2026-09-05)
-* 목적: Homebrew 가 서비스 라벨 네임스페이스를 `homebrew.mxcl.<formula>` 에서 `sh.brew.<formula>` 로 변경했으나 코드는 구 라벨에 하드코딩되어 있음. 그 결과 `SingleInstanceGuard` 가 launchd 기동 프로세스를 **non-launchd 로 오판**하여 승자 경로 대신 패자 경로를 타고 자살함. 판정과 실제 계약이 한쪽만 갱신되어 갈라진 전형적 사례.
-* 상세:
-    - **실측 근거 (2026-09-05 세션)**: 로그에 `[single-instance] non-launchd (PID 8363, XPC=sh.brew.fsnippet-cli) — 기존 인스턴스 유지 (PIDs: [1113]), 자신 exit`. XPC 가 명백히 brew 서비스 라벨인데 `non-launchd` 로 분류됨.
-    - `~/Library/LaunchAgents/sh.brew.fsnippet-cli.plist` 의 `Label` = `sh.brew.fsnippet-cli` (실측). 코드 상수는 `homebrew.mxcl.fsnippet-cli`.
-    - **연쇄 결과**: ① launchd 인스턴스 자살 → ② `brew services list` 가 `stopped` 로 남음 → ③ `open` 으로 먼저 뜬 인스턴스(접근성 권한 미승인 상태)가 영구 생존 → ④ 사용자가 접근성 토글을 켜도 CGEventTap 이 없어 **키 감지가 영구 불능**. Issue207 증상의 상위 원인.
-    - `SingleInstanceGuard.swift` 헤더 주석이 "과거 구현은 신규 프로세스가 무조건 exit 하여 `brew services list` 가 `stopped` 로 남는 문제 발생 → launchd-bootstrap 프로세스가 승자가 되도록 규칙 변경" 이라 명시하나, **라벨 불일치로 그 수정 자체가 무효화**됨.
-    - 부수 파손 (동일 원인): 메뉴바·설정의 서비스 상태 판정이 존재하지 않는 plist 경로를 조회하여 항상 미설치·미실행으로 표시될 것으로 추정 (검증 필요).
-* 구현 명세:
-    - **라벨 SSOT 단일화**: 하드코딩 6개소를 상수 1곳으로 통일. 대상 —
-        - `cli/fSnippetCli/Services/SingleInstanceGuard.swift:19` `launchdServiceLabel`
-        - `cli/fSnippetCli/Services/BrewServiceSync.swift:17` `serviceLabel`
-        - `cli/fSnippetCli/Data/SettingsObservableObject.swift:1170` `launchAgentLabel`, 동 1175~1176 plist 경로 2건
-        - `cli/fSnippetCli/MenuBarView.swift:36` plist 경로
-        - `cli/fSnippetCli/Managers/MenuBarManager.swift:295` `bootout` 인자
-    - **판정은 신·구 라벨 양쪽 허용**: Homebrew 버전에 따라 어느 쪽이든 올 수 있으므로 `XPC_SERVICE_NAME` 비교를 `sh.brew.<formula>` · `homebrew.mxcl.<formula>` 집합 매칭으로 변경. plist 경로 탐색도 두 후보를 순회.
-    - **로그 보강**: 판정 결과와 함께 기대 라벨·실제 XPC 값을 같이 남겨 다음 네임스페이스 변경 시 즉시 드러나게 함.
-    - **handoff 실패 가시화**: `BrewServiceSync.swift:93` 의 `handoff start 실패 … self-exit 취소, 기존 앱 유지` 는 현재 `logW` 로만 남아 사용자에게 보이지 않음. 이 상태가 곧 좀비 인스턴스이므로 메뉴바 경고 표시 등 사용자 인지 경로 필요.
-    - 검증: `brew services start fsnippet-cli` 후 `launchctl list | grep fsnippet` 에 PID 가 잡히고, 기존 open 기동분이 terminate 되며, `brew services list` 가 `started` 로 수렴하는지 확인.
-
 ## Issue207: [Permission] 접근성 권한 미승인으로 뜬 인스턴스가 권한 부여 후에도 CGEventTap 을 재생성하지 않음 (등록: 2026-09-05)
 * depends: Issue206
 * 목적: 앱이 접근성 권한 없는 상태로 시작하면 안내만 남기고 CGEventTap 생성을 포기하는데, 사용자가 안내대로 시스템 설정에서 권한을 켜도 **그 프로세스는 끝까지 살아나지 않음**. macOS 접근성 권한은 프로세스 시작 시점에 평가되고 소급 적용되지 않기 때문. 신규 설치자는 최초 실행 시 반드시 권한 미승인 상태이므로 **전원이 겪는 경로**임.
@@ -69,6 +49,33 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue206: [Brew] Homebrew 서비스 라벨 `homebrew.mxcl.*` → `sh.brew.*` 변경 미반영 — launchd 인스턴스가 자살하고 권한 없는 인스턴스가 영구 생존 (등록: 2026-09-05, 완료: 2026-09-05) (Hash: b638a1e) ✅
+* 목적: Homebrew 가 서비스 라벨 네임스페이스를 `homebrew.mxcl.<formula>` 에서 `sh.brew.<formula>` 로 변경했으나 코드는 구 라벨에 하드코딩되어 있었음. 그 결과 `SingleInstanceGuard` 가 launchd 기동 프로세스를 **non-launchd 로 오판**하여 승자 경로 대신 패자 경로를 타고 자살함. 판정과 실제 계약이 한쪽만 갱신되어 갈라진 전형적 사례.
+* 상세:
+    - **실측 근거 (2026-09-05 세션)**: 로그에 `[single-instance] non-launchd (PID 8363, XPC=sh.brew.fsnippet-cli) — 기존 인스턴스 유지 (PIDs: [1113]), 자신 exit`. XPC 가 명백히 brew 서비스 라벨인데 `non-launchd` 로 분류됨.
+    - `~/Library/LaunchAgents/sh.brew.fsnippet-cli.plist` 의 `Label` = `sh.brew.fsnippet-cli` (실측). 코드 상수는 `homebrew.mxcl.fsnippet-cli`.
+    - **연쇄 결과**: ① launchd 인스턴스 자살 → ② `brew services list` 가 `stopped` 로 남음 → ③ `open` 으로 먼저 뜬 인스턴스(접근성 권한 미승인 상태)가 영구 생존 → ④ 사용자가 접근성 토글을 켜도 CGEventTap 이 없어 **키 감지가 영구 불능**. Issue207 증상의 상위 원인.
+    - 진단 상세·계측 함정·버린 가설: [debug_TECH.md](cli/_doc_work/debug_TECH.md) 2026.09.05 항목 (gitignored 로컬 문서)
+* 구현 명세 (실제 반영):
+    - **라벨 SSOT 신설** — `BrewServiceLabel` (`cli/fSnippetCli/Services/BrewServiceSync.swift` 내 배치). 규칙 2줄: **판정은 신·구 집합 매칭 / 생성은 신 라벨 고정**. `matches(_:)` · `loadedLabel(in:)` · `launchAgentPaths` · `launchAgentDestPath` · `installedLaunchAgentPath` · `isLaunchAgentInstalled` · `plistSourcePaths` 제공.
+        - 별도 파일이 아니라 기존 파일에 둔 이유: `project.pbxproj` 가 소스를 개별 나열하므로 파일 추가는 XcodeGen 재생성을 동반함. 상수 하나를 위해 프로젝트 파일 전체를 재생성하지 않음.
+    - **판정 전환 (Swift 5파일)** — `SingleInstanceGuard.isLaunchedByLaunchd()` · `BrewServiceSync.isLaunchedByLaunchd()` · `isServiceLoaded()` 를 집합 매칭으로. `SettingsObservableObject` launchAtLogin 판정·plist 경로, `MenuBarView` launchAtLogin 판정, `MenuBarManager` bootout(신·구 양쪽) 수정.
+    - **로그 보강** — `single-instance` 판정 로그에 기대 라벨(`sh.brew.*|homebrew.mxcl.*`)을 함께 남겨 다음 네임스페이스 변경 시 로그 한 줄로 드러나게 함.
+    - **handoff 실패 가시화** — `logW` → `logE` 승격 + `BrewServiceSync.handoffFailed` 플래그 신설, `MenuBarView` 에 경고 항목 노출(클릭 시 로그 폴더 열기).
+    - **셸 3종 규칙 공유** — `fsc-config.sh` 에 `BREW_SERVICE_LABELS` 배열 + `brew_service_running`(신·구 검사) · `brew_service_loaded_label` · `brew_service_bootout_all` · `brew_service_installed_plist` 헬퍼. `kill.sh` · `fsc-deploy-brew.sh` 가 이를 경유하도록 전환.
+* 추가 발견 (이슈 등록 시 명세에 없던 파손 3건, 함께 수정):
+    - `fsc-config.sh` `brew_service_running()` 이 구 라벨만 검사 → 배포 스크립트가 실행 중인 서비스를 "정지" 로 오판.
+    - `SettingsObservableObject:767` launchAtLogin 판정이 구 라벨 plist 만 확인 → 신 네임스페이스 설치본을 "미등록" 으로 표시.
+    - **Cellar 소스 plist 의 `Label` 이 구 라벨 그대로** (Homebrew 6.0.21 실측) → 단순 copy 시 파일명(신)과 `Label`(구)이 어긋난 plist 가 설치되어 brew 관리 서비스와 라벨이 갈림. `rewriteLaunchAgentLabel()` 로 복사 후 `Label` 재작성 추가.
+    - 부수: handoff start 실패 시 `handoffInProgress` 가 `true` 로 남아 앱 수명 내내 `brew stop` 이 억제되던 버그 — 실패 시 플래그 복구.
+* 검증 (실측, 2026-09-05):
+    - `xcodebuild -configuration Release` **BUILD SUCCEEDED**, `brew local` 배포 **9 PASS / 0 FAIL**
+    - `launchctl list | grep fsnippet` → `55174 0 sh.brew.fsnippet-cli` (PID 확보)
+    - `brew services list` → `started`
+    - 로그 → `[brew-sync] onAppStart skip — launchd 기동 프로세스 (XPC_SERVICE_NAME=sh.brew.fsnippet-cli)` ← **판정 정상화의 결정적 증거** (수정 전 같은 자리는 `non-launchd … 자신 exit`)
+    - 로그 → `접근성 권한: 승인됨` / `총 등록된 단축키: 18개` / 스니펫 1999개 로드
+    - `open` 중복 기동 시 launchd 인스턴스 생존 유지, 좀비 프로세스 0건
+
 ## Issue203: [API] PUT /api/v2/settings/snapshot 이 명세와 달리 아무 설정도 복원하지 않는 no-op (등록: 2026-08-18, 완료: 2026-09-01) (Hash: 7853984) ✅
 * 목적: `api/openapi_v2.yaml` 은 PUT snapshot 을 "전체 설정 스냅샷 복원(import, 부분 허용)" 으로 명세하고 성공 응답을 규정하나, 구현부는 각 섹션에 대해 로그만 남기고 실제 반영 로직이 전무함. 호출측(paidApp import 기능 등)이 성공 응답을 받고도 설정이 하나도 복원되지 않는 **조용한 실패**. consultant-m 검토(2026-08-18)에서 발견.
 * 보류 해제 (2026-09-01): 등록 시 "App Store 제출 후 처리" 보류였으나 사용자 명시 지시로 착수·해결. 세션 2ed3956a(Issue972 조사) 맥락 반영.
