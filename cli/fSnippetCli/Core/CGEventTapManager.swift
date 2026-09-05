@@ -510,6 +510,21 @@ class CGEventTapManager {
                 DispatchQueue.main.async { [weak self] in
                     guard let self = self else { return }
                     self.removeTapForSafety()
+
+                    // Issue222: 안내 창보다 **목록 등록이 먼저**다. 사용자가 목록에서 앱을
+                    // 제거했다면 설정 창을 열어도 켤 항목이 없다. 시스템 권한 요청을 띄워
+                    // macOS 가 앱을 목록에 다시 올리게 한다. 30초 쿨다운으로 반복 억제.
+                    let now = Date()
+                    if now.timeIntervalSince(self.lastPermissionPromptAt)
+                        > Self.permissionPromptCooldown
+                    {
+                        self.lastPermissionPromptAt = now
+                        self.accessibilityService.requestAccessibilityPrompt()
+                        logI(
+                            "♿️ [CGEventTapManager] 시스템 권한 요청 표시 — 접근성 목록에 "
+                                + "앱을 등록시킨다(목록에서 제거된 경우 대비)")
+                    }
+
                     // Issue221: 키보드만 돌려주고 끝내면 사용자는 **왜** 스니펫이 죽었는지
                     // 알 수 없다. 부팅 때와 같은 안내 창을 띄워 등록 경로를 알려준다.
                     // 중복 표시는 Presenter 가 막는다.
