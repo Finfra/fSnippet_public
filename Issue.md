@@ -43,7 +43,22 @@ date: 2026-04-07
     - **rsync 화이트리스트**(`_public`): `.claude/` · `CLAUDE.md` · `cli/_doc_arch/` · `cli/_doc_base/` · `cli/_doc_work/` · `noteForHuman.md`. 제외: `graphify-out/` · `__pycache__/` · `cli/logs/` · `cli/_tool/qa/results/` · `.zed/` · `.DS_Store` · `_doc_work/z_log`
     - **충돌 방지**: 한 이슈는 한 머신에서만 만진다. `Issue.md` 는 코드와 커밋을 분리한다(양쪽에서 섹션을 옮기면 merge 가 어려워진다)
     - 검증: jma 양쪽 repo 가 jm4 와 동일 HEAD · `git status` 깨끗 · `bash _tool/run.sh --no-sign` 통과
-* 남은 작업 (사람만 가능): jma 에서 **접근성 권한**(fSnippetCli) 승인. 미승인 상태라 cliApp REST(`:3015`)가 뜨지 않아 검증이 9단계 중 8단계에서 멈춘다. ⚠️ 소스 정상화를 **먼저** 끝내고 승인해야 옛 버전으로 이미 고친 버그를 다시 만나지 않는다
+* Phase 1 완료 (2026-09-06 00:40) — jma 양쪽 repo 가 jm4 와 동일 HEAD(`7a61d243` · `87c50af`), 워킹트리에 머신 로컬 에디터 설정만 잔류. `git fetch jma` 회수 경로 개통 확인
+* Phase 2 결과 (2026-09-06 01:15~01:40) — **빌드는 성공, 검증은 화면 잠금에 막힘**:
+    - ✅ paidApp 빌드·배포 (01:15:05, `/Applications/_nowage_app`) · ✅ cliApp 빌드·brew 설치 (01:16:56) · ✅ `brew services` → `started`
+    - ❌ **cliApp 이 기동 중 영구 블록** — `sample` 실측(2287 샘플 전부 동일 스택): `AppSettingManager.shared`(:80) → `.load()`(:158) → `Logger.shared`(:49) → `.createLogFileIfNeeded()`(:128) → `String.write(to:atomically:)` → **커널 `open()` 에서 반환 없음**. 11분 이상 같은 자리. 크래시 리포트 0건, 로그는 01:13 에서 멈춤
+    - ❌ REST(`:3015`) 무응답 — 위 블록으로 APIServer 까지 도달하지 못함
+    - ❌ paidApp 스크린샷 — **jma 가 로그인 잠금 화면**(`CGSSessionScreenIsLocked: True`). 캡처하면 잠금 화면만 찍힌다
+    - ⚠️ 이후 jma 가 슬립에 진입해 SSH 접속 불가(3회 재시도 실패). `caffeinate -u -t 2` 는 2초만 깨운다
+* 원인 판정 (2026-09-06):
+    - **화면 잠금이 1차 원인**이다. 잠금 상태에서는 GUI 세션 자원과 TCC 다이얼로그가 막히고, `~/Documents` 는 macOS 보호 폴더라 접근 승인이 필요한데 그 창을 띄울 수 없어 `open()` 이 무한 대기한 것으로 본다
+    - ⚠️ **반증된 가설**: iCloud 문서 동기화 — `FXICloudDriveDesktop = 0`, 로그 디렉토리는 로컬 `/dev/disk3s5`. 다시 조사하지 말 것
+    - 🔑 **`Logger` 설계 취약점 (별도 이슈 후보)**: 로그 파일 생성이 **메인 스레드 동기 I/O** 이고 `AppSettingManager.shared` 초기화가 그것을 기다린다. 파일시스템이 느리거나 막히면 **앱 전체가 기동조차 못 한다**. 타임아웃도 폴백도 없다
+* 🔑 **tmux 경유 캡처가 된다 (fSnippet#Issue976 부분 반증)**: `ssh jma 'screencapture'` 는 `could not create image from display` 로 실패하지만, **tmux 세션을 경유하면 성공**한다(504KB 실측). tmux 서버가 iTerm GUI 세션에서 기동돼 화면 기록 권한을 상속하기 때문. Issue976 이 *"GUI 승인 필요"* 로 남긴 항목은 **승인 없이 우회 가능**하다. 원격 작업은 SSH 직접 실행이 아니라 tmux 경유로 띄운다
+* ⚠️ **위임 세션 함정 2건 (다음에 반복 금지)**:
+    - `-p` 세션이 빌드를 백그라운드로 돌리고 *"알림이 오면 이어서 하겠다"* 며 종료했다. `-p` 는 1-shot 이라 이어받기가 성립하지 않는다 → 프롬프트에 **백그라운드 금지·중간 종료 금지**를 명시해야 한다
+    - 완료 감시를 `tmux capture-pane | grep "===CLAUDE_DONE"` 으로 걸면 **화면에 남은 명령 문자열 자체가 매치**해 즉시 오탐한다. 프로세스 생존(`pgrep`)으로 판정할 것. 같은 이유로 `pgrep -f "MacOS/fSnippetCli"` 도 프롬프트에 그 문자열이 있으면 claude 자신을 잡는다
+* 남은 작업 (사람만 가능): jma 를 깨워 **로그인 잠금 해제**. 그 뒤라야 ① cliApp 기동 블록 해소 여부 ② 접근성 권한 상태 ③ paidApp 스크린샷이 모두 판정 가능하다. ⚠️ 소스 정상화는 이미 끝났으므로 최신 버전으로 검증된다
 * 관련: fSnippet#Issue976(jma 파이프라인 정상화 — 본 이슈의 선행) · prj5 `bin/sync-jma`·`hosts/jma/sync-policy.yml`(동기화 인프라 SSOT)
 * 후속 후보: `_public/Issue.md` 가 `.gitignore` 에 있는데도 **tracked 라 공개 repo 에 올라간다**(이미 추적 중인 파일에는 gitignore 가 무효). 글로벌 결정 *"Issue.md 는 공개 미러 반출 금지"* 와 어긋남 — 본 이슈 범위 밖, 별도 판단 필요
 
