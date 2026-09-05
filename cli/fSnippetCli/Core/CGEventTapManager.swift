@@ -491,11 +491,16 @@ class CGEventTapManager {
         // and until it returns the entire HID stream is stalled. `lastCallbackMark` records
         // the last checkpoint entered, so a slow log names the culprit instead of guessing.
         let cbStart = CFAbsoluteTimeGetCurrent()
+        var cbKeyCode: UInt16 = 9999  // Issue214: defer 로그용 (아직 미파싱이면 9999)
         lastCallbackMark = "enter"
         noteCallbackEnter(at: cbStart)  // Issue213: 워치독이 읽는 상태
         defer {
             noteCallbackExit()
             let ms = (CFAbsoluteTimeGetCurrent() - cbStart) * 1000.0
+            // Issue214 진단: 콜백이 "어디로" 빠져나가는지가 유일하게 남은 미지수다.
+            // stall 도 아니고 메인 정지도 아닌데 [Typing] 이 안 찍히므로, 종료 지점을
+            // 무조건 남긴다. 키 입력당 1줄이라 재현 구간에서만 부담이 있다.
+            logD("💉 ⚙️ [cb] exit mark=\(lastCallbackMark) kc=\(cbKeyCode) type=\(type.rawValue) \(String(format: "%.1f", ms))ms")
             if ms > Self.slowCallbackThresholdMs {
                 logW(
                     "💉 ⚙️ ⏱️ [CGEventTapManager] SLOW callback "
@@ -536,16 +541,19 @@ class CGEventTapManager {
         noteHealthyEvent()
 
         let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
+        cbKeyCode = keyCode
 
         // ✅ Issue 524: fSnippet 자체에서 발생시킨 이벤트 필터링하여 무한 루프 방지
         // 1. UserData 태그 확인 (가장 확실함)
         if event.getIntegerValueField(.eventSourceUserData) == 54321 {
+            setMark("exit.selfTag")
             return Unmanaged.passUnretained(event)
         }
 
         // 2. PID 기반 필터링 (보조)
         let senderPID = event.getIntegerValueField(.eventSourceUnixProcessID)
         if senderPID == Int64(ProcessInfo.processInfo.processIdentifier) {
+            setMark("exit.selfPID")
             return Unmanaged.passUnretained(event)
         }
 
@@ -607,15 +615,18 @@ class CGEventTapManager {
         }
 
         // Pass through 확인 (Passthrough Check)
-        setMark("isAppActive")
-        if delegate.isAppActive() {
+        let appActive = delegate.isAppActive()
+        setMark("isAppActive=\(appActive)")
+        if appActive {
             if AboutWindowManager.shared.isAboutWindowVisible {
                 NSLog("[CGEventTap] About 창 활성 중 - keyCode: \(keyCode), type: \(type.rawValue)")
             }
             if delegate.isCurrentlyReplacing() {
+                setMark("exit.appActive.replacing.SWALLOW")
                 logD("💉 ⚙️ [CGEventTapManager] Replacing (App Active) - Blocking Key: \(keyCode)")
                 return nil
             }
+            setMark("exit.appActive.pass")
             return Unmanaged.passUnretained(event)
         }
 
@@ -786,6 +797,7 @@ class CGEventTapManager {
         let ghostKeys: Set<UInt16> = [
             82, 83, 84, 85, 86, 87, 88, 89, 91, 92, 65, 67, 69, 75, 78, 81, 95,
         ]
+        setMark("nearEnd.ghostCheck")
         if ghostKeys.contains(keyCode) {
             if let nsEvent = timedNSEvent(event, mark: "ghostKey") {
                 DispatchQueue.main.async { delegate.handleGhostKey(nsEvent) }

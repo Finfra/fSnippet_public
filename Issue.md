@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 213
+* Issue HWM: 214
 * Checkpoints:
       - 2026.07.20: d372aff (_doc_arch 정합성 검토(Issue193) 진행 중 작업 트리 스냅샷)
       - 2026.07.19: a494408 (Fix Issue192 Edit Mode ⌘S 스니펫 등록 오작동 회귀)
@@ -27,6 +27,26 @@ date: 2026-04-07
 # 🚧 진행중
 
 # 📕 중요
+
+## Issue214: [Critical][KeyEvent] stall 도 메인 정지도 아니다 — 콜백 종료 지점 전수 계측 (등록: 2026-09-05)
+* depends: Issue213
+* 목적: Issue212·213 의 가설이 **둘 다 실측으로 반증**됐다. 콜백은 멈추지 않고 메인 큐도 살아 있는데 입력만 안 된다. 추측을 중단하고 **콜백이 어느 지점으로 빠져나가는지**를 전수 기록한다.
+* 상세:
+    - **실측 근거 (2026-09-05 21:36, 커밋 `7bd0916` 워치독 배포본)**:
+        - `21:36:18.854` `Event Tap Disabled (timeout)` → `.962` `Tap re-enabled`
+        - `21:36:22.161` `Health check passed — tap alive` ← **3초 뒤 asyncAfter 가 실행됐다 = 메인 큐 정상**
+        - `21:36:23.690` `Healthy event received` ← **콜백이 키 이벤트를 받았다**
+        - **`[Watchdog] 반환하지 않는다` 로그 0건** ← 콜백이 1.5초 이상 멈춘 적 없다
+        - 그런데 **`[Typing]` 은 0건** — 콜백이 정상 반환하면서 이벤트를 delegate 로 넘기지 않는다
+    - 즉 **stall 이 아니라 조기 종료(early return)** 다. 어느 분기로 나가는지가 유일한 미지수
+* 구현 명세:
+    - **`defer` 에서 종료 지점을 무조건 로그**: `[cb] exit mark=<지점> kc=<키> type=<타입> <소요>ms`. 키 입력당 1줄이라 재현 구간에서만 부담
+    - 주요 분기에 mark 부여 — `exit.selfTag`·`exit.selfPID`·`isAppActive=<bool>`·`exit.appActive.replacing.SWALLOW`·`exit.appActive.pass`·`shortcut537.isAnyShortcut`·`nearEnd.ghostCheck`
+    - **`isAppActive` 는 값째로 기록** — 이 플래그가 true 로 고착되면 모든 키가 `isCurrentlyReplacing()` 분기를 타므로 판정에 직결
+    - **정상 상태 기준선 확보 완료 (21:41)**: `isAppActive=false`(flagsChanged) · `shortcut537.isAnyShortcut`(Space) · `nearEnd.ghostCheck`(문자키), 전부 0.0~0.2ms
+    - **판정**: 프리즈 시 mark 분포가 기준선과 어떻게 달라지는가. `SWALLOW` 가 늘면 삼킴, `isAppActive=true` 로 고착되면 상태 오염, mark 자체가 안 찍히면 콜백 미호출(tap 이 이벤트를 못 받음)
+    - 원격 즉시 진단: `~/.bin/fsnippet-freeze-diag` (mark 분포 + 최근 로그 + sample 스택 + 복구 안내)
+
 
 ## Issue213: [Critical][KeyEvent] 메인 스레드가 멈추면 메인 스레드 위의 방어도 함께 멈춘다 — off-main 워치독 (등록: 2026-09-05)
 * depends: Issue212
