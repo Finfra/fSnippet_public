@@ -196,9 +196,19 @@ class CGEventTapManager {
         else {
             // Issue211: without arming recovery here, a failed creation leaves the app
             // permanently without a tap — silent and unrecoverable short of a restart.
+            // Issue223: `tapCreate` 실패는 **권한 없음의 확정 증거**다. 조회 API 가 전부
+            // 캐시에 속는 상황에서 이것만은 거짓이 아니다. 캐시된 판정을 여기서 덮어쓴다.
             logE(
                 "💉 ⚙️ ❌ [CGEventTapManager] Failed to create CGEventTap "
-                    + "(likely missing accessibility permission) — arming recovery")
+                    + "— 접근성 권한 없음 확정 (조회 API 가 무엇이라 하든 이 실패가 사실이다)")
+            lastKnownAccess = false
+
+            // Issue223: 목록 재등록은 **새 프로세스의 첫 tap 생성 시도**에서만 일어난다.
+            // 같은 프로세스가 몇 번을 재시도해도 macOS 는 목록에 다시 올려주지 않는다 —
+            // 사용자가 관찰한 "서비스를 시작했을 때만 항목이 보인다" 가 바로 이것이다.
+            // 그래서 이 경우 안내 창의 **재시작**이 유일한 복구 경로다.
+            AccessibilityGuidePresenter.show(
+                service: accessibilityService, emphasizeRestart: true)
             startGrantWatchdog()
             return
         }
@@ -322,12 +332,16 @@ class CGEventTapManager {
     /// `.listenOnly`(가로채지 않음) 로 만들고, 즉시 무효화해 버린다. run loop 에 붙이지도
     /// 않으므로 콜백은 호출되지 않는다.
     static func probeAccessibilityByTapCreation() -> Bool {
+        // ⚠️ Issue223: `eventsOfInterest: 0` 은 **아무 이벤트도 구독하지 않으므로 권한이
+        // 필요 없다.** 그래서 권한이 없어도 생성에 성공했고, probe 가 계속 "허용" 이라고
+        // 거짓말했다(실측 2026-09-05 23:21 — 실제 tapCreate 는 실패하는데 probe 는 granted).
+        // keyDown 을 실제로 구독해야 macOS 가 권한을 확인한다.
         guard
             let probe = CGEvent.tapCreate(
                 tap: .cgSessionEventTap,
                 place: .tailAppendEventTap,
                 options: .listenOnly,
-                eventsOfInterest: 0,
+                eventsOfInterest: CGEventMask(1 << CGEventType.keyDown.rawValue),
                 callback: { _, _, event, _ in Unmanaged.passUnretained(event) },
                 userInfo: nil)
         else {

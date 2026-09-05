@@ -48,7 +48,10 @@ enum AccessibilityGuidePresenter {
         }
     }
 
-    static func show(service: AccessibilityService) {
+    /// - Parameter emphasizeRestart: Issue223 — 접근성 목록에서 항목이 사라진 경우.
+    ///   이때는 설정 창을 열어도 켤 대상이 없고, **재시작만이 목록에 항목을 되돌린다.**
+    ///   목록 재등록은 새 프로세스의 첫 tap 생성 시도에서만 일어나기 때문이다.
+    static func show(service: AccessibilityService, emphasizeRestart: Bool = false) {
         // Issue221: 이미 떠 있으면 새로 띄우지 않는다.
         presentLock.lock()
         if isPresenting {
@@ -75,14 +78,32 @@ enum AccessibilityGuidePresenter {
                 bodyKey,
                 comment: "Alert body explaining how to grant accessibility permission"
             )
-            alert.addButton(withTitle: NSLocalizedString(
-                "Open System Settings",
-                comment: "Button to open System Settings"
-            ))
-            alert.addButton(withTitle: NSLocalizedString(
-                "Restart Now",
-                comment: "Button to restart the app so the permission takes effect"
-            ))
+            // Issue223: 목록에서 항목이 사라진 경우 설정 창은 소용이 없다 — 재시작이 기본.
+            // NSAlert 는 첫 번째로 추가한 버튼이 기본 버튼(오른쪽)이 된다.
+            if emphasizeRestart {
+                alert.informativeText +=
+                    "\n\n"
+                    + NSLocalizedString(
+                        "If fSnippetCli is missing from the Accessibility list, restarting is the only way to get it back — macOS only re-registers the app when a fresh process first requests access.",
+                        comment: "Extra guidance when the app is absent from the Accessibility list")
+                alert.addButton(withTitle: NSLocalizedString(
+                    "Restart Now",
+                    comment: "Button to restart the app so the permission takes effect"
+                ))
+                alert.addButton(withTitle: NSLocalizedString(
+                    "Open System Settings",
+                    comment: "Button to open System Settings"
+                ))
+            } else {
+                alert.addButton(withTitle: NSLocalizedString(
+                    "Open System Settings",
+                    comment: "Button to open System Settings"
+                ))
+                alert.addButton(withTitle: NSLocalizedString(
+                    "Restart Now",
+                    comment: "Button to restart the app so the permission takes effect"
+                ))
+            }
             alert.addButton(withTitle: NSLocalizedString(
                 "Later",
                 comment: "Button to dismiss the alert"
@@ -90,9 +111,9 @@ enum AccessibilityGuidePresenter {
 
             switch alert.runModal() {
             case .alertFirstButtonReturn:
-                service.openAccessibilitySettings()
+                if emphasizeRestart { restartNow() } else { service.openAccessibilitySettings() }
             case .alertSecondButtonReturn:
-                restartNow()
+                if emphasizeRestart { service.openAccessibilitySettings() } else { restartNow() }
             default:
                 break
             }
