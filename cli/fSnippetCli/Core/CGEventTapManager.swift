@@ -90,6 +90,22 @@ class CGEventTapManager {
     // 실제로 tap 을 만들어 보는 것만이 유일하게 믿을 수 있는 판정이다.
     private var lastProbeAt: CFAbsoluteTime = 0
     private static let probeInterval: CFAbsoluteTime = 2.0
+
+    // Issue220: 두 입력 경로의 **비대칭**으로 권한 상실을 감지한다.
+    //
+    // 이 앱은 키를 두 경로로 받는다.
+    //   * CGEventTap 콜백        — 단축키·트리거 감지
+    //   * NSEvent 글로벌 모니터  — 실제 타이핑 버퍼링 (`[Typing]` 로그)
+    //
+    // 접근성 권한이 사라지면 **NSEvent 글로벌 모니터만 죽는다.** CGEventTap 콜백은
+    // 계속 호출된다(실측 2026-09-05: `[cb] exit` 는 흐르는데 `[Typing]` 은 0건).
+    // 조회 API 가 전부 revoke 를 감추는 상황에서, 이 비대칭이야말로 **관측 가능한
+    // 유일한 증거**다. tap 은 받는데 모니터가 못 받으면 권한이 없는 것이다.
+    private var tapKeyDownSinceCheck = 0
+    private var monitorKeySinceCheck = 0
+    private var lastAsymmetryCheckAt: CFAbsoluteTime = 0
+    private static let asymmetryWindow: CFAbsoluteTime = 3.0
+    private static let asymmetryMinTapKeys = 3
     private static let permissionPromptCooldown: TimeInterval = 30.0
     private static let watchdogInterval: TimeInterval = 0.5
     private static let stallThreshold: CFAbsoluteTime = 1.5
@@ -401,6 +417,16 @@ class CGEventTapManager {
         callbackStateLock.unlock()
     }
 
+    /// Issue220: NSEvent 글로벌 모니터가 키를 받았음을 알린다.
+    ///
+    /// 이 모니터는 접근성 권한이 있어야만 이벤트를 받는다. 그래서 "tap 은 받는데 이쪽은
+    /// 못 받는" 상태가 곧 권한 상실의 증거가 된다.
+    func noteMonitorKeyEvent() {
+        callbackStateLock.lock()
+        monitorKeySinceCheck += 1
+        callbackStateLock.unlock()
+    }
+
     /// 콜백 안의 현재 위치를 기록한다 — 멈췄을 때 어디였는지가 유일한 단서다.
     private func setMark(_ mark: String) {
         lastCallbackMark = mark
@@ -456,6 +482,26 @@ class CGEventTapManager {
                         + "\(access ? "허용" : "없음")")
                 self.lastKnownAccess = access
             }
+            // ✅ Issue220: 경로 비대칭 판정 — 조회 API 가 전부 실패한 뒤 남은 관측 증거.
+            if now - self.lastAsymmetryCheckAt >= Self.asymmetryWindow {
+                self.lastAsymmetryCheckAt = now
+                self.callbackStateLock.lock()
+                let tapN = self.tapKeyDownSinceCheck
+                let monN = self.monitorKeySinceCheck
+                self.tapKeyDownSinceCheck = 0
+                self.monitorKeySinceCheck = 0
+                self.callbackStateLock.unlock()
+
+                if tapN >= Self.asymmetryMinTapKeys, monN == 0 {
+                    logE(
+                        "💉 ⚙️ 🚨 [Watchdog] 입력 경로 비대칭 감지 — CGEventTap 은 keyDown \(tapN)건을 "
+                            + "받았는데 NSEvent 글로벌 모니터는 0건이다. 이 모니터는 접근성 권한이 "
+                            + "있어야만 동작하므로 **권한 상실로 확정**한다. tap 을 제거해 키보드를 "
+                            + "되돌린다.")
+                    access = false
+                }
+            }
+
             if !access, let deadTap = self.cgEventTap {
                 logE(
                     "💉 ⚙️ 🚨 [Watchdog] 접근성 권한 없음 — tap 을 즉시 끄고 제거한다 "
@@ -698,6 +744,14 @@ class CGEventTapManager {
 
         // Issue208: a real event proves the tap is functional again.
         noteHealthyEvent()
+
+        // Issue220: tap 이 받은 keyDown 을 센다. NSEvent 모니터 쪽 카운터와 비교해
+        // 권한 상실을 판정한다.
+        if type == .keyDown {
+            callbackStateLock.lock()
+            tapKeyDownSinceCheck += 1
+            callbackStateLock.unlock()
+        }
 
         let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
         cbKeyCode = keyCode

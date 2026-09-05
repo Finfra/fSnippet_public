@@ -708,6 +708,10 @@ class KeyEventProcessor: CGEventTapManagerDelegate {
             [weak self] event in
             guard let self = self else { return }
 
+            // Issue220: 이 모니터는 접근성 권한이 있어야만 이벤트를 받는다. 도달했다는
+            // 사실 자체가 권한 생존의 증거이므로, 스킵 조건보다 **먼저** 센다.
+            self.cgEventTapManager.noteMonitorKeyEvent()
+
             // fSnippet이 활성화된 상태에서는 Local Monitor에서 처리하므로 중복 방지
             if NSApplication.shared.isActive {
                 logV("🎮 [Issue75] Global Monitor - fSnippet 활성 → 스킵")
