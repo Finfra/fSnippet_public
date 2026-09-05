@@ -14,36 +14,19 @@ date: 2026-04-07
       - 2026.07.09: 2e15877 (Fix(fSnippet#Issue949 후속) popupRows/searchScope/width/previewWidth stale-mirror 리싱크 추가)
 
 # 🤔 결정사항
-* `~/_git/__all/fSnippet/_doc_arch/paid_cli_protocol.md` 기준 진행(상위 메인 레포, paidApp앱과 연동)
-* `cli/_doc_arch/menuBar_enhance.md` 기준 진행(메뉴바, 로컬 SSOT — gitignored)
+
+결정은 **각 정본 문서**에 산다 — 여기 사본을 두지 않는다(2026.09.02 정리).
+
+| 결정 | 정본 |
+| :--- | :--- |
+| paidApp↔cliApp 연동은 상위 레포 프로토콜 문서 기준 | [paid_cli_protocol.md](../_doc_arch/paid_cli_protocol.md) — 상위 메인 레포 |
+| 메뉴바는 `cli/_doc_arch/menuBar_enhance.md` 기준 (로컬 SSOT · gitignored) | [menuBar_enhance.md](cli/_doc_arch/menuBar_enhance.md) |
 
 # 🌱 이슈후보
 
 # 🚧 진행중
 
 # 📕 중요
-## Issue205: [Settings] cliApp UI 미러의 전체 덤프로 REST 로 저장한 history 설정이 소실됨 (등록: 2026-08-31)
-* 목적: REST 로 `history.*` 설정을 바꾼 뒤 특정 필드가 낀 PATCH 가 한 번 더 들어오면 **앞서 바꾼 값이 앱 시작 시점 값으로 소실**된다. 사용자 증상은 "검색창 입력 언어 강제" 가 원복되는 것으로 나타났다 (메인 레포 fSnippet#Issue972 의 잔여 원인 ②)
-* ⏸️ **착수 보류 — App Store 제출 후 처리 (런타임 동작 변경)**: `release/1.1.1` 심사 전 런타임 동작 변경을 피한다. Issue203·fSnippet#Issue968 과 동일 정책. 제출·심사 통과 후 착수. (2026-08-31 사용자 판정)
-* **원인 확정** (prj15 2026-09-01 실측 — 본 이슈의 정본 근거):
-    - cliApp `SettingsObservableObject` 가 history 미러를 **앱 시작 시 1회만 로드**하고 REST PATCH 로는 갱신하지 않는다
-    - `APIRouter.handleV2PatchHistory`(L2942~2947, Issue900) 가 `showStatusBar`·`showPreview`·`imageDetailIsFloating` **3개만** 미러에 대입하는데, 이 셋은 `didSet → syncHistorySetting()` 을 갖고 그 함수가 **stale 구조체 전체를 `_config.yml` 에 덤프**한다 (L1100~1135)
-    - 따라서 **위 3개 중 하나가 낀 PATCH 가 트리거**이고, 덤프되는 값은 *앱 시작 시점* 스냅샷이다
-* 실측 근거 (prj15, cliApp 단독 · paidApp 종료):
-    - `PATCH {force:US}` 1회 후 **추가 요청 없이 20초 관찰 → 유지**
-    - `PATCH {force:US, moveDuplicatesToTop}` 후 20초 → 유지. 이어서 `PATCH {showStatusBar:true}` 1개만 → **t=1s 즉시 원복**
-    - 필드별 예측 **6/6 적중** — 위 3개가 낀 PATCH 만 오염되고 `moveDuplicatesToTop`·`ignoreImages`·`viewerHotkey` 는 유지
-    - **결정적 대조**: `force=US` 저장 후 **cliApp 재시작**(미러가 US 를 로드) → 동일한 `showStatusBar` PATCH 로 **원복되지 않음**
-* ⚠️ **영향 범위는 forceInputSource 에 국한되지 않는다 — 심각도 상향**: `retentionDays.plainText` 를 45 로 PATCH 후 `showStatusBar` PATCH → **90 으로 소실**. **REST 로 변경한 history 설정 전부**가 대상이다
-* ⚠️ **폐기된 가설 2건 — 다시 조사하지 말 것**:
-    - 등록본(2026-08-31): "PATCH 가 부분 갱신이 아니라 stale 스냅샷 전체 flush" → **전체 덤프라는 방향은 옳았으나 위치가 틀렸다**. `handleV2PatchHistory` 의 `if let v = patch.X` 부분 갱신과 `PreferencesManager.batchUpdate` 는 둘 다 정상이며, 범인은 그 밖의 `SettingsObservableObject` 다
-    - 1차 정정본(2026-08-31, prj25): "추가 요청 없이 시간 경과만으로 t=3s 에 자동 원복된다(지연 flush)" → **반증됨**. 20초 관찰에서 유지된다. 당시 관측은 **직전 실험의 `showStatusBar` PATCH 로 조건이 오염된 상태**에서 나온 것이었다
-* 구현 명세:
-    - `SettingsObservableObject` 의 history 미러가 **저장 직전 최신 상태를 반영**하도록 고친다. 선택지는 ① `syncHistorySetting()` 이 덤프 대신 변경 필드만 반영 ② PATCH 경로에서 미러 전체를 재동기화 ③ 미러 제거 — 셋 중 택일하되 **전체 덤프를 남긴 채 필드만 추가하는 미봉책은 금지**(대입 필드가 늘 때마다 같은 버그가 재발한다)
-    - 검증은 **필드 교차 조합**으로 한다: `retentionDays.plainText`·`forceInputSource` 등을 바꾼 뒤 `showStatusBar`·`showPreview`·`imageDetailIsFloating` 각각으로 PATCH → 전부 유지되어야 함
-    - ⚠️ 단일 PATCH 후 시간 관찰만 하는 검증은 **이 버그를 못 잡는다** — 트리거가 시간이 아니라 특정 필드이기 때문이다. 1차 시도(fSnippet#Issue972 의 `ef45f2dc` → revert `1c285c33`)가 그 함정에 빠졌다
-* 재확인 (2026-09-01, brew 1.1.1 신규 빌드 · 타 세션 관찰): PUT `/settings/snapshot`(Issue203) 경유 실측에서도 동일 재현 — **history 키(`retentionDays.plainText` 45→90)만 원복**되고 popup(`snippet_popup_rows`)·performance(`performance.key_buffer_size`) 키는 t=15s 까지 유지됨. 되쓰기 범위가 **history 미러에 국한**됨을 지지하는 관찰이며, 위 원인 확정(`SettingsObservableObject` 의 history 미러 전체 덤프)과 정합한다
-* 관련: 메인 레포 fSnippet#Issue972 — 원인 ①(paidApp 읽기 누락)은 `721c74e5` 로 해결 완료. 본 이슈가 잔여 ②이며, Issue972 본문은 `da082083` 에서 위 실측으로 2차 정정 완료
 
 # 📙 일반
 
@@ -1499,16 +1482,51 @@ date: 2026-04-07
 
 # ⏸️ 보류
 
-## Issue156: [Runtime/Karabiner] `..0{keypad_comma}` 입력 차단 — bufferClear `.` 충돌 (등록: 2026-05-27, 보류: 2026-09-01)
-* 목적: noteForHuman.md line 31 — 매칭 실패
-* 보류 사유: 사용자 판정 (2026-09-01). 원인 규명에 Karabiner 외부 설정(`~/.config/karabiner/karabiner.json`) 확인이 선행되어야 하는데 그 조사가 아직 이뤄지지 않았다
-* 상세:
-    - `appSetting.json` bufferClearKeys 에 `.` 포함 → `.` 입력 시 버퍼 클리어. `..0` 시퀀스 입력 자체 불가
-    - doc `..` 은 Karabiner remap (`.` → `,`) 입력 시각화 추정. 매칭 대상은 `_Bullets/0===0.txt` (룰 prefix=`,,` suffix=`{keypad_comma}`) → `,,0{keypad_comma}`
+## Issue205: [Settings] cliApp UI 미러의 전체 덤프로 REST 로 저장한 history 설정이 소실됨 (등록: 2026-08-31, 보류 이동: 2026-09-01)
+* 목적: REST 로 `history.*` 설정을 바꾼 뒤 특정 필드가 낀 PATCH 가 한 번 더 들어오면 **앞서 바꾼 값이 앱 시작 시점 값으로 소실**된다. 사용자 증상은 "검색창 입력 언어 강제" 가 원복되는 것으로 나타났다 (메인 레포 fSnippet#Issue972 의 잔여 원인 ②)
+* ⏸️ **착수 보류 — App Store 제출 후 처리 (런타임 동작 변경)**: `release/1.1.1` 심사 전 런타임 동작 변경을 피한다. Issue203·fSnippet#Issue968 과 동일 정책. 제출·심사 통과 후 착수. (2026-08-31 사용자 판정)
+* **원인 확정** (prj15 2026-09-01 실측 — 본 이슈의 정본 근거):
+    - cliApp `SettingsObservableObject` 가 history 미러를 **앱 시작 시 1회만 로드**하고 REST PATCH 로는 갱신하지 않는다
+    - `APIRouter.handleV2PatchHistory`(L2942~2947, Issue900) 가 `showStatusBar`·`showPreview`·`imageDetailIsFloating` **3개만** 미러에 대입하는데, 이 셋은 `didSet → syncHistorySetting()` 을 갖고 그 함수가 **stale 구조체 전체를 `_config.yml` 에 덤프**한다 (L1100~1135)
+    - 따라서 **위 3개 중 하나가 낀 PATCH 가 트리거**이고, 덤프되는 값은 *앱 시작 시점* 스냅샷이다
+* 실측 근거 (prj15, cliApp 단독 · paidApp 종료):
+    - `PATCH {force:US}` 1회 후 **추가 요청 없이 20초 관찰 → 유지**
+    - `PATCH {force:US, moveDuplicatesToTop}` 후 20초 → 유지. 이어서 `PATCH {showStatusBar:true}` 1개만 → **t=1s 즉시 원복**
+    - 필드별 예측 **6/6 적중** — 위 3개가 낀 PATCH 만 오염되고 `moveDuplicatesToTop`·`ignoreImages`·`viewerHotkey` 는 유지
+    - **결정적 대조**: `force=US` 저장 후 **cliApp 재시작**(미러가 US 를 로드) → 동일한 `showStatusBar` PATCH 로 **원복되지 않음**
+* ⚠️ **영향 범위는 forceInputSource 에 국한되지 않는다 — 심각도 상향**: `retentionDays.plainText` 를 45 로 PATCH 후 `showStatusBar` PATCH → **90 으로 소실**. **REST 로 변경한 history 설정 전부**가 대상이다
+* ⚠️ **폐기된 가설 2건 — 다시 조사하지 말 것**:
+    - 등록본(2026-08-31): "PATCH 가 부분 갱신이 아니라 stale 스냅샷 전체 flush" → **전체 덤프라는 방향은 옳았으나 위치가 틀렸다**. `handleV2PatchHistory` 의 `if let v = patch.X` 부분 갱신과 `PreferencesManager.batchUpdate` 는 둘 다 정상이며, 범인은 그 밖의 `SettingsObservableObject` 다
+    - 1차 정정본(2026-08-31, prj25): "추가 요청 없이 시간 경과만으로 t=3s 에 자동 원복된다(지연 flush)" → **반증됨**. 20초 관찰에서 유지된다. 당시 관측은 **직전 실험의 `showStatusBar` PATCH 로 조건이 오염된 상태**에서 나온 것이었다
 * 구현 명세:
-    - Karabiner 설정 확인 (`~/.config/karabiner/karabiner.json`)
-    - remap 작동 시 매칭 실패 원인 별도 조사. 미작동 시 doc 표기 수정 또는 bufferClear 정책 재검토
+    - `SettingsObservableObject` 의 history 미러가 **저장 직전 최신 상태를 반영**하도록 고친다. 선택지는 ① `syncHistorySetting()` 이 덤프 대신 변경 필드만 반영 ② PATCH 경로에서 미러 전체를 재동기화 ③ 미러 제거 — 셋 중 택일하되 **전체 덤프를 남긴 채 필드만 추가하는 미봉책은 금지**(대입 필드가 늘 때마다 같은 버그가 재발한다)
+    - 검증은 **필드 교차 조합**으로 한다: `retentionDays.plainText`·`forceInputSource` 등을 바꾼 뒤 `showStatusBar`·`showPreview`·`imageDetailIsFloating` 각각으로 PATCH → 전부 유지되어야 함
+    - ⚠️ 단일 PATCH 후 시간 관찰만 하는 검증은 **이 버그를 못 잡는다** — 트리거가 시간이 아니라 특정 필드이기 때문이다. 1차 시도(fSnippet#Issue972 의 `ef45f2dc` → revert `1c285c33`)가 그 함정에 빠졌다
+* 재확인 (2026-09-01, brew 1.1.1 신규 빌드 · 타 세션 관찰): PUT `/settings/snapshot`(Issue203) 경유 실측에서도 동일 재현 — **history 키(`retentionDays.plainText` 45→90)만 원복**되고 popup(`snippet_popup_rows`)·performance(`performance.key_buffer_size`) 키는 t=15s 까지 유지됨. 되쓰기 범위가 **history 미러에 국한**됨을 지지하는 관찰이며, 위 원인 확정(`SettingsObservableObject` 의 history 미러 전체 덤프)과 정합한다
+* 관련: 메인 레포 fSnippet#Issue972 — 원인 ①(paidApp 읽기 누락)은 `721c74e5` 로 해결 완료. 본 이슈가 잔여 ②이며, Issue972 본문은 `da082083` 에서 위 실측으로 2차 정정 완료
 
+## Issue156: [Runtime] bufferClear `.` 충돌로 마침표 포함 abbreviation 14건이 확장 불가 (등록: 2026-05-27, 대상 교체: 2026-09-01)
+* 목적: `appSetting.json` 의 bufferClearKeys 에 `.` 가 포함되어, abbreviation 에 마침표를 쓰는 스니펫은 사용자가 `.` 를 누르는 순간 버퍼가 클리어되어 **구조적으로 확장이 불가능**하다. `_한글속기` 13건 + `_symbol` 1건, 합계 **14건**이 대상이다.
+* **보류 사유 교체 (2026-09-01)**: 종전 보류 사유였던 "Karabiner 외부 설정 조사 미완" 은 **해소**되었다(아래 실측에서 전수 확인 완료). 대신 **App Store 제출 후 처리** 로 보류 사유를 교체한다 — 키 입력 판정 변경이므로 `release/1.1.1` 심사 전 착수하지 않는다. Issue203·Issue205 와 동일 정책.
+* **대상 교체 이력 (2026-09-01)**: 등록본은 증상을 `..0{keypad_comma}` 입력 차단 / 대상을 `_Bullets/0===0.txt` 로 기술했으나 **실측에서 전부 반증**되었다. 진단 방향(`.` bufferClear 충돌)만 유효하여 대상을 위와 같이 교체했다.
+* **실측 근거** (2026-09-01, cliApp 1.1.1 가동 중 · 스니펫 2006건 로드):
+    - `appSetting.json` bufferClearKeys = `["\r", "\n", "\t", " ", "."]` — **`.` 포함 확인. 쉼표(`,`)는 없음**
+    - 디스크 전수(스니펫 파일 2011개)에서 파일명 keyword 부에 `{period}` 토큰 보유 = **14건**
+        - `_한글속기` 13건: `h{period}`, `j{period}`, `k{period}`, `ky{period}`, `{period}{slash}`, `j{comma}{period}`, `j{period}j`, `j{period}{apostrophe}`, `j{period}j{apostrophe}`, `j{comma}{period}j`, `j{comma}{period}{apostrophe}`, `j{comma}{period}j{apostrophe}`, `z_old/{period}{slash}`
+        - `_symbol` 1건: `{period}==={comma}..txt`
+    - `_한글속기` 는 룰 prefix 가 백틱(`` ` ``)이므로 실제 abbreviation 은 `` `h. `` 형태 — 마침표가 abbreviation 중간·끝에 놓이는 순간 매칭이 깨진다
+    - ⚠️ **REST `/api/v2/snippets` 는 기본 50건만 반환**한다. 그 표본에서는 `.` 포함 abbreviation 이 0건으로 나와 "피해 없음" 으로 오판할 수 있다. **반드시 디스크 전수로 확인할 것**
+* ⚠️ **폐기된 가설 3건 — 다시 조사하지 말 것**:
+    - "매칭 대상 abbreviation 은 `,,0{keypad_comma}` (룰 suffix=`{keypad_comma}`)" → **반증**. `_Bullets` 룰은 prefix=`,,`, **suffix=`{right_command}`** (REST `/api/v2/folders` 실측). 실제 abbreviation 은 `,,0{right_command}` 이며 정상 등록되어 있다(`id=_Bullets/0===0.txt`, content=`◦ `). 쉼표는 bufferClearKeys 에 없으므로 **차단 메커니즘 자체가 성립하지 않는다**
+    - "noteForHuman.md line 31 표기가 `..0{keypad_comma}`" → **해소됨**. 현재 표기는 `,,0{right_command}  : _Bullet` 로 실제 규칙과 일치한다. 또한 이 파일은 `_public` 에서 **gitignored**(`.gitignore` 17행)라 라인 번호 고정 참조는 시간이 지나면 검증 불가가 된다
+    - "doc `..` 은 Karabiner remap (`.` → `,`) 의 입력 시각화" → **근거 없음**. `~/.config/karabiner/karabiner.json` 전수 확인 결과 `.` → `,` 단순 remap 은 존재하지 않는다. period 관련 규칙은 전부 simultaneous(동시타)이며, `12Key2Knob` 의 `4`→comma·`6`→period 는 별개 노브 장치용이다
+* **구현 명세 — 폴더별 bufferClear 예외** (2026-09-01 사용자 결정):
+    - `_rule.yml` 에 **폴더 단위 bufferClear 면제** 필드를 두어, 해당 폴더의 abbreviation 매칭 중에는 지정 문자를 버퍼 클리어로 취급하지 않는다. 적용 대상은 `_한글속기`·`_symbol`
+    - 전역 `bufferClearKeys` 에서 `.` 를 제거하는 안은 **채택하지 않는다** — 마침표로 버퍼를 끊던 전역 동작이 바뀌어 문장 입력 중 의도치 않은 매칭이 늘어난다
+    - 스니펫 keyword 를 마침표 없는 키로 옮기는 안도 **채택하지 않는다** — 사용자가 익힌 입력 습관을 깨뜨린다
+    - 판정 지점이 늘어나므로 `TextBuffer`(L112·L166·L196)·`KeyEventHandler`(L298) 의 `AppSettingManager.shared.bufferClearKeys` 참조 4곳이 **동일한 폴더 컨텍스트 판정을 공유**하도록 단일 지점화한다. 참조처마다 따로 분기를 넣는 미봉책은 금지 — 참조가 늘 때마다 같은 버그가 재발한다
+    - 검증은 14건 중 폴더별 대표 케이스로 한다: `_한글속기` 의 `` `h. ``(끝 마침표) · `` `j.j ``(중간 마침표) · `_symbol` 의 단독 마침표. 각각 확장 성공 + **일반 문장 입력에서 마침표 버퍼 클리어가 여전히 동작**함을 함께 확인
+* 관련: 부수 발견으로 메인 레포 `.claude/rules/config-rules.md` 18행이 bufferClear 기본값에 실재하지 않는 쉼표(`,`)를 포함한다고 서술함 — 이 오기가 본 이슈의 최초 오독을 유발한 요인. prj15 별도 이슈로 등록
 ## Issue73: [Refactor] PopupController 책임 분리 — UI 위젯 직접 소유 해소 (등록: 2026-04-25, 보류: 2026-04-26)
 * 목적: `Core/PopupController.swift`가 UI 위젯(`SnippetNonActivatingWindow`)을 직접 소유 + 상태 관리 + Core 콜백 수신까지 수행 → 책임 분리로 SRP 준수 및 테스트성 확보
 * 복잡도: **복잡** (설계 결정이 KeyEventMonitor/TextReplacer 콜백 경로에 영향 → plan + task + report 전체 사이클)
