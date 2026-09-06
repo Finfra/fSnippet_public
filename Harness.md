@@ -32,6 +32,16 @@
 
 > `.claude/` 에 위치. fSnippetCli 프로젝트 전용.
 
+## Skills
+
+> jma(원격 QA 머신) 운영 3종. 모두 **tmux 경유**로 실행한다 — SSH 직접 실행은 화면 기록 권한·keychain 을 상속하지 못한다. 근거: prj25#Issue228
+
+| 스킬 | 설명 |
+| :--- | :--- |
+| `jma-capture` | jma 에서 UI 캡처 → jm4 로 자동 회수. 아카이브에 `_jma` 표식, 루트 최신본은 덮어써 `git diff` 로 확인 |
+| `jma-fsnippet-clear` | jma 의 fSnippet 흔적 완전 제거 + 검증(16항목). Sandbox Containers·`defaults` 도메인까지. **TCC 리셋이 앱 삭제보다 先** |
+| `jma-fsnippet-deploy` | jma 에서 빌드·배포(brew local) + 검증. **정식 codesign 우선**, 실패 시에만 `--no-sign` 폴백 |
+
 ## Commands
 
 ### 글로벌 위임형 (global skill을 호출)

@@ -70,6 +70,18 @@ date: 2026-04-07
     - `tmux send-keys` 로 **긴 명령을 직접 보내면 입력만 되고 실행되지 않는 경우**가 있다 → 래퍼 스크립트를 원격에 두고 그 파일명만 보낸다
     - `-p` 모드 claude 는 `ps` 에서 **자식 프로세스로만 보여** 두 번 "미기동"으로 오판했다. 실제로는 정상 실행 중이었다 → 자식(`xcodebuild`·래퍼 스크립트)으로 판정한다
 * 파생 이슈 등록 (2026-09-06): **prj15#Issue977**(Advanced 탭 `Loaded Snippets: 0` — REST 는 2053, 카운트 경로만 어긋남) · **prj15#Issue978**(`BUNDLE_ID` 불일치 + `post_job` 순서·`OUTDIR` 미노출)
+* Phase 4 완료 (2026-09-07) — **클린 테스트 한 바퀴 성공 + SCAR 3종 확립**:
+    - 완전 제거: 앱·brew·데이터(3.8G)·Preferences 7개·Sandbox Containers(83M)·`defaults` 도메인·TCC 까지. **검증 FAIL 0**
+    - 복원: 소스 동기화 → 빌드 → brew local 배포 → 검증 **FAIL 0**. 데이터 폴더가 72K 로 새로 생성되고 `snippet_count: 0` — 클린 설치의 증거
+    - 신설 스킬: [jma-fsnippet-clear](.claude/skills/jma-fsnippet-clear/SKILL.md) · [jma-fsnippet-deploy](.claude/skills/jma-fsnippet-deploy/SKILL.md) · [jma-capture](.claude/skills/jma-capture/SKILL.md). [Harness.md](Harness.md) `local Layer` 에 **`## Skills` 섹션을 신설**해 등재(기존엔 Commands·Agents·Rules 만 있었다)
+    - 상호 검증: 배포 상태에서 `clear --check` → 잔존 10건(exit 10) · `deploy --check` → FAIL 0(exit 0). 두 스킬이 정확히 반대로 판정한다
+* 🔑 **prj15#Issue976 결론 정정 — 정식 codesign 이 된다**: Issue976 은 *"SSH 비대화형은 keychain 접근 불가 → 정식 codesign 실패"* 로 결론짓고 `--no-sign` 을 신설했으나, **① tmux 경유 ② 화면 잠금 해제** 두 조건이면 통과한다. 2026-09-07 실측 — `Authority=Apple Development: JungGu Nam (3VGC26E2B8)` · `TeamIdentifier=BZDZFZWF6K` · `flags=0x10000(runtime)` · `valid on disk`. **`--no-sign` 은 기본이 아니라 폴백**이며 `jma-fsnippet-deploy` 가 그 순서로 동작한다
+    - ⚠️ **서명 확인은 `codesign -dvvv`** — `-dv` 로는 `Authority` 줄이 나오지 않아 정식 서명을 ad-hoc 으로 오판한다(실제로 한 번 오판했다)
+* ⚠️ **삭제 순서 함정**: `tccutil reset` 은 **앱 번들이 있어야** 동작한다. 번들을 먼저 지우면 `No such bundle identifier (OSStatus -10814)` 로 실패한다 → clear 스킬은 TCC 리셋을 1단계로 둔다
+* ⚠️ **1차 삭제로는 안 지워지는 것 4종** (검증이 없으면 "지웠다"고 착각한다): `Containers/kr.finfra.fSnippet`(**79M**, Sandbox) · `Containers/com.nowage.fSnippet`(4.2M) · `Application Support/fSnippet` · `HTTPStorages`. `defaults` 도메인도 plist 삭제만으로는 남는다 — `defaults delete` + `killall cfprefsd` 필요
+* ⚠️ **`fSnippetData` 는 git repo 다**(`origin: nowage/fSnippetData`). jma 는 GitHub 인증 무효로 `fetch` 를 못 해 `origin/main` ref 가 낡아 **미푸시 10커밋처럼 보인다.** 유실 판정은 **jm4 가 그 커밋을 갖고 있는지**(`git cat-file -t <HEAD>`)로 해야 한다. `origin/main` 과의 차이로 판정하면 오판한다
+* ⚠️ **미커밋 백업 시 `??`(untracked)도 봐야 한다** — `M` 만 보면 `_doc_arch/decisions.md`·`_doc_work/`·신규 스니펫을 놓친다. `Icon\r`(94건)·런타임 DB 만 제외 대상
+* 🚨 **원인 미규명 1건**: 삭제 작업 중 `~/Documents/finfra/fWarrangeData`(prj26 데이터)가 사라졌다. 실행한 명령은 `rm -rf ~/Documents/finfra/fSnippetData` 뿐이었고 glob 도 없었다. 23:24 실측 시엔 실제 디렉토리로 존재했다. **원인 불명** — jm4 에 1.9M 복구원이 있으나 사용자 판단으로 복구하지 않았다. 같은 작업 반복 시 주시할 것
 * 남은 작업: **prj5#Issue86**(`sync-policy.yml` 보정 — prj15·25 를 rsync 대상에서 분리. prj5 자산이라 그쪽에 등록) · **prj15#Issue977·978** 처리
 * 관련: fSnippet#Issue976(jma 파이프라인 정상화 — 본 이슈의 선행) · prj5 `bin/sync-jma`·`hosts/jma/sync-policy.yml`(동기화 인프라 SSOT)
 * 후속 후보: `_public/Issue.md` 가 `.gitignore` 에 있는데도 **tracked 라 공개 repo 에 올라간다**(이미 추적 중인 파일에는 gitignore 가 무효). 글로벌 결정 *"Issue.md 는 공개 미러 반출 금지"* 와 어긋남 — 본 이슈 범위 밖, 별도 판단 필요
