@@ -58,7 +58,19 @@ date: 2026-04-07
 * ⚠️ **위임 세션 함정 2건 (다음에 반복 금지)**:
     - `-p` 세션이 빌드를 백그라운드로 돌리고 *"알림이 오면 이어서 하겠다"* 며 종료했다. `-p` 는 1-shot 이라 이어받기가 성립하지 않는다 → 프롬프트에 **백그라운드 금지·중간 종료 금지**를 명시해야 한다
     - 완료 감시를 `tmux capture-pane | grep "===CLAUDE_DONE"` 으로 걸면 **화면에 남은 명령 문자열 자체가 매치**해 즉시 오탐한다. 프로세스 생존(`pgrep`)으로 판정할 것. 같은 이유로 `pgrep -f "MacOS/fSnippetCli"` 도 프롬프트에 그 문자열이 있으면 claude 자신을 잡는다
-* 남은 작업 (사람만 가능): jma 를 깨워 **로그인 잠금 해제**. 그 뒤라야 ① cliApp 기동 블록 해소 여부 ② 접근성 권한 상태 ③ paidApp 스크린샷이 모두 판정 가능하다. ⚠️ 소스 정상화는 이미 끝났으므로 최신 버전으로 검증된다
+* Phase 3 완료 (2026-09-06 16:00~23:20) — **잠금 해제 후 전 구간 성공**:
+    - 사용자가 jma 잠금 해제 + 앱·brew 완전 제거 지시 → paidApp·cliApp·수동 배포본 심링크·TCC 접근성 권한·DerivedData·Caches·SavedState 제거. **데이터 3.8G·스니펫 60폴더·Preferences 는 보존**
+    - 재설치 후 접근성 권한 신규 승인 → **cliApp REST 정상**(`version 1.1.1`·`snippet_count 2053`·`active_hotkey_count 18`). Phase 2 의 `Logger.createLogFileIfNeeded()` → `open()` 블록도 **함께 해소** — 화면 잠금이 1차 원인이었다는 판정이 실측으로 확인됐다
+    - 설정 5탭 캡처 성공(`capture/2026-09-06_v1.1.1_1/`). General 탭에 **`Permission Granted`** 표시
+* 🔑 **캡처 자동 회수 확립 (A안 — jm4 가 당긴다)**: 스킬 `.claude/skills/jma-capture/` 신설. `bash .claude/skills/jma-capture/scripts/jma-capture.sh [ids|all|--pull-only]`
+    - **B안(캡처 스크립트가 직접 전송)은 불가능**하다 — `capture.sh` 가 `417: run_global_post_job` → `419~425: 루트 복사` 순이라 훅 시점에 루트 최신본이 없고, `OUTDIR` 도 `local` 이라 훅에 노출되지 않는다(prj15#Issue978 ②). 캡처가 끝난 뒤 당기면 두 제약이 모두 사라진다
+    - 산출물 배치: 아카이브는 **`_jma` 표식**을 붙여 jm4 자체 캡처와 분리(`capture/{날짜}_v{버전}_{seq}_jma/`), 루트 최신본은 덮어쓴다. `.gitignore:112` `/capture/*` 가 아카이브만 무시하고 **루트 10개는 추적 중**이라 갱신이 `git diff` 에 잡힌다
+    - 검증(2026-09-06): `--pull-only` 5개 회수 · 전체 경로(캡처→회수) 1개 타겟으로 실행 성공(`..._2_jma`)
+* ⚠️ **위임 세션 함정 추가 2건** (앞의 2건에 이어):
+    - `tmux send-keys` 로 **긴 명령을 직접 보내면 입력만 되고 실행되지 않는 경우**가 있다 → 래퍼 스크립트를 원격에 두고 그 파일명만 보낸다
+    - `-p` 모드 claude 는 `ps` 에서 **자식 프로세스로만 보여** 두 번 "미기동"으로 오판했다. 실제로는 정상 실행 중이었다 → 자식(`xcodebuild`·래퍼 스크립트)으로 판정한다
+* 파생 이슈 등록 (2026-09-06): **prj15#Issue977**(Advanced 탭 `Loaded Snippets: 0` — REST 는 2053, 카운트 경로만 어긋남) · **prj15#Issue978**(`BUNDLE_ID` 불일치 + `post_job` 순서·`OUTDIR` 미노출)
+* 남은 작업: `sync-policy.yml` 보정(prj15·25 를 rsync 대상에서 분리 — prj5 자산이라 미착수) · prj15#Issue977·978 처리
 * 관련: fSnippet#Issue976(jma 파이프라인 정상화 — 본 이슈의 선행) · prj5 `bin/sync-jma`·`hosts/jma/sync-policy.yml`(동기화 인프라 SSOT)
 * 후속 후보: `_public/Issue.md` 가 `.gitignore` 에 있는데도 **tracked 라 공개 repo 에 올라간다**(이미 추적 중인 파일에는 gitignore 가 무효). 글로벌 결정 *"Issue.md 는 공개 미러 반출 금지"* 와 어긋남 — 본 이슈 범위 밖, 별도 판단 필요
 
