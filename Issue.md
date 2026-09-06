@@ -70,7 +70,7 @@ date: 2026-04-07
     - `tmux send-keys` 로 **긴 명령을 직접 보내면 입력만 되고 실행되지 않는 경우**가 있다 → 래퍼 스크립트를 원격에 두고 그 파일명만 보낸다
     - `-p` 모드 claude 는 `ps` 에서 **자식 프로세스로만 보여** 두 번 "미기동"으로 오판했다. 실제로는 정상 실행 중이었다 → 자식(`xcodebuild`·래퍼 스크립트)으로 판정한다
 * 파생 이슈 등록 (2026-09-06): **prj15#Issue977**(Advanced 탭 `Loaded Snippets: 0` — REST 는 2053, 카운트 경로만 어긋남) · **prj15#Issue978**(`BUNDLE_ID` 불일치 + `post_job` 순서·`OUTDIR` 미노출)
-* 남은 작업: `sync-policy.yml` 보정(prj15·25 를 rsync 대상에서 분리 — prj5 자산이라 미착수) · prj15#Issue977·978 처리
+* 남은 작업: **prj5#Issue86**(`sync-policy.yml` 보정 — prj15·25 를 rsync 대상에서 분리. prj5 자산이라 그쪽에 등록) · **prj15#Issue977·978** 처리
 * 관련: fSnippet#Issue976(jma 파이프라인 정상화 — 본 이슈의 선행) · prj5 `bin/sync-jma`·`hosts/jma/sync-policy.yml`(동기화 인프라 SSOT)
 * 후속 후보: `_public/Issue.md` 가 `.gitignore` 에 있는데도 **tracked 라 공개 repo 에 올라간다**(이미 추적 중인 파일에는 gitignore 가 무효). 글로벌 결정 *"Issue.md 는 공개 미러 반출 금지"* 와 어긋남 — 본 이슈 범위 밖, 별도 판단 필요
 
