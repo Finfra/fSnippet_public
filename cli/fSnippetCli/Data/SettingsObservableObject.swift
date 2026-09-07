@@ -272,6 +272,64 @@ class SettingsObservableObject: ObservableObject {
         }
     }
 
+    /// Issue205: Re-sync every history mirror from the persisted `_config.yml` right before saving.
+    ///
+    /// Why: the history @Published mirrors are populated once by `loadUISettings()` at launch,
+    /// while REST `PATCH /api/v2/settings/history` only writes `_config.yml` through
+    /// `PreferencesManager.batchUpdate` and leaves the mirrors untouched. When a later PATCH
+    /// carries `showStatusBar`, `showPreview` or `imageDetail.isFloating`, those three mirrors are
+    /// assigned (APIRouter.handleV2PatchHistory), their didSet fires
+    /// `syncHistorySetting()` -> `debouncedSave()` -> `saveUISettings()`, and the launch-time
+    /// snapshot of *all* history fields is dumped back over `_config.yml`. Every history setting
+    /// changed via REST is silently reverted.
+    ///
+    /// Adding a per-field guard each time (Issue941/178/184/949) re-introduces the same bug
+    /// whenever a new field appears, so the whole history domain is handled here in one place.
+    /// Any new history setting MUST be added to this table as well.
+    private func resyncHistoryMirrorsFromConfig() {
+        let prefs = PreferencesManager.shared
+
+        if let v: Bool = prefs.get("history.enable.plainText"), historyEnabledPlainText != v {
+            historyEnabledPlainText = v
+        }
+        if let v: Int = prefs.get("history.retentionDays.plainText"), historyRetentionDaysPlainText != v {
+            historyRetentionDaysPlainText = v
+        }
+        if let v: Bool = prefs.get("history.enable.images"), historyEnabledImages != v {
+            historyEnabledImages = v
+        }
+        if let v: Int = prefs.get("history.retentionDays.images"), historyRetentionDaysImages != v {
+            historyRetentionDaysImages = v
+        }
+        if let v: Bool = prefs.get("history.enable.fileLists"), historyEnabledFileLists != v {
+            historyEnabledFileLists = v
+        }
+        if let v: Int = prefs.get("history.retentionDays.fileLists"), historyRetentionDaysFileLists != v {
+            historyRetentionDaysFileLists = v
+        }
+        if let v: Bool = prefs.get("history.ignore.images"), historyIgnoreImages != v {
+            historyIgnoreImages = v
+        }
+        if let v: Bool = prefs.get("history.ignore.fileLists"), historyIgnoreFileLists != v {
+            historyIgnoreFileLists = v
+        }
+        if let v: Bool = prefs.get("history.moveDuplicatesToTop"), historyMoveDuplicatesToTop != v {
+            historyMoveDuplicatesToTop = v
+        }
+        if let v: Bool = prefs.get("history.showStatusBar"), historyShowStatusBar != v {
+            historyShowStatusBar = v
+        }
+        if let v: String = prefs.get("history.forceInputSource"), historyForceInputSource != v {
+            historyForceInputSource = v
+        }
+        if let v: Bool = prefs.get("history.showPreview"), historyShowPreview != v {
+            historyShowPreview = v
+        }
+        if let v: Bool = prefs.get("history.imageDetail.isFloating"), historyImageDetailIsFloating != v {
+            historyImageDetailIsFloating = v
+        }
+    }
+
     @Published var logLevel: LogLevel = .info
 
     private let settingsManager = SettingsManager.shared
@@ -1097,6 +1155,10 @@ class SettingsObservableObject: ObservableObject {
 
         // Issue 376
         settings.statsRetentionUsageDays = statsRetentionUsageDays
+
+        // Issue205: pull the freshest history values from _config.yml before the struct dump
+        //   below, otherwise a REST-driven save writes launch-time values back.
+        resyncHistoryMirrorsFromConfig()
 
         // Integrated History Save
         settings.historyEnabledPlainText = historyEnabledPlainText
