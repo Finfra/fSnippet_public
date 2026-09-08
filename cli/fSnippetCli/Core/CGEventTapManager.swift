@@ -105,6 +105,7 @@ class CGEventTapManager {
     // 조회 API 가 전부 revoke 를 감추는 상황에서, 이 비대칭이야말로 **관측 가능한
     // 유일한 증거**다. tap 은 받는데 모니터가 못 받으면 권한이 없는 것이다.
     private var tapKeyDownSinceCheck = 0
+    private var tapDistinctKeyCodesSinceCheck: Set<UInt16> = []
     private var monitorKeySinceCheck = 0
     private var lastAsymmetryCheckAt: CFAbsoluteTime = 0
     private static let asymmetryWindow: CFAbsoluteTime = 3.0
@@ -484,19 +485,27 @@ class CGEventTapManager {
                 self.lastAsymmetryCheckAt = now
                 self.callbackStateLock.lock()
                 let tapN = self.tapKeyDownSinceCheck
+                let tapDistinctN = self.tapDistinctKeyCodesSinceCheck.count
                 let monN = self.monitorKeySinceCheck
                 self.tapKeyDownSinceCheck = 0
+                self.tapDistinctKeyCodesSinceCheck.removeAll(keepingCapacity: true)
                 self.monitorKeySinceCheck = 0
                 self.callbackStateLock.unlock()
 
-                if tapN >= Self.asymmetryMinTapKeys, monN == 0 {
+                // Issue231: distinct-key count 로 판정한다 (raw count 아님).
+                //
+                // 같은 키가 여러 번 눌린 것만으로 tapN 이 커지는 것과, 실제로 서로 다른
+                // 키가 여러 종류 들어온 것은 다른 신호다. 정상 타이핑은 자연히 키가
+                // 섞이므로 이 기준을 통과하지만, 같은 키 반복은 tapDistinctN 이 1로
+                // 남아 아래 조건을 만족하지 못한다.
+                if tapDistinctN >= Self.asymmetryMinTapKeys, monN == 0 {
                     self.consecutiveAsymmetryHits += 1
                     if self.consecutiveAsymmetryHits >= Self.asymmetryConfirmThreshold {
                         logE(
                             "💉 ⚙️ 🚨 [Watchdog] 입력 경로 비대칭 감지 (연속 \(self.consecutiveAsymmetryHits)회 창) — "
-                                + "CGEventTap 은 keyDown \(tapN)건을 받았는데 NSEvent 글로벌 모니터는 0건이다. "
-                                + "이 모니터는 접근성 권한이 있어야만 동작하므로 **권한 상실로 확정**한다. "
-                                + "tap 을 제거해 키보드를 되돌린다.")
+                                + "CGEventTap 은 서로 다른 키 \(tapDistinctN)종(keyDown \(tapN)건)을 받았는데 "
+                                + "NSEvent 글로벌 모니터는 0건이다. 이 모니터는 접근성 권한이 있어야만 "
+                                + "동작하므로 **권한 상실로 확정**한다. tap 을 제거해 키보드를 되돌린다.")
                         access = false
                         self.permissionRevokedAtRuntime = true  // Issue226: 재생성 시도 금지
                     } else {
@@ -504,8 +513,8 @@ class CGEventTapManager {
                         // pressed repeatedly). Wait for the next window to confirm before
                         // tearing down the tap; a burst won't repeat, real revocation will.
                         logW(
-                            "💉 ⚙️ [Watchdog] 입력 경로 비대칭 1회 감지 (tap \(tapN)건·monitor 0건) — "
-                                + "확정 전 다음 창에서 재확인한다 (버스트일 수 있음).")
+                            "💉 ⚙️ [Watchdog] 입력 경로 비대칭 1회 감지 (tap 서로 다른 키 \(tapDistinctN)종·"
+                                + "monitor 0건) — 확정 전 다음 창에서 재확인한다 (버스트일 수 있음).")
                     }
                 } else {
                     self.consecutiveAsymmetryHits = 0
@@ -782,9 +791,23 @@ class CGEventTapManager {
 
         // Issue220: tap 이 받은 keyDown 을 센다. NSEvent 모니터 쪽 카운터와 비교해
         // 권한 상실을 판정한다.
+        //
+        // Issue231: raw count 만이 아니라 **서로 다른 keyCode 종류**도 함께 기록한다.
+        //
+        // 실측 2026-09-09 00:00 — 같은 키(keyCode 18/19)를 반복 입력하는 동안 tap 은
+        // 계속 받는데 글로벌 모니터는 지속적으로 0건이었고, 이 상태가 Issue230 의 연속
+        // 2회 창 확인까지 통과해 재시작 안내가 떴다. 하지만 재시작 직후 사용자가 시스템
+        // 설정을 손대지 않았는데도 `AXIsProcessTrusted()` 가 즉시 다시 true 였다 — 실제
+        // 권한은 한 번도 사라진 적이 없었다는 뜻이다. 같은 키의 반복 입력이 글로벌
+        // 모니터에는 도달하지 않는(자세한 OS 내부 이유는 불명) 반면 tap 에는 도달하는
+        // 경로 차이가 진짜 원인이었다. 그래서 비대칭 판정은 raw keyDown 수가 아니라
+        // **서로 다른 키가 몇 종류 들어왔는가**를 기준으로 삼는다 — 정상 타이핑은 키가
+        // 섞이므로 이 기준을 자연히 통과하고, 같은 키 반복은 여기서 걸러진다.
         if type == .keyDown {
+            let repeatedKeyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
             callbackStateLock.lock()
             tapKeyDownSinceCheck += 1
+            tapDistinctKeyCodesSinceCheck.insert(repeatedKeyCode)
             callbackStateLock.unlock()
         }
 
