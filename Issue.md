@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 228
+* Issue HWM: 229
 * Checkpoints:
       - 69eb6a7 (2026-09-06) Issue220~227 키보드 락·권한 창 문제 해결 완료
       - f30acbc (2026-09-05) Issue220 입력 경로 비대칭 판정 — 키보드 락 해결 확인
@@ -27,6 +27,18 @@ date: 2026-04-07
 # 🌱 이슈후보
 
 # 🚧 진행중
+
+## Issue229: [Critical][KeyEvent] Issue220 비대칭 판정이 cliApp 자체 GUI 창 타이핑을 권한 상실로 오판 — 불필요 재시작 (등록: 2026-09-08)
+* 목적: 설정창·스니펫 팝업·클립보드 팝업 등 cliApp 자체 GUI 창에 타이핑하면 "Accessibility Permission Required — Restart Now" 안내가 뜨며 강제 재시작되는 버그를 해결한다. 실제로는 접근성 권한이 살아있는데도 Issue220의 입력 경로 비대칭 워치독이 오판한다.
+* 상세 (2026-09-08 로그 실측):
+    - `flog_cliApp_2026-09-08_18-41-12.log` 18:41:31.743 — "입력 경로 비대칭 감지 — CGEventTap 은 keyDown 5건을 받았는데 NSEvent 글로벌 모니터는 0건" → 권한 상실 확정 → tap 제거 → 재시작 안내
+    - `NSEvent.addGlobalMonitorForEvents`는 애플 API 사양상 **자기 앱이 활성 상태일 때 자기 창으로 가는 키 이벤트는 전달하지 않는다**(다른 앱으로 가는 이벤트만 전달). cliApp 자신의 GUI 창에 포커스가 있는 상태에서 타이핑하면 이 모니터는 권한과 무관하게 정상적으로 0건이 된다
+    - 반면 `CGEventTapManager`의 CGEventTap 콜백은 세션 레벨(`.cgSessionEventTap`)이라 포커스 여부와 무관하게 계속 keyDown 을 받는다 — 그래서 Issue220의 "tap ≥3건·monitor 0건 = 권한 상실" 판정 조건이 항상 충족되어 오발화한다
+    - `KeyEventProcessor.swift` `setupGlobalMonitor()`(L707)에서만 `cgEventTapManager.noteMonitorKeyEvent()`를 호출하고, 실제로 자기 앱 활성 시 키를 처리하는 `setupLocalMonitor()`(L734~)에는 이 호출이 없어 로컬 경로의 "생존 신호"가 비대칭 카운터에 전혀 반영되지 않음
+* 구현 명세:
+    - `setupLocalMonitor()` 핸들러 진입 시(early-return 이전) `cgEventTapManager.noteMonitorKeyEvent()` 호출 추가 — global monitor 핸들러와 동일하게 "모니터가 살아있다"는 신호를 워치독에 알림
+    - 실제 권한 상실 시에는 local monitor 도 global monitor 와 함께 죽으므로(둘 다 접근성 권한 필요), Issue220 이 노리는 진짜 권한 상실 감지 능력은 그대로 유지됨 — 감지 조건의 누락된 경로만 보강하는 것으로 원인 제거
+    - 검증: `/run`으로 배포 후 설정창·스니펫 팝업·클립보드 팝업에 5자 이상 연속 타이핑 → 재시작 안내가 뜨지 않는지 확인. 이어서 System Settings에서 접근성 권한을 실제로 끄고 타이핑 → 여전히 안내가 뜨는지(회귀 아님) 확인
 
 ## Issue228: [Sync] jma 자립 디버깅 체계 — git·rsync 역할 분담으로 양방향 동기화 확립 (등록: 2026-09-06)
 * 목적: sync debug 를 jma 에서 진행하기로 함에 따라, jma 가 **재현·진단·수정·커밋까지 자립**할 수 있는 동기화 구조를 세운다. paidApp(prj15)과 cliApp(prj25)이 **동시에** 움직여야 한다는 것이 전제다.

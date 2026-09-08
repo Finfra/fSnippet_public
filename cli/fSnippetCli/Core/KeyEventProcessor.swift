@@ -736,6 +736,20 @@ class KeyEventProcessor: CGEventTapManagerDelegate {
             [weak self] event in
             guard let self = self else { return event }
 
+            // Issue229: Local Monitor also reports a liveness signal to the Issue220
+            // asymmetry watchdog.
+            //
+            // Per Apple's API contract, the Global Monitor never receives key events
+            // destined for the app's own window while the app is active (it only sees
+            // events sent to OTHER apps). So typing into cliApp's own GUI window
+            // (Settings, popups) legitimately drives the Global Monitor count to zero
+            // regardless of accessibility permission, while the CGEventTap callback
+            // (session-level) keeps receiving keyDown. The watchdog, watching only the
+            // Global Monitor signal, misread this normal situation as permission loss
+            // and tore down the tap with a restart prompt (measured 2026-09-08). Feeding
+            // the same counter from the Local Monitor closes that gap.
+            self.cgEventTapManager.noteMonitorKeyEvent()
+
             // Issue75: fSnippet이 비활성 상태에서는 Global Monitor에서 처리하므로 중복 방지
             if !NSApplication.shared.isActive {
                 logV("🎮 [Issue75] Local Monitor - fSnippet 비활성 → 스킵")
