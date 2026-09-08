@@ -6,8 +6,9 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 229
+* Issue HWM: 230
 * Checkpoints:
+      - 4a49da5 (2026-09-08) 작업 트리 스냅샷
       - 69eb6a7 (2026-09-06) Issue220~227 키보드 락·권한 창 문제 해결 완료
       - f30acbc (2026-09-05) Issue220 입력 경로 비대칭 판정 — 키보드 락 해결 확인
       - 2026.07.20: d372aff (_doc_arch 정합성 검토(Issue193) 진행 중 작업 트리 스냅샷)
@@ -27,6 +28,20 @@ date: 2026-04-07
 # 🌱 이슈후보
 
 # 🚧 진행중
+
+## Issue230: [Critical][KeyEvent] Issue229 이후에도 비대칭 오탐 재발 — 타 앱에서 같은 키 연속 입력 시 Global Monitor 만 0건 (등록: 2026-09-08)
+* depends: Issue229
+* 목적: Issue229는 cliApp 자체 GUI 창 타이핑 케이스만 막았다. 이번엔 **cliApp이 비활성 상태(다른 앱이 foreground)** 인데도 같은 재시작 오탐이 재발함 — 다른 원인 경로다.
+* 상세 (2026-09-08 23:42 로그 실측, `flog_cliApp_2026-09-08_22-08-24.log` L11794~11811):
+    - Microsoft PowerPoint 가 foreground(cliApp `isAppActive=false`)인 상태에서 사용자가 **같은 키(keyCode 19)를 약 200~400ms 간격으로 8회 연속** 눌렀다
+    - CGEventTap 콜백은 8건 모두 정상 수신(`nearEnd.ghostCheck` 마크로 매번 통과 확인)했지만, `NSEvent` 글로벌 모니터는 **0건** — `[Typing]` 로그가 이 구간에 단 한 줄도 없음
+    - 같은 세션 40초 전(23:41:32~23:41:38)에는 여러 다른 키를 섞어 입력했을 때 `[Typing]` 로그가 매 키마다 정상 기록됨 — **평상시엔 글로벌 모니터가 정상 작동**하고 있었다는 뜻. 즉 원인은 "다른 앱에서 타이핑"이 아니라 **같은 키를 짧은 간격으로 반복 입력하는 패턴**에 한정된다
+    - Issue220의 판정(`tapN≥3·monN==0 → 권한 상실 확정`)이 단일 3초 창만으로 즉시 발동해, 이런 국소적 버스트에도 그대로 걸림 — 실제로는 몇 초 뒤 다른 키가 섞이면 정상으로 돌아왔을 상황
+* 구현 명세:
+    - `CGEventTapManager`에 연속 비대칭 히트 카운터(`consecutiveAsymmetryHits`) 도입. 비대칭 조건(`tapN≥asymmetryMinTapKeys, monN==0`)을 만난 창은 즉시 확정하지 않고 카운터만 증가시키고, **연속 2회 창**(왕복 최대 6초)에서 재확인될 때만 실제 권한 상실로 확정한다. 비대칭이 아닌 창을 한 번이라도 만나면 카운터를 0으로 리셋
+    - 기존 `noteTimeoutAndShouldBail()`의 "burst threshold" 설계(단발 timeout 은 노이즈, 버스트만 신호)와 동일한 철학 — 단발 창 비대칭도 노이즈로 취급하고 버스트(연속 재확인)만 신호로 승격
+    - AXIsProcessTrusted() 등 probe 를 조건에 추가하지 않는다 — Issue211이 이미 "probe 는 revoke 를 반영하지 않아 속인다"고 확정했으므로, probe 로 asymmetry 판정을 게이팅하면 진짜 권한 상실 시 그 probe 가 여전히 true 를 반환해 탐지를 막을 위험이 있다
+    - 검증: `/run` 배포 후 다른 앱(예: TextEdit)에 포커스를 둔 채 같은 문자를 0.3초 간격으로 8회 이상 연속 입력 → 재시작 안내가 뜨지 않는지 확인. 실제 접근성 권한 회수 시나리오는 GUI 토글이 필요해 이번 세션에서는 로직 검토로 대체(연속 2회 창이면 최대 6초 내 여전히 탐지됨)
 
 ## Issue228: [Sync] jma 자립 디버깅 체계 — git·rsync 역할 분담으로 양방향 동기화 확립 (등록: 2026-09-06)
 * 목적: sync debug 를 jma 에서 진행하기로 함에 따라, jma 가 **재현·진단·수정·커밋까지 자립**할 수 있는 동기화 구조를 세운다. paidApp(prj15)과 cliApp(prj25)이 **동시에** 움직여야 한다는 것이 전제다.

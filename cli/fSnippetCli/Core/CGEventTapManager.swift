@@ -109,6 +109,17 @@ class CGEventTapManager {
     private var lastAsymmetryCheckAt: CFAbsoluteTime = 0
     private static let asymmetryWindow: CFAbsoluteTime = 3.0
     private static let asymmetryMinTapKeys = 3
+    // Issue230: a single asymmetric window is not enough evidence on its own.
+    //
+    // Measured 2026-09-08 23:42 — the same key pressed repeatedly ~200-400ms apart while
+    // another app (PowerPoint) was frontmost produced 8 tap keyDowns and 0 global-monitor
+    // keyDowns inside one 3s window, even though permission was never touched (ordinary
+    // typing with mixed keys 40s earlier logged fine on the same monitor). One window can
+    // be a burst artifact; only a *sustained* asymmetry across consecutive windows means
+    // the monitor is actually dead. Same "single hit is noise, burst is signal" philosophy
+    // as `noteTimeoutAndShouldBail()`'s timeout-burst threshold below.
+    private var consecutiveAsymmetryHits = 0
+    private static let asymmetryConfirmThreshold = 2
     private static let permissionPromptCooldown: TimeInterval = 30.0
     private static let watchdogInterval: TimeInterval = 0.5
     private static let stallThreshold: CFAbsoluteTime = 1.5
@@ -479,13 +490,25 @@ class CGEventTapManager {
                 self.callbackStateLock.unlock()
 
                 if tapN >= Self.asymmetryMinTapKeys, monN == 0 {
-                    logE(
-                        "💉 ⚙️ 🚨 [Watchdog] 입력 경로 비대칭 감지 — CGEventTap 은 keyDown \(tapN)건을 "
-                            + "받았는데 NSEvent 글로벌 모니터는 0건이다. 이 모니터는 접근성 권한이 "
-                            + "있어야만 동작하므로 **권한 상실로 확정**한다. tap 을 제거해 키보드를 "
-                            + "되돌린다.")
-                    access = false
-                    self.permissionRevokedAtRuntime = true  // Issue226: 재생성 시도 금지
+                    self.consecutiveAsymmetryHits += 1
+                    if self.consecutiveAsymmetryHits >= Self.asymmetryConfirmThreshold {
+                        logE(
+                            "💉 ⚙️ 🚨 [Watchdog] 입력 경로 비대칭 감지 (연속 \(self.consecutiveAsymmetryHits)회 창) — "
+                                + "CGEventTap 은 keyDown \(tapN)건을 받았는데 NSEvent 글로벌 모니터는 0건이다. "
+                                + "이 모니터는 접근성 권한이 있어야만 동작하므로 **권한 상실로 확정**한다. "
+                                + "tap 을 제거해 키보드를 되돌린다.")
+                        access = false
+                        self.permissionRevokedAtRuntime = true  // Issue226: 재생성 시도 금지
+                    } else {
+                        // Issue230: first hit — could be a burst artifact (e.g. the same key
+                        // pressed repeatedly). Wait for the next window to confirm before
+                        // tearing down the tap; a burst won't repeat, real revocation will.
+                        logW(
+                            "💉 ⚙️ [Watchdog] 입력 경로 비대칭 1회 감지 (tap \(tapN)건·monitor 0건) — "
+                                + "확정 전 다음 창에서 재확인한다 (버스트일 수 있음).")
+                    }
+                } else {
+                    self.consecutiveAsymmetryHits = 0
                 }
             }
 
