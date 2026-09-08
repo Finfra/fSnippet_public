@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 231
+* Issue HWM: 232
 * Checkpoints:
       - 4a49da5 (2026-09-08) 작업 트리 스냅샷
       - 69eb6a7 (2026-09-06) Issue220~227 키보드 락·권한 창 문제 해결 완료
@@ -95,6 +95,17 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+
+## Issue232: cliApp AppIcon 전 사이즈 확대 크롭 손상 — 유료 앱 원본으로 재생성 (등록: 2026-09-09, 완료: 2026-09-09) ✅
+* 목적: `cli/fSnippetCli/Assets.xcassets/AppIcon.appiconset` 의 아이콘이 **10개 사이즈 전부** 확대 크롭된 상태로 들어가 있었다. "infra" 글자와 여우 심볼이 프레임 밖으로 잘려 나가 CLI 앱의 Dock·Finder 아이콘이 정체를 알아볼 수 없는 그림으로 표시된다.
+* 상세:
+    - 증상: 16px~1024px 10개 파일이 모두 동일한 크롭 비율로 확대돼 있음 — 개별 리사이즈 실수가 아니라 **원본 하나가 이미 크롭된 상태에서 세트가 생성**된 것
+    - 대조 실측: 유료 앱 `fSnippet/fSnippet/Assets.xcassets/AppIcon.appiconset/icon_512x512@2x.png` 와 `_public/manual/app-icon.png` 는 **평균 픽셀차 0.0 으로 완전히 동일**한 정상 1024px 원본이다. 즉 cliApp 은 별도 디자인을 가진 적이 없고 같은 아이콘을 써야 하는데, 세트 생성 단계에서만 깨졌다
+    - 파급: prj10(finfraHome) 제품 페이지가 CLI 아이콘 자리에 정상본(= 유료 앱 아이콘)을 넣어 두어 웹과 실제 앱의 아이콘이 어긋나 있었다. prj10 Issue41 로 별도 추적
+* 구현 명세:
+    - 유료 앱 `icon_512x512@2x.png`(1024px)를 원본으로 `Contents.json` 의 10개 항목(16/32/64/128/256/512/1024px 조합)을 LANCZOS 리사이즈로 재생성
+    - 검증: 재생성본 16·128·1024px 를 렌더해 크롭 없이 전체 도형이 들어갔는지 육안 확인 완료
+    - 남은 결정: cliApp 에 **유료 앱과 구별되는 전용 아이콘**이 필요한지는 별도 판단 사항 — 현재는 동일 아이콘을 쓰는 상태로 정상화만 했다
 
 ## Issue231: [Critical][KeyEvent] Issue230 이후에도 재발 — 같은 키 지속 반복 시 연속 2회 창까지 통과해 오탐 (등록: 2026-09-09, 완료: 2026-09-09) (Hash: a8efff7) ✅
 * depends: Issue230
