@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 232
+* Issue HWM: 233
 * Checkpoints:
       - 4a49da5 (2026-09-08) 작업 트리 스냅샷
       - 69eb6a7 (2026-09-06) Issue220~227 키보드 락·권한 창 문제 해결 완료
@@ -89,6 +89,25 @@ date: 2026-04-07
 
 # 📕 중요
 
+## Issue233: [Critical][KeyEvent] 비대칭 워치독 오판의 진짜 원인은 "tap 이 삼킨 이벤트를 tap 카운터에 세는 것" — Issue229~231 진단 정정 (등록: 2026-09-10)
+* 목적: Issue229→230→231 이 세 번 연속 재발한 이유를 코드로 확정한다. Issue231 이 *"OS 내부 동작, 원인 불명"* 으로 닫은 부분은 실제로 **`CGEventTapManager` 자신의 카운팅 지점 결함**이며, 그 토대가 그대로 남아 있어 같은 오판이 다른 초기조건에서 재발할 수 있다.
+* 상세 (2026-09-10 코드 전수 대조 — `cli/fSnippetCli/Core/CGEventTapManager.swift`):
+    - 카운팅은 콜백 **진입부(L806)** 에서 일어난다 — `tapKeyDownSinceCheck += 1` · `tapDistinctKeyCodesSinceCheck.insert(...)`
+    - 그보다 **아래에 `return nil`(Strong Block) 경로가 7곳** 있다: `KeyCaptureManager.captureKeyIfActive`(L884) · appActive+replacing(L898) · `appShortcut`(L932) · 기타 등록 단축키(L964) · `isCurrentlyReplacing()`(L970) · 화살표·Esc 인터셉트(L1058) · Issue40 j/k/l 안전장치
+    - **tap 이 삼킨 이벤트는 정의상 `NSEvent` Global·Local 모니터에 도달하지 못한다.** 그런데 tap 카운터는 이미 올라가 있다 → `monN == 0` 이 **권한과 무관한 정상 동작에서 만들어진다**. Issue220 의 전제(*"tap 은 받는데 모니터가 못 받으면 권한이 없다"*)가 구조적으로 깨지는 지점이다
+    - Issue231 의 실측 사례(PowerPoint foreground, keyCode 18/19 = 숫자 1·2 반복)도 이것으로 설명된다 — 그 키가 등록 단축키·폴더 접두사에 걸려 L964 에서 Strong Block 되면 같은 로그가 나온다. *"같은 키를 반복해서"* 가 아니라 *"그 키가 차단 대상이라서"* 로 읽는 것이 코드와 정합한다
+    - **수치가 정확히 맞물린다**: `popupNavigationKeys = [125, 126, 53]`(Down·Up·Escape)이 **정확히 3종**이고 `asymmetryMinTapKeys = 3` 이다. 스니펫 팝업은 `SnippetNonActivatingWindow` 라 nonactivating 이어서 Local Monitor 도 받지 않는다 → Issue229 의 보완이 이 경로를 덮지 못한다
+* 남은 오판 경로 (Issue231 의 distinct 기준으로도 3종 조건이 채워진다):
+    - **단축키 캡처 UI 활성 중** — `captureKeyIfActive` 가 모든 키를 삼킨다. 사용자가 조합을 여러 번 시도하면 3초 창에 3종 이상이 쉽게 차고 6초 지속도 흔하다. 가장 유력한 재발 경로
+    - **텍스트 대체 진행 중** — `isCurrentlyReplacing()` 이 모든 키를 삼킨다. placeholder 입력창처럼 대체가 오래 걸리면 그동안 누른 키가 전부 집합에 들어간다
+    - **팝업 네비게이션** — Down·Up·Esc 3종을 전부 삼킨다. 팝업을 여는 트리거 키는 pass-through 되어 `monN` 을 올리므로 리셋될 여지는 있으나, 조건 자체는 성립한다
+* 구현 명세:
+    - **삼킨 이벤트는 tap 카운터에서 제외한다** — 카운팅을 콜백 진입부가 아니라 **`Unmanaged.passUnretained(event)` 반환이 확정된 지점**으로 옮기거나, 삼키는 분기에서 카운터를 되돌린다. 반환 지점이 15곳 이상이라 **공통 헬퍼(`func pass(_ event:) -> Unmanaged<CGEvent>?`)를 신설해 그 안에서 세는 것**이 단일 지점 유지에 유리하다
+    - 카운터가 pass-through 만 세면 `monN == 0` 은 다시 **권한 상실의 진짜 증거**가 된다 → Issue230 의 연속 2회 창·Issue231 의 distinct 기준은 **오판 회피용 보정이었으므로 원인 제거 후 민감도를 되돌릴지 재검토**할 수 있다. 단 **한 번에 셋을 함께 건드리지 않는다** — 원인 제거를 먼저 배포하고 관찰한다
+    - **재현 수단이 생긴다 (중요)**: Issue230·231 은 *"osascript 합성 이벤트는 모니터에도 정상 도달하므로 재현 불가"* 로 직접 검증을 포기했다. 위 원인이 맞다면 **단축키 3개를 등록하고 그 키들만 입력하는 것**으로 합성 이벤트로도 재현된다(tap 은 받아서 세고 삼키고, 모니터는 못 받는다). 재현 불가라는 판정 자체가 원인 오판에서 나온 결론이다
+    - 검증: ① 단축키 3종 반복으로 **before 오판을 재현** → 패치 후 무발화 ② 진짜 권한 회수(접근성 목록에서 제거) 시에는 여전히 탐지되는지 ③ 팝업 Down·Up·Esc 네비게이션을 6초 이상 지속해도 무발화
+* 관련: Issue220(비대칭 판정 도입) · Issue229(Local Monitor 생존 신호) · Issue230(연속 2회 창 확정) · Issue231(distinct keyCode 기준) · Issue211(probe 게이팅 불가 확정) · Issue216(tap 을 세션 레벨로 하향)
+* 참고: 글로벌 장애 대응 원칙(*"원인 제거가 먼저다"*)에 비추면 Issue229~231 은 판정 기준을 좁혀 증상을 피한 보정이었다. 세 번 연속 재발한 사실 자체가 진단이 끝나지 않았다는 지표였다
 
 # 📙 일반
 
@@ -140,8 +159,7 @@ date: 2026-04-07
 * 구현: `setupLocalMonitor()` 핸들러 진입 시 `cgEventTapManager.noteMonitorKeyEvent()` 호출 추가 — global monitor 핸들러와 동일하게 "모니터가 살아있다"는 신호를 워치독에 알림. 실제 권한 상실 시에는 local monitor 도 global monitor 와 함께 죽으므로(둘 다 접근성 권한 필요) 진짜 권한 상실 감지 능력은 그대로 유지됨
 * 검증 (2026-09-08 실측): brew 재배포 후 `⌘;`(history.viewer.hotkey)로 클립보드 히스토리 뷰어를 열어 cliApp(fSnippetCli)을 활성화시키고 0.3초 간격으로 8자 연속 타이핑 → `flog_cliApp.log`에 `[Typing]` 로그만 정상 기록되고 "비대칭 감지"·"권한 없음"·재시작 안내 로그는 전혀 발생하지 않음 확인 (수정 전에는 동일 조건에서 13초 내 오발화)
 
-## Issue228:
-## Issue205: [Settings] cliApp UI 미러의 전체 덤프로 REST 로 저장한 history 설정이 소실됨 (등록: 2026-08-31, 보류 이동: 2026-09-01)
+## Issue205: [Settings] cliApp UI 미러의 전체 덤프로 REST 로 저장한 history 설정이 소실됨 (등록: 2026-08-31, 보류 이동: 2026-09-01, 완료: 2026-09-08) (Hash: eae04c3, caa7e1b) ✅
 * 목적: REST 로 `history.*` 설정을 바꾼 뒤 특정 필드가 낀 PATCH 가 한 번 더 들어오면 **앞서 바꾼 값이 앱 시작 시점 값으로 소실**된다. 사용자 증상은 "검색창 입력 언어 강제" 가 원복되는 것으로 나타났다 (메인 레포 fSnippet#Issue972 의 잔여 원인 ②)
 * ⏸️ **착수 보류 — App Store 제출 후 처리 (런타임 동작 변경)**: `release/1.1.1` 심사 전 런타임 동작 변경을 피한다. Issue203·fSnippet#Issue968 과 동일 정책. 제출·심사 통과 후 착수. (2026-08-31 사용자 판정)
 * **원인 확정** (prj15 2026-09-01 실측 — 본 이슈의 정본 근거):
