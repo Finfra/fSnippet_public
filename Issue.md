@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 233
+* Issue HWM: 234
 * Checkpoints:
       - 4a49da5 (2026-09-08) 작업 트리 스냅샷
       - 69eb6a7 (2026-09-06) Issue220~227 키보드 락·권한 창 문제 해결 완료
@@ -114,6 +114,17 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue234: [Verify] paidApp 첫 실행 기본 폴더 Sandbox 결함 — jma 재현·원인 규명·prj15#Issue980 위임·클린 설치 검증 + 첫 실행 회귀 검사 스크립트 (등록: 2026-09-11, 완료: 2026-09-12) (Hash: TBD) ✅
+* 목적: jma 클린 첫 실행에서 paidApp "Default Settings Folder" 안내창이 `~/Library/Containers/kr.finfra.fSnippet/Data/Documents/finfra/fSnippetData` 를 기본 폴더로 지정한 문제를 prj25 의 jma 도구로 재현·규명하고, prj15 수정 뒤 사용자 절차대로 클린 설치 검증까지 마친다. 코드 변경은 prj15 쪽이며 cliApp 소스는 변경 없음
+* depends: prj15#Issue980
+* 상세:
+    - 재현·원인 (2026-09-11 23:50 jma): 현재 빌드로 첫 실행 조건(`defaults delete kr.finfra.fSnippet appRootPath`)을 만들어 실행하니 앱이 컨테이너 경로를 기록 — 100% 재현. 원인은 paidApp `AppInitializer.checkInitialSetup()` 의 `FileManager.urls(for: .documentDirectory)` fallback 이 Sandbox 안에서 컨테이너를 돌려주는 것. 회귀 이력 Issue192(명시 경로) → Issue505(하드코딩 제거로 되돌림, registered default 에 가려짐) → 517f005b(registered default 제거로 노출). 같은 fallback 이 5곳 복제
+    - 수정 위임: prj15 Issue980 등록 → 사용자 승인 → `/pm-do 15 980 해결` → 21dc9d98(`RealHome` 헬퍼·5곳 교체·path-rules §1 Sandbox 예외) + 558c54c6 문서
+    - 검증 (2026-09-12): `jma-fsnippet-clear` → `jma-fsnippet-deploy`(정식 서명, FAIL 0) → 첫 실행 `appRootPath` == `~/Documents/finfra/fSnippetData` · 컨테이너 `Documents/finfra` 미생성 · 로그 Config/Rule 경로 정상. 사용자가 안내창의 정상 경로를 직접 확인(OK). jm4 설치본도 00:24 재빌드로 반영
+    - 산출물(전부 gitignored 자산): [jma-firstrun-check.sh](.claude/skills/jma-fsnippet-deploy/scripts/jma-firstrun-check.sh) 신설(appRootPath·컨테이너 재생성·로그 경로 3종 판정, 복원 포함) · [SKILL.md](.claude/skills/jma-fsnippet-deploy/SKILL.md) "첫 실행 회귀 검사" 절 · [debug_TECH.md](cli/_doc_work/debug_TECH.md) 2026.09.12 항목(안내창 미출현 오진 — 사용자가 실시간으로 닫고 있었음 · 창 ID 캡처 · 2초 폴링 · `defaults` 지연 · debug dylib 심볼 위치)
+    - 후속(prj15 🌱 이슈후보 등록됨): ① entitlements 부재로 실제 Documents 경로에 `appSetting.json`·lock 쓰기 거부 로그(동작 지장 없음) ② `SnippetEditorView` 의 `homeDirectoryForCurrentUser` 잔존 함정
+* 보고서: `_doc_work/htm/hub_htm_20260911_235535_a_firstrun-sandbox-path.md` · `hub_htm_20260912_001900_a_issue980-fixed-verified.md` · `hub_htm_20260912_003700_a_clean-install-user-check.md`
+
 
 ## Issue232: cliApp AppIcon 전 사이즈 확대 크롭 손상 — 유료 앱 원본으로 재생성 (등록: 2026-09-09, 완료: 2026-09-09) (Hash: 2e7d9d8) ✅
 * 목적: `cli/fSnippetCli/Assets.xcassets/AppIcon.appiconset` 의 아이콘이 **10개 사이즈 전부** 확대 크롭된 상태로 들어가 있었다. "infra" 글자와 여우 심볼이 프레임 밖으로 잘려 나가 CLI 앱의 Dock·Finder 아이콘이 정체를 알아볼 수 없는 그림으로 표시된다.
