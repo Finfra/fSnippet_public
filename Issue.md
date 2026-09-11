@@ -114,7 +114,7 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
-## Issue234: [Verify] paidApp 첫 실행 기본 폴더 Sandbox 결함 — jma 재현·원인 규명·prj15#Issue980 위임·클린 설치 검증 + 첫 실행 회귀 검사 스크립트 (등록: 2026-09-11, 완료: 2026-09-12) (Hash: TBD) ✅
+## Issue234: [Verify] paidApp 첫 실행 기본 폴더 Sandbox 결함 — jma 재현·원인 규명·prj15#Issue980 위임·클린 설치 검증 + 첫 실행 회귀 검사 스크립트 (등록: 2026-09-11, 완료: 2026-09-12) (Hash: ed8b433) ✅
 * 목적: jma 클린 첫 실행에서 paidApp "Default Settings Folder" 안내창이 `~/Library/Containers/kr.finfra.fSnippet/Data/Documents/finfra/fSnippetData` 를 기본 폴더로 지정한 문제를 prj25 의 jma 도구로 재현·규명하고, prj15 수정 뒤 사용자 절차대로 클린 설치 검증까지 마친다. 코드 변경은 prj15 쪽이며 cliApp 소스는 변경 없음
 * depends: prj15#Issue980
 * 상세:
