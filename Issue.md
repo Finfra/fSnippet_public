@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 235
+* Issue HWM: 236
 * Checkpoints:
       - 1c34407 (2026-09-12) 작업 트리 스냅샷 (Issue234 종결 시점)
       - 4a49da5 (2026-09-08) 작업 트리 스냅샷
@@ -37,6 +37,25 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue236: 라이선스 프로파일 A 적용 — 자기모순(README·LICENSE 없음·formula MIT) → Apache-2.0 + 훅 ①상표 ②배포본 약관(N=250), mcp/ 는 MIT (등록: 2026-09-27, 완료: 2026-09-27) (commit: f3a0f1a) ✅
+* 목적: README 에 "Free / OSS" 와 "All rights reserved" 가 공존하고 LICENSE 파일이 없으며 brew formula 는 MIT 라 세 갈래다. prj6 정본대로 소스는 Apache-2.0 즉시 오픈, 상업 제한은 상표·공식 배포본 약관에 건다
+* 상세:
+    - 루트 `LICENSE` = Apache-2.0 원문(수정 금지) · `NOTICE` 신설 · `TRADEMARK.md`·`DISTRIBUTION-TERMS.md`·`COMMERCIAL.md` 템플릿 복사 후 자리표 채움(`{{EFFECTIVE_DATE}}`=이슈 커밋일 · `{{N}}`=250 · `{{CHANNELS}}`=Homebrew tap finfra/tap, GitHub Releases)
+    - `LICENSE_ko.md` 참고 번역(영문 구속력 — prj8 fpm 패턴)
+    - `mcp/` 는 프로파일 C: `mcp/LICENSE` 에 MIT 원문, `mcp/package.json.license` `MIT` 유지(npm `fsnippet-mcp` 1.0.2 는 이미 MIT)
+    - README(en·ko) 라이선스 절: `cli/` Apache-2.0 + 훅 3문서 링크 / `mcp/` MIT 표 · "All rights reserved" 제거 · "이번 커밋 이전 배포본(cli 1.0.2 등)은 출하 당시 조건" 주석
+    - 정본 `/Users/nowage/_git/___architect/_doc_arch/license-profiles.md` §4 row 25 · 템플릿 `/Users/nowage/_git/___architect/data/template/license/README.md`(자리표 값 표 포함 — `{{N}}`=250 · `{{LICENSOR}}`=`Finfra Co., Ltd. (https://finfra.kr)` · `{{CONTACT}}`=finfra@gmail.com)
+* 구현 명세:
+    - 검증: 위 파일 전부 존재 · README 라이선스 절이 각 파일을 링크 · `grep -rn "All rights reserved" README*` 0건 · 정본 §4 해당 행과 대조
+    - 금지: `git push`(공개 라이선스 변경은 사용자가 push) · npm publish · `Finfra/homebrew-tap` 수정(formula `license "Apache-2.0"`·caveats 갱신 명령만 report 에 적는다) · 기존 릴리스 태그 변경
+    - `Issue.md` 는 `python3 ~/.claude/sh/issue-tx.py --file Issue.md stage --issues <N>` / `check` 경유 스테이징 · 커밋 후 ✅ 이동 + hash 기록
+* 결과 (2026-09-27, `f3a0f1a`):
+    - 신규 7: `LICENSE`(Apache-2.0 원문, sha256 `cfc7749b…` 일치) · `NOTICE` · `TRADEMARK.md` · `DISTRIBUTION-TERMS.md`(발효일 2026-09-27 · N=250 · 채널 Homebrew tap finfra/tap, GitHub Releases) · `COMMERCIAL.md`(테마 행 1줄 제거 — `theme/LICENSE.md` 없음) · `LICENSE_ko.md`(Apache-2.0 전문 참고 번역) · `mcp/LICENSE`(MIT)
+    - 수정 8: README(en·ko) 라이선스 절 → `cli/`·`mcp/` 2행 표 + 이전 배포본(cli-v1.1.1 이하) 조건 주석 · `cli/README`·`mcp/README`(en·ko) 의 `MIT` 잔존 정정 · `cli/Formula/fsnippet-cli.rb` `license "Apache-2.0"` + caveats 약관 한 줄
+    - 검증: 상대 링크 73건 실재 · "All rights reserved" 0건 · 자리표 0건 · 메타 3곳(LICENSE·package.json·formula) 동시 갱신 · 정본 §4 row 25 일치
+    - 금지 준수: push 안 함 · npm publish 안 함 · `Finfra/homebrew-tap` 미수정 · 태그 미변경. 후속 명령(tap 반영·push·다음 tarball 동봉)은 report 에 기재
+* report: `cli/_doc_work/report/license-profile-a_issue236_report.md`
+
 ## Issue228: [Sync] jma 자립 디버깅 체계 — git·rsync 역할 분담으로 양방향 동기화 확립 (등록: 2026-09-06, 완료: 2026-09-27) (코드 변경 없음 — 관련: prj5 66dea1e · prj15 1e1002d1·b894f4e8) ✅
 * 목적: sync debug 를 jma 에서 진행하기로 함에 따라, jma 가 **재현·진단·수정·커밋까지 자립**할 수 있는 동기화 구조를 세운다. paidApp(prj15)과 cliApp(prj25)이 **동시에** 움직여야 한다는 것이 전제다.
 * 상세 (2026-09-06 실측 — 전부 SSH 로 확인):
