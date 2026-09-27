@@ -26,9 +26,10 @@ class FsnippetCli < Formula
     <<~EOS
       fSnippetCli requires Accessibility permissions.
 
-      License: source is Apache-2.0. Official builds are free for individuals,
-      education, non-profits, open-source projects, and organizations up to
-      250 concurrent copies — see DISTRIBUTION-TERMS.md in the repository.
+      License: the source code is Apache-2.0 — build it yourself and use it without limit.
+      This Official Build is free for personal use, education, non-profits, open-source
+      projects and organizations up to 250 concurrent copies; beyond that, or for resale,
+      bundling or hosting, see DISTRIBUTION-TERMS.md and COMMERCIAL.md in the repository.
 
       To enable auto-start after installation:
         brew services start finfra/tap/fsnippet-cli
