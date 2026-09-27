@@ -29,6 +29,9 @@ date: 2026.09.26
 | 10 | `rest-api-v2-contract` | REST API v2 엔드포인트(port 3015)가 openapi_v2.yaml 명세대로 응답한다 | api/openapi_v2.yaml(SSOT). test-api.sh 를 v2 경로로 이관 + `uptime_seconds`·빈 body 400 케이스 추가 | `bash cli/_tool/apiTestDo.sh all` · `bash api/test-api.sh --server=http://localhost:3115` | ✅ jma 20/20 |
 | 11 | `test-host-isolation` | XCTest 호스트·격리 테스트 인스턴스는 사용자 데이터 루트·REST 포트·brew 서비스·paidApp 을 건드리지 않는다 | prj5#Issue99: 테스트 호스트가 사용자 `fSnippetData` 를 쓰고 두 번째 CGEventTap·3015 를 잡았음 | `cli/fSnippetCliTests/RuntimeIsolationTests.swift` | ✅ jma |
 | 12 | `alfred-import-relative-base-path` | `snippet_base_path` 가 상대경로(번들 기본값 `./snippets`)여도 Alfred import 대상은 앱 루트 기준 절대경로다 | prj5#Issue99 (#10 실행 중 발견): v2 alfred-import 가 `/snippets` 를 만들려다 folder_creation_failed | `cli/fSnippetCliTests/SnippetBasePathResolutionTests.swift` | ✅ jma |
+| 13 | `trigger-regression-table` | prefix·suffix·양쪽·없음·키패드콤마·우측Control·대문자 폴더 7종 규칙에서 생성된 약어가 자기 파일로 정확히 매칭된다 | prj15#Issue986 이관(prj15 #2 · RegressionCases·UppercaseTrigger·RightControlTrigger·KeypadCommaPrefix) | `cli/fSnippetCliTests/TriggerRegressionTableTests.swift` | ✅ jma |
+| 14 | `trigger-priority-greedy-delete-length` | 규칙 tier 우선순위·최장 일치(greedy)·특수키 토큰은 visual count 로 삭제 길이를 센다 | prj15#Issue986 이관(prj15 #3 · Issue562·563·DeleteLengthSpecialKeys). Issue718·`68eb3435` 이후 동작 기준으로 단언 갱신 | `cli/fSnippetCliTests/TriggerPriorityGreedyDeleteLengthTests.swift` | ✅ jma |
+| 15 | `folder-rule-table` | 폴더 규칙 표 35행 전부에서 약어 생성·역조회·typed 매칭이 표와 일치한다 | prj15#Issue986 이관(prj15 #4 · FolderTestRunner + testTable_org.md) | `cli/fSnippetCliTests/FolderRuleTableTests.swift` | ✅ jma |
 
 # 규약
 

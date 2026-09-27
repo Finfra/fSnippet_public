@@ -147,6 +147,9 @@
 		DAC8D6BE43049FD7476E44F5 /* PaidAppAPIRouterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89361B623C03873D96A98FB3 /* PaidAppAPIRouterTests.swift */; };
 		A233C0DE0000000000000001 /* TapAsymmetryCounterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A233C0DE0000000000000002 /* TapAsymmetryCounterTests.swift */; };
 		A9999A000010000000000001 /* RuntimeIsolationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9999A000010000000000002 /* RuntimeIsolationTests.swift */; };
+		A9999A000100000000000001 /* TriggerRegressionTableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9999A000100000000000002 /* TriggerRegressionTableTests.swift */; };
+		A9999A000200000000000001 /* TriggerPriorityGreedyDeleteLengthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9999A000200000000000002 /* TriggerPriorityGreedyDeleteLengthTests.swift */; };
+		A9999A000300000000000001 /* FolderRuleTableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9999A000300000000000002 /* FolderRuleTableTests.swift */; };
 		A9999A000050000000000001 /* SnippetBasePathResolutionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9999A000050000000000002 /* SnippetBasePathResolutionTests.swift */; };
 		A9999A000020000000000001 /* InputAsymmetryJudgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9999A000020000000000002 /* InputAsymmetryJudgeTests.swift */; };
 		A9999A000030000000000001 /* BrewServiceLabelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9999A000030000000000002 /* BrewServiceLabelTests.swift */; };
@@ -240,6 +243,9 @@
 		4586AC27872D3AF56063DDBE /* APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModels.swift; sourceTree = "<group>"; };
 		A233C0DE0000000000000002 /* TapAsymmetryCounterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TapAsymmetryCounterTests.swift; sourceTree = "<group>"; };
 		A9999A000010000000000002 /* RuntimeIsolationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeIsolationTests.swift; sourceTree = "<group>"; };
+		A9999A000100000000000002 /* TriggerRegressionTableTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TriggerRegressionTableTests.swift; sourceTree = "<group>"; };
+		A9999A000200000000000002 /* TriggerPriorityGreedyDeleteLengthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TriggerPriorityGreedyDeleteLengthTests.swift; sourceTree = "<group>"; };
+		A9999A000300000000000002 /* FolderRuleTableTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderRuleTableTests.swift; sourceTree = "<group>"; };
 		A9999A000050000000000002 /* SnippetBasePathResolutionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetBasePathResolutionTests.swift; sourceTree = "<group>"; };
 		A9999A000020000000000002 /* InputAsymmetryJudgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputAsymmetryJudgeTests.swift; sourceTree = "<group>"; };
 		A9999A000030000000000002 /* BrewServiceLabelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrewServiceLabelTests.swift; sourceTree = "<group>"; };
@@ -537,6 +543,9 @@
 				468C089347CC709937722F65 /* ShortcutBlacklistTests.swift */,
 				A233C0DE0000000000000002 /* TapAsymmetryCounterTests.swift */,
 				A9999A000010000000000002 /* RuntimeIsolationTests.swift */,
+				A9999A000100000000000002 /* TriggerRegressionTableTests.swift */,
+				A9999A000200000000000002 /* TriggerPriorityGreedyDeleteLengthTests.swift */,
+				A9999A000300000000000002 /* FolderRuleTableTests.swift */,
 				A9999A000050000000000002 /* SnippetBasePathResolutionTests.swift */,
 				A9999A000020000000000002 /* InputAsymmetryJudgeTests.swift */,
 				A9999A000030000000000002 /* BrewServiceLabelTests.swift */,
@@ -848,6 +857,9 @@
 				DAF03F4D1C5B6D6897DDB0DE /* ShortcutBlacklistTests.swift in Sources */,
 				A233C0DE0000000000000001 /* TapAsymmetryCounterTests.swift in Sources */,
 				A9999A000010000000000001 /* RuntimeIsolationTests.swift in Sources */,
+				A9999A000100000000000001 /* TriggerRegressionTableTests.swift in Sources */,
+				A9999A000200000000000001 /* TriggerPriorityGreedyDeleteLengthTests.swift in Sources */,
+				A9999A000300000000000001 /* FolderRuleTableTests.swift in Sources */,
 				A9999A000050000000000001 /* SnippetBasePathResolutionTests.swift in Sources */,
 				A9999A000020000000000001 /* InputAsymmetryJudgeTests.swift in Sources */,
 				A9999A000030000000000001 /* BrewServiceLabelTests.swift in Sources */,
