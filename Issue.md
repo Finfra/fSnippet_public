@@ -89,7 +89,12 @@ date: 2026-04-07
 
 # 📕 중요
 
-## Issue233: [Critical][KeyEvent] 비대칭 워치독 오판의 진짜 원인은 "tap 이 삼킨 이벤트를 tap 카운터에 세는 것" — Issue229~231 진단 정정 (등록: 2026-09-10)
+# 📙 일반
+
+# 📗 선택
+
+# ✅ 완료
+## Issue233: [Critical][KeyEvent] 비대칭 워치독 오판의 진짜 원인은 "tap 이 삼킨 이벤트를 tap 카운터에 세는 것" — Issue229~231 진단 정정 (등록: 2026-09-10, 완료: 2026-09-27) (Hash: 0efcafc) ✅
 * 목적: Issue229→230→231 이 세 번 연속 재발한 이유를 코드로 확정한다. Issue231 이 *"OS 내부 동작, 원인 불명"* 으로 닫은 부분은 실제로 **`CGEventTapManager` 자신의 카운팅 지점 결함**이며, 그 토대가 그대로 남아 있어 같은 오판이 다른 초기조건에서 재발할 수 있다.
 * 상세 (2026-09-10 코드 전수 대조 — `cli/fSnippetCli/Core/CGEventTapManager.swift`):
     - 카운팅은 콜백 **진입부(L806)** 에서 일어난다 — `tapKeyDownSinceCheck += 1` · `tapDistinctKeyCodesSinceCheck.insert(...)`
@@ -108,12 +113,19 @@ date: 2026-04-07
     - 검증: ① 단축키 3종 반복으로 **before 오판을 재현** → 패치 후 무발화 ② 진짜 권한 회수(접근성 목록에서 제거) 시에는 여전히 탐지되는지 ③ 팝업 Down·Up·Esc 네비게이션을 6초 이상 지속해도 무발화
 * 관련: Issue220(비대칭 판정 도입) · Issue229(Local Monitor 생존 신호) · Issue230(연속 2회 창 확정) · Issue231(distinct keyCode 기준) · Issue211(probe 게이팅 불가 확정) · Issue216(tap 을 세션 레벨로 하향)
 * 참고: 글로벌 장애 대응 원칙(*"원인 제거가 먼저다"*)에 비추면 Issue229~231 은 판정 기준을 좁혀 증상을 피한 보정이었다. 세 번 연속 재발한 사실 자체가 진단이 끝나지 않았다는 지표였다
-
-# 📙 일반
-
-# 📗 선택
-
-# ✅ 완료
+* 구현 (2026-09-27 jma):
+    - [CGEventTapManager.swift](cli/fSnippetCli/Core/CGEventTapManager.swift): `handleCallback` 을 얇은 래퍼로 바꾸고 본문을 `handleCallbackBody` 로 분리. 래퍼가 **반환값이 non-nil(pass-through)로 확정된 keyDown 만** 센다 — 반환 지점 15곳을 건드리지 않는 단일 카운팅 지점. 진입부 카운팅 블록 제거
+    - 카운터를 `TapAsymmetryCounter` struct(`record(type:keyCode:passedThrough:)`·`drain()`)로 분리해 단위 테스트 가능하게 함. 워치독은 `drain()` 으로 스냅샷
+    - **민감도 보정(Issue230 연속 2회 창·Issue231 distinct 기준)은 그대로 둠** — 원인 제거만 먼저 배포하고 관찰(명세 준수)
+    - [TapAsymmetryCounterTests.swift](cli/fSnippetCliTests/TapAsymmetryCounterTests.swift) 신규 6 case (red 확인 후 green). pbxproj 수동 등록
+    - 재현 도구 [repro-issue233.py](cli/_tool/repro-issue233.py): 매 키 직전 REST `key-capture/start` 로 tap 이 키를 삼키게 하고 keyCode 0·1·2 를 `CGEventPost` 로 순환 입력
+* 검증 (2026-09-27 jma, brew local 1.1.1):
+    - 단위 테스트: 신규 6/6 · 전체 82/82 통과
+    - ① **before 재현 성공** — 수정 전 코드로 brew 배포 후 repro 10초: `비대칭 1회 감지` → 3.5초 뒤 `연속 2회 창 … 권한 상실로 확정` → tap 제거 (권한은 정상). 합성 이벤트로 재현 불가라던 Issue230·231 판정이 틀렸음을 확인
+    - ① **after 무발화** — 수정 코드 재배포 후 repro 10초(20건 삼킴)·15초(30건 삼킴) 모두 비대칭 경고 0건, REST status 정상
+    - ② 진짜 권한 회수 시 탐지 유지: **미검증** — 접근성 목록 제거·재허용은 사람이 시스템 설정에서만 가능(재허용 자동화 불가). pass-through keyDown 이 여전히 카운트되는 것은 단위 테스트(`testPassedKeyDownIsCounted`)로만 확인
+    - ③ 팝업 Down·Up·Esc 6초 이상 네비게이션 무발화: **미검증** — 팝업 실사용 네비게이션은 키보드 수동 확인 필요. 같은 `return nil` 경로라 ①과 동일 메커니즘으로 제외되며, 단위 테스트 `testThreeDistinctSwallowedKeysDoNotReachAsymmetryThreshold`(125·126·53) 로 카운터 수준만 확인
+    - 진단 기록: `cli/_doc_work/debug_TECH.md` "비대칭 워치독 오판 — 삼킨 이벤트 카운팅"
 ## Issue235: comment 가 `_` 로 끝나는 `keyword===comment_.txt` 파일의 폴더 prefix 누락 (등록: 2026-09-27, 완료: 2026-09-27) (Hash: 1bbbbde) ✅
 * 목적: 키워드가 있는 스니펫 파일인데도 comment(=== 오른쪽)가 `_` 로 끝나면 폴더 prefix 가 빠져 abbreviation 이 규칙([snippet-rules.md](../.claude/rules/snippet-rules.md) §2.1)과 다르게 계산되는 버그를 고친다
 * 상세:
