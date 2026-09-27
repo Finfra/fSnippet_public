@@ -1,0 +1,7 @@
+Finfra Official Build (DISTRIBUTION-TERMS.md Version 1.2)
+
+This file is an Official Build Component of fSnippetCli (DISTRIBUTION-TERMS.md §1).
+It is proprietary to Finfra Co., Ltd. (https://finfra.kr) and is NOT licensed under the
+Apache License 2.0 — see NOTICE. It is bundled only into builds that Finfra compiles and
+distributes through its official channels; source builds do not contain it.
+The first line above is printed by `fSnippetCli --version` as the build's distribution.

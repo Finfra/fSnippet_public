@@ -36,6 +36,14 @@ targets:
           - "@executable_path/../Frameworks"
     entitlements:
       path: fSnippetCli/fSnippetCli.entitlements
+    postBuildScripts:
+      # Issue238: bundle Official Build Components only when FSNIPPET_OFFICIAL_BUILD=YES
+      - name: Official Build Components
+        basedOnDependencyAnalysis: false
+        script: /bin/sh "${SRCROOT}/_tool/fsc-official-components.sh"
+        outputFiles:
+          # state stamp — rewritten only when the bundled state changes, so Xcode re-signs then
+          - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/OfficialBuildState
     scheme:
       testTargets:
         - fSnippetCliTests

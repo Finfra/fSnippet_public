@@ -412,10 +412,13 @@ cmd_publish() {
     echo "  MARKETING_VERSION → $VER (project.yml + pbxproj Debug/Release)"
     echo ""
 
-    # ── Step 1: Release 빌드 ──
-    echo "=== Step 1: Release 빌드 ==="
+    # ── Step 1: Release 빌드 (Official Build) ──
+    # Issue238: publish 만 FSNIPPET_OFFICIAL_BUILD=YES — 빌드 단계 "Official Build Components"
+    #   (_tool/fsc-official-components.sh) 가 서명 전에 resources/official/ 표식과 약관 문서를 번들한다.
+    #   local·debug·jma 빌드는 플래그가 없어 소스 빌드다 (DISTRIBUTION-TERMS.md §1(b) 구분).
+    echo "=== Step 1: Release 빌드 (Official Build) ==="
     pushd "$CLI_DIR" > /dev/null || { echo "❌ cd $CLI_DIR 실패"; return 1; }
-    xcodebuild -scheme fSnippetCli -configuration Release build 2>&1 | tail -6
+    xcodebuild -scheme fSnippetCli -configuration Release build FSNIPPET_OFFICIAL_BUILD=YES 2>&1 | tail -6
     local BUILD_STATUS=${PIPESTATUS[0]}
     popd > /dev/null || true
     if [ "$BUILD_STATUS" -ne 0 ]; then
@@ -461,6 +464,27 @@ cmd_publish() {
     fi
     echo "  ✅ Info.plist 버전 검증: $BUILT_VER == $VER"
 
+    # ── Step 2.6: Official Build 표식 게이트 (Issue238) ──
+    # 표식·약관이 빠진 채 공개되면 그 릴리스는 소스 빌드와 구별되지 않아 약관 적용 대상이 사라진다.
+    # 서명 검증까지 본다 — 번들 후 서명이 깨졌다면 Gatekeeper·TCC 가 설치본을 거부한다.
+    local OFFICIAL_RES="$BUILT_APP/fSnippetCli.app/Contents/Resources"
+    if ! awk 'NF { print; exit }' "$OFFICIAL_RES/Official/official-build.txt" 2>/dev/null | grep -q '^Finfra Official Build'; then
+        echo "❌ Official Build 표식 없음 ($OFFICIAL_RES/Official/official-build.txt). publish 중단."
+        return 1
+    fi
+    local LEGAL_F
+    for LEGAL_F in LICENSE NOTICE TRADEMARK.md DISTRIBUTION-TERMS.md; do
+        if [ ! -f "$OFFICIAL_RES/Legal/$LEGAL_F" ]; then
+            echo "❌ 패키지 동봉 약관 누락: Legal/$LEGAL_F. publish 중단."
+            return 1
+        fi
+    done
+    if ! codesign --verify --strict "$BUILT_APP/fSnippetCli.app" 2>/dev/null; then
+        echo "❌ 서명 검증 실패 (codesign --verify --strict). publish 중단."
+        return 1
+    fi
+    echo "  ✅ Official Build 표식·동봉 약관·서명 검증"
+
     # ── Step 2.9: git tag + push (F5-4 / prj1#Issue346) ──
     # 왜: 지금까지 태그는 `gh release create` 가 **원격 기본 브랜치 HEAD 에** 대신
     #   만들어 줬다. 그래서 태그가 붙는 커밋이 지금 빌드한 커밋이라는 보장이 없다.
@@ -491,7 +515,11 @@ cmd_publish() {
         gh release create "$TAG" "$REL_TARBALL" \
             -R "$SRC_REPO" \
             --title "fSnippetCli v$VER" \
-            --notes "fSnippetCli v$VER — Homebrew tap release (brew install $PUB_OWNER/tap/fsnippet-cli)" \
+            --notes "fSnippetCli v$VER — Finfra Official Build (Homebrew tap release)
+
+License: the source code is Apache-2.0 — build it yourself and use it without limit. This Official Build is free for personal use, education, non-profits, open-source projects and organizations up to 250 concurrent copies; beyond that, or for resale, bundling or hosting, see DISTRIBUTION-TERMS.md and COMMERCIAL.md. Installing it means you accept DISTRIBUTION-TERMS.md.
+
+brew install $PUB_OWNER/tap/fsnippet-cli" \
             2>&1 | tail -3
     fi
     if [ "${PIPESTATUS[0]}" -ne 0 ]; then

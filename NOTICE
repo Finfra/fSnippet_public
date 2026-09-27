@@ -5,7 +5,9 @@ This product includes software developed by Finfra (https://finfra.kr).
 Except for the Official Build Components (brand assets, icons, logos, proprietary
 build configuration, code signature), this product is licensed under the Apache
 License, Version 2.0. See LICENSE. Official Builds are additionally subject to
-DISTRIBUTION-TERMS.md (where present).
+DISTRIBUTION-TERMS.md (where present). In the source repository, the files under
+cli/resources/official/ are Official Build Components and are not licensed under the
+Apache License.
 
 "fSnippet", "fSnippetCli", the fSnippet icon, "Finfra", their respective logos and the "Powered by finfra.kr" line are
 trademarks of Finfra Co., Ltd. (https://finfra.kr). Use of these marks is governed by TRADEMARK.md and is not

@@ -76,6 +76,7 @@
 		668DABC44BB707420D862AFC /* SnippetEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CAEFDC42BB41152015185F9 /* SnippetEntry.swift */; };
 		672B72D7B7B31F1CDFB212EC /* RuleManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB042E642524AC89A34CF563 /* RuleManager.swift */; };
 		687C4D11E31F07E790D062A6 /* CLIRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD96250E8069C14777E309FA /* CLIRouter.swift */; };
+		A9999A000050000000000011 /* OfficialBuild.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9999A000050000000000012 /* OfficialBuild.swift */; };
 		6C987B2AD272E47C6E5416A7 /* ImageDetailWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6D4AC4945EBB15FEED4AF03 /* ImageDetailWindow.swift */; };
 		6D3FC24F4D47D3BD94D86919 /* NSEvent+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE5CAA197951A55688E1117D /* NSEvent+Extensions.swift */; };
 		6F40F42EA3C68F8E28807483 /* result_20260528-093338.md in Resources */ = {isa = PBXBuildFile; fileRef = BF1EE16F0BBC6A63AB454BC1 /* result_20260528-093338.md */; };
@@ -154,6 +155,7 @@
 		A9999A000020000000000001 /* InputAsymmetryJudgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9999A000020000000000002 /* InputAsymmetryJudgeTests.swift */; };
 		A9999A000030000000000001 /* BrewServiceLabelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9999A000030000000000002 /* BrewServiceLabelTests.swift */; };
 		A9999A000040000000000001 /* HistorySettingsPersistTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9999A000040000000000002 /* HistorySettingsPersistTests.swift */; };
+		A9999A000060000000000001 /* OfficialBuildTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9999A000060000000000002 /* OfficialBuildTests.swift */; };
 		DAF03F4D1C5B6D6897DDB0DE /* ShortcutBlacklistTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 468C089347CC709937722F65 /* ShortcutBlacklistTests.swift */; };
 		DAF0BE56A11F359F047BFE16 /* appSetting.json in Resources */ = {isa = PBXBuildFile; fileRef = B95AC2536AF81E882BADAF72 /* appSetting.json */; };
 		DB908306F9EA5DB4F10CBE92 /* ConfigCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7251B209AF1506566A633A2 /* ConfigCommand.swift */; };
@@ -250,6 +252,7 @@
 		A9999A000020000000000002 /* InputAsymmetryJudgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputAsymmetryJudgeTests.swift; sourceTree = "<group>"; };
 		A9999A000030000000000002 /* BrewServiceLabelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrewServiceLabelTests.swift; sourceTree = "<group>"; };
 		A9999A000040000000000002 /* HistorySettingsPersistTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistorySettingsPersistTests.swift; sourceTree = "<group>"; };
+		A9999A000060000000000002 /* OfficialBuildTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficialBuildTests.swift; sourceTree = "<group>"; };
 		468C089347CC709937722F65 /* ShortcutBlacklistTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutBlacklistTests.swift; sourceTree = "<group>"; };
 		48B4EB102AC686165B86F8ED /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		49DA528D5DDE1AFED377ABAF /* InputSourceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputSourceManager.swift; sourceTree = "<group>"; };
@@ -338,6 +341,7 @@
 		CBB3B206501109A2A167AD12 /* ClipboardDB.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardDB.swift; sourceTree = "<group>"; };
 		CCD40BF25B626C79B33C05DC /* SnippetIndexManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetIndexManager.swift; sourceTree = "<group>"; };
 		CD96250E8069C14777E309FA /* CLIRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CLIRouter.swift; sourceTree = "<group>"; };
+		A9999A000050000000000012 /* OfficialBuild.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficialBuild.swift; sourceTree = "<group>"; };
 		CF298F0B193C57F02CADF80F /* result_20260528-015026.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "result_20260528-015026.md"; sourceTree = "<group>"; };
 		D2BAC5147563153D9A1A455F /* ShortcutBlacklist.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutBlacklist.swift; sourceTree = "<group>"; };
 		D2F5BFCAB1C2DDD709FF9046 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
@@ -550,6 +554,7 @@
 				A9999A000020000000000002 /* InputAsymmetryJudgeTests.swift */,
 				A9999A000030000000000002 /* BrewServiceLabelTests.swift */,
 				A9999A000040000000000002 /* HistorySettingsPersistTests.swift */,
+				A9999A000060000000000002 /* OfficialBuildTests.swift */,
 				AB2350000000000000000002 /* AbbreviationCalculatorTests.swift */,
 				7EC0479D3474931013F9B7F3 /* SnippetExpansionTrailingNewlineTests.swift */,
 				C37CDB6B4DA560C66647FFCA /* FolderTest */,
@@ -633,6 +638,7 @@
 			children = (
 				1BCDB7564B528A091130F061 /* CLIAPIClient.swift */,
 				CD96250E8069C14777E309FA /* CLIRouter.swift */,
+				A9999A000050000000000012 /* OfficialBuild.swift */,
 				FE20D454753371C53C5555C9 /* CommandParser.swift */,
 				D6664204B78A5CCAFC4467D5 /* OutputFormatter.swift */,
 				A6E27B8DCDDF986A362EC955 /* _doc_work */,
@@ -754,6 +760,7 @@
 			buildPhases = (
 				757DF9EB33EB4FA02743034B /* Sources */,
 				D9FA84E331F96662B1C01CAB /* Resources */,
+				A9999A000070000000000001 /* Official Build Components */,
 			);
 			buildRules = (
 			);
@@ -843,6 +850,30 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		A9999A000070000000000001 /* Official Build Components */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Official Build Components";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/OfficialBuildState",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/bin/sh \"${SRCROOT}/_tool/fsc-official-components.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		25D1D06F24908D1FCB840682 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -864,6 +895,7 @@
 				A9999A000020000000000001 /* InputAsymmetryJudgeTests.swift in Sources */,
 				A9999A000030000000000001 /* BrewServiceLabelTests.swift in Sources */,
 				A9999A000040000000000001 /* HistorySettingsPersistTests.swift in Sources */,
+				A9999A000060000000000001 /* OfficialBuildTests.swift in Sources */,
 				AB2350000000000000000001 /* AbbreviationCalculatorTests.swift in Sources */,
 				53B28DD231B509BE5C208301 /* SnippetExpansionTrailingNewlineTests.swift in Sources */,
 				B2928DBE754D72CBA47153CD /* fSnippetCliTests.swift in Sources */,
@@ -897,6 +929,7 @@
 				1F063FD1B1238DEAB12E08EB /* CIDRFilter.swift in Sources */,
 				EC754A06858945DC1BF8E292 /* CLIAPIClient.swift in Sources */,
 				687C4D11E31F07E790D062A6 /* CLIRouter.swift in Sources */,
+				A9999A000050000000000011 /* OfficialBuild.swift in Sources */,
 				B10A5BC78327BEB1C86CF0EF /* ChangeTracker.swift in Sources */,
 				D49E419D90AB9DA5F0E5A3F1 /* ClipboardCommand.swift in Sources */,
 				09DDE19F48CC704C4EC882F8 /* ClipboardDB.swift in Sources */,
