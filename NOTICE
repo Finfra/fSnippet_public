@@ -2,8 +2,12 @@ fSnippetCli
 Copyright (c) 2026 Finfra Co., Ltd. (https://finfra.kr)
 
 This product includes software developed by Finfra (https://finfra.kr).
-Licensed under the Apache License, Version 2.0. See LICENSE.
+Except for the Official Build Components (brand assets, icons, logos, proprietary
+build configuration, code signature), this product is licensed under the Apache
+License, Version 2.0. See LICENSE. Official Builds are additionally subject to
+DISTRIBUTION-TERMS.md (where present).
 
-"fSnippetCli", "Finfra" and the "Powered by finfra.kr" line are trademarks of
-Finfra Co., Ltd. (https://finfra.kr). Use of these marks is governed by TRADEMARK.md and is not
-granted by the Apache License (Section 6).
+"fSnippet", "fSnippetCli", the fSnippet icon, "Finfra", their respective logos and the "Powered by finfra.kr" line are
+trademarks of Finfra Co., Ltd. (https://finfra.kr). Use of these marks is governed by TRADEMARK.md and is not
+granted by the Apache License (Section 6). Retaining this NOTICE as required by
+Section 4(d) of the Apache License is always permitted.

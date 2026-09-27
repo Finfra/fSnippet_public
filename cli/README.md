@@ -21,6 +21,9 @@ fSnippet (Sandbox, App Store)         fSnippetCli (Non-Sandbox, Helper)
 
 ## Homebrew (Recommended)
 
+> **License terms — read before installing.** The source code is Apache-2.0: build it yourself and use it without any limit.
+> The **Official Builds** installed below are free for personal use, education, non-profits, open-source projects, and any other organization on up to **250 concurrent copies**; beyond that, or for resale / bundling / hosting, a [commercial license](../COMMERCIAL.md) is required. Installing an Official Build means you accept the [Official Build License Terms](../DISTRIBUTION-TERMS.md).
+
 ```bash
 brew tap finfra/tap
 brew install finfra/tap/fsnippet-cli

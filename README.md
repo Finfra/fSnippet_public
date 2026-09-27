@@ -13,10 +13,10 @@ macOS Menu Bar Snippet & Clipboard Manager. Manage text snippets, track clipboar
 
 ## Editions
 
-| Edition                | Price      | Interface | Version | Install                                                  |
-| :--------------------- | :--------- | :-------- | :------ | :------------------------------------------------------- |
-| **fSnippet Pro** (GUI) | Paid       | GUI       | —       | App Store (Coming Soon)                                  |
-| **fSnippetCli** (CLI)  | Free / OSS | CLI       | v1.0.1  | `brew install finfra/tap/fsnippet-cli` ([Source](./cli/)) |
+| Edition                | Price      | Interface | Version | Install                                                                 |
+| :--------------------- | :--------- | :-------- | :------ | :---------------------------------------------------------------------- |
+| **fSnippet Pro** (GUI) | Paid       | GUI       | —       | App Store (Coming Soon)                                                 |
+| **fSnippetCli** (CLI)  | Free / OSS | CLI       | v1.0.1  | Homebrew — [Installation](#installation-fsnippetcli) ([Source](./cli/)) |
 
 * **fSnippet Pro** - Full-featured GUI app with intuitive settings, visual snippet management, and clipboard history viewer. Available on the Mac App Store (coming soon).
 * **fSnippetCli** - Fully open-source CLI version. All source code is in the [`cli/`](./cli/) directory. Installable via Homebrew.
@@ -24,6 +24,9 @@ macOS Menu Bar Snippet & Clipboard Manager. Manage text snippets, track clipboar
 ## Installation (fSnippetCli)
 
 The free, open-source CLI engine is distributed via Homebrew.
+
+> **License terms — read before installing.** The source code is Apache-2.0: build it yourself and use it without any limit.
+> The **Official Builds** installed below are free for personal use, education, non-profits, open-source projects, and any other organization on up to **250 concurrent copies**; beyond that, or for resale / bundling / hosting, a [commercial license](COMMERCIAL.md) is required. Installing an Official Build means you accept the [Official Build License Terms](DISTRIBUTION-TERMS.md).
 
 ```bash
 # 1. Add the tap and install
