@@ -322,4 +322,4 @@ fSnippet.app (localhost:3015)
 
 ## License
 
-MIT
+[MIT](LICENSE)
