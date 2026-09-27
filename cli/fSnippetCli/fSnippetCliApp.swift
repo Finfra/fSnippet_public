@@ -301,7 +301,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if accessibilityService.isAccessibilityGranted() {
             logI("접근성 권한: 승인됨")
         } else {
-            logW("접근성 권한: 미승인 — 사용자 안내 alert 표시 + 승인 감시 시작")
+            logW("접근성 권한: 미승인 — 목록 등록 요청 + 사용자 안내 alert 표시 + 승인 감시 시작")
+            // Issue237: 새 프로세스에서 1회 — 손쉬운 사용 목록에 스스로 올라간다.
+            AccessibilityBootListing.runIfNeeded(
+                isGranted: accessibilityService.isAccessibilityGranted,
+                requestListing: AccessibilityBootListing.requestSystemListing
+            )
             AccessibilityGuidePresenter.show(service: accessibilityService)
             // Issue207 (a): 권한을 켜면 재시작 없이 스스로 살아난다.
             // 감시자는 미승인일 때만 돌고 승인을 감지하면 스스로 멈춘다 (Issue150 회귀 아님).

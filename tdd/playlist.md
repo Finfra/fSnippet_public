@@ -9,7 +9,7 @@ date: 2026.09.26
 키 이벤트 워치독이 권한을 잘못 판정해 재시작하거나 키보드를 잠그지 않게 하고, 스니펫 확장과 REST 설정 영속성을 지킨다
 
 * 기존 러너: `bash cli/_tool/fsc-test.sh (12단계 통합: 빌드→ZTest 확장→apiTestDo.sh→cmdTestDo.sh→로그 검사) / XCTest 타깃 cli/fSnippetCliTests (xcodebuild test 는 아래 목표 목록 참고)`
-* 목표 10개 — 전부 ✅ (prj5#Issue99, 2026-09-27 jma 실행). 유닛: `xcodebuild test -project cli/fSnippetCli.xcodeproj -scheme fSnippetCli -destination 'platform=macOS'`
+* 목표 16개 — 전부 ✅ (prj5#Issue99, 2026-09-27 jma 실행). 유닛: `xcodebuild test -project cli/fSnippetCli.xcodeproj -scheme fSnippetCli -destination 'platform=macOS'`
 
 # 재생목록
 
@@ -32,6 +32,7 @@ date: 2026.09.26
 | 13 | `trigger-regression-table` | prefix·suffix·양쪽·없음·키패드콤마·우측Control·대문자 폴더 7종 규칙에서 생성된 약어가 자기 파일로 정확히 매칭된다 | prj15#Issue986 이관(prj15 #2 · RegressionCases·UppercaseTrigger·RightControlTrigger·KeypadCommaPrefix) | `cli/fSnippetCliTests/TriggerRegressionTableTests.swift` | ✅ jma |
 | 14 | `trigger-priority-greedy-delete-length` | 규칙 tier 우선순위·최장 일치(greedy)·특수키 토큰은 visual count 로 삭제 길이를 센다 | prj15#Issue986 이관(prj15 #3 · Issue562·563·DeleteLengthSpecialKeys). Issue718·`68eb3435` 이후 동작 기준으로 단언 갱신 | `cli/fSnippetCliTests/TriggerPriorityGreedyDeleteLengthTests.swift` | ✅ jma |
 | 15 | `folder-rule-table` | 폴더 규칙 표 35행 전부에서 약어 생성·역조회·typed 매칭이 표와 일치한다 | prj15#Issue986 이관(prj15 #4 · FolderTestRunner + testTable_org.md) | `cli/fSnippetCliTests/FolderRuleTableTests.swift` | ✅ jma |
+| 16 | `accessibility-boot-listing` | 미승인으로 부팅한 새 프로세스는 시스템 권한 요청을 정확히 1회 보내 손쉬운 사용 목록에 올라가고, 승인 상태로 부팅하면 아무것도 묻지 않는다 | Issue237(jma 에서 목록 미등록 → 매번 수동 추가. Issue227 전제 정정) | `cli/fSnippetCliTests/fSnippetCliTests.swift` (AccessibilityBootListingTests) | ✅ jma |
 
 # 규약
 

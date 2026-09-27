@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 236
+* Issue HWM: 237
 * Checkpoints:
       - 1c34407 (2026-09-12) 작업 트리 스냅샷 (Issue234 종결 시점)
       - 4a49da5 (2026-09-08) 작업 트리 스냅샷
@@ -30,6 +30,17 @@ date: 2026-04-07
 
 1. `jma-fsnippet-deploy.sh` 가 `git pull origin release/1.1.1` 하드코딩 — 다음 출고 라인에서 R1 전에 브랜치 인자화 필요 (prj3#Issue717 배포용 TDD 적용 중 발견)
 # 🚧 진행중
+
+## Issue237: [Permission] 미승인 부팅 시 손쉬운 사용 목록 자동 등록 — Issue227 전제 정정 (등록: 2026-09-27)
+* 목적: jma 에서 fSnippetCli 가 손쉬운 사용 목록에 올라오지 않아 사용자가 매번 수동 추가했다. Issue227 의 *"목록 등록은 첫 tap 생성 때 macOS 가 처리"* 전제가 실측과 맞지 않는다
+* 상세:
+    - Issue222 가 실패한 것은 **실행 중 프로세스**에서 `prompt: true` 를 불렀기 때문 — 부팅 직후 새 프로세스는 다른 경우다
+    - 서명이 `Apple Development: JungGu Nam (3VGC26E2B8)` 로 고정 → 지정 요구사항 불변 → 한 번 켠 권한은 재배포 뒤에도 유지(T1: jma 재배포 2회, 새 PID 에서 `accessibility: true`)
+    - 스위치 켜기는 macOS 설계상 사람 몫(MDM PPPC 외 우회 없음) — 자동화 대상은 목록 등록까지
+* 구현 명세:
+    - `AccessibilityBootListing`(`Services/AccessibilityService.swift`): 미승인 부팅 시에만 `AXIsProcessTrustedWithOptions(prompt: true)` 1회. 승인 상태면 묻지 않음, 운영 중 재호출 없음(Issue224·227 경계 유지). XCTest 호스트는 `RuntimeIsolation` 으로 이 경로 미진입
+    - 호출: `fSnippetCliApp.checkAccessibilityPermission()` 미승인 분기
+    - 검증: `AccessibilityBootListingTests` 2건(jma red→green) · tdd #16 · E2E — 목록 `−` 삭제 → 재기동 → 목록 자동 재등록 캡처
 
 # 📕 중요
 

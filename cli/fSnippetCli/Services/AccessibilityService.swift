@@ -32,6 +32,38 @@ final class SystemAccessibilityService: AccessibilityService {
     }
 }
 
+// MARK: - Issue237: 부팅 시 목록 등록 요청
+
+/// 미승인으로 부팅한 **새 프로세스**가 시스템 권한 요청(`prompt: true`)을 1회 보내
+/// 손쉬운 사용 목록에 스스로 올라가게 한다.
+///
+/// Issue227 은 *"목록 등록은 첫 tap 생성 때 macOS 가 처리한다"* 는 전제로 `prompt: true` 를
+/// 전량 제거했지만, jma 실측(2026-09-27)에서 목록에 올라오지 않아 사용자가 매번 수동 추가했다.
+/// Issue222 가 실패한 것은 **실행 중 프로세스**에서 불렀기 때문이다 — 부팅 직후의 새 프로세스는
+/// 다른 경우다. 서명이 Apple Development 인증서로 고정돼 있어 한 번 켠 권한은 재배포 뒤에도
+/// 유지된다(Issue237 T1 실측).
+///
+/// 경계 — Issue224·227 결정은 유지한다:
+/// 1. **부팅 1회만** 부른다 — 실행 중 재호출·워치독·안내 창 경로에서는 부르지 않는다
+/// 2. **승인 상태면 아무것도 묻지 않는다** — 평상시 창 없음
+/// 3. XCTest 호스트는 이 경로에 오지 않는다 (`RuntimeIsolation.allowsEngineStartup`)
+enum AccessibilityBootListing {
+
+    /// - Returns: 목록 등록 요청을 보냈으면 `true`
+    @discardableResult
+    static func runIfNeeded(isGranted: () -> Bool, requestListing: () -> Void) -> Bool {
+        guard !isGranted() else { return false }
+        requestListing()
+        return true
+    }
+
+    /// 시스템 권한 요청 — macOS 가 앱을 목록에 추가하고 안내 창을 띄운다.
+    static func requestSystemListing() {
+        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
+        _ = AXIsProcessTrustedWithOptions(options as CFDictionary)
+    }
+}
+
 // MARK: - Issue207: 권한 승인 감시 (grant watcher)
 
 /// 미승인 상태로 기동한 프로세스가 사용자가 권한을 켠 뒤 **재시작 없이** 살아나게 한다.
