@@ -31,7 +31,14 @@ date: 2026-04-07
 1. `jma-fsnippet-deploy.sh` 가 `git pull origin release/1.1.1` 하드코딩 — 다음 출고 라인에서 R1 전에 브랜치 인자화 필요 (prj3#Issue717 배포용 TDD 적용 중 발견)
 # 🚧 진행중
 
-## Issue237: [Permission] 미승인 부팅 시 손쉬운 사용 목록 자동 등록 — Issue227 전제 정정 (등록: 2026-09-27)
+# 📕 중요
+
+# 📙 일반
+
+# 📗 선택
+
+# ✅ 완료
+## Issue237: [Permission] 미승인 부팅 시 손쉬운 사용 목록 자동 등록 — Issue227 전제 정정 (등록: 2026-09-27, 완료: 2026-09-27, Hash: 044ebed) ✅
 * 목적: jma 에서 fSnippetCli 가 손쉬운 사용 목록에 올라오지 않아 사용자가 매번 수동 추가했다. Issue227 의 *"목록 등록은 첫 tap 생성 때 macOS 가 처리"* 전제가 실측과 맞지 않는다
 * 상세:
     - Issue222 가 실패한 것은 **실행 중 프로세스**에서 `prompt: true` 를 불렀기 때문 — 부팅 직후 새 프로세스는 다른 경우다
@@ -41,14 +48,8 @@ date: 2026-04-07
     - `AccessibilityBootListing`(`Services/AccessibilityService.swift`): 미승인 부팅 시에만 `AXIsProcessTrustedWithOptions(prompt: true)` 1회. 승인 상태면 묻지 않음, 운영 중 재호출 없음(Issue224·227 경계 유지). XCTest 호스트는 `RuntimeIsolation` 으로 이 경로 미진입
     - 호출: `fSnippetCliApp.checkAccessibilityPermission()` 미승인 분기
     - 검증: `AccessibilityBootListingTests` 2건(jma red→green) · tdd #16 · E2E — 목록 `−` 삭제 → 재기동 → 목록 자동 재등록 캡처
+* 결과: jma E2E — 목록 `−` 삭제 → `brew services restart` → 두 앱 모두 목록에 자동 재등록 확인(캡처). 사용자 스위치 ON 후 재시작 없이 granted=true. 재배포 2회 후에도 권한 유지(T1)
 
-# 📕 중요
-
-# 📙 일반
-
-# 📗 선택
-
-# ✅ 완료
 ## Issue236: 라이선스 프로파일 A 적용 — 자기모순(README·LICENSE 없음·formula MIT) → Apache-2.0 + 훅 ①상표 ②배포본 약관(N=250), mcp/ 는 MIT (등록: 2026-09-27, 완료: 2026-09-27) (commit: f3a0f1a) ✅
 * 목적: README 에 "Free / OSS" 와 "All rights reserved" 가 공존하고 LICENSE 파일이 없으며 brew formula 는 MIT 라 세 갈래다. prj6 정본대로 소스는 Apache-2.0 즉시 오픈, 상업 제한은 상표·공식 배포본 약관에 건다
 * 상세:
