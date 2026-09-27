@@ -29,7 +29,14 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue228: [Sync] jma 자립 디버깅 체계 — git·rsync 역할 분담으로 양방향 동기화 확립 (등록: 2026-09-06)
+# 📕 중요
+
+# 📙 일반
+
+# 📗 선택
+
+# ✅ 완료
+## Issue228: [Sync] jma 자립 디버깅 체계 — git·rsync 역할 분담으로 양방향 동기화 확립 (등록: 2026-09-06, 완료: 2026-09-27) (코드 변경 없음 — 관련: prj5 66dea1e · prj15 1e1002d1·b894f4e8) ✅
 * 목적: sync debug 를 jma 에서 진행하기로 함에 따라, jma 가 **재현·진단·수정·커밋까지 자립**할 수 있는 동기화 구조를 세운다. paidApp(prj15)과 cliApp(prj25)이 **동시에** 움직여야 한다는 것이 전제다.
 * 상세 (2026-09-06 실측 — 전부 SSH 로 확인):
     - **`_public` 이 jma 에서 고아 repo 였다** — origin 이 GitHub `Finfra/fSnippet_public` 인데 jma 는 GitHub 인증(SSH 키·`gh` 토큰)이 둘 다 무효라 **당길 방법 자체가 없었다**. 20커밋(Issue212~227 전부) 뒤처진 진짜 원인. paidApp 은 fSnippet#Issue976 에서 origin 을 jm4 로 바꾸는 우회를 받았으나 `_public` 은 그 처리를 못 받았다
@@ -86,14 +93,12 @@ date: 2026-04-07
 * 남은 작업: **prj5#Issue86**(`sync-policy.yml` 보정 — prj15·25 를 rsync 대상에서 분리. prj5 자산이라 그쪽에 등록) · **prj15#Issue977·978** 처리
 * 관련: fSnippet#Issue976(jma 파이프라인 정상화 — 본 이슈의 선행) · prj5 `bin/sync-jma`·`hosts/jma/sync-policy.yml`(동기화 인프라 SSOT)
 * 후속 후보: `_public/Issue.md` 가 `.gitignore` 에 있는데도 **tracked 라 공개 repo 에 올라간다**(이미 추적 중인 파일에는 gitignore 가 무효). 글로벌 결정 *"Issue.md 는 공개 미러 반출 금지"* 와 어긋남 — 본 이슈 범위 밖, 별도 판단 필요
+* 종결 (2026-09-27, jma 실측):
+    - 남은 작업 3건 해소 — prj5#Issue86 ✅(`66dea1e`) · prj15#Issue977 ✅(`1e1002d1`) · prj15#Issue978 코드 수정 커밋(`b894f4e8`, 이슈 종결은 prj15 소관)
+    - 검증: ① jma 양쪽 repo 가 jm4 로 ff 싱크 가능(분기 없음 — jm4 는 jma 의 조상) ② jma `git status` 에 머신 로컬 `.vscode/settings.json`·`.zed/` 만 잔류 ③ `jma-fsnippet-deploy`(구 `_tool/run.sh --no-sign` 대체) 양쪽 앱 빌드·배포 **FAIL 0** — 두 앱 모두 정식 서명(`Apple Development: JungGu Nam (3VGC26E2B8)`), REST v1.1.1 정상 (jma `7a9e074`·fSnippet `67cb3144`)
+    - 운영으로 확인된 체계: jma 에서 커밋 → jm4 가 `git fetch jma` 로 회수, gitignored 자산은 `sync-jma cliIgn push`. 동시 빌드는 공용 잠금 `/tmp/jma-xcode.lock`(prj15·16·25·26 공유)
+    - ⚠️ 관찰 1건: 2026-09-27 13:58 jma paidApp 이 출처 불명의 ad-hoc 빌드로 덮여 서명 INVALID 가 됨(jm4 발 전송 기록 없음, 재부팅으로 `/tmp` 흔적 소실). 정식 서명 재배포로 복구. `--no-sign` 배포가 다른 세션에서 돌면 재발 가능
 
-# 📕 중요
-
-# 📙 일반
-
-# 📗 선택
-
-# ✅ 완료
 ## Issue233: [Critical][KeyEvent] 비대칭 워치독 오판의 진짜 원인은 "tap 이 삼킨 이벤트를 tap 카운터에 세는 것" — Issue229~231 진단 정정 (등록: 2026-09-10, 완료: 2026-09-27) (Hash: 0efcafc) ✅
 * 목적: Issue229→230→231 이 세 번 연속 재발한 이유를 코드로 확정한다. Issue231 이 *"OS 내부 동작, 원인 불명"* 으로 닫은 부분은 실제로 **`CGEventTapManager` 자신의 카운팅 지점 결함**이며, 그 토대가 그대로 남아 있어 같은 오판이 다른 초기조건에서 재발할 수 있다.
 * 상세 (2026-09-10 코드 전수 대조 — `cli/fSnippetCli/Core/CGEventTapManager.swift`):
