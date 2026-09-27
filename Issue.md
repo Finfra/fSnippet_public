@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 238
+* Issue HWM: 239
 * Checkpoints:
       - 1c34407 (2026-09-12) 작업 트리 스냅샷 (Issue234 종결 시점)
       - 4a49da5 (2026-09-08) 작업 트리 스냅샷
@@ -29,6 +29,7 @@ date: 2026-04-07
 # 🌱 이슈후보
 
 1. `jma-fsnippet-deploy.sh` 가 `git pull origin release/1.1.1` 하드코딩 — 다음 출고 라인에서 R1 전에 브랜치 인자화 필요 (prj3#Issue717 배포용 TDD 적용 중 발견)
+2. 공식 빌드 `Resources/Legal/` 동봉 약관에 `DISTRIBUTION-TERMS_ko.md` 추가 검토 — 약관 §6 «패키지 안에서 제시» + §10 한국 거주 개인 동등 효력인데 동봉 목록은 영문뿐. 대상: `cli/_tool/fsc-official-components.sh`·`fsc-official-build-check.sh`(`LEGAL_FILES`)·`fsc-deploy-brew.sh` Step 2.6 게이트·`project.pbxproj`/`project.yml` 선언 출력 — 코드 변경이라 tdd red 먼저 (Issue239 수행 중 발견)
 
 # 🚧 진행중
 
@@ -39,6 +40,23 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue239: 공식 배포본 약관 한국어본 추가 — 한국 거주 개인 동등 효력 (prj6#Issue17) (등록: 2026-09-27, 완료: 2026-09-28, Hash: 2cd2ffa) ✅
+* 목적: Issue238 로 적용한 약관 v1.2 §10 은 «대한민국 거주 개인에게는 한국어본이 동등한 효력» 을 약속하는데 한국어본이 없다. 약관규제법상 설명의무 대응이기도 하다
+* depends: prj6#Issue17
+* 상세:
+    - **한국어 약관본 추가** (prj6 템플릿 `/Users/nowage/_git/___architect/data/template/license/DISTRIBUTION-TERMS_ko.md`): 루트 `DISTRIBUTION-TERMS_ko.md` 를 영문 v1.2 와 **같은 커밋**으로 — 약관 §10 이 한국 거주 개인에게 한국어본의 동등 효력을 약속하므로 영문과 어긋나면 안 된다. 자리표 값은 영문과 동일. 확인: `diff <(grep -oE '^## [0-9]+\.' DISTRIBUTION-TERMS.md) <(grep -oE '^## [0-9]+\.' DISTRIBUTION-TERMS_ko.md)` 무출력
+    - README 한국어판(`README_ko.md`/`README_kr.md`)의 설치 절 약관 고지에서 `DISTRIBUTION-TERMS.md` 대신 `DISTRIBUTION-TERMS_ko.md` 로 링크
+* 구현 명세:
+    - 검증: 조항 번호 diff 무출력 · `grep -c '{{' DISTRIBUTION-TERMS_ko.md` 0 · 한국어 README 링크 대상 존재
+    - 금지: `git push`(prj6 세션이 사용자 지시로 처리) · 영문 약관 변경(내용 동기가 목적이지 개정이 아니다)
+    - `Issue.md` 는 `python3 ~/.claude/sh/issue-tx.py --file Issue.md stage --issues <N>` / `check` 경유 · 커밋 후 ✅ 이동 + hash 기록
+* 결과:
+    - `2cd2ffa`: 루트 `DISTRIBUTION-TERMS_ko.md` — prj6 템플릿 한국어본(`950f457`)에서 frontmatter·`📄 템플릿` 블록 제거, 자리표 7종을 영문 v1.2 적용값과 동일하게 치환(fSnippetCli · 2026-09-27 · 250 · Finfra Co., Ltd. · Homebrew tap finfra/tap, GitHub Releases · finfra@gmail.com · 2026). 영문 약관 무변경
+    - 링크: `README_ko.md` 설치 절 고지 + 라이선스 절(표·요약 2곳), `cli/README_ko.md` 설치 절 고지 + 라이선스 절 → `DISTRIBUTION-TERMS_ko.md`. 명세는 «설치 절» 이지만 같은 한국어 README 안에서 약관 링크가 영문·한국어로 갈리지 않게 라이선스 절도 함께 바꿈. `cli/README_ko.md` 는 명세 파일명 밖이지만 같은 설치 고지를 가진 한국어판이라 포함
+    - 검증: 조항 번호 diff 무출력(영문 13 = 한국어 13) · `grep -c '{{'` 0 · 한국어 README 2종 링크 대상 존재
+    - 영문 약관을 «같은 커밋» 으로 — 영문 v1.2 는 이미 `ed36ad4` 에 있고 이번엔 무변경이라 한국어본만 커밋(내용 동기 확인은 조항 diff·자리표 동일값으로)
+    - 범위 밖으로 남김: `LICENSE_ko.md` 의 약관 링크 2곳(Apache 참고 번역 문서라 명세 대상 아님) · 공식 빌드 `Resources/Legal/` 동봉 목록에 한국어본 미포함 → 🌱 이슈후보로 등록
+
 ## Issue238: 라이선스 훅 문서 v1.0 → v1.2 재동기 + Official Build 구분 표식 (prj6#Issue17 적대적 검토 반영) (등록: 2026-09-27, 완료: 2026-09-27, Hash: ed36ad4, 9aca0aa) ✅
 * 목적: Issue236 은 v1.0 템플릿으로 적용됐다. prj6 자체 검토(법률 자문 대체)에서 v1.0 약관에 high 급 구멍 9건이 나왔다 — 연언 정의로 공증 없는 빌드가 약관 밖, 컨테이너·CI·직원 개별 설치로 N=250 우회, NOTICE 가 공식 빌드 전체를 Apache 로 선언 등. v1.2 로 올린다
 * depends: prj6#Issue17
