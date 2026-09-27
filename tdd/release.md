@@ -3,6 +3,7 @@ title: fSnippetCli 배포 재생목록
 description: prj25 fSnippetCli(cliApp) 출고 전 jma 에서 설치 채널별 작동을 검증하는 배포용 TDD 재생목록 (prj3#Issue717)
 date: 2026.09.27
 gate: pre-merge
+r2: warn
 env: jma
 peers: prj15
 ---
