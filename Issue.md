@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 237
+* Issue HWM: 238
 * Checkpoints:
       - 1c34407 (2026-09-12) 작업 트리 스냅샷 (Issue234 종결 시점)
       - 4a49da5 (2026-09-08) 작업 트리 스냅샷
@@ -29,6 +29,7 @@ date: 2026-04-07
 # 🌱 이슈후보
 
 1. `jma-fsnippet-deploy.sh` 가 `git pull origin release/1.1.1` 하드코딩 — 다음 출고 라인에서 R1 전에 브랜치 인자화 필요 (prj3#Issue717 배포용 TDD 적용 중 발견)
+
 # 🚧 진행중
 
 # 📕 중요
@@ -38,6 +39,26 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue238: 라이선스 훅 문서 v1.0 → v1.2 재동기 + Official Build 구분 표식 (prj6#Issue17 적대적 검토 반영) (등록: 2026-09-27, 완료: 2026-09-27, Hash: ed36ad4, 9aca0aa) ✅
+* 목적: Issue236 은 v1.0 템플릿으로 적용됐다. prj6 자체 검토(법률 자문 대체)에서 v1.0 약관에 high 급 구멍 9건이 나왔다 — 연언 정의로 공증 없는 빌드가 약관 밖, 컨테이너·CI·직원 개별 설치로 N=250 우회, NOTICE 가 공식 빌드 전체를 Apache 로 선언 등. v1.2 로 올린다
+* depends: prj6#Issue17
+* 상세:
+    - 문서 재동기: `DISTRIBUTION-TERMS.md` → v1.2 전문 교체(자리표 `{{EFFECTIVE_DATE}}` 는 이번 커밋일 — v1.x 판 발효일 이후 빌드는 새 판) · `TRADEMARK.md`·`COMMERCIAL.md`·`NOTICE` → v1.2(`{{MARKS}}` 는 NOTICE·TRADEMARK 동일 값) · `LICENSE_ko.md` 는 Apache 참고 번역이라 변경 없음
+    - README(en·ko) **설치 명령 바로 앞**에 약관 2줄(DISTRIBUTION-TERMS §0 요약)을 둔다 — 설치 후 caveats 만으로는 약관규제법상 사전 고지가 약하다(검토 medium)
+    - Official Build 구분 표식(2단계 — 코드 변경이라 tdd red 먼저): 공식 빌드에만 들어가는 `resources/official/`(브랜드 배너·아이콘) + 공식 빌드 스크립트 분기 + `--version` 출력에 `Finfra Official Build` 표기. 소스 빌드에는 넣지 않는다. 없으면 약관 §1(b) 가 빈 집합이라 법무가 적용 대상을 구별 못 한다 — 1단계와 한 이슈로 하되 커밋은 나눈다
+    - 근거: 템플릿 `/Users/nowage/_git/___architect/data/template/license/`(v1.2, prj6 `3195f25`) · 검토 처분표 `/Users/nowage/_git/___architect/_doc_work/report/license-hook-review_issue17_report.md` §반영 결과 · 정본 `/Users/nowage/_git/___architect/_doc_arch/license-profiles.md` §3-2·§5
+* 구현 명세:
+    - 검증: 4개 문서 `Version 1.2` · `grep -c '{{' ` 0 · README 설치 명령 앞 약관 2줄 · `--version` 표식은 공식 빌드에만
+    - 금지: `git push` · npm publish · `Finfra/homebrew-tap` 수정 · 기존 태그 변경 · 템플릿 frontmatter·`📄 템플릿` 블록 복사
+    - `Issue.md` 는 `python3 ~/.claude/sh/issue-tx.py --file Issue.md stage --issues <N>` / `check` 경유 · 커밋 후 ✅ 이동 + hash 기록
+* 결과:
+    - 1단계 `ed36ad4`: 4개 문서 v1.2(템플릿 3195f25 과 자리표 외 동일 · `{{` 0건 · 발효일 2026-09-27) · README(en·ko)·cli/README(en·ko) 설치 명령 **앞** 약관 2줄 — 에디션 표의 설치 명령은 설치 절 링크로 바꿔 약관보다 앞선 설치 명령을 없앰 · Formula caveats §0 정렬
+    - 2단계 `9aca0aa` (tdd #17 red→green): `cli/resources/official/official-build.txt` + 서명 전 빌드 단계 "Official Build Components" — `publish` 만 `FSNIPPET_OFFICIAL_BUILD=YES` → `Resources/Official/` + `Resources/Legal/`(약관 §6 «패키지 동봉»). `--version` 에 `Distribution: Finfra Official Build (DISTRIBUTION-TERMS.md Version 1.2)` 는 공식 빌드에만. publish Step 2.6 게이트(표식·동봉 약관·서명) · 릴리스 노트 설치 명령 앞 약관 · NOTICE 에 `cli/resources/official/` 비Apache 명기
+    - 발견·해결: 같은 DerivedData 에서 공식↔소스 전환 시 Xcode 가 CodeSign 을 생략해 서명 파손 → 선언 출력 `OfficialBuildState` stamp 로 상태 변화 시에만 재서명. 진단: `cli/_doc_work/debug_TECH.md` 2026.09.27
+    - 검증: OfficialBuildTests 5/5 · `fsc-official-build-check.sh` 17/17(공식→소스→공식) · 전체 유닛 132/132 · `/run`(brew local=소스 빌드) Distribution 행 없음·서명 유효·REST 정상
+    - 검증 명세 차이: `Version 1.2` 문구는 템플릿상 DISTRIBUTION-TERMS 에만 있다 — 나머지 3종은 템플릿 동일성으로 확인(비템플릿 문구 추가 안 함)
+    - 잔여(사용자 결정): 앱 아이콘은 공개 소스(`Assets.xcassets`)에 있어 소스 빌드도 같은 아이콘을 쓴다 — `resources/official/` 로 옮기면 소스 빌드가 기본 아이콘이 됨 · tap 반영·릴리스는 다음 `publish` 몫(이번엔 push·publish 금지)
+
 ## Issue237: [Permission] 미승인 부팅 시 손쉬운 사용 목록 자동 등록 — Issue227 전제 정정 (등록: 2026-09-27, 완료: 2026-09-27, Hash: 044ebed) ✅
 * 목적: jma 에서 fSnippetCli 가 손쉬운 사용 목록에 올라오지 않아 사용자가 매번 수동 추가했다. Issue227 의 *"목록 등록은 첫 tap 생성 때 macOS 가 처리"* 전제가 실측과 맞지 않는다
 * 상세:
