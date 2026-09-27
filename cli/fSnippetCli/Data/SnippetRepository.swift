@@ -184,6 +184,13 @@ class SnippetRepository {
   func getSnippetFolders() -> [URL] {
     guard fileManager.fileExists(atPath: rootFolderURL.path) else { return [] }
     do {
+      // Issue982: 폴더 단위 제외 — 여기서 걸러내면 REST(/api/v2/folders,
+      // /api/v2/settings/snippet-folders)·스니펫 로딩·인덱싱이 전부 이 함수 하나를
+      // 거치므로(grep 실측) 단일 판정 지점에서 일괄 반영된다.
+      let excluded = Set(
+        (PreferencesManager.shared.get("snippet_excluded_folders") as [String]? ?? [])
+          .map { $0.lowercased() })
+
       let contents = try fileManager.contentsOfDirectory(
         at: rootFolderURL, includingPropertiesForKeys: [.isDirectoryKey],
         options: [.skipsHiddenFiles])
@@ -192,7 +199,7 @@ class SnippetRepository {
           let isDir = resource.isDirectory
         else { return false }
         let name = url.lastPathComponent
-        return isDir && name != "_stats" && name != "z_old"
+        return isDir && name != "_stats" && name != "z_old" && !excluded.contains(name.lowercased())
       }.sorted { $0.lastPathComponent < $1.lastPathComponent }
     } catch {
       logW("📂 ❌ [SnippetRepository] Failed to list folders: \(error)")

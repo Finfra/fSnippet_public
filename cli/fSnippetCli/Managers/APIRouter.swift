@@ -179,6 +179,12 @@ class APIRouter {
       let folder = String(decodedPath.dropFirst("/api/v2/settings/excluded-files/per-folder/".count))
       return handleV2DeletePerFolderExcluded(folder: folder.removingPercentEncoding ?? folder, request: request)
 
+    // Excluded folders — whole-folder opt-out (Issue982)
+    case ("GET", "/api/v2/settings/excluded-folders"):
+      return handleV2GetExcludedFolders()
+    case ("PUT", "/api/v2/settings/excluded-folders"):
+      return handleV2PutExcludedFolders(request: request)
+
     case ("GET", "/api/v2/settings/snippet-folders"):
       return handleV2GetSnippetFolders()
     case ("POST", _) where decodedPath.hasPrefix("/api/v2/settings/snippet-folders/") && decodedPath.hasSuffix("/rebuild"):
@@ -639,6 +645,7 @@ class APIRouter {
   // invalidateCache() 를 호출하여 다음 SnippetFileManager 로딩 시 신규 값을 읽게 함.
   private static let v2GlobalExcludedKey = "snippet_excluded_files"
   private static let v2PerFolderExcludedKey = "snippet_folder_excluded_files"
+  private static let v2ExcludedFoldersKey = "snippet_excluded_folders"  // Issue982
 
   private func v2NoContent() -> APIServer.HTTPResponse {
     return APIServer.HTTPResponse(statusCode: 204, body: "")
@@ -698,6 +705,30 @@ class APIRouter {
 
   private func handleV2GetPerFolderExcluded() -> APIServer.HTTPResponse {
     return jsonResponse(v2ReadPerFolderExcluded())
+  }
+
+  // --- Excluded folders — whole-folder opt-out (Issue982) ---
+
+  private func v2ReadExcludedFolders() -> [String] {
+    return PreferencesManager.shared.get(APIRouter.v2ExcludedFoldersKey) ?? []
+  }
+
+  private func handleV2GetExcludedFolders() -> APIServer.HTTPResponse {
+    struct Response: Encodable { let folders: [String] }
+    return jsonResponse(Response(folders: v2ReadExcludedFolders()))
+  }
+
+  private func handleV2PutExcludedFolders(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    if let denied = requireLocalWrite(request) { return denied }
+    struct Body: Decodable { let folders: [String] }
+    let (maybe, err) = decodeV2Body(request, as: Body.self)
+    if let err = err { return err }
+    guard let body = maybe else { return v2Error(code: "internal", message: "decode failed", statusCode: 500) }
+
+    PreferencesManager.shared.set(body.folders, forKey: APIRouter.v2ExcludedFoldersKey)
+    NotificationCenter.default.post(name: .snippetFoldersDidChange, object: nil)
+    struct Response: Encodable { let folders: [String] }
+    return jsonResponse(Response(folders: body.folders))
   }
 
   private func handleV2GetPerFolderExcludedOne(folder: String) -> APIServer.HTTPResponse {
