@@ -40,9 +40,11 @@ deploy() {
     }
 
     # Phase1: copy 제거. pkill 만 선행 (심링크 재생성 직전 실행 중 프로세스 정리)
-    if pgrep -f "MacOS/$PROJECT_NAME" > /dev/null 2>&1; then
-        echo "[deploy] 실행 중인 $PROJECT_NAME 프로세스 정리"
-        pkill -f "MacOS/$PROJECT_NAME" 2>/dev/null || true
+    local kill_pat
+    kill_pat=$(fsc_kill_pattern)
+    if pgrep -f "$kill_pat" > /dev/null 2>&1; then
+        echo "[deploy] 실행 중인 $PROJECT_NAME 프로세스 정리 ($kill_pat)"
+        pkill -f "$kill_pat" 2>/dev/null || true
         sleep 0.3
     fi
 
@@ -61,7 +63,20 @@ run_app() {
         return 1
     }
     echo "[run] $app_path 실행"
-    open "$app_path"
+    # prj5#Issue99: `launchctl setenv` does not reliably reach an app started by `open`
+    # (measured on jma: the instance ignored fSnippetCli_config and used the user's root).
+    # Pass the test-isolation variables explicitly when the caller exported them.
+    local env_args=()
+    [ -n "${fSnippetCli_config:-}" ] && env_args+=(--env "fSnippetCli_config=$fSnippetCli_config")
+    [ -n "${fSnippetCli_isolated:-}" ] && env_args+=(--env "fSnippetCli_isolated=$fSnippetCli_isolated")
+    if [ ${#env_args[@]} -gt 0 ]; then
+        # -n: another instance of the same bundle id (e.g. the brew service) may be running;
+        # without it `open` just activates that one instead of starting the test build.
+        echo "[run] env: ${env_args[*]}"
+        open -n "${env_args[@]}" "$app_path"
+    else
+        open "$app_path"
+    fi
 }
 
 # ---------- 실행 ----------

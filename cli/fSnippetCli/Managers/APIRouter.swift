@@ -588,6 +588,14 @@ class APIRouter {
   // MARK: - v2 Alfred Import handlers
   private static let v2AlfredSourceKey = "alfred_import_source_path"
 
+  /// prj5#Issue99: absolute destination for Alfred imports. `snippet_base_path` may be relative
+  /// (bundled default "./snippets"); passing it raw made the importer create "/snippets" and
+  /// fail with folder_creation_failed. Resolution goes through `SettingsManager.resolveBasePath`.
+  static func alfredImportDestination() -> String {
+    let raw: String = PreferencesManager.shared.get("snippet_base_path") ?? SnippetSettings.default.basePath
+    return SettingsManager.resolveBasePath(raw, appRootPath: PreferencesManager.resolveAppRootPath())
+  }
+
   private func handleV2GetAlfredImportSource() -> APIServer.HTTPResponse {
     let path: String = PreferencesManager.shared.string(forKey: APIRouter.v2AlfredSourceKey, defaultValue: "")
     return jsonResponse(["sourcePath": path])
@@ -608,7 +616,7 @@ class APIRouter {
   private func handleV2RunAlfredImport(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
     if let denied = requireLocalWrite(request) { return denied }
     let jobId = UUID().uuidString
-    let dest = PreferencesManager.shared.string(forKey: "snippet_base_path", defaultValue: "~/Documents/finfra/fSnippetData/snippets_from_alfred")
+    let dest = APIRouter.alfredImportDestination()
     let sourcePath: String = PreferencesManager.shared.string(forKey: APIRouter.v2AlfredSourceKey, defaultValue: "")
     DispatchQueue.global(qos: .userInitiated).async {
       logI("🌐 v2 alfred-import job 시작: \(jobId)")
@@ -2441,7 +2449,7 @@ class APIRouter {
   /// POST /api/import/alfred — Alfred 스니펫 DB에서 임포트
   /// Body: {"db_path": "/path/to/snippets.alfdb"} 또는 빈 body (NSOpenPanel 사용)
   private func handleAlfredImport(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
-    let dest = PreferencesManager.shared.string(forKey: "snippet_base_path", defaultValue: "~/Documents/finfra/fSnippetData/snippets_from_alfred")
+    let dest = APIRouter.alfredImportDestination()
 
     // body에서 db_path 추출 시도
     var dbPath: String?

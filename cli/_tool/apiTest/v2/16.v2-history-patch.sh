@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-BASE="http://localhost:3015/api/v2"
+BASE="http://localhost:${FSC_API_PORT:-3015}/api/v2"
 
 echo "📝 히스토리 설정 수정 시도..."
 curl -s --connect-timeout 3 -X PATCH "$BASE/settings/history" \

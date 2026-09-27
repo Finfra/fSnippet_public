@@ -26,9 +26,9 @@ enum SingleInstanceGuard {
     /// 내가 승자(launchd-spawned) 인 경우 false 반환 + 다른 인스턴스 비동기 종료.
     static func shouldTerminateAsDuplicate() -> Bool {
         // Issue124: XCTest 환경에서는 단일 인스턴스 가드 비활성화 (테스트 호스트 부팅 허용)
-        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
-            || ProcessInfo.processInfo.environment["XCTestBundlePath"] != nil
-        {
+        // prj5#Issue99: an isolated test instance must coexist with the user's instance —
+        // neither replace it nor exit.
+        if !RuntimeIsolation.allowsLiveSideEffects {
             return false
         }
         guard let bundleID = Bundle.main.bundleIdentifier else {
@@ -128,4 +128,65 @@ enum SingleInstanceGuard {
             )
         }
     }
+}
+
+// MARK: - prj5#Issue99: runtime isolation (test host / isolated test instance)
+
+/// Single decision point for "must this process stay away from the user's live install?".
+///
+/// Two cases:
+/// * **XCTest host** — the unit-test bundle is injected into a full cliApp launch. It must
+///   not read/write the user's data root, bind the REST port, install a second CGEventTap,
+///   touch brew services or launch the paidApp.
+/// * **Isolated instance** (`fSnippetCli_isolated=1`) — an integration-test instance started
+///   next to the user's running cliApp (see `_tool/fsc-isolated.sh`). It keeps the engine and
+///   REST (on the port from its own `_config.yml`) but must not kill/replace the user's
+///   instance, sync brew services or drive the paidApp.
+///
+/// Kept in this file for the same reason as `BrewServiceLabel`: the pbxproj lists sources
+/// individually, so a new file would mean regenerating the project for a tiny type.
+enum RuntimeIsolation {
+
+    static let isolatedEnvKey = "fSnippetCli_isolated"
+
+    static func isHostedByXCTest(environment: [String: String]) -> Bool {
+        return environment["XCTestConfigurationFilePath"] != nil
+            || environment["XCTestBundlePath"] != nil
+            || environment["XCTestSessionIdentifier"] != nil
+    }
+
+    static func isIsolatedInstance(environment: [String: String]) -> Bool {
+        return environment[isolatedEnvKey] == "1"
+    }
+
+    static var isHostedByXCTest: Bool {
+        return isHostedByXCTest(environment: ProcessInfo.processInfo.environment)
+    }
+
+    static var isIsolatedInstance: Bool {
+        return isIsolatedInstance(environment: ProcessInfo.processInfo.environment)
+    }
+
+    /// Instance replacement, brew-service sync and paidApp launch/terminate are only allowed
+    /// for a normal (user) instance.
+    static var allowsLiveSideEffects: Bool {
+        return !isHostedByXCTest && !isIsolatedInstance
+    }
+
+    /// Key monitoring and the REST server run in a normal or isolated instance, never in the
+    /// XCTest host (the tests call the engine types directly).
+    static var allowsEngineStartup: Bool {
+        return !isHostedByXCTest
+    }
+
+    /// Per-process temp data root used by the XCTest host when no ENV override is given.
+    /// Never persisted to UserDefaults (the defaults domain is shared with the user's app).
+    static let testHostAppRootPath: String = {
+        let path = (NSTemporaryDirectory() as NSString)
+            .appendingPathComponent("fSnippetCliTests-\(getpid())/fSnippetData")
+        try? FileManager.default.createDirectory(
+            atPath: (path as NSString).appendingPathComponent("snippets"),
+            withIntermediateDirectories: true)
+        return path
+    }()
 }

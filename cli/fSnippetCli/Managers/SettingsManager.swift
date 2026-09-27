@@ -560,6 +560,24 @@ class SettingsManager {
         return path
     }
 
+    /// `snippet_base_path` -> absolute path. Single decision point (prj5#Issue99).
+    ///
+    /// * Issue 474_2, 669: `./x` and `x` are relative to the app root (fSnippetData)
+    /// * Issue199: `~` expands to the real home directory (sandbox-safe)
+    ///
+    /// The bundled default is the relative `./snippets`; handing the raw value to a file API
+    /// resolves it against the process cwd (`/`). Every consumer of the path goes through here.
+    static func resolveBasePath(_ raw: String, appRootPath: String) -> String {
+        if raw.hasPrefix("~") {
+            return "/Users/\(NSUserName())" + raw.dropFirst()
+        }
+        if raw.hasPrefix("/") {
+            return raw
+        }
+        let stripped = raw.hasPrefix("./") ? String(raw.dropFirst(2)) : raw
+        return URL(fileURLWithPath: appRootPath).appendingPathComponent(stripped).standardized.path
+    }
+
     func load() -> SnippetSettings {
         cacheLock.lock()
         if let cached = cachedSettings {
@@ -587,29 +605,7 @@ class SettingsManager {
             prefs.set(relativeLegacy, forKey: basePathKey)
         }
 
-        // Issue 474_2, 669: 상대 경로(./) 확인 및 앱 루트 기준 해결
-        if settings.basePath.hasPrefix("./")
-            || (!settings.basePath.hasPrefix("/") && !settings.basePath.hasPrefix("~"))
-        {
-            // 앱 루트(fSnippetData) 기준 상대 경로로 가정
-            let appRootUrl = URL(fileURLWithPath: settings.appRootPath)
-
-            var strippedPath = settings.basePath
-            if strippedPath.hasPrefix("./") {
-                strippedPath.removeFirst(2)
-            }
-
-            settings.basePath = appRootUrl.appendingPathComponent(strippedPath).standardized.path
-            //logD("🪓 🚧 [Settings] Relative Path Resolved: \(settings.basePath)")
-        }
-
-        // [Issue199] 기본 경로 물결표 확장 (샌드박스 우회)
-        // settings.basePath가 ~로 시작하면 절대 경로로 변환하여 저장 (메모리 상에서만)
-        if settings.basePath.hasPrefix("~") {
-            let userName = NSUserName()
-            settings.basePath = settings.basePath.replacingOccurrences(
-                of: "~", with: "/Users/\(userName)")
-        }
+        settings.basePath = Self.resolveBasePath(settings.basePath, appRootPath: settings.appRootPath)
 
         // 3. 기본 경로 북마크 (Issue 194)
         if let bookmark = prefs.get(basePathBookmarkKey) as String? {

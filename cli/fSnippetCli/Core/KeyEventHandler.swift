@@ -146,7 +146,12 @@ class KeyEventHandler: KeyEventProcessorDelegate {
       var shouldClearBufferFallback = false
       var allowRoleFallthrough = false
 
-      if let role = resolveKeyRole(keyInfo) {
+      let resolvedRole = resolveKeyRole(keyInfo)
+      // prj5#Issue99: role of special-token keys ({right_command} …) — the branch a trigger takes.
+      if sanitizedChar.hasPrefix("{") {
+        logD("🔹🧹 [KeyEventHandler/A] Role for \(sanitizedChar): \(resolvedRole.map { "\($0.type) (ID: \($0.id))" } ?? "none") buffer='\(currentBuffer)'")
+      }
+      if let role = resolvedRole {
         // logD("🔹🧹 [KeyEventHandler] Role: \(role.type) (ID: \(role.id))")
 
         switch role.type {
@@ -395,7 +400,12 @@ class KeyEventHandler: KeyEventProcessorDelegate {
       var shouldClearBufferFallback = false
       var allowRoleFallthrough = false
 
-      if let role = resolveKeyRole(keyInfo) {
+      let resolvedRole = resolveKeyRole(keyInfo)
+      // prj5#Issue99: role of special-token keys ({right_command} …) — the branch a trigger takes.
+      if sanitizedChar.hasPrefix("{") {
+        logD("🔹🧹 [KeyEventHandler/B] Role for \(sanitizedChar): \(resolvedRole.map { "\($0.type) (ID: \($0.id))" } ?? "none") buffer='\(currentBuffer)'")
+      }
+      if let role = resolvedRole {
         // logD("🔹🧹 [KeyEventHandler] Role: \(role.type) (ID: \(role.id))")
 
         switch role.type {

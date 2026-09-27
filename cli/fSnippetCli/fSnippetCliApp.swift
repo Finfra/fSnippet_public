@@ -98,6 +98,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
 
+        // prj5#Issue99: XCTest host — load config/snippets from the temp root only. No tap,
+        // no REST, no accessibility alert, no brew sync, no paidApp (tests call types directly).
+        if !RuntimeIsolation.allowsEngineStartup {
+            PreferencesManager.shared.loadConfig()
+            SnippetFileManager.shared.loadAllSnippets(reason: "fSnippetCli/XCTestHost")
+            logI("fSnippetCli XCTest host — 엔진·REST·brew·paidApp 기동 생략 (root: \(PreferencesManager.resolveAppRootPath()))")
+            return
+        }
+
         // 접근성 권한 확인
         checkAccessibilityPermission()
 
@@ -114,6 +123,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // 4. API 서버 시작 (forceEnabled: api_enabled 설정 무시하고 항상 시작)
         APIServer.shared.start(forceEnabled: true)
+
+        // prj5#Issue99: an isolated test instance runs the engine + REST only.
+        guard RuntimeIsolation.allowsLiveSideEffects else {
+            logI("fSnippetCli 격리 인스턴스 시작 완료 — paidApp·brew 연동 생략 (port \(APIServer.shared.currentPort))")
+            return
+        }
 
         // 5. paid 앱 설치됐지만 미실행 시 자동 실행 (실행되면 NSWorkspace가 메뉴바 숨김 트리거)
         if PaidAppManager.shared.isInstalled(), !PaidAppManager.shared.isRunning() {
@@ -136,6 +151,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // 중복 인스턴스로 판정된 경우 정리 로직 불필요 (초기화 자체를 건너뜀)
         guard !isDuplicateInstance else { return }
+
+        // prj5#Issue99: test host / isolated instance — release only what this process owns.
+        // Never signal the paidApp or stop the brew service (they belong to the user's instance).
+        if !RuntimeIsolation.allowsLiveSideEffects {
+            keyEventMonitor?.stopMonitoring()
+            keyEventMonitor?.cleanup()
+            SnippetFileManager.shared.stopFolderWatching()
+            APIServer.shared.stop()
+            PreferencesManager.shared.flush()
+            logger.flush()
+            return
+        }
 
         // Issue849 fix — cliApp이 다른 cliApp 인스턴스에 의해 SingleInstanceGuard로 terminate되는
         // "인스턴스 교체" 시나리오에서는 paidApp 종료 신호를 스킵.

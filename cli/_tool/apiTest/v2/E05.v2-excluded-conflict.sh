@@ -1,6 +1,6 @@
 #!/bin/bash
 # 409 duplicate + 404 not-found 복합 검증 (global)
-BASE="http://localhost:3015/api/v2"
+BASE="http://localhost:${FSC_API_PORT:-3015}/api/v2"
 TEMP="apitest-err-$$.md"
 curl -s -o /dev/null -X POST -H "Content-Type: application/json" \
   -d "{\"filename\":\"$TEMP\"}" \

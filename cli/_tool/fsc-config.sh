@@ -135,3 +135,19 @@ warn_legacy_var_dir() {
         echo "           rm -rf '$LEGACY_VAR_DIR'"
     fi
 }
+
+# prj5#Issue99: single decision point for "which fSnippetCli processes may this script kill?".
+#   - normal run  : every fSnippetCli (the dev build replaces the installed one)
+#   - isolated run (fSnippetCli_isolated=1, fsc-test.sh): only the Debug test build. The
+#     brew/user instance keeps running — on a shared machine (jma) another team's paidApp
+#     depends on it, and killing it only makes launchd/paidApp respawn it mid-test.
+fsc_is_isolated_run() {
+    [ "${fSnippetCli_isolated:-}" = "1" ]
+}
+fsc_kill_pattern() {
+    if fsc_is_isolated_run; then
+        printf '%s\n' "Debug/${APP_NAME}/Contents/MacOS/${PROJECT_NAME}"
+    else
+        printf '%s\n' "MacOS/${PROJECT_NAME}"
+    fi
+}

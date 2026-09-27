@@ -44,7 +44,10 @@ test_endpoint() {
 
   TOTAL=$((TOTAL + 1))
 
-  if [ "$method" = "POST" ] && [ -n "$body" ]; then
+  # prj5#Issue99: POST stays POST even with an empty body. Falling back to GET turned
+  # `POST /snippets/expand -d ''` into `GET /snippets/expand` (snippet id "expand" → 404),
+  # which was misread as a server bug.
+  if [ "$method" = "POST" ]; then
     response=$(curl -s -w "\n%{http_code}" -X POST "$url" \
       -H "Content-Type: application/json" \
       -d "$body" 2>/dev/null) || true
@@ -85,76 +88,87 @@ echo ""
 test_endpoint "Health Check (GET /)" \
   "GET" "$BASE_URL/" "200" "" '"status"'
 
+# 1-1. Health Check — spec field name (openapi_v2 HealthResponse.uptime_seconds; was emitted as
+# "uptimeSeconds" — prj5#Issue99, reported by prj15)
+test_endpoint "Health Check uptime_seconds (GET /)" \
+  "GET" "$BASE_URL/" "200" "" '"uptime_seconds"'
+
 # 2. Snippet Search
-test_endpoint "Snippet Search (GET /api/snippets/search?q=test)" \
-  "GET" "$BASE_URL/api/snippets/search?q=test" "200" "" '"ok"'
+test_endpoint "Snippet Search (GET /api/v2/snippets/search?q=test)" \
+  "GET" "$BASE_URL/api/v2/snippets/search?q=test" "200" "" '"ok"'
 
 # 3. Snippet Search - missing query
 test_endpoint "Snippet Search - missing query (400)" \
-  "GET" "$BASE_URL/api/snippets/search" "400"
+  "GET" "$BASE_URL/api/v2/snippets/search" "400"
 
-# 4. Snippet Expand
-test_endpoint "Snippet Expand (POST /api/snippets/expand)" \
-  "POST" "$BASE_URL/api/snippets/expand" "200" \
-  '{"abbreviation":"bb◊"}' '"expanded_text"'
+# 4. Snippet Expand — abbreviation discovered from the server (no user-specific data)
+ABBREV=$(curl -s "$BASE_URL/api/v2/snippets?limit=1" | jq -r '.data[0].abbreviation // empty')
+EXPAND_BODY=$(jq -cn --arg a "$ABBREV" '{abbreviation: $a}')
+test_endpoint "Snippet Expand (POST /api/v2/snippets/expand, '$ABBREV')" \
+  "POST" "$BASE_URL/api/v2/snippets/expand" "200" \
+  "$EXPAND_BODY" '"expanded_text"'
 
 # 5. Snippet Expand - invalid JSON
 test_endpoint "Snippet Expand - invalid JSON (400)" \
-  "POST" "$BASE_URL/api/snippets/expand" "400" \
+  "POST" "$BASE_URL/api/v2/snippets/expand" "400" \
   'not-json'
+
+# 5-1. Snippet Expand - empty body
+test_endpoint "Snippet Expand - empty body (400)" \
+  "POST" "$BASE_URL/api/v2/snippets/expand" "400" ""
 
 # 6. Snippet Expand - not found abbreviation
 test_endpoint "Snippet Expand - not found (404)" \
-  "POST" "$BASE_URL/api/snippets/expand" "404" \
+  "POST" "$BASE_URL/api/v2/snippets/expand" "404" \
   '{"abbreviation":"__nonexistent__"}' '"error"'
 
 # 7. Snippet by Abbreviation - not found
 test_endpoint "Snippet by Abbreviation - not found (404)" \
-  "GET" "$BASE_URL/api/snippets/by-abbreviation/NONEXISTENT_ABBREV_12345" "404"
+  "GET" "$BASE_URL/api/v2/snippets/by-abbreviation/NONEXISTENT_ABBREV_12345" "404"
 
 # 8. Snippet by ID - not found
 test_endpoint "Snippet by ID - not found (404)" \
-  "GET" "$BASE_URL/api/snippets/NONEXISTENT_ID_12345" "404"
+  "GET" "$BASE_URL/api/v2/snippets/NONEXISTENT_ID_12345" "404"
 
 # 9. Clipboard History
-test_endpoint "Clipboard History (GET /api/clipboard/history)" \
-  "GET" "$BASE_URL/api/clipboard/history?limit=5" "200" "" '"ok"'
+test_endpoint "Clipboard History (GET /api/v2/clipboard/history)" \
+  "GET" "$BASE_URL/api/v2/clipboard/history?limit=5" "200" "" '"ok"'
 
 # 10. Clipboard Search
-test_endpoint "Clipboard Search (GET /api/clipboard/search?q=test)" \
-  "GET" "$BASE_URL/api/clipboard/search?q=test" "200" "" '"ok"'
+test_endpoint "Clipboard Search (GET /api/v2/clipboard/search?q=test)" \
+  "GET" "$BASE_URL/api/v2/clipboard/search?q=test" "200" "" '"ok"'
 
 # 11. Clipboard Search - missing query
 test_endpoint "Clipboard Search - missing query (400)" \
-  "GET" "$BASE_URL/api/clipboard/search" "400"
+  "GET" "$BASE_URL/api/v2/clipboard/search" "400"
 
 # 12. Clipboard Detail - not found
 test_endpoint "Clipboard Detail - not found (404)" \
-  "GET" "$BASE_URL/api/clipboard/history/999999999" "404"
+  "GET" "$BASE_URL/api/v2/clipboard/history/999999999" "404"
 
 # 13. Folder List
-test_endpoint "Folder List (GET /api/folders)" \
-  "GET" "$BASE_URL/api/folders" "200" "" '"ok"'
+test_endpoint "Folder List (GET /api/v2/folders)" \
+  "GET" "$BASE_URL/api/v2/folders" "200" "" '"ok"'
 
 # 14. Folder Detail - not found
 test_endpoint "Folder Detail - not found (404)" \
-  "GET" "$BASE_URL/api/folders/NONEXISTENT_FOLDER_12345" "404"
+  "GET" "$BASE_URL/api/v2/folders/NONEXISTENT_FOLDER_12345" "404"
 
 # 15. Stats Top
-test_endpoint "Stats Top (GET /api/stats/top)" \
-  "GET" "$BASE_URL/api/stats/top?limit=5" "200" "" '"ok"'
+test_endpoint "Stats Top (GET /api/v2/stats/top)" \
+  "GET" "$BASE_URL/api/v2/stats/top?limit=5" "200" "" '"ok"'
 
 # 16. Stats History
-test_endpoint "Stats History (GET /api/stats/history)" \
-  "GET" "$BASE_URL/api/stats/history?limit=5" "200" "" '"ok"'
+test_endpoint "Stats History (GET /api/v2/stats/history)" \
+  "GET" "$BASE_URL/api/v2/stats/history?limit=5" "200" "" '"ok"'
 
 # 17. Trigger Keys
-test_endpoint "Trigger Keys (GET /api/triggers)" \
-  "GET" "$BASE_URL/api/triggers" "200" "" '"ok"'
+test_endpoint "Trigger Keys (GET /api/v2/triggers)" \
+  "GET" "$BASE_URL/api/v2/triggers" "200" "" '"ok"'
 
 # 18. 404 - Unknown path
 test_endpoint "Unknown Path (404)" \
-  "GET" "$BASE_URL/api/nonexistent" "404"
+  "GET" "$BASE_URL/api/v2/nonexistent" "404"
 
 echo ""
 echo "================================================"

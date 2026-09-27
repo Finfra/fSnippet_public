@@ -1,6 +1,6 @@
 #!/bin/bash
 # GET/PUT /api/v2/settings/advanced/alfred-import — sourcePath 조회/변경
-BASE="http://localhost:3015/api/v2"
+BASE="http://localhost:${FSC_API_PORT:-3015}/api/v2"
 ORIG=$(curl -s "$BASE/settings/advanced/alfred-import" | jq -r .sourcePath)
 echo "== GET (원본) =="; echo "$ORIG"
 echo "== PUT tmp =="

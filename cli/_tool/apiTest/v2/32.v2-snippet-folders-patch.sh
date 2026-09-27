@@ -1,6 +1,6 @@
 #!/bin/bash
 # PATCH suffix — _rule.yml 반영 후 자동 복구
-BASE="http://localhost:3015/api/v2"
+BASE="http://localhost:${FSC_API_PORT:-3015}/api/v2"
 ORIG=$(curl -s "$BASE/settings/snippet-folders/_emoji" | jq -r .suffix)
 echo "== 원본 suffix: $ORIG =="
 echo "== PATCH suffix=',{right_command}' =="

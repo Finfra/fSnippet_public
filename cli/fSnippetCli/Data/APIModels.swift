@@ -42,7 +42,7 @@ struct HealthResponse: Codable {
   enum CodingKeys: String, CodingKey {
     case status, app, version, port
     case uptime
-    case uptimeSeconds
+    case uptimeSeconds = "uptime_seconds"
     case isRunning
     case isMenuBarVisible
     case snippetCount = "snippet_count"

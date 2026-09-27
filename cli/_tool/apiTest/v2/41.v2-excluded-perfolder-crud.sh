@@ -1,6 +1,6 @@
 #!/bin/bash
 # Per-folder excluded files — PUT / GET / POST entry / DELETE entry / DELETE folder
-BASE="http://localhost:3015/api/v2"
+BASE="http://localhost:${FSC_API_PORT:-3015}/api/v2"
 F="_apitest_folder_$$"
 echo "== PUT list --"
 curl -s -X PUT -H "Content-Type: application/json" -d '["a.md","b.md"]' \

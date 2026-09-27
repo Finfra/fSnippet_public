@@ -114,19 +114,10 @@ class CGEventTapManager {
     private var monitorKeySinceCheck = 0
     private var lastAsymmetryCheckAt: CFAbsoluteTime = 0
     private static let asymmetryWindow: CFAbsoluteTime = 3.0
-    private static let asymmetryMinTapKeys = 3
-    static var asymmetryMinTapKeysForTesting: Int { asymmetryMinTapKeys }
-    // Issue230: a single asymmetric window is not enough evidence on its own.
-    //
-    // Measured 2026-09-08 23:42 — the same key pressed repeatedly ~200-400ms apart while
-    // another app (PowerPoint) was frontmost produced 8 tap keyDowns and 0 global-monitor
-    // keyDowns inside one 3s window, even though permission was never touched (ordinary
-    // typing with mixed keys 40s earlier logged fine on the same monitor). One window can
-    // be a burst artifact; only a *sustained* asymmetry across consecutive windows means
-    // the monitor is actually dead. Same "single hit is noise, burst is signal" philosophy
-    // as `noteTimeoutAndShouldBail()`'s timeout-burst threshold below.
-    private var consecutiveAsymmetryHits = 0
-    private static let asymmetryConfirmThreshold = 2
+    static var asymmetryMinTapKeysForTesting: Int { InputAsymmetryJudge.minTapDistinctKeys }
+    // Issue230/231 + prj5#Issue99: the per-window verdict lives in `InputAsymmetryJudge`
+    // (bottom of this file) so the thresholds can be unit-tested without a live tap.
+    private var asymmetryJudge = InputAsymmetryJudge()
     private static let permissionPromptCooldown: TimeInterval = 30.0
     private static let watchdogInterval: TimeInterval = 0.5
     private static let stallThreshold: CFAbsoluteTime = 1.5
@@ -503,26 +494,24 @@ class CGEventTapManager {
                 // 키가 여러 종류 들어온 것은 다른 신호다. 정상 타이핑은 자연히 키가
                 // 섞이므로 이 기준을 통과하지만, 같은 키 반복은 tapDistinctN 이 1로
                 // 남아 아래 조건을 만족하지 못한다.
-                if tapDistinctN >= Self.asymmetryMinTapKeys, monN == 0 {
-                    self.consecutiveAsymmetryHits += 1
-                    if self.consecutiveAsymmetryHits >= Self.asymmetryConfirmThreshold {
-                        logE(
-                            "💉 ⚙️ 🚨 [Watchdog] 입력 경로 비대칭 감지 (연속 \(self.consecutiveAsymmetryHits)회 창) — "
-                                + "CGEventTap 은 서로 다른 키 \(tapDistinctN)종(keyDown \(tapN)건)을 받았는데 "
-                                + "NSEvent 글로벌 모니터는 0건이다. 이 모니터는 접근성 권한이 있어야만 "
-                                + "동작하므로 **권한 상실로 확정**한다. tap 을 제거해 키보드를 되돌린다.")
-                        access = false
-                        self.permissionRevokedAtRuntime = true  // Issue226: 재생성 시도 금지
-                    } else {
-                        // Issue230: first hit — could be a burst artifact (e.g. the same key
-                        // pressed repeatedly). Wait for the next window to confirm before
-                        // tearing down the tap; a burst won't repeat, real revocation will.
-                        logW(
-                            "💉 ⚙️ [Watchdog] 입력 경로 비대칭 1회 감지 (tap 서로 다른 키 \(tapDistinctN)종·"
-                                + "monitor 0건) — 확정 전 다음 창에서 재확인한다 (버스트일 수 있음).")
-                    }
-                } else {
-                    self.consecutiveAsymmetryHits = 0
+                switch self.asymmetryJudge.evaluate(tapDistinctKeys: tapDistinctN, monitorKeys: monN) {
+                case .confirmed:
+                    logE(
+                        "💉 ⚙️ 🚨 [Watchdog] 입력 경로 비대칭 감지 (연속 \(self.asymmetryJudge.consecutiveHits)회 창) — "
+                            + "CGEventTap 은 서로 다른 키 \(tapDistinctN)종(keyDown \(tapN)건)을 받았는데 "
+                            + "NSEvent 글로벌 모니터는 0건이다. 이 모니터는 접근성 권한이 있어야만 "
+                            + "동작하므로 **권한 상실로 확정**한다. tap 을 제거해 키보드를 되돌린다.")
+                    access = false
+                    self.permissionRevokedAtRuntime = true  // Issue226: 재생성 시도 금지
+                case .suspect:
+                    // Issue230: first hit — could be a burst artifact (e.g. the same key
+                    // pressed repeatedly). Wait for the next window to confirm before
+                    // tearing down the tap; a burst won't repeat, real revocation will.
+                    logW(
+                        "💉 ⚙️ [Watchdog] 입력 경로 비대칭 1회 감지 (tap 서로 다른 키 \(tapDistinctN)종·"
+                            + "monitor 0건) — 확정 전 다음 창에서 재확인한다 (버스트일 수 있음).")
+                case .normal:
+                    break
                 }
             }
 
@@ -1112,6 +1101,33 @@ struct TapAsymmetryCounter {
         keyDowns = 0
         distinctKeyCodes.removeAll(keepingCapacity: true)
         return snap
+    }
+}
+
+// Issue220/230/231 + prj5#Issue99: per-window verdict of the input-path asymmetry watchdog.
+//
+// * Issue231 — judged by *distinct* keyCodes, so one key held/repeated never qualifies.
+// * Issue230 — one asymmetric window is only a suspicion (burst artifact, measured
+//   2026-09-08 23:42 with PowerPoint frontmost); only `confirmThreshold` consecutive
+//   windows mean the NSEvent monitor is really dead. Same "single hit is noise, burst is
+//   signal" philosophy as `noteTimeoutAndShouldBail()`.
+// * Issue229 — the Local Monitor also feeds `monitorKeys`, so typing into cliApp's own
+//   window keeps the count above zero.
+struct InputAsymmetryJudge {
+    enum Verdict: Equatable { case normal, suspect, confirmed }
+
+    static let minTapDistinctKeys = 3
+    static let confirmThreshold = 2
+
+    private(set) var consecutiveHits = 0
+
+    mutating func evaluate(tapDistinctKeys: Int, monitorKeys: Int) -> Verdict {
+        guard tapDistinctKeys >= Self.minTapDistinctKeys, monitorKeys == 0 else {
+            consecutiveHits = 0
+            return .normal
+        }
+        consecutiveHits += 1
+        return consecutiveHits >= Self.confirmThreshold ? .confirmed : .suspect
     }
 }
 

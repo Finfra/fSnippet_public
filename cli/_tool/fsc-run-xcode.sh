@@ -91,9 +91,11 @@ APPLESCRIPT
 )
     if [[ "$stop_result" == "OK" ]]; then
         # Xcode stop 성공 — TCC 재적용 방해 방지용 잔존 프로세스 정리
-        if pgrep -f "MacOS/$PROJECT_NAME" > /dev/null 2>&1; then
-            echo "[stop] 잔존 프로세스 감지 — pkill -f MacOS/$PROJECT_NAME"
-            pkill -f "MacOS/$PROJECT_NAME" 2>/dev/null || true
+        local kill_pat
+        kill_pat=$(fsc_kill_pattern)
+        if pgrep -f "$kill_pat" > /dev/null 2>&1; then
+            echo "[stop] 잔존 프로세스 감지 — pkill -f $kill_pat"
+            pkill -f "$kill_pat" 2>/dev/null || true
             sleep 0.3
         fi
     else
@@ -149,6 +151,14 @@ APPLESCRIPT
 # 이후 /deploy debug(= fsc-deploy-debug.sh)로 Applications 경로에서 독립 기동 시
 # TCC 권한은 앱 번들에 귀속된 상태로 승계됨.
 xcode_run_stop() {
+    # prj5#Issue99: skipped for an isolated test run. The Xcode-launched instance is not isolated
+    # (no env) and its TCC/System Settings prompt surfaced asynchronously — on jma it stole focus
+    # in the middle of ZTest typing, so cliApp cleared its buffer (window context change). The
+    # grant is bound to the signing identity, so an already-approved build does not need it.
+    if fsc_is_isolated_run; then
+        echo "[run-stop] 격리 실행 — Xcode run/stop(TCC 유발) 생략"
+        return 0
+    fi
     echo "[run-stop] Xcode에서 run→stop 순서로 TCC 권한 획득 ($SCHEME)"
     local result
     result=$(osascript 2>&1 <<APPLESCRIPT
@@ -208,6 +218,11 @@ reset_tcc_accessibility() {
 #   - 포트 3015 단일 인스턴스 가드가 Release를 먼저 잡아 Debug 거부 가능
 # Debug 세션 종료 후 복원은 `/deploy brew local` 또는 `brew services start`.
 brew_service_stop_for_debug() {
+    # prj5#Issue99: an isolated test instance coexists with the brew instance.
+    if fsc_is_isolated_run; then
+        echo "[brew] 격리 실행 — brew service 유지 (테스트 빌드만 교체)"
+        return 0
+    fi
     if brew_service_running; then
         echo "[brew] service 실행 감지 — Debug 덮어쓰기 전 stop (launchd respawn 차단)"
         brew services stop "$BREW_FORMULA" 2>&1 | tail -1 || true

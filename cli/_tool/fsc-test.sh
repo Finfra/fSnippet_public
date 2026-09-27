@@ -31,6 +31,12 @@ RUN_XCODE="$SCRIPT_DIR/fsc-run-xcode.sh"
 TEST_ROOT="$HOME/Documents/finfra/fSnippetData_testForCli"
 TEST_BOARD="$SCRIPT_DIR/testBoard.txt"
 LOG_FILE="$TEST_ROOT/logs/flog_cliApp.log"
+# prj5#Issue99: the test instance runs isolated next to any installed/brew instance, so it
+# needs its own REST port. apiTest/cmdTest read FSC_API_PORT.
+export FSC_API_PORT="${FSC_API_PORT:-3115}"
+export fSnippetCli_config="$TEST_ROOT"
+export fSnippetCli_isolated=1
+DEBUG_BIN="/Applications/_nowage_app/fSnippetCli.app/Contents/MacOS/fSnippetCli"
 
 TOTAL_PASS=0
 TOTAL_FAIL=0
@@ -50,6 +56,7 @@ record_result() {
 # 실패 경로에서 공통 뒷정리 (환경변수 원복)
 cleanup_env() {
     launchctl unsetenv fSnippetCli_config 2>/dev/null || true
+    launchctl unsetenv fSnippetCli_isolated 2>/dev/null || true
 }
 
 echo "╔══════════════════════════════════════════╗"
@@ -61,25 +68,59 @@ echo "   tail -f $LOG_FILE"
 echo ""
 
 # --- Step 0: 기존 프로세스 종료 ---
-echo "=== Step 0: 기존 프로세스 종료 ==="
-bash "$SCRIPT_DIR/kill.sh"
+echo "=== Step 0: 기존 테스트 인스턴스 종료 ==="
+# prj5#Issue99: only the previous test build — the brew/user instance is left alone.
+source "$SCRIPT_DIR/fsc-config.sh"
+pkill -f "$(fsc_kill_pattern)" 2>/dev/null || true
+sleep 1
 
 # --- Step 1: testForCli 폴더 확인 ---
 echo ""
 echo "=== Step 1: testForCli 폴더 확인 ==="
-if [ ! -d "$TEST_ROOT" ]; then
-    record_result "testForCli 폴더" "FAIL" "$TEST_ROOT 없음"
-    echo ""; echo "❌ 테스트 루트 폴더 부재 — 중단"
+# prj5#Issue99: provision the isolated test root instead of requiring a hand-made one.
+# It never existed on jma (or on a fresh jm4), so Step 8/11 failed for lack of a log file.
+# Reset the snippet tree every run: Step 9 (alfred-import) rewrites `snippets/_rule.yml` and adds
+# collection folders, which changed trigger matching on the *next* run (flaky Step 7).
+case "$TEST_ROOT" in
+    */fSnippetData_testForCli) rm -rf "$TEST_ROOT/snippets" ;;
+    *) echo "❌ 예상 밖 TEST_ROOT: $TEST_ROOT — 초기화 거부"; cleanup_env; exit 1 ;;
+esac
+if ! mkdir -p "$TEST_ROOT/snippets" "$TEST_ROOT/logs"; then
+    record_result "testForCli 폴더" "FAIL" "$TEST_ROOT 생성 실패"
+    echo ""; echo "❌ 테스트 루트 폴더 생성 실패 — 중단"
     cleanup_env
     exit 1
 fi
-record_result "testForCli 폴더" "PASS" "$TEST_ROOT"
+# Fixture preferences the test depends on (the app merges its defaults into this file):
+#   api_port            — own REST port for the isolated instance
+#   snippet_trigger_key — ZTest types `ztdo` + right ⌘; a fresh root defaults to `=`, so this
+#                         used to pass only on a hand-made jm4 root
+set_test_pref() {
+    local key="$1" value="$2" cfg="$TEST_ROOT/_config.yml"
+    [ -f "$cfg" ] || printf 'preferences:\n' > "$cfg"
+    if grep -qE "^[[:space:]]*${key}:" "$cfg"; then
+        sed -i '' -E "s|^([[:space:]]*${key}:).*|\1 ${value}|" "$cfg"
+    else
+        sed -i '' -E "s|^preferences:$|preferences:\\
+  ${key}: ${value}|" "$cfg"
+    fi
+}
+set_test_pref api_port "$FSC_API_PORT"
+set_test_pref snippet_trigger_key '"{right_command}"'
+set_test_pref log_level '"DEBUG"'   # Step 8 evidence + key-path diagnostics
+record_result "testForCli 폴더" "PASS" "$TEST_ROOT (api_port $FSC_API_PORT)"
 
 # --- Step 2: 환경변수 설정 + Debug 빌드·배포·실행 ---
 echo ""
 echo "=== Step 2: launchctl setenv + Debug 빌드·배포·실행 ==="
 launchctl setenv fSnippetCli_config "$TEST_ROOT"
 echo "fSnippetCli_config=$TEST_ROOT"
+# prj5#Issue99: run the test instance isolated (RuntimeIsolation). Without this the Debug
+# instance ran BrewServiceSync.onAppStart -> `brew services start` and launched the paidApp;
+# the launchd-spawned brew instance then replaced it (SingleInstanceGuard), so ZTest typed
+# into the *user's* instance/data root, which has no ZTest snippet.
+launchctl setenv fSnippetCli_isolated 1
+echo "fSnippetCli_isolated=1"
 if bash "$RUN_XCODE" build-deploy; then
     record_result "빌드 & 배포" "PASS" "Xcode Debug 빌드 성공"
 else
@@ -104,6 +145,20 @@ sleep 2  # 파일 감시 감지 대기
 # --- Step 4: testBoard.txt 초기화 ---
 echo ""
 echo "=== Step 4: testBoard.txt 초기화 ==="
+# prj5#Issue99: close a testBoard document left open by a previous run (without saving) BEFORE
+# truncating the file. Truncating under an open document made TextEdit raise a "changed by
+# another application" sheet on the first edit — a new active window, so cliApp rightly cleared
+# its buffer (WindowContextManager "Context Change") and `ztdo` never expanded. Leaving the old
+# document open instead made the new input append to stale text ('ztdoZTest-do').
+osascript >/dev/null 2>&1 <<APPLESCRIPT
+if application "TextEdit" is running then
+    tell application "TextEdit"
+        repeat with d in (documents whose path is "$TEST_BOARD")
+            close d saving no
+        end repeat
+    end tell
+end if
+APPLESCRIPT
 if : > "$TEST_BOARD"; then
     record_result "testBoard 초기화" "PASS" "$TEST_BOARD"
 else
@@ -115,7 +170,7 @@ echo ""
 echo "=== Step 5: REST API 응답 확인 ==="
 HEALTH=""
 for _i in $(seq 1 10); do
-    HEALTH=$(curl -s --connect-timeout 2 http://localhost:3015/ 2>/dev/null)
+    HEALTH=$(curl -s --connect-timeout 2 "http://localhost:$FSC_API_PORT/" 2>/dev/null)
     if [ -n "$HEALTH" ]; then
         break
     fi
@@ -126,7 +181,7 @@ if [ -n "$HEALTH" ]; then
     HEALTH_MSG=$(echo "$HEALTH" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(f"status={d.get(\"status\",\"?\")}")' 2>/dev/null || echo "응답 수신")
     record_result "REST API" "PASS" "$HEALTH_MSG"
 else
-    record_result "REST API" "FAIL" "10초 내 응답 없음 (포트 3015)"
+    record_result "REST API" "FAIL" "10초 내 응답 없음 (포트 $FSC_API_PORT)"
 fi
 
 # --- Step 6: TextEdit에서 ztdo 입력 후 Python으로 right_command 전송 ---
@@ -183,10 +238,12 @@ echo ""
 echo "=== Step 7: testBoard.txt 내용 확인 ==="
 BOARD_CONTENT=$(cat "$TEST_BOARD" 2>/dev/null || echo "")
 echo "내용: '$BOARD_CONTENT'"
-if [ -n "$BOARD_CONTENT" ] && [ "$BOARD_CONTENT" != "ztdo" ]; then
+# prj5#Issue99: exact match — "anything but ztdo" accepted garbage such as 'ztdoztdo'.
+EXPECTED_BOARD="$(cat "$TEST_ROOT/snippets/ZTest/do.txt")"
+if [ "$BOARD_CONTENT" = "$EXPECTED_BOARD" ]; then
     record_result "testBoard 확장" "PASS" "'$BOARD_CONTENT' (ztdo → 확장)"
-elif [ "$BOARD_CONTENT" = "ztdo" ]; then
-    record_result "testBoard 확장" "FAIL" "트리거 미확장 ('ztdo' 그대로)"
+elif [ -n "$BOARD_CONTENT" ]; then
+    record_result "testBoard 확장" "FAIL" "기대 '$EXPECTED_BOARD' ≠ 실제 '$BOARD_CONTENT'"
 else
     record_result "testBoard 확장" "FAIL" "내용 비어있음"
 fi
@@ -224,7 +281,8 @@ fi
 echo ""
 echo "=== Step 10: cmdTestDo.sh all (CMD 통합 테스트) ==="
 if [ -f "$SCRIPT_DIR/cmdTestDo.sh" ]; then
-    CMD_RESULT=$(bash "$SCRIPT_DIR/cmdTestDo.sh" all 2>&1)
+    # prj5#Issue99: drive the build under test on its own port (not the brew binary on 3015).
+    CMD_RESULT=$(CLI="$DEBUG_BIN --port $FSC_API_PORT" bash "$SCRIPT_DIR/cmdTestDo.sh" all 2>&1)
     echo "$CMD_RESULT" | tail -60
     CMD_TOTAL=$(echo "$CMD_RESULT" | grep -c '^===' || true)
     CMD_FAIL=$(echo "$CMD_RESULT" | grep -cE '실패=[1-9]' || true)
@@ -241,7 +299,10 @@ fi
 echo ""
 echo "=== Step 11: flog.log ERROR/CRITICAL 자동 검사 ==="
 if [ -f "$LOG_FILE" ]; then
-    LOG_ERRORS=$(grep -cE "ERROR|CRITICAL" "$LOG_FILE" 2>/dev/null || echo 0)
+    # prj5#Issue99: `grep -c` already prints 0 on no match (exit 1) — `|| echo 0` made it "0\n0"
+    # and the numeric test below failed even with zero errors.
+    LOG_ERRORS=$(grep -cE "ERROR|CRITICAL" "$LOG_FILE" 2>/dev/null)
+    LOG_ERRORS=${LOG_ERRORS:-0}
     LOG_LINES=$(wc -l < "$LOG_FILE" | tr -d ' ')
     echo "로그 파일: ${LOG_LINES}줄, ERROR/CRITICAL: ${LOG_ERRORS}건"
     if [ "$LOG_ERRORS" -eq 0 ]; then
@@ -259,7 +320,8 @@ fi
 echo ""
 echo "=== Step 12: 환경변수 원복 (launchctl unsetenv) ==="
 launchctl unsetenv fSnippetCli_config
-echo "fSnippetCli_config 해제"
+launchctl unsetenv fSnippetCli_isolated
+echo "fSnippetCli_config·fSnippetCli_isolated 해제"
 
 # --- 최종 리포트 ---
 echo ""

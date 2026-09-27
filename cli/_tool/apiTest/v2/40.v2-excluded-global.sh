@@ -1,6 +1,6 @@
 #!/bin/bash
 # Global excluded files — GET / POST entry / DELETE entry (auto cleanup)
-BASE="http://localhost:3015/api/v2"
+BASE="http://localhost:${FSC_API_PORT:-3015}/api/v2"
 TEMP="apitest-$$.md"
 echo "== GET =="; curl -s "$BASE/settings/advanced/excluded-files/global" | jq .
 echo "== POST $TEMP =="

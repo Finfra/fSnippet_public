@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-BASE="http://localhost:3015/api/v2"
+BASE="http://localhost:${FSC_API_PORT:-3015}/api/v2"
 
 # Get current value
 echo "📖 현재 일반 설정 조회..."

@@ -38,6 +38,11 @@ class PreferencesManager: PreferencesManagerProtocol {
                 : envPath
         }
 
+        // prj5#Issue99: the XCTest host must never resolve (or seed) the user's data root.
+        if RuntimeIsolation.isHostedByXCTest {
+            return RuntimeIsolation.testHostAppRootPath
+        }
+
         let home = "/Users/\(NSUserName())"
         let seed = "\(home)/Documents/finfra/fSnippetData"
         let deprecatedAppSupport = "\(home)/Library/Application Support/kr.finfra.fSnippetCli/data"

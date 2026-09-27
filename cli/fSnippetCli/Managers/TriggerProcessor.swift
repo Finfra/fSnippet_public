@@ -186,6 +186,11 @@ class TriggerProcessor {
             return true
         }
 
+        // prj5#Issue99: a trigger key that expands nothing used to leave no trace, which made an
+        // intermittent ZTest miss on jma undiagnosable.
+        logD(
+            "⚡️ [TriggerProcessor] No match — buffer='\(buffer)' clean='\(cleanBuffer)' exactKey='\(exactMatchKey)' exact=\(hasExactMatch) rules=\(allRules.count) global=\(isGlobalTrigger) default='\(defaultSymbol)'"
+        )
         return false
     }
 
