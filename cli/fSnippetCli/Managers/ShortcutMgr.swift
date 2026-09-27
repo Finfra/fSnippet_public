@@ -638,7 +638,13 @@ class ShortcutMgr: ObservableObject {
         }
 
         for item in sorted {
-            logV("🚀  [\(item.type)] \(item.keySpec): \(item.description) (ID: \(item.id))")
+            // App shortcuts are the ones users configure and report problems about, so they stay
+            // visible at DEBUG. Folder/trigger entries number in the hundreds and stay VERBOSE.
+            if item.type == .appShortcut {
+                logD("🚀  [\(item.type)] \(item.keySpec): \(item.description) (ID: \(item.id))")
+            } else {
+                logV("🚀  [\(item.type)] \(item.keySpec): \(item.description) (ID: \(item.id))")
+            }
         }
 
         // 최종 요약 - PSKeyManager (통합된 "추가된 접미사" 로그)

@@ -608,6 +608,17 @@ class KeyEventProcessor: CGEventTapManagerDelegate {
             }
         }
 
+        // Diagnostics: a modifier combo that matches nothing used to fail silently, which made
+        // "my hotkey does nothing" impossible to diagnose from the log. Emit the generated specs
+        // so the mismatch against the registered keySpec is visible.
+        // Guarded by a modifier check so plain typing adds no work on the CGEventTap callback path.
+        if modifiers.contains(.maskCommand) || modifiers.contains(.maskControl) {
+            logD(
+                "🎮 [isAnyShortcut] No match. specs=\(specsToCheck) keyCode=\(keyCode) "
+                    + "rawFlags=0x\(String(modifiers.rawValue, radix: 16))"
+            )
+        }
+
         return nil
     }
 
