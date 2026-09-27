@@ -104,12 +104,18 @@ class CGEventTapManager {
     // 계속 호출된다(실측 2026-09-05: `[cb] exit` 는 흐르는데 `[Typing]` 은 0건).
     // 조회 API 가 전부 revoke 를 감추는 상황에서, 이 비대칭이야말로 **관측 가능한
     // 유일한 증거**다. tap 은 받는데 모니터가 못 받으면 권한이 없는 것이다.
-    private var tapKeyDownSinceCheck = 0
-    private var tapDistinctKeyCodesSinceCheck: Set<UInt16> = []
+    //
+    // Issue233: the tap side counts **only events the tap passed through**. A swallowed
+    // event (`return nil`) can never reach the NSEvent monitors, so counting it made
+    // `monN == 0` appear during perfectly normal operation (shortcut capture, replacing,
+    // popup Down/Up/Esc — exactly 3 distinct keys = `asymmetryMinTapKeys`). Counting now
+    // happens in one place, `handleCallback`, after the return value is decided.
+    private var tapCounter = TapAsymmetryCounter()
     private var monitorKeySinceCheck = 0
     private var lastAsymmetryCheckAt: CFAbsoluteTime = 0
     private static let asymmetryWindow: CFAbsoluteTime = 3.0
     private static let asymmetryMinTapKeys = 3
+    static var asymmetryMinTapKeysForTesting: Int { asymmetryMinTapKeys }
     // Issue230: a single asymmetric window is not enough evidence on its own.
     //
     // Measured 2026-09-08 23:42 — the same key pressed repeatedly ~200-400ms apart while
@@ -484,11 +490,10 @@ class CGEventTapManager {
             if now - self.lastAsymmetryCheckAt >= Self.asymmetryWindow {
                 self.lastAsymmetryCheckAt = now
                 self.callbackStateLock.lock()
-                let tapN = self.tapKeyDownSinceCheck
-                let tapDistinctN = self.tapDistinctKeyCodesSinceCheck.count
+                let tapSnap = self.tapCounter.drain()
+                let tapN = tapSnap.keyDowns
+                let tapDistinctN = tapSnap.distinctKeyCodes
                 let monN = self.monitorKeySinceCheck
-                self.tapKeyDownSinceCheck = 0
-                self.tapDistinctKeyCodesSinceCheck.removeAll(keepingCapacity: true)
                 self.monitorKeySinceCheck = 0
                 self.callbackStateLock.unlock()
 
@@ -729,6 +734,20 @@ class CGEventTapManager {
     fileprivate func handleCallback(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent)
         -> Unmanaged<CGEvent>?
     {
+        let result = handleCallbackBody(proxy: proxy, type: type, event: event)
+        // Issue233: single counting point — only after pass/swallow is decided.
+        if type == .keyDown {
+            let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
+            callbackStateLock.lock()
+            tapCounter.record(type: type, keyCode: keyCode, passedThrough: result != nil)
+            callbackStateLock.unlock()
+        }
+        return result
+    }
+
+    private func handleCallbackBody(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent)
+        -> Unmanaged<CGEvent>?
+    {
         // Issue212: measure the whole callback. macOS disables the tap when this runs long,
         // and until it returns the entire HID stream is stalled. `lastCallbackMark` records
         // the last checkpoint entered, so a slow log names the culprit instead of guessing.
@@ -792,6 +811,10 @@ class CGEventTapManager {
         // Issue220: tap 이 받은 keyDown 을 센다. NSEvent 모니터 쪽 카운터와 비교해
         // 권한 상실을 판정한다.
         //
+        // ⚠️ Issue233: counting no longer happens here — the `handleCallback` wrapper
+        // counts only after a pass-through is decided. The "unknown OS reason" below
+        // (Issue231) was in fact this spot counting events the tap later swallowed.
+        //
         // Issue231: raw count 만이 아니라 **서로 다른 keyCode 종류**도 함께 기록한다.
         //
         // 실측 2026-09-09 00:00 — 같은 키(keyCode 18/19)를 반복 입력하는 동안 tap 은
@@ -803,14 +826,6 @@ class CGEventTapManager {
         // 경로 차이가 진짜 원인이었다. 그래서 비대칭 판정은 raw keyDown 수가 아니라
         // **서로 다른 키가 몇 종류 들어왔는가**를 기준으로 삼는다 — 정상 타이핑은 키가
         // 섞이므로 이 기준을 자연히 통과하고, 같은 키 반복은 여기서 걸러진다.
-        if type == .keyDown {
-            let repeatedKeyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
-            callbackStateLock.lock()
-            tapKeyDownSinceCheck += 1
-            tapDistinctKeyCodesSinceCheck.insert(repeatedKeyCode)
-            callbackStateLock.unlock()
-        }
-
         let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
         cbKeyCode = keyCode
 
@@ -1076,6 +1091,27 @@ class CGEventTapManager {
         }
 
         return Unmanaged.passUnretained(event)
+    }
+}
+
+// Issue233: tap-side half of the input-path asymmetry check (Issue220).
+// Only keyDowns the tap passed through are counted — a swallowed event never reaches
+// the NSEvent monitors, so counting it would fake a dead monitor.
+struct TapAsymmetryCounter {
+    private(set) var keyDowns = 0
+    private(set) var distinctKeyCodes: Set<UInt16> = []
+
+    mutating func record(type: CGEventType, keyCode: UInt16, passedThrough: Bool) {
+        guard type == .keyDown, passedThrough else { return }
+        keyDowns += 1
+        distinctKeyCodes.insert(keyCode)
+    }
+
+    mutating func drain() -> (keyDowns: Int, distinctKeyCodes: Int) {
+        let snap = (keyDowns, distinctKeyCodes.count)
+        keyDowns = 0
+        distinctKeyCodes.removeAll(keepingCapacity: true)
+        return snap
     }
 }
 
