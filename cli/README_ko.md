@@ -22,7 +22,7 @@ fSnippet (Sandbox, App Store)         fSnippetCli (Non-Sandbox, Helper)
 ## Homebrew (권장)
 
 > **설치 전 약관 고지.** 소스 코드는 Apache-2.0 — 직접 빌드해 쓰면 제한이 없음.
-> 아래 명령으로 설치하는 **공식 배포본**은 개인·교육·비영리·오픈소스 프로젝트는 무제한, 그 외 조직은 **동시 250 카피**까지 무료. 그 이상이거나 재판매·번들·호스팅은 [상업 라이선스](../COMMERCIAL.md)가 필요하며, 공식 배포본을 설치하면 [공식 배포본 약관](../DISTRIBUTION-TERMS.md)에 동의한 것으로 봄.
+> 아래 명령으로 설치하는 **공식 배포본**은 개인·교육·비영리·오픈소스 프로젝트는 무제한, 그 외 조직은 **동시 250 카피**까지 무료. 그 이상이거나 재판매·번들·호스팅은 [상업 라이선스](../COMMERCIAL.md)가 필요하며, 공식 배포본을 설치하면 [공식 배포본 약관](../DISTRIBUTION-TERMS_ko.md)에 동의한 것으로 봄.
 
 ```bash
 brew tap finfra/tap
@@ -204,4 +204,4 @@ fSnippet GUI와 동일한 데이터 디렉토리를 공유함:
 
 # 라이선스
 
-[Apache License 2.0](../LICENSE) — [NOTICE](../NOTICE)·[TRADEMARK.md](../TRADEMARK.md)(상표)·[DISTRIBUTION-TERMS.md](../DISTRIBUTION-TERMS.md)(공식 배포본 약관)·[COMMERCIAL.md](../COMMERCIAL.md)(상업 라이선스) 참조. 한글 참고 번역: [LICENSE_ko.md](../LICENSE_ko.md) (법적 효력은 영문 원문).
+[Apache License 2.0](../LICENSE) — [NOTICE](../NOTICE)·[TRADEMARK.md](../TRADEMARK.md)(상표)·[DISTRIBUTION-TERMS_ko.md](../DISTRIBUTION-TERMS_ko.md)(공식 배포본 약관)·[COMMERCIAL.md](../COMMERCIAL.md)(상업 라이선스) 참조. 한글 참고 번역: [LICENSE_ko.md](../LICENSE_ko.md) (법적 효력은 영문 원문).
