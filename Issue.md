@@ -111,7 +111,10 @@ date: 2026-04-07
 
 # 📙 일반
 
-## Issue235: comment 가 `_` 로 끝나는 `keyword===comment_.txt` 파일의 폴더 prefix 누락 (등록: 2026-09-27)
+# 📗 선택
+
+# ✅ 완료
+## Issue235: comment 가 `_` 로 끝나는 `keyword===comment_.txt` 파일의 폴더 prefix 누락 (등록: 2026-09-27, 완료: 2026-09-27) (Hash: 1bbbbde) ✅
 * 목적: 키워드가 있는 스니펫 파일인데도 comment(=== 오른쪽)가 `_` 로 끝나면 폴더 prefix 가 빠져 abbreviation 이 규칙([snippet-rules.md](../.claude/rules/snippet-rules.md) §2.1)과 다르게 계산되는 버그를 고친다
 * 상세:
     - 재현: `Markdown/Example===mExample_.txt` → 기대 `mExample{right_command}`, 실제 `Example{right_command}` (`GET /api/v2/snippets?folder=Markdown` 실측)
@@ -132,10 +135,21 @@ date: 2026-04-07
     - `keyword.hasSuffix("_")` strip 은 키워드 자체의 `_` 이므로 별도 판단 — 현 동작(`Ab_===x.txt`)이 바뀌지 않는지 확인
     - 중복 계산 경로 점검: [SnippetIndexBuilder.swift:178](cli/fSnippetCli/Managers/SnippetIndexBuilder.swift#L178)·[AbbreviationMatcher.swift:263](cli/fSnippetCli/Core/AbbreviationMatcher.swift#L263)·[SnippetItem.swift:56](cli/fSnippetCli/Data/SnippetItem.swift#L56) 의 `_` suffix 처리가 같은 오판을 하는지 확인
     - 검증: 위 대조표 5건 전부 성공 + 키 없는 `===An_.txt` → `anAn{right_command}` 회귀 없음. 단위 테스트(red 먼저)로 5건 + 키 없는 케이스 고정
+* 구현 (2026-09-27 jma):
+    - [AbbreviationCalculator.swift](cli/fSnippetCli/Data/AbbreviationCalculator.swift): `keyword===` 분기의 `if isInitcapFile { useFolderPrefix = false; ... }` 블록과 `isInitcapFile` 선언 제거(다른 사용처 없음). 키 없는 분기의 `hasInitcapSuffix` 는 그대로
+    - [AbbreviationCalculatorTests.swift](cli/fSnippetCliTests/AbbreviationCalculatorTests.swift) 신규 8 case — 대조표 5건 + 회귀 가드 3건(`===An_` · `===an` · `Ab_===x`). mock 폴더명(`Markdownzq`·`ANsiblezq`) 사용, pbxproj 수동 등록(jma 에 xcodegen 없음)
+    - 중복 계산 경로 점검: `SnippetIndexBuilder:178`·`AbbreviationMatcher:263`·`SnippetItem:56` 의 `_` 처리는 **description 표시·파일명 인코딩 전용**이라 abbreviation 과 무관 — 수정 불필요
+    - 키워드 자체 `_`(`Ab_===x.txt` → `mAb_`)는 현 동작 유지. 단 `Ab_===x_.txt` 처럼 키워드·comment 가 **둘 다** `_` 로 끝나던 경우는 이전엔 prefix 제거 + 키워드 `_` strip 이었으나 이제 prefix 포함 + `_` 유지(키워드 자체 `_` 와 동일 취급)
+* 검증:
+    - TDD: 수정 전 `testKeywordWithCommentEndingUnderscoreKeepsFolderPrefix` **실패 확인**(`Example{right_command}` ≠ `mExample{right_command}`) → 수정 후 8/8 PASS. 전체 스위트 76/76 PASS (`FolderTestRunnerTests.testAllFolderCases` 포함)
+    - `/run`(brew local) 9 PASS / 0 FAIL, REST 3015 정상
+    - 런타임 REST(`GET /api/v2/snippets?folder=Markdown`): 대조표 5건 전부 기대값 — `Example===mExample_` → `mExample{right_command}` 포함
+    - 키 없는 Initcap 회귀 없음: `Git/===G_` → `G{right_command}` · `Kubernetes/===K_` → `K{right_command}`
+    - 영향 범위: 사용자 데이터 중 키워드有 + comment `_` 끝 파일 13건(`_` 폴더 제외)이 이제 폴더 prefix 를 받는다 ex) `Batch_command/c===Bash_Cat___EOF_` → `bc{right_command}`(이전 `c{right_command}`)
+    - ⚠️ **미검증 — 실제 키보드 타이핑 확장**: osascript 합성 입력(TextEdit)이 Automation TCC 승인 대기로 멈춰 자동화 불가. 사람이 `mExample` + 오른쪽 ⌘ 입력으로 확장되는지 확인 필요
+* 참고(범위 밖): [snippet-rules.md](../.claude/rules/snippet-rules.md) §3.2 예시 `ANsible/===An_.txt → anAn{right_command}` 는 현 코드(`An{right_command}`, §4.2 와 일치)와 어긋난다 — 문서 쪽 정정 대상, 별도 판단
 
-# 📗 선택
 
-# ✅ 완료
 ## Issue234: [Verify] paidApp 첫 실행 기본 폴더 Sandbox 결함 — jma 재현·원인 규명·prj15#Issue980 위임·클린 설치 검증 + 첫 실행 회귀 검사 스크립트 (등록: 2026-09-11, 완료: 2026-09-12) (Hash: ed8b433) ✅
 * 목적: jma 클린 첫 실행에서 paidApp "Default Settings Folder" 안내창이 `~/Library/Containers/kr.finfra.fSnippet/Data/Documents/finfra/fSnippetData` 를 기본 폴더로 지정한 문제를 prj25 의 jma 도구로 재현·규명하고, prj15 수정 뒤 사용자 절차대로 클린 설치 검증까지 마친다. 코드 변경은 prj15 쪽이며 cliApp 소스는 변경 없음
 * depends: prj15#Issue980
