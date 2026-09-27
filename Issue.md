@@ -28,6 +28,7 @@ date: 2026-04-07
 
 # 🌱 이슈후보
 
+1. `jma-fsnippet-deploy.sh` 가 `git pull origin release/1.1.1` 하드코딩 — 다음 출고 라인에서 R1 전에 브랜치 인자화 필요 (prj3#Issue717 배포용 TDD 적용 중 발견)
 # 🚧 진행중
 
 # 📕 중요
