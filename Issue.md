@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 234
+* Issue HWM: 235
 * Checkpoints:
       - 4a49da5 (2026-09-08) 작업 트리 스냅샷
       - 69eb6a7 (2026-09-06) Issue220~227 키보드 락·권한 창 문제 해결 완료
@@ -110,6 +110,28 @@ date: 2026-04-07
 * 참고: 글로벌 장애 대응 원칙(*"원인 제거가 먼저다"*)에 비추면 Issue229~231 은 판정 기준을 좁혀 증상을 피한 보정이었다. 세 번 연속 재발한 사실 자체가 진단이 끝나지 않았다는 지표였다
 
 # 📙 일반
+
+## Issue235: comment 가 `_` 로 끝나는 `keyword===comment_.txt` 파일의 폴더 prefix 누락 (등록: 2026-09-27)
+* 목적: 키워드가 있는 스니펫 파일인데도 comment(=== 오른쪽)가 `_` 로 끝나면 폴더 prefix 가 빠져 abbreviation 이 규칙([snippet-rules.md](../.claude/rules/snippet-rules.md) §2.1)과 다르게 계산되는 버그를 고친다
+* 상세:
+    - 재현: `Markdown/Example===mExample_.txt` → 기대 `mExample{right_command}`, 실제 `Example{right_command}` (`GET /api/v2/snippets?folder=Markdown` 실측)
+    - 사용자 대조 실험 (같은 `Markdown` 폴더):
+
+        | 파일 | 입력 | 결과 |
+        | :--- | :--- | :--- |
+        | `e===mExample_ copy.txt` | `me` | 성공 |
+        | `E===mExample.txt` | `mE` | 성공 |
+        | `Example===mExample_.txt` | `mExample` | **실패** |
+        | `example===mExample.txt` | `mexample` | 성공 |
+        | `Examplee===mExample.txt` | `mExamplee` | 성공 |
+    - 결론: 키워드 대소문자·길이와 무관하고, **파일명(확장자 제외)이 `_` 로 끝날 때만** 실패한다 (`_ copy` 는 `_` 로 끝나지 않아 통과)
+    - 원인: [AbbreviationCalculator.swift:41](cli/fSnippetCli/Data/AbbreviationCalculator.swift#L41) 의 `isInitcapFile` 이 `===` 포함 + `_` suffix 이면 참이 되고, `keyword===name` 분기 [L98](cli/fSnippetCli/Data/AbbreviationCalculator.swift#L98) 에서 `useFolderPrefix = false` 로 prefix 를 끈다
+    - `_` suffix Initcap 규칙은 원래 **키 없는 파일(`===Name_.txt`) 전용**이다(snippet-rules §3.2). 키 없는 분기는 `hasInitcapSuffix` 로 이미 따로 처리하므로 `keyword===` 분기에 적용할 근거가 없다
+* 구현 명세:
+    - `AbbreviationCalculator.swift` `keyword===name` 분기의 `if isInitcapFile { useFolderPrefix = false; ... }` 블록 제거 (comment 쪽 `_` 는 abbreviation 계산에 관여하지 않도록). `isInitcapFile` 이 다른 곳에서 안 쓰이면 선언도 제거
+    - `keyword.hasSuffix("_")` strip 은 키워드 자체의 `_` 이므로 별도 판단 — 현 동작(`Ab_===x.txt`)이 바뀌지 않는지 확인
+    - 중복 계산 경로 점검: [SnippetIndexBuilder.swift:178](cli/fSnippetCli/Managers/SnippetIndexBuilder.swift#L178)·[AbbreviationMatcher.swift:263](cli/fSnippetCli/Core/AbbreviationMatcher.swift#L263)·[SnippetItem.swift:56](cli/fSnippetCli/Data/SnippetItem.swift#L56) 의 `_` suffix 처리가 같은 오판을 하는지 확인
+    - 검증: 위 대조표 5건 전부 성공 + 키 없는 `===An_.txt` → `anAn{right_command}` 회귀 없음. 단위 테스트(red 먼저)로 5건 + 키 없는 케이스 고정
 
 # 📗 선택
 
