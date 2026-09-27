@@ -164,4 +164,16 @@ AI 에이전트로 fSnippet을 자동화하고 확장하세요. 모든 연동 �
 
 ## 라이선스
 
-Copyright (c) finfra.kr. All rights reserved.
+이 저장소는 라이선스가 다른 두 구성요소를 담고 있음.
+
+| 경로   | 구성요소                  | 라이선스                                         | 추가 조건                                                                                                   |
+| :----- | :------------------------ | :----------------------------------------------- | :---------------------------------------------------------------------------------------------------------- |
+| `cli/` | fSnippetCli (엔진, 소스)  | [Apache License 2.0](LICENSE) · [NOTICE](NOTICE) | [상표 정책](TRADEMARK.md) · [공식 배포본 약관](DISTRIBUTION-TERMS.md) · [상업 라이선스 안내](COMMERCIAL.md) |
+| `mcp/` | fsnippet-mcp (npm 패키지) | [MIT](mcp/LICENSE)                               | —                                                                                                           |
+
+* **소스 코드는 Apache-2.0.** 직접 빌드해 쓰는 것은 제한 없음.
+* **공식 배포본**(Homebrew tap `finfra/tap`, GitHub Releases)은 개인·교육기관·비영리·오픈소스 프로젝트는 무제한, 그 외 조직은 법인당 **동시 250 카피**까지 무료 — [DISTRIBUTION-TERMS.md](DISTRIBUTION-TERMS.md) 참조. 그 이상, 재판매·유료 번들·호스팅 서비스 제공은 [상업 라이선스](COMMERCIAL.md) 필요.
+* "fSnippet" / "fSnippetCli" 이름과 아이콘은 상표 — [TRADEMARK.md](TRADEMARK.md) 참조.
+* 한글 참고 번역: [LICENSE_ko.md](LICENSE_ko.md) (법적 효력은 영문 원문).
+* 2026-09-27 이전에 공개된 배포본(cli-v1.1.1 이하)은 출하 당시 조건이 그대로 적용됨.
+* fSnippet Pro(GUI, App Store)는 별도 조건으로 배포되며 이 저장소에 포함되지 않음.

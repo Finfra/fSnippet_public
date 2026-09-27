@@ -201,4 +201,4 @@ fSnippet GUI와 동일한 데이터 디렉토리를 공유함:
 
 # 라이선스
 
-MIT
+[Apache License 2.0](../LICENSE) — [NOTICE](../NOTICE)·[TRADEMARK.md](../TRADEMARK.md)(상표)·[DISTRIBUTION-TERMS.md](../DISTRIBUTION-TERMS.md)(공식 배포본 약관)·[COMMERCIAL.md](../COMMERCIAL.md)(상업 라이선스) 참조. 한글 참고 번역: [LICENSE_ko.md](../LICENSE_ko.md) (법적 효력은 영문 원문).

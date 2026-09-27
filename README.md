@@ -158,4 +158,16 @@ Automate and extend fSnippet with AI agents. All integration methods use the bui
 
 ## License
 
-Copyright (c) finfra.kr. All rights reserved.
+This repository contains two components under different licenses.
+
+| Path   | Component                    | License                                          | Additional terms                                                                                                                      |
+| :----- | :--------------------------- | :----------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------ |
+| `cli/` | fSnippetCli (engine, source) | [Apache License 2.0](LICENSE) · [NOTICE](NOTICE) | [Trademark Policy](TRADEMARK.md) · [Official Build Distribution Terms](DISTRIBUTION-TERMS.md) · [Commercial Licensing](COMMERCIAL.md) |
+| `mcp/` | fsnippet-mcp (npm package)   | [MIT](mcp/LICENSE)                               | —                                                                                                                                     |
+
+* **Source code is Apache-2.0.** Build it yourself and use it without limit.
+* **Official builds** (Homebrew tap `finfra/tap`, GitHub Releases) are free for individuals, education, non-profits, open-source projects, and any other organization on up to **250 concurrent copies** — see [DISTRIBUTION-TERMS.md](DISTRIBUTION-TERMS.md). Larger deployments, resale, bundling, or hosted services need a [commercial license](COMMERCIAL.md).
+* The names "fSnippet" / "fSnippetCli" and the icon are trademarks — see [TRADEMARK.md](TRADEMARK.md).
+* Korean reference translation: [LICENSE_ko.md](LICENSE_ko.md) (the English text is binding).
+* Official builds published before 2026-09-27 (cli-v1.1.1 and earlier) remain under the terms they shipped with.
+* fSnippet Pro (GUI, App Store) is distributed separately under its own terms and is not part of this repository.

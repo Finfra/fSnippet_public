@@ -201,4 +201,4 @@ Shares the same data directory as fSnippet GUI:
 
 # License
 
-MIT
+[Apache License 2.0](../LICENSE) — see also [NOTICE](../NOTICE), [TRADEMARK.md](../TRADEMARK.md), [DISTRIBUTION-TERMS.md](../DISTRIBUTION-TERMS.md) (official builds) and [COMMERCIAL.md](../COMMERCIAL.md). Korean reference translation: [LICENSE_ko.md](../LICENSE_ko.md) (the English text is binding).
