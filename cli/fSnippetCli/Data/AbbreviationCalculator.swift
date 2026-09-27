@@ -37,11 +37,6 @@ class AbbreviationCalculator {
     let shouldUseAlfredRules =
       isAlfredFolder || RuleManager.shared.getRule(for: folderName) != nil
 
-    // Issue 573: _로 끝나는 파일의 Initcap 로직 강제 적용
-    let isInitcapFile =
-      baseFileName.contains("===")
-      && (baseFileName.hasSuffix("_") || baseFileName.hasSuffix("{underbar}"))
-
     if baseFileName.contains("===") {
       let parts = baseFileName.split(
         separator: "===", maxSplits: 1, omittingEmptySubsequences: false)
@@ -93,14 +88,10 @@ class AbbreviationCalculator {
         processedKeyword = replaceSpecialCharacters(processedKeyword)
         keyword = processedKeyword
 
+        // Issue235: a trailing `_` in the comment part (`keyword===comment_.txt`) is
+        // not an Initcap signal. Initcap `_` applies only to keyless files (`===Name_.txt`),
+        // handled by `hasInitcapSuffix` above.
         useFolderPrefix = !isAlfredFolder
-
-        if isInitcapFile {
-          useFolderPrefix = false
-          if keyword.hasSuffix("_") {
-            keyword = String(keyword.dropLast())
-          }
-        }
 
         // Issue44/46: === 앞부분이 이미 완성된 abbreviation인지 확인
         if shouldUseAlfredRules, let rule = RuleManager.shared.getRule(for: folderName) {
