@@ -45,16 +45,19 @@ date: 2026-04-07
 * 구현 명세:
     - 코드 변경이라 tdd red 먼저 — 동봉 목록에 한국어본 부재를 build-check 가 잡게 한 뒤 추가
 
-## Issue240: LICENSE_ko.md 약관 링크에 한국어본 병기 — prj26 과 맞춤 (등록: 2026-09-28)
+# 📗 선택
+
+# ✅ 완료
+## Issue240: LICENSE_ko.md 약관 링크에 한국어본 병기 — prj26 과 맞춤 (등록: 2026-09-28, 완료: 2026-09-28, Hash: 5d4650a) ✅
 * 목적: `LICENSE_ko.md` 19·118행이 영문 `DISTRIBUTION-TERMS.md` 만 가리킨다(한국어본 `DISTRIBUTION-TERMS_ko.md` 는 있음). prj26 fWarrangeCli 는 20행에 한국어본 링크까지 넣었다
 * 상세:
     - 출처: prj3 mq `20260928-023246-001` ② — prj3#Issue756 C 등급: 등록
 * 구현 명세:
     - 19·118행에 `DISTRIBUTION-TERMS_ko.md` 링크 병기(prj26 20행 양식) · 로컬 커밋까지, 공개 push 는 출고 흐름에서
+* 결과:
+    - `5d4650a`: 적용 범위 표(19행) «참고» 열·관련 문서 표(118행) «문서» 열의 `DISTRIBUTION-TERMS.md` 링크 옆에 `[한국어본](DISTRIBUTION-TERMS_ko.md)` 병기 — prj26 `LICENSE_ko.md` 20행 양식 · 두 표 열 폭 재정렬(동아시아 폭 기준, 셀 내용은 링크 추가 외 불변)
+    - 작업 위치: jma (jm4 `4da52bf` 로 ff 동기 후 편집·커밋) · 공개 push 없음 — 출고 흐름에서
 
-# 📗 선택
-
-# ✅ 완료
 ## Issue242: 공식 앱 아이콘을 `cli/resources/official/` 로 분리 — 소스 빌드는 기본 아이콘 (등록: 2026-09-28, 완료: 2026-09-28, Hash: 769fb9d) ✅
 * 목적: 앱 아이콘이 공개 소스 `cli/fSnippetCli/Assets.xcassets` 에 있어 소스 빌드도 공식(브랜드) 아이콘을 쓴다. NOTICE 는 아이콘을 Official Build Components(비Apache)로 선언하는데 실물은 Apache 트리에 있다 — Issue238 결과의 «잔여(사용자 결정)»
 * report: `../_doc_work/report/official-icon-split_report.md`
