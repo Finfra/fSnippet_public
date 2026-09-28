@@ -31,7 +31,14 @@ date: 2026-04-07
 1. `jma-fsnippet-deploy.sh` 가 `git pull origin release/1.1.1` 하드코딩 — 다음 출고 라인에서 R1 전에 브랜치 인자화 필요 (prj3#Issue717 배포용 TDD 적용 중 발견)
 
 # 🚧 진행중
-## Issue243: TDD 풀 재생 — 재생목록 ✅ 18행 전 목표 jma 재실행·행별 결과 기록 (등록: 2026-09-29)
+# 📕 중요
+
+# 📙 일반
+
+# 📗 선택
+
+# ✅ 완료
+## Issue243: TDD 풀 재생 — 재생목록 ✅ 18행 전 목표 jma 재실행·행별 결과 기록 (등록: 2026-09-29, 완료: 2026-09-29, Hash: 58221eb) ✅
 * 목적: `tdd/playlist.md` ✅ 18행을 현 HEAD 에서 다시 돌려 여전히 green 인지 확인하고 red 는 고친다 (prj5#Issue108 위임 — 전 prj TDD 풀 회귀)
 * 상세:
     - 기준 HEAD `9c3dc1d` (jm4 = jma, jma reflog 2026-09-29 00:16 ff) · 빌드성 행이라 전부 **jma** 에서 공용 잠금 `/tmp/jma-xcode.lock` + 300초 무진행 워치독으로 실행, jm4 는 git·기록만
@@ -67,15 +74,8 @@ date: 2026-04-07
     - TDD 해당 없음: 기존 테스트 재생만 — 코드 변경 없음. red 0건이라 red→fix 커밋 없음
     - 결과: 실행 18/18 · green 18 · red 0
     - 금지 준수: jm4 xcodebuild·앱 재기동 없음 · `pkill -f` 미사용(워치독 미발동) · push 미실행
+* 커밋: 58221eb (결과 기록 — 코드 변경 없음)
 
-
-# 📕 중요
-
-# 📙 일반
-
-# 📗 선택
-
-# ✅ 완료
 ## Issue241: 공식 빌드 Resources/Legal/ 에 DISTRIBUTION-TERMS_ko.md 동봉 (🌱 후보 2 승격) (등록: 2026-09-28, 완료: 2026-09-28, Hash: 91dc981) ✅
 * 목적: 약관 §6 «패키지 안에서 제시» + §10 한국 거주 개인 동등 효력인데 동봉 목록은 영문뿐 (Issue239 수행 중 발견)
 * 상세:
