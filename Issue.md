@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 241
+* Issue HWM: 242
 * Checkpoints:
       - 1c34407 (2026-09-12) 작업 트리 스냅샷 (Issue234 종결 시점)
       - 4a49da5 (2026-09-08) 작업 트리 스냅샷
@@ -32,6 +32,18 @@ date: 2026-04-07
 2. 공식 빌드 `Resources/Legal/` 동봉 약관에 `DISTRIBUTION-TERMS_ko.md` 추가 검토 — 약관 §6 «패키지 안에서 제시» + §10 한국 거주 개인 동등 효력인데 동봉 목록은 영문뿐. 대상: `cli/_tool/fsc-official-components.sh`·`fsc-official-build-check.sh`(`LEGAL_FILES`)·`fsc-deploy-brew.sh` Step 2.6 게이트·`project.pbxproj`/`project.yml` 선언 출력 — 코드 변경이라 tdd red 먼저 (Issue239 수행 중 발견)
 
 # 🚧 진행중
+
+## Issue242: 공식 앱 아이콘을 `cli/resources/official/` 로 분리 — 소스 빌드는 기본 아이콘 (등록: 2026-09-28)
+* 목적: 앱 아이콘이 공개 소스 `cli/fSnippetCli/Assets.xcassets` 에 있어 소스 빌드도 공식(브랜드) 아이콘을 쓴다. NOTICE 는 아이콘을 Official Build Components(비Apache)로 선언하는데 실물은 Apache 트리에 있다 — Issue238 결과의 «잔여(사용자 결정)»
+* depends: prj6#Issue17
+* 상세:
+    - 출처: prj3 세션 05cbbead 위임(`../_doc_work/delegation_2026.09.28_official-icon-split.md`) · 사용자 결정 mq `20260928-120442-001` — H 등급(브랜드) 승인 완료: «공식 앱 아이콘을 `resources/official/` 로 분리하고 소스 빌드는 기본 아이콘으로 한다»
+    - 공개 `Assets.xcassets` 는 비운다(비브랜드 기본 아이콘이 없으므로 macOS 기본 앱 아이콘) — 공식 빌드 단계(Official Build Components)만 번들 아이콘을 넣는다
+* 구현 명세:
+    - tdd red 먼저: `OfficialBuildTests`(공개 카탈로그에 AppIcon 없음 · `resources/official/AppIcon.iconset` 존재 · 소스 빌드 호스트에 아이콘 없음) + `fsc-official-build-check.sh`(공식=공식 아이콘 · 소스=아이콘 없음, 공식→소스→공식)
+    - 구현: PNG 10장 `git mv` → `cli/resources/official/AppIcon.iconset/` · 빌드 단계가 공식 빌드에서만 `iconutil` 로 `Resources/AppIcon.icns` 생성, 소스 빌드는 제거 · `ASSETCATALOG_COMPILER_APPICON_NAME` 비움(pbxproj·project.yml) · Info.plist `CFBundleIconFile=AppIcon` 고정 · publish Step 2.6 게이트에 아이콘 추가
+    - 검증: 유닛 전체 · `fsc-official-build-check.sh` · 소스 빌드 `.app` 아이콘 ≠ 공식 아이콘
+    - 금지: `git push` · tap 반영 · 릴리스 · 기존 태그 변경 — 공개 반영은 prj3 세션 몫
 
 # 📕 중요
 
