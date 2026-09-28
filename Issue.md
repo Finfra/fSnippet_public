@@ -57,6 +57,7 @@ date: 2026-04-07
 # ✅ 완료
 ## Issue242: 공식 앱 아이콘을 `cli/resources/official/` 로 분리 — 소스 빌드는 기본 아이콘 (등록: 2026-09-28, 완료: 2026-09-28, Hash: 769fb9d) ✅
 * 목적: 앱 아이콘이 공개 소스 `cli/fSnippetCli/Assets.xcassets` 에 있어 소스 빌드도 공식(브랜드) 아이콘을 쓴다. NOTICE 는 아이콘을 Official Build Components(비Apache)로 선언하는데 실물은 Apache 트리에 있다 — Issue238 결과의 «잔여(사용자 결정)»
+* report: `../_doc_work/report/official-icon-split_report.md`
 * depends: prj6#Issue17
 * 상세:
     - 출처: prj3 세션 05cbbead 위임(`../_doc_work/delegation_2026.09.28_official-icon-split.md`) · 사용자 결정 mq `20260928-120442-001` — H 등급(브랜드) 승인 완료: «공식 앱 아이콘을 `resources/official/` 로 분리하고 소스 빌드는 기본 아이콘으로 한다»
