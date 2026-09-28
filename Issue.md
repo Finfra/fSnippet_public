@@ -29,7 +29,6 @@ date: 2026-04-07
 # 🌱 이슈후보
 
 1. `jma-fsnippet-deploy.sh` 가 `git pull origin release/1.1.1` 하드코딩 — 다음 출고 라인에서 R1 전에 브랜치 인자화 필요 (prj3#Issue717 배포용 TDD 적용 중 발견)
-2. 공식 빌드 `Resources/Legal/` 동봉 약관에 `DISTRIBUTION-TERMS_ko.md` 추가 검토 — 약관 §6 «패키지 안에서 제시» + §10 한국 거주 개인 동등 효력인데 동봉 목록은 영문뿐. 대상: `cli/_tool/fsc-official-components.sh`·`fsc-official-build-check.sh`(`LEGAL_FILES`)·`fsc-deploy-brew.sh` Step 2.6 게이트·`project.pbxproj`/`project.yml` 선언 출력 — 코드 변경이라 tdd red 먼저 (Issue239 수행 중 발견)
 
 # 🚧 진행중
 
@@ -37,17 +36,23 @@ date: 2026-04-07
 
 # 📙 일반
 
-## Issue241: 공식 빌드 Resources/Legal/ 에 DISTRIBUTION-TERMS_ko.md 동봉 (🌱 후보 2 승격) (등록: 2026-09-28)
+# 📗 선택
+
+# ✅ 완료
+## Issue241: 공식 빌드 Resources/Legal/ 에 DISTRIBUTION-TERMS_ko.md 동봉 (🌱 후보 2 승격) (등록: 2026-09-28, 완료: 2026-09-28, Hash: 91dc981) ✅
 * 목적: 약관 §6 «패키지 안에서 제시» + §10 한국 거주 개인 동등 효력인데 동봉 목록은 영문뿐 (Issue239 수행 중 발견)
 * 상세:
     - 출처: prj3 mq `20260928-023246-001` ③ — prj3#Issue756 C 등급: 🌱 후보 → 번호 이슈 승격(후보 2 줄은 다음 정리 때 삭제)
     - 대상: `cli/_tool/fsc-official-components.sh`·`fsc-official-build-check.sh`(`LEGAL_FILES`)·`fsc-deploy-brew.sh` Step 2.6 게이트·`project.pbxproj`/`project.yml` 선언 출력
 * 구현 명세:
     - 코드 변경이라 tdd red 먼저 — 동봉 목록에 한국어본 부재를 build-check 가 잡게 한 뒤 추가
+    - `project.pbxproj`/`project.yml` 선언 출력은 변경 없음 — 빌드 단계 출력은 상태 스탬프(`OfficialBuildState`) 하나뿐이고, 동봉 파일이 바뀌면 스탬프의 다이제스트가 바뀌어 재서명된다
+* 결과:
+    - `91dc981`: `fsc-official-components.sh` `LEGAL_FILES` 에 `DISTRIBUTION-TERMS_ko.md` 추가 · `fsc-deploy-brew.sh` Step 2.6 publish 게이트 목록에 추가 · `fsc-official-build-check.sh` 기대 목록에 추가 + **0b 검사**(게이트 `for LEGAL_F in` 목록이 동봉 목록을 전부 요구하는지 대조 — 세 목록이 따로 있어 이번처럼 한 곳만 빠지는 것을 막는다) · `tdd/playlist.md` #17 갱신
+    - TDD: red — `PASS=32 FAIL=3` (게이트 1 · official/official-after-source 의 `Legal/DISTRIBUTION-TERMS_ko.md` 누락 2) → green — `PASS=35 FAIL=0 SKIP=3` · `OfficialBuildTests` 9/9
+    - 실행 머신: jma (`fapp-test-host` 모드 jma · `DEPLOY_NO_SIGN=1`) — 서명 검사 3건은 SKIP(jma 는 서명 불가). 서명은 publish Step 2.6 게이트가 `codesign --verify --strict` 로 다시 본다
+    - 🌱 후보 2(이 이슈의 원 후보) 삭제 · push·tap·릴리스 없음
 
-# 📗 선택
-
-# ✅ 완료
 ## Issue240: LICENSE_ko.md 약관 링크에 한국어본 병기 — prj26 과 맞춤 (등록: 2026-09-28, 완료: 2026-09-28, Hash: 5d4650a) ✅
 * 목적: `LICENSE_ko.md` 19·118행이 영문 `DISTRIBUTION-TERMS.md` 만 가리킨다(한국어본 `DISTRIBUTION-TERMS_ko.md` 는 있음). prj26 fWarrangeCli 는 20행에 한국어본 링크까지 넣었다
 * 상세:
