@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 239
+* Issue HWM: 240
 * Checkpoints:
       - 1c34407 (2026-09-12) 작업 트리 스냅샷 (Issue234 종결 시점)
       - 4a49da5 (2026-09-08) 작업 트리 스냅샷
@@ -36,6 +36,13 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
+
+## Issue240: LICENSE_ko.md 약관 링크에 한국어본 병기 — prj26 과 맞춤 (등록: 2026-09-28)
+* 목적: `LICENSE_ko.md` 19·118행이 영문 `DISTRIBUTION-TERMS.md` 만 가리킨다(한국어본 `DISTRIBUTION-TERMS_ko.md` 는 있음). prj26 fWarrangeCli 는 20행에 한국어본 링크까지 넣었다
+* 상세:
+    - 출처: prj3 mq `20260928-023246-001` ② — prj3#Issue756 C 등급: 등록
+* 구현 명세:
+    - 19·118행에 `DISTRIBUTION-TERMS_ko.md` 링크 병기(prj26 20행 양식) · 로컬 커밋까지, 공개 push 는 출고 흐름에서
 
 # 📗 선택
 
