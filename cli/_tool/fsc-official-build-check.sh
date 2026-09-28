@@ -3,8 +3,10 @@
 #
 # Property under test:
 #   1. An official build (FSNIPPET_OFFICIAL_BUILD=YES) carries Official/official-build.txt and
-#      Legal/{LICENSE,NOTICE,TRADEMARK.md,DISTRIBUTION-TERMS.md}, and its code signature is
-#      still valid (the files are copied before signing, so the seal covers them).
+#      Legal/{LICENSE,NOTICE,TRADEMARK.md,DISTRIBUTION-TERMS.md,DISTRIBUTION-TERMS_ko.md}, and its
+#      code signature is still valid (the files are copied before signing, so the seal covers them).
+#      The Korean terms ship too (Issue241): §10 gives them equal force for individuals resident
+#      in Korea, and §6 presents the terms inside the package.
 #   2. A source build in the same DerivedData right after it carries neither — nothing an
 #      official build left behind may leak into a source build.
 #   3. An official build on top of that source build (publish from a developer's DerivedData)
@@ -16,6 +18,8 @@
 #      ships Resources/AppIcon.icns made from cli/resources/official/AppIcon.iconset, while the
 #      source build carries no icon at all (no AppIcon.icns, no icon in Assets.car, no
 #      CFBundleIconName) and shows the macOS default app icon.
+#   6. (Issue241) The publish gate (fsc-deploy-brew.sh Step 2.6) refuses a release that lacks any
+#      of the Legal files above — the bundle list and the gate list must not drift apart.
 #
 # Usage: bash cli/_tool/fsc-official-build-check.sh
 #   DEPLOY_NO_SIGN=1  build unsigned (SSH-only hosts such as jma); the signature check is SKIPped
@@ -29,7 +33,7 @@ REPO_ROOT="$(dirname "$CLI_DIR")"
 DD="$(mktemp -d /tmp/fsc-official-build-check.XXXXXX)"
 APP="$DD/Build/Products/Release/fSnippetCli.app"
 RES="$APP/Contents/Resources"
-LEGAL_FILES=(LICENSE NOTICE TRADEMARK.md DISTRIBUTION-TERMS.md)
+LEGAL_FILES=(LICENSE NOTICE TRADEMARK.md DISTRIBUTION-TERMS.md DISTRIBUTION-TERMS_ko.md)
 ICONSET="$CLI_DIR/resources/official/AppIcon.iconset"
 EXPECTED_ICNS="$DD/expected-AppIcon.icns"
 
@@ -133,6 +137,20 @@ if iconutil -c icns "$ICONSET" -o "$EXPECTED_ICNS" 2>/dev/null; then
     pass "iconutil builds the official icon from the iconset"
 else
     fail "iconutil could not build $ICONSET"
+fi
+
+echo "=== 0b. publish gate (fsc-deploy-brew.sh Step 2.6) requires every Legal file"
+GATE_LINE="$(grep -E '^[[:space:]]*for LEGAL_F in ' "$SCRIPT_DIR/fsc-deploy-brew.sh")"
+if [ "$(printf '%s\n' "$GATE_LINE" | grep -c .)" -ne 1 ]; then
+    fail "publish gate: expected exactly one 'for LEGAL_F in' line in fsc-deploy-brew.sh"
+else
+    for f in "${LEGAL_FILES[@]}"; do
+        if printf '%s\n' "$GATE_LINE" | tr ' ;' '\n\n' | grep -qxF "$f"; then
+            pass "publish gate: requires Legal/$f"
+        else
+            fail "publish gate: does not require Legal/$f"
+        fi
+    done
 fi
 
 echo "=== 1. official build (FSNIPPET_OFFICIAL_BUILD=YES) → $DD"

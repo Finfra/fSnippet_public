@@ -5,8 +5,10 @@
 #   Contents/Resources/Official/ <- cli/resources/official/  (Finfra-proprietary, not Apache)
 #                                   except AppIcon.iconset, which becomes the app icon:
 #   Contents/Resources/AppIcon.icns <- iconutil cli/resources/official/AppIcon.iconset (Issue242)
-#   Contents/Resources/Legal/    <- LICENSE, NOTICE, TRADEMARK.md, DISTRIBUTION-TERMS.md
-#                                   (terms shipped inside the package — DISTRIBUTION-TERMS §6)
+#   Contents/Resources/Legal/    <- LICENSE, NOTICE, TRADEMARK.md, DISTRIBUTION-TERMS.md,
+#                                   DISTRIBUTION-TERMS_ko.md
+#                                   (terms shipped inside the package — DISTRIBUTION-TERMS §6;
+#                                   the Korean text has equal force for Korean residents — §10, Issue241)
 # Any other build is a source build: remove whatever an earlier official build left in the
 # same DerivedData, so the marker and the icon can never leak into a source build.
 # Info.plist names CFBundleIconFile=AppIcon in every build and the public asset catalog has
@@ -19,7 +21,7 @@ DEST="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}"
 OFFICIAL_SRC="${SRCROOT}/resources/official"
 ICONSET="$OFFICIAL_SRC/AppIcon.iconset"
 REPO_ROOT="${SRCROOT}/.."
-LEGAL_FILES="LICENSE NOTICE TRADEMARK.md DISTRIBUTION-TERMS.md"
+LEGAL_FILES="LICENSE NOTICE TRADEMARK.md DISTRIBUTION-TERMS.md DISTRIBUTION-TERMS_ko.md"
 
 STAMP="$DEST/OfficialBuildState"
 

@@ -473,7 +473,9 @@ cmd_publish() {
         return 1
     fi
     local LEGAL_F
-    for LEGAL_F in LICENSE NOTICE TRADEMARK.md DISTRIBUTION-TERMS.md; do
+    # Issue241: the Korean terms too — §10 gives them equal force for individuals resident in Korea.
+    #   fsc-official-build-check.sh checks this list against the bundle list.
+    for LEGAL_F in LICENSE NOTICE TRADEMARK.md DISTRIBUTION-TERMS.md DISTRIBUTION-TERMS_ko.md; do
         if [ ! -f "$OFFICIAL_RES/Legal/$LEGAL_F" ]; then
             echo "❌ 패키지 동봉 약관 누락: Legal/$LEGAL_F. publish 중단."
             return 1
