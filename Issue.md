@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 242
+* Issue HWM: 243
 * Checkpoints:
       - 1c34407 (2026-09-12) 작업 트리 스냅샷 (Issue234 종결 시점)
       - 4a49da5 (2026-09-08) 작업 트리 스냅샷
@@ -31,6 +31,43 @@ date: 2026-04-07
 1. `jma-fsnippet-deploy.sh` 가 `git pull origin release/1.1.1` 하드코딩 — 다음 출고 라인에서 R1 전에 브랜치 인자화 필요 (prj3#Issue717 배포용 TDD 적용 중 발견)
 
 # 🚧 진행중
+## Issue243: TDD 풀 재생 — 재생목록 ✅ 18행 전 목표 jma 재실행·행별 결과 기록 (등록: 2026-09-29)
+* 목적: `tdd/playlist.md` ✅ 18행을 현 HEAD 에서 다시 돌려 여전히 green 인지 확인하고 red 는 고친다 (prj5#Issue108 위임 — 전 prj TDD 풀 회귀)
+* 상세:
+    - 기준 HEAD `9c3dc1d` (jm4 = jma, jma reflog 2026-09-29 00:16 ff) · 빌드성 행이라 전부 **jma** 에서 공용 잠금 `/tmp/jma-xcode.lock` + 300초 무진행 워치독으로 실행, jm4 는 git·기록만
+    - 실행 2회(2026-09-29 01:02~01:04 KST, jma GUI tmux `fsc25`)
+        + 통합: `/tmp/jma-fsc-i108-integ.sh` — `fsc-test.sh`(#9) → `api/test-api.sh --server=http://localhost:3115`(#10) → `launchctl unsetenv` 격리 해제 → `DEPLOY_NO_SIGN=1 fsc-official-build-check.sh`(#17·#18)
+        + 유닛: `/tmp/jma-fsc-unittest.sh i108full` — `xcodebuild test -scheme fSnippetCli -destination 'platform=macOS'` 전체(#1~8·#11~18), 판정은 로그의 `Test Case … passed/failed`
+    - 결과표
+
+        | #  | id                                      | 판정 근거                                                  | 결과        |
+        | :- | :-------------------------------------- | :--------------------------------------------------------- | :---------- |
+        | 1  | `config-migration-idempotent`           | `ConfigMigrationTests` 12 passed · 0 failed                | ✅ green    |
+        | 2  | `shortcut-blacklist`                    | `ShortcutBlacklistTests` 21 · 0                            | ✅ green    |
+        | 3  | `expansion-trailing-newline`            | `SnippetExpansionTrailingNewlineTests` 4 · 0               | ✅ green    |
+        | 4  | `paidapp-register-api`                  | `PaidAppAPIRouterTests` 6 · 0 · `PaidAppPhaseATests` 10 · 0 | ✅ green    |
+        | 5  | `watchdog-swallowed-events-not-counted` | `TapAsymmetryCounterTests` 6 · 0                           | ✅ green    |
+        | 6  | `watchdog-same-key-repeat`              | `InputAsymmetryJudgeTests` 6 · 0                           | ✅ green    |
+        | 7  | `history-settings-persist`              | `HistorySettingsPersistTests` 5 · 0                        | ✅ green    |
+        | 8  | `brew-service-label`                    | `BrewServiceLabelTests` 6 · 0                              | ✅ green    |
+        | 9  | `ztest-e2e-expansion`                   | `fsc-test.sh` rc 0 — `ALL CLEAR: 11 PASS / 0 FAIL` (ERROR/CRITICAL 0건) | ✅ green    |
+        | 10 | `rest-api-v2-contract`                  | `test-api.sh` rc 0 — `20 passed, 0 failed` · `fsc-test.sh` 내 API 통합 35개 error 0 | ✅ green    |
+        | 11 | `test-host-isolation`                   | `RuntimeIsolationTests` 6 · 0                              | ✅ green    |
+        | 12 | `alfred-import-relative-base-path`      | `SnippetBasePathResolutionTests` 5 · 0                     | ✅ green    |
+        | 13 | `trigger-regression-table`              | `TriggerRegressionTableTests` 4 · 0                        | ✅ green    |
+        | 14 | `trigger-priority-greedy-delete-length` | `TriggerPriorityGreedyDeleteLengthTests` 7 · 0             | ✅ green    |
+        | 15 | `folder-rule-table`                     | `FolderRuleTableTests` 4 · 0                               | ✅ green    |
+        | 16 | `accessibility-boot-listing`            | `AccessibilityBootListingTests` 2 · 0                      | ✅ green    |
+        | 17 | `official-build-marker`                 | `OfficialBuildTests` 9 · 0 · `fsc-official-build-check.sh` rc 0 `PASS=35 FAIL=0 SKIP=3`(서명 3건, `DEPLOY_NO_SIGN=1`) | ✅ green    |
+        | 18 | `official-app-icon`                     | 17 과 같은 두 실행(아이콘 검사 포함)                       | ✅ green    |
+
+    - 유닛 전체: `Executed 136 tests, with 0 failures` · `** TEST SUCCEEDED **` · 워치독 발동 0 (잠금 대기 150초 — 통합 실행이 선점)
+    - 로그(jma): `/tmp/fsc-unittest-i108full.log` · `/tmp/fsc-i108-{ztest,apiv2,official}.log` (rc 파일 `.rc`·`.done` 전부 0)
+* 구현 명세:
+    - TDD 해당 없음: 기존 테스트 재생만 — 코드 변경 없음. red 0건이라 red→fix 커밋 없음
+    - 결과: 실행 18/18 · green 18 · red 0
+    - 금지 준수: jm4 xcodebuild·앱 재기동 없음 · `pkill -f` 미사용(워치독 미발동) · push 미실행
+
 
 # 📕 중요
 
