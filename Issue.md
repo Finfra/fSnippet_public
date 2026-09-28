@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 243
+* Issue HWM: 244
 * Checkpoints:
       - 1c34407 (2026-09-12) 작업 트리 스냅샷 (Issue234 종결 시점)
       - 4a49da5 (2026-09-08) 작업 트리 스냅샷
@@ -32,6 +32,19 @@ date: 2026-04-07
 
 # 🚧 진행중
 # 📕 중요
+
+## Issue244: [출고차단] cliApp 1.1.2 `GET /` 응답 키 변경(`uptimeSeconds`→`uptime_seconds`)으로 paidApp 연결 불가 + 출고 테스트 발견 결함 (등록: 2026-09-29)
+* 목적: prj5#Issue107 jma 출고 테스트(2026-09-29)가 찾은 출고 차단 결함과 부수 결함을 기록한다. 공개 tap `fsnippet-cli` 1.1.2 는 2026-09-28 에 이미 나갔다 — 롤백 여부는 사용자 결정 대기(aoa-mq `[컨펌] [H:배포]`)
+* 상세:
+    - ① **출고 차단**: `c65e15a`(prj5#Issue99)가 HealthResponse 키를 명세대로 `uptime_seconds` 로 바꿨으나 paidApp `HealthResponse.uptimeSeconds` 는 필수 `Int` — 디코딩 `keyNotFound` → paidApp 미등록·"fSnippetCli is not responding"·Advanced `Loaded Snippets: 0`. jma 실측 + jm4 재현, 공개 1.1.1(키 이전)로 되돌리면 `registered:true`. `cli-v1.1.1` 에는 없고 1.1.2 에만 있다
+        + 재생목록 공백: API 호환 42/42·등록 API 테스트가 모두 통과했다 — paidApp 의 **실제 디코딩·등록**을 보는 행이 없다
+        + 수정 방향 후보: cliApp 이 두 키를 함께 내보내기(구 paidApp 호환) + paidApp 쪽 관용 디코딩(prj15#Issue989)
+    - ② 첫 실행 Documents 동의창 대기 중 REST 전체 무응답 — API 서버 큐가 health 처리 중 DB 초기화 sqlite `open()` 에서 블록(스택 샘플 `fsc-sample-blocked.txt`)
+    - ③ `fsc-test.sh` CMD `25.clipboard-get` 실패(클린 이력 0건에서 id 1 조회)를 PASS 로 집계 — 2회 재현
+    - ④ `fsc-official-build-check.sh` 가 jma bash 3.2 에서 `unbound variable` 로 빌드 불가(PASS 14/FAIL 24), `DEPLOY_NO_SIGN=1` 에선 35/35 이나 서명 3건 SKIP
+    - ⑤ `fsc-deploy-brew.sh publish` 가 끝에 «로컬 install» 을 자동으로 이어 돌아 실행 머신의 brew 설치를 uninstall → brew 자동 update 가 로컬 tap Formula 를 stash/pop 하다 방금 push 한 공개 Formula 와 충돌(`<<<<<<< Stashed changes`) → 재설치 실패. jm4 에서 발생·복구함
+    - ⑥ `jma-fsnippet-deploy.sh --cliApp` 이 tap `Formula/fsnippet-cli.rb` 를 로컬 빌드용으로 바꾸고 되돌리지 않는다 — 이후 `brew reinstall` 이 공개본 대신 로컬 빌드를 깐다
+* 증거: `_doc_work/_release/v1.1.2/release-test_1.1.2.md`(result: fail) · prj15 `_doc_work/_release/v1.1.2/jma-logs_2026.09.29/` · 보고 prj5 `_doc_work/report/fapp-jma-release-test_issue107_report.md`
 
 # 📙 일반
 
