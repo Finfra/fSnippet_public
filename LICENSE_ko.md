@@ -14,10 +14,10 @@ date: 2026.09.27
 
 ## 이 저장소에서의 적용 범위
 
-| 경로                      | 라이선스                         | 참고                                                                                                                                              |
-| :------------------------ | :------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `cli/` (fSnippetCli 소스) | Apache-2.0 — 이 문서             | 상표는 [TRADEMARK.md](TRADEMARK.md), 공식 배포본은 [DISTRIBUTION-TERMS.md](DISTRIBUTION-TERMS.md), 상업 라이선스는 [COMMERCIAL.md](COMMERCIAL.md) |
-| `mcp/` (fsnippet-mcp)     | MIT — [mcp/LICENSE](mcp/LICENSE) | 이 문서는 적용되지 않는다                                                                                                                         |
+| 경로                      | 라이선스                         | 참고                                                                                                                                                                                     |
+| :------------------------ | :------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cli/` (fSnippetCli 소스) | Apache-2.0 — 이 문서             | 상표는 [TRADEMARK.md](TRADEMARK.md), 공식 배포본은 [DISTRIBUTION-TERMS.md](DISTRIBUTION-TERMS.md) · [한국어본](DISTRIBUTION-TERMS_ko.md), 상업 라이선스는 [COMMERCIAL.md](COMMERCIAL.md) |
+| `mcp/` (fsnippet-mcp)     | MIT — [mcp/LICENSE](mcp/LICENSE) | 이 문서는 적용되지 않는다                                                                                                                                                                |
 
 ## 사용·복제·배포에 관한 조건 (Terms and Conditions for Use, Reproduction, and Distribution)
 
@@ -111,10 +111,10 @@ limitations under the License.
 
 # 이 저장소의 추가 라이선스 문서
 
-| 문서                                           | 내용                                                                                                                   |
-| :--------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------- |
-| [NOTICE](NOTICE)                               | Apache-2.0 제4조 (d) 에 따라 재배포 시 보존해야 하는 고지                                                              |
-| [TRADEMARK.md](TRADEMARK.md)                   | 상표 정책 — Apache-2.0 제6조가 부여하지 않는 이름·아이콘의 사용 범위                                                   |
-| [DISTRIBUTION-TERMS.md](DISTRIBUTION-TERMS.md) | 공식 배포본(Homebrew tap `finfra/tap`, GitHub Releases) 약관 — 조직당 동시 250 카피까지 무료. 소스 빌드에는 적용 안 됨 |
-| [COMMERCIAL.md](COMMERCIAL.md)                 | 상업 라이선스가 필요한 경우와 문의처 (finfra@gmail.com)                                                                |
-| [mcp/LICENSE](mcp/LICENSE)                     | `mcp/`(fsnippet-mcp) 는 MIT — 위 문서들은 적용되지 않는다                                                              |
+| 문서                                                                                  | 내용                                                                                                                   |
+| :------------------------------------------------------------------------------------ | :--------------------------------------------------------------------------------------------------------------------- |
+| [NOTICE](NOTICE)                                                                      | Apache-2.0 제4조 (d) 에 따라 재배포 시 보존해야 하는 고지                                                              |
+| [TRADEMARK.md](TRADEMARK.md)                                                          | 상표 정책 — Apache-2.0 제6조가 부여하지 않는 이름·아이콘의 사용 범위                                                   |
+| [DISTRIBUTION-TERMS.md](DISTRIBUTION-TERMS.md) · [한국어본](DISTRIBUTION-TERMS_ko.md) | 공식 배포본(Homebrew tap `finfra/tap`, GitHub Releases) 약관 — 조직당 동시 250 카피까지 무료. 소스 빌드에는 적용 안 됨 |
+| [COMMERCIAL.md](COMMERCIAL.md)                                                        | 상업 라이선스가 필요한 경우와 문의처 (finfra@gmail.com)                                                                |
+| [mcp/LICENSE](mcp/LICENSE)                                                            | `mcp/`(fsnippet-mcp) 는 MIT — 위 문서들은 적용되지 않는다                                                              |
