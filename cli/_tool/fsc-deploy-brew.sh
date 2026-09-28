@@ -414,7 +414,7 @@ cmd_publish() {
 
     # ── Step 1: Release 빌드 (Official Build) ──
     # Issue238: publish 만 FSNIPPET_OFFICIAL_BUILD=YES — 빌드 단계 "Official Build Components"
-    #   (_tool/fsc-official-components.sh) 가 서명 전에 resources/official/ 표식과 약관 문서를 번들한다.
+    #   (_tool/fsc-official-components.sh) 가 서명 전에 resources/official/ 표식·앱 아이콘(Issue242)과 약관 문서를 번들한다.
     #   local·debug·jma 빌드는 플래그가 없어 소스 빌드다 (DISTRIBUTION-TERMS.md §1(b) 구분).
     echo "=== Step 1: Release 빌드 (Official Build) ==="
     pushd "$CLI_DIR" > /dev/null || { echo "❌ cd $CLI_DIR 실패"; return 1; }
@@ -479,11 +479,16 @@ cmd_publish() {
             return 1
         fi
     done
+    # Issue242: the app icon ships only in official builds — without it the release shows the macOS default icon.
+    if [ ! -s "$OFFICIAL_RES/AppIcon.icns" ]; then
+        echo "❌ 공식 앱 아이콘 누락: AppIcon.icns. publish 중단."
+        return 1
+    fi
     if ! codesign --verify --strict "$BUILT_APP/fSnippetCli.app" 2>/dev/null; then
         echo "❌ 서명 검증 실패 (codesign --verify --strict). publish 중단."
         return 1
     fi
-    echo "  ✅ Official Build 표식·동봉 약관·서명 검증"
+    echo "  ✅ Official Build 표식·동봉 약관·앱 아이콘·서명 검증"
 
     # ── Step 2.9: git tag + push (F5-4 / prj1#Issue346) ──
     # 왜: 지금까지 태그는 `gh release create` 가 **원격 기본 브랜치 HEAD 에** 대신

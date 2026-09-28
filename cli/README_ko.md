@@ -49,6 +49,8 @@ cd fSnippet_public/cli
 xcodebuild -scheme fSnippetCli -configuration Release build
 ```
 
+소스 빌드는 macOS 기본 앱 아이콘으로 표시됨 — fSnippet 아이콘은 공식 빌드 구성요소([NOTICE](../NOTICE) 참고)라 공식 빌드에만 들어감.
+
 # 접근성 권한 설정
 
 fSnippetCli는 키보드 입력 모니터링과 텍스트 대체를 위해 **접근성 권한**이 필수임.

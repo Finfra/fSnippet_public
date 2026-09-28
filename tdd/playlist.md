@@ -9,7 +9,7 @@ date: 2026.09.26
 키 이벤트 워치독이 권한을 잘못 판정해 재시작하거나 키보드를 잠그지 않게 하고, 스니펫 확장과 REST 설정 영속성을 지킨다
 
 * 기존 러너: `bash cli/_tool/fsc-test.sh (12단계 통합: 빌드→ZTest 확장→apiTestDo.sh→cmdTestDo.sh→로그 검사) / XCTest 타깃 cli/fSnippetCliTests (xcodebuild test 는 아래 목표 목록 참고)`
-* 목표 17개 — 전부 ✅ (#1~16 prj5#Issue99 2026-09-27 jma 실행 · #17 Issue238 jm4). 유닛: `xcodebuild test -project cli/fSnippetCli.xcodeproj -scheme fSnippetCli -destination 'platform=macOS'`
+* 목표 18개 — 전부 ✅ (#1~16 prj5#Issue99 2026-09-27 jma 실행 · #17 Issue238 jm4 · #18 Issue242 jm4). 유닛: `xcodebuild test -project cli/fSnippetCli.xcodeproj -scheme fSnippetCli -destination 'platform=macOS'`
 
 # 재생목록
 
@@ -34,6 +34,7 @@ date: 2026.09.26
 | 15 | `folder-rule-table` | 폴더 규칙 표 35행 전부에서 약어 생성·역조회·typed 매칭이 표와 일치한다 | prj15#Issue986 이관(prj15 #4 · FolderTestRunner + testTable_org.md) | `cli/fSnippetCliTests/FolderRuleTableTests.swift` | ✅ jma |
 | 16 | `accessibility-boot-listing` | 미승인으로 부팅한 새 프로세스는 시스템 권한 요청을 정확히 1회 보내 손쉬운 사용 목록에 올라가고, 승인 상태로 부팅하면 아무것도 묻지 않는다 | Issue237(jma 에서 목록 미등록 → 매번 수동 추가. Issue227 전제 정정) | `cli/fSnippetCliTests/fSnippetCliTests.swift` (AccessibilityBootListingTests) | ✅ jma |
 | 17 | `official-build-marker` | 공식 빌드(`FSNIPPET_OFFICIAL_BUILD=YES`)에만 `resources/official/` 표식과 약관 문서가 서명 전에 번들되고 `--version` 에 `Finfra Official Build` 가 찍힌다. 소스 빌드에는 표식이 없고, 같은 DerivedData 에서 뒤이은 소스 빌드는 남은 표식을 지운다 | Issue238(DISTRIBUTION-TERMS v1.2 §1(b) — 표식이 없으면 법무가 공식 빌드와 소스 빌드를 구별 못 함) | `cli/fSnippetCliTests/OfficialBuildTests.swift` · `bash cli/_tool/fsc-official-build-check.sh` | ✅ jm4 (유닛 5/5 · 빌드 17/17) |
+| 18 | `official-app-icon` | 앱 아이콘은 공식 빌드에만 들어간다 — 공식 빌드는 `cli/resources/official/AppIcon.iconset` 으로 만든 `Resources/AppIcon.icns` 를 싣고, 소스 빌드는 아이콘이 전혀 없어(`AppIcon.icns`·Assets.car 아이콘·`CFBundleIconName` 모두 없음) macOS 기본 앱 아이콘을 쓴다. 공개 `Assets.xcassets` 에는 AppIcon 이 없다 | Issue242(NOTICE 는 아이콘을 Official Build Components 로 선언하는데 실물이 Apache 트리 `Assets.xcassets` 에 있어 소스 빌드도 공식 아이콘을 씀 — Issue238 잔여, 사용자 결정) | `cli/fSnippetCliTests/OfficialBuildTests.swift` · `bash cli/_tool/fsc-official-build-check.sh` | ✅ jm4 (유닛 9/9 · 빌드 31/31) |
 
 # 규약
 

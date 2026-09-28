@@ -3,16 +3,21 @@
 #
 # FSNIPPET_OFFICIAL_BUILD=YES (passed only by `fsc-deploy-brew.sh publish`) bundles:
 #   Contents/Resources/Official/ <- cli/resources/official/  (Finfra-proprietary, not Apache)
+#                                   except AppIcon.iconset, which becomes the app icon:
+#   Contents/Resources/AppIcon.icns <- iconutil cli/resources/official/AppIcon.iconset (Issue242)
 #   Contents/Resources/Legal/    <- LICENSE, NOTICE, TRADEMARK.md, DISTRIBUTION-TERMS.md
 #                                   (terms shipped inside the package — DISTRIBUTION-TERMS §6)
 # Any other build is a source build: remove whatever an earlier official build left in the
-# same DerivedData, so the marker can never leak into a source build.
+# same DerivedData, so the marker and the icon can never leak into a source build.
+# Info.plist names CFBundleIconFile=AppIcon in every build and the public asset catalog has
+# no app icon, so a source build — with no AppIcon.icns — shows the macOS default app icon.
 # The phase runs before code signing, so the signature seals the copied files.
 
 set -eu
 
 DEST="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}"
 OFFICIAL_SRC="${SRCROOT}/resources/official"
+ICONSET="$OFFICIAL_SRC/AppIcon.iconset"
 REPO_ROOT="${SRCROOT}/.."
 LEGAL_FILES="LICENSE NOTICE TRADEMARK.md DISTRIBUTION-TERMS.md"
 
@@ -29,11 +34,29 @@ write_stamp() {
 }
 
 mkdir -p "$DEST"
-rm -rf "$DEST/Official" "$DEST/Legal"
+# AppIcon.icns also covers the icon actool generated before the catalog was emptied (Issue242).
+rm -rf "$DEST/Official" "$DEST/Legal" "$DEST/AppIcon.icns"
+
+# An empty asset catalog compiles to nothing, and actool then leaves its old output in the
+# intermediates: DerivedData from before Issue242 keeps emplacing an Assets.car that still
+# carries the official icon. The public catalog has no app icon (OfficialBuildTests), so an
+# Assets.car with one is stale by definition. The stamp suffix makes Xcode re-seal after it.
+HEALED=""
+if [ -f "$DEST/Assets.car" ]; then
+    CAR_INFO=$(/usr/bin/assetutil --info "$DEST/Assets.car") || {
+        echo "error: cannot inspect $DEST/Assets.car"
+        exit 1
+    }
+    if printf '%s\n' "$CAR_INFO" | grep -Eq '"AssetType" : "Icon Image"|"Name" : "AppIcon"'; then
+        rm -f "$DEST/Assets.car"
+        HEALED=" (removed stale Assets.car)"
+        echo "Official Build Components: removed a stale Assets.car carrying the official icon"
+    fi
+fi
 
 if [ "${FSNIPPET_OFFICIAL_BUILD:-NO}" != "YES" ]; then
-    write_stamp "source"
-    echo "Official Build Components: source build — none bundled"
+    write_stamp "source$HEALED"
+    echo "Official Build Components: source build — none bundled (macOS default app icon)"
     exit 0
 fi
 
@@ -44,19 +67,27 @@ for f in "$OFFICIAL_SRC/official-build.txt" $(for l in $LEGAL_FILES; do echo "$R
         exit 1
     fi
 done
+if [ ! -d "$ICONSET" ]; then
+    echo "error: $ICONSET missing — cannot make an Official Build"
+    exit 1
+fi
 
 mkdir -p "$DEST/Official" "$DEST/Legal"
-cp -R "$OFFICIAL_SRC/." "$DEST/Official/"
+for item in "$OFFICIAL_SRC"/*; do
+    [ "$item" = "$ICONSET" ] && continue
+    cp -R "$item" "$DEST/Official/"
+done
 for f in $LEGAL_FILES; do
     cp "$REPO_ROOT/$f" "$DEST/Legal/$f"
 done
+iconutil -c icns "$ICONSET" -o "$DEST/AppIcon.icns"
 
 # Assigned on its own line so a failure is caught instead of writing a partial stamp.
-DIGEST=$(cd "$DEST" && find Official Legal -type f -print0 | LC_ALL=C sort -z \
+DIGEST=$(cd "$DEST" && find Official Legal AppIcon.icns -type f -print0 | LC_ALL=C sort -z \
     | xargs -0 shasum -a 256 | shasum -a 256 | cut -c1-16)
 case "$DIGEST" in
     [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;;
     *) echo "error: could not hash the bundled Official Build Components ('$DIGEST')"; exit 1 ;;
 esac
-write_stamp "official $DIGEST"
-echo "Official Build Components: bundled Official/ and Legal/ into $DEST"
+write_stamp "official $DIGEST$HEALED"
+echo "Official Build Components: bundled Official/, Legal/ and AppIcon.icns into $DEST"

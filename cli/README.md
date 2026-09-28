@@ -49,6 +49,8 @@ cd fSnippet_public/cli
 xcodebuild -scheme fSnippetCli -configuration Release build
 ```
 
+A source build shows the macOS default app icon — the fSnippet icon is an Official Build Component (see [NOTICE](../NOTICE)) and ships only in Official Builds.
+
 # Accessibility Permission
 
 fSnippetCli requires **Accessibility permission** for keyboard input monitoring and text replacement.
