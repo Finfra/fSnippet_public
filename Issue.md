@@ -33,18 +33,6 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue242: 공식 앱 아이콘을 `cli/resources/official/` 로 분리 — 소스 빌드는 기본 아이콘 (등록: 2026-09-28)
-* 목적: 앱 아이콘이 공개 소스 `cli/fSnippetCli/Assets.xcassets` 에 있어 소스 빌드도 공식(브랜드) 아이콘을 쓴다. NOTICE 는 아이콘을 Official Build Components(비Apache)로 선언하는데 실물은 Apache 트리에 있다 — Issue238 결과의 «잔여(사용자 결정)»
-* depends: prj6#Issue17
-* 상세:
-    - 출처: prj3 세션 05cbbead 위임(`../_doc_work/delegation_2026.09.28_official-icon-split.md`) · 사용자 결정 mq `20260928-120442-001` — H 등급(브랜드) 승인 완료: «공식 앱 아이콘을 `resources/official/` 로 분리하고 소스 빌드는 기본 아이콘으로 한다»
-    - 공개 `Assets.xcassets` 는 비운다(비브랜드 기본 아이콘이 없으므로 macOS 기본 앱 아이콘) — 공식 빌드 단계(Official Build Components)만 번들 아이콘을 넣는다
-* 구현 명세:
-    - tdd red 먼저: `OfficialBuildTests`(공개 카탈로그에 AppIcon 없음 · `resources/official/AppIcon.iconset` 존재 · 소스 빌드 호스트에 아이콘 없음) + `fsc-official-build-check.sh`(공식=공식 아이콘 · 소스=아이콘 없음, 공식→소스→공식)
-    - 구현: PNG 10장 `git mv` → `cli/resources/official/AppIcon.iconset/` · 빌드 단계가 공식 빌드에서만 `iconutil` 로 `Resources/AppIcon.icns` 생성, 소스 빌드는 제거 · `ASSETCATALOG_COMPILER_APPICON_NAME` 비움(pbxproj·project.yml) · Info.plist `CFBundleIconFile=AppIcon` 고정 · publish Step 2.6 게이트에 아이콘 추가
-    - 검증: 유닛 전체 · `fsc-official-build-check.sh` · 소스 빌드 `.app` 아이콘 ≠ 공식 아이콘
-    - 금지: `git push` · tap 반영 · 릴리스 · 기존 태그 변경 — 공개 반영은 prj3 세션 몫
-
 # 📕 중요
 
 # 📙 일반
@@ -67,6 +55,24 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue242: 공식 앱 아이콘을 `cli/resources/official/` 로 분리 — 소스 빌드는 기본 아이콘 (등록: 2026-09-28, 완료: 2026-09-28, Hash: 769fb9d) ✅
+* 목적: 앱 아이콘이 공개 소스 `cli/fSnippetCli/Assets.xcassets` 에 있어 소스 빌드도 공식(브랜드) 아이콘을 쓴다. NOTICE 는 아이콘을 Official Build Components(비Apache)로 선언하는데 실물은 Apache 트리에 있다 — Issue238 결과의 «잔여(사용자 결정)»
+* depends: prj6#Issue17
+* 상세:
+    - 출처: prj3 세션 05cbbead 위임(`../_doc_work/delegation_2026.09.28_official-icon-split.md`) · 사용자 결정 mq `20260928-120442-001` — H 등급(브랜드) 승인 완료: «공식 앱 아이콘을 `resources/official/` 로 분리하고 소스 빌드는 기본 아이콘으로 한다»
+    - 공개 `Assets.xcassets` 는 비운다(비브랜드 기본 아이콘이 없으므로 macOS 기본 앱 아이콘) — 공식 빌드 단계(Official Build Components)만 번들 아이콘을 넣는다
+* 구현 명세:
+    - tdd red 먼저: `OfficialBuildTests`(공개 카탈로그에 AppIcon 없음 · `resources/official/AppIcon.iconset` 존재 · 소스 빌드 호스트에 아이콘 없음) + `fsc-official-build-check.sh`(공식=공식 아이콘 · 소스=아이콘 없음, 공식→소스→공식)
+    - 구현: PNG 10장 `git mv` → `cli/resources/official/AppIcon.iconset/` · 빌드 단계가 공식 빌드에서만 `iconutil` 로 `Resources/AppIcon.icns` 생성, 소스 빌드는 제거 · `ASSETCATALOG_COMPILER_APPICON_NAME` 비움(pbxproj·project.yml) · Info.plist `CFBundleIconFile=AppIcon` 고정 · publish Step 2.6 게이트에 아이콘 추가
+    - 검증: 유닛 전체 · `fsc-official-build-check.sh` · 소스 빌드 `.app` 아이콘 ≠ 공식 아이콘
+    - 금지: `git push` · tap 반영 · 릴리스 · 기존 태그 변경 — 공개 반영은 prj3 세션 몫
+* 결과:
+    - `769fb9d` (tdd #18 red→green): PNG 10장 `git mv` → `cli/resources/official/AppIcon.iconset/` · 공개 `Assets.xcassets` 는 비움(비브랜드 기본 아이콘 없음 → **macOS 기본 앱 아이콘**) · `ASSETCATALOG_COMPILER_APPICON_NAME=""`(pbxproj·project.yml) · Info.plist `CFBundleIconFile=AppIcon` 고정 — 공식 빌드만 빌드 단계가 `iconutil` 로 `Resources/AppIcon.icns` 를 만들고(다이제스트 포함, `Official/` 에는 iconset 미복사) 소스 빌드는 지운다 · publish Step 2.6 게이트에 아이콘 추가 · cli README(en·ko) 소스 빌드 안내 1줄
+    - 발견·해결: 카탈로그가 비면 actool 이 옛 중간 산출물(`assetcatalog_output/thinned/Assets.car`)을 지우지 않아 기존 DerivedData 의 소스 빌드(`/run`·jma)에 공식 아이콘을 품은 Assets.car 가 계속 들어감 → 빌드 단계가 `assetutil` 로 앱 아이콘 든 Assets.car 를 제거 + 스탬프 접미사로 재서명. 진단: `cli/_doc_work/debug_TECH.md` 2026.09.28
+    - 검증: red 유닛 3건 실패·빌드 검사 `PASS=21 FAIL=10` → green OfficialBuildTests 9/9 · 전체 유닛 136/136 · `fsc-official-build-check.sh` 31/31(공식→소스→공식, 서명·`--version` 포함) · `/run`(brew local) 설치본 서명 유효·Distribution 행 없음·REST 정상
+    - 아이콘 비교(256px Finder 렌더): 소스 빌드 = macOS 기본 앱 아이콘(픽셀 차 0) · 새 공식 빌드 = 변경 전 설치본(actool 아이콘)과 픽셀 차 0 — 캡처 `../_doc_work/report/official-icon-split/`
+    - 보고서: `../_doc_work/report/official-icon-split_report.md` · push·tap·릴리스 없음
+
 ## Issue239: 공식 배포본 약관 한국어본 추가 — 한국 거주 개인 동등 효력 (prj6#Issue17) (등록: 2026-09-27, 완료: 2026-09-28, Hash: 2cd2ffa) ✅
 * 목적: Issue238 로 적용한 약관 v1.2 §10 은 «대한민국 거주 개인에게는 한국어본이 동등한 효력» 을 약속하는데 한국어본이 없다. 약관규제법상 설명의무 대응이기도 하다
 * depends: prj6#Issue17
