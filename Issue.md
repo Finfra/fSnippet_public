@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 240
+* Issue HWM: 241
 * Checkpoints:
       - 1c34407 (2026-09-12) 작업 트리 스냅샷 (Issue234 종결 시점)
       - 4a49da5 (2026-09-08) 작업 트리 스냅샷
@@ -36,6 +36,14 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
+
+## Issue241: 공식 빌드 Resources/Legal/ 에 DISTRIBUTION-TERMS_ko.md 동봉 (🌱 후보 2 승격) (등록: 2026-09-28)
+* 목적: 약관 §6 «패키지 안에서 제시» + §10 한국 거주 개인 동등 효력인데 동봉 목록은 영문뿐 (Issue239 수행 중 발견)
+* 상세:
+    - 출처: prj3 mq `20260928-023246-001` ③ — prj3#Issue756 C 등급: 🌱 후보 → 번호 이슈 승격(후보 2 줄은 다음 정리 때 삭제)
+    - 대상: `cli/_tool/fsc-official-components.sh`·`fsc-official-build-check.sh`(`LEGAL_FILES`)·`fsc-deploy-brew.sh` Step 2.6 게이트·`project.pbxproj`/`project.yml` 선언 출력
+* 구현 명세:
+    - 코드 변경이라 tdd red 먼저 — 동봉 목록에 한국어본 부재를 build-check 가 잡게 한 뒤 추가
 
 ## Issue240: LICENSE_ko.md 약관 링크에 한국어본 병기 — prj26 과 맞춤 (등록: 2026-09-28)
 * 목적: `LICENSE_ko.md` 19·118행이 영문 `DISTRIBUTION-TERMS.md` 만 가리킨다(한국어본 `DISTRIBUTION-TERMS_ko.md` 는 있음). prj26 fWarrangeCli 는 20행에 한국어본 링크까지 넣었다
