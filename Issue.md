@@ -136,7 +136,7 @@ date: 2026-04-07
 * 목적: Issue238 로 적용한 약관 v1.2 §10 은 «대한민국 거주 개인에게는 한국어본이 동등한 효력» 을 약속하는데 한국어본이 없다. 약관규제법상 설명의무 대응이기도 하다
 * depends: prj6#Issue17
 * 상세:
-    - **한국어 약관본 추가** (prj6 템플릿 `/Users/nowage/_git/___architect/data/template/license/DISTRIBUTION-TERMS_ko.md`): 루트 `DISTRIBUTION-TERMS_ko.md` 를 영문 v1.2 와 **같은 커밋**으로 — 약관 §10 이 한국 거주 개인에게 한국어본의 동등 효력을 약속하므로 영문과 어긋나면 안 된다. 자리표 값은 영문과 동일. 확인: `diff <(grep -oE '^## [0-9]+\.' DISTRIBUTION-TERMS.md) <(grep -oE '^## [0-9]+\.' DISTRIBUTION-TERMS_ko.md)` 무출력
+    - **한국어 약관본 추가** (prj6 템플릿 `/Users/nowage/_git/___oracle/data/template/license/DISTRIBUTION-TERMS_ko.md`): 루트 `DISTRIBUTION-TERMS_ko.md` 를 영문 v1.2 와 **같은 커밋**으로 — 약관 §10 이 한국 거주 개인에게 한국어본의 동등 효력을 약속하므로 영문과 어긋나면 안 된다. 자리표 값은 영문과 동일. 확인: `diff <(grep -oE '^## [0-9]+\.' DISTRIBUTION-TERMS.md) <(grep -oE '^## [0-9]+\.' DISTRIBUTION-TERMS_ko.md)` 무출력
     - README 한국어판(`README_ko.md`/`README_kr.md`)의 설치 절 약관 고지에서 `DISTRIBUTION-TERMS.md` 대신 `DISTRIBUTION-TERMS_ko.md` 로 링크
 * 구현 명세:
     - 검증: 조항 번호 diff 무출력 · `grep -c '{{' DISTRIBUTION-TERMS_ko.md` 0 · 한국어 README 링크 대상 존재
@@ -156,7 +156,7 @@ date: 2026-04-07
     - 문서 재동기: `DISTRIBUTION-TERMS.md` → v1.2 전문 교체(자리표 `{{EFFECTIVE_DATE}}` 는 이번 커밋일 — v1.x 판 발효일 이후 빌드는 새 판) · `TRADEMARK.md`·`COMMERCIAL.md`·`NOTICE` → v1.2(`{{MARKS}}` 는 NOTICE·TRADEMARK 동일 값) · `LICENSE_ko.md` 는 Apache 참고 번역이라 변경 없음
     - README(en·ko) **설치 명령 바로 앞**에 약관 2줄(DISTRIBUTION-TERMS §0 요약)을 둔다 — 설치 후 caveats 만으로는 약관규제법상 사전 고지가 약하다(검토 medium)
     - Official Build 구분 표식(2단계 — 코드 변경이라 tdd red 먼저): 공식 빌드에만 들어가는 `resources/official/`(브랜드 배너·아이콘) + 공식 빌드 스크립트 분기 + `--version` 출력에 `Finfra Official Build` 표기. 소스 빌드에는 넣지 않는다. 없으면 약관 §1(b) 가 빈 집합이라 법무가 적용 대상을 구별 못 한다 — 1단계와 한 이슈로 하되 커밋은 나눈다
-    - 근거: 템플릿 `/Users/nowage/_git/___architect/data/template/license/`(v1.2, prj6 `3195f25`) · 검토 처분표 `/Users/nowage/_git/___architect/_doc_work/report/license-hook-review_issue17_report.md` §반영 결과 · 정본 `/Users/nowage/_git/___architect/_doc_arch/license-profiles.md` §3-2·§5
+    - 근거: 템플릿 `/Users/nowage/_git/___oracle/data/template/license/`(v1.2, prj6 `3195f25`) · 검토 처분표 `/Users/nowage/_git/___oracle/_doc_work/report/license-hook-review_issue17_report.md` §반영 결과 · 정본 `/Users/nowage/_git/___oracle/_doc_arch/license-profiles.md` §3-2·§5
 * 구현 명세:
     - 검증: 4개 문서 `Version 1.2` · `grep -c '{{' ` 0 · README 설치 명령 앞 약관 2줄 · `--version` 표식은 공식 빌드에만
     - 금지: `git push` · npm publish · `Finfra/homebrew-tap` 수정 · 기존 태그 변경 · 템플릿 frontmatter·`📄 템플릿` 블록 복사
@@ -188,7 +188,7 @@ date: 2026-04-07
     - `LICENSE_ko.md` 참고 번역(영문 구속력 — prj8 fpm 패턴)
     - `mcp/` 는 프로파일 C: `mcp/LICENSE` 에 MIT 원문, `mcp/package.json.license` `MIT` 유지(npm `fsnippet-mcp` 1.0.2 는 이미 MIT)
     - README(en·ko) 라이선스 절: `cli/` Apache-2.0 + 훅 3문서 링크 / `mcp/` MIT 표 · "All rights reserved" 제거 · "이번 커밋 이전 배포본(cli 1.0.2 등)은 출하 당시 조건" 주석
-    - 정본 `/Users/nowage/_git/___architect/_doc_arch/license-profiles.md` §4 row 25 · 템플릿 `/Users/nowage/_git/___architect/data/template/license/README.md`(자리표 값 표 포함 — `{{N}}`=250 · `{{LICENSOR}}`=`Finfra Co., Ltd. (https://finfra.kr)` · `{{CONTACT}}`=finfra@gmail.com)
+    - 정본 `/Users/nowage/_git/___oracle/_doc_arch/license-profiles.md` §4 row 25 · 템플릿 `/Users/nowage/_git/___oracle/data/template/license/README.md`(자리표 값 표 포함 — `{{N}}`=250 · `{{LICENSOR}}`=`Finfra Co., Ltd. (https://finfra.kr)` · `{{CONTACT}}`=finfra@gmail.com)
 * 구현 명세:
     - 검증: 위 파일 전부 존재 · README 라이선스 절이 각 파일을 링크 · `grep -rn "All rights reserved" README*` 0건 · 정본 §4 해당 행과 대조
     - 금지: `git push`(공개 라이선스 변경은 사용자가 push) · npm publish · `Finfra/homebrew-tap` 수정(formula `license "Apache-2.0"`·caveats 갱신 명령만 report 에 적는다) · 기존 릴리스 태그 변경
