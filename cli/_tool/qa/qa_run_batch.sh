@@ -22,6 +22,9 @@
 #   FSC_API_PORT         REST port of the instance under test (default 3015)
 #   fSnippetCli_config   data root whose snippets/ holds the _case<N> fixtures
 #                        (default: appRootPath, else ~/Documents/finfra/fSnippetData)
+#   QA_KEY_COLUMN        last (default): type the table's abbreviation as written
+#                        first: type it with the row's first key (t<N>) — unique
+#                        per row, so no row shadows another (see parse_table)
 #
 # Exit status: 0 only when every selected case ran and passed. A case without
 # its fixture file is a FAIL, and running zero cases is a failure — a missing
@@ -75,12 +78,34 @@ case "$HEALTH" in
 esac
 
 # --- parse testTable: emit "id<TAB>abbreviation" per case row ---
+# QA_KEY_COLUMN=first swaps the row's keyword (last entry of the key column, e.g.
+# `test`) for the first entry (`t<N>`) outside any {token}. With every _case folder
+# loaded at once, the shared keyword `test` makes rows shadow each other: case18
+# `{keypad_comma}test` has no suffix, expands on the spot, and is a prefix of case36
+# `{keypad_comma}test{keypad_comma}`. The per-row key keeps abbreviations unique.
 parse_table() {
-  awk -F'|' '
+  awk -F'|' -v keycol="${QA_KEY_COLUMN:-last}" '
+    function trim(s) { sub(/^[ \t]+/,"",s); sub(/[ \t]+$/,"",s); return s }
+    # replace the first occurrence of `from` that lies outside {...} with `to`
+    function swap_key(s, from, to,    i, depth, c) {
+      depth=0
+      for (i=1; i<=length(s); i++) {
+        c=substr(s,i,1)
+        if (c=="{") depth++
+        else if (c=="}") depth--
+        else if (depth==0 && substr(s,i,length(from))==from)
+          return substr(s,1,i-1) to substr(s,i+length(from))
+      }
+      return s
+    }
     /^\|/ {
       id=$2; gsub(/[ \t]/,"",id)
       if (id ~ /^[0-9]+$/) {
-        abbr=$7; sub(/^[ \t]+/,"",abbr); sub(/[ \t]+$/,"",abbr)
+        abbr=trim($7)
+        if (keycol=="first") {
+          n=split($5, k, ",")
+          abbr=swap_key(abbr, trim(k[n]), trim(k[1]))
+        }
         print id "\t" abbr
       }
     }
