@@ -1,5 +1,5 @@
 #!/bin/bash
-# qa_run_batch.sh — FolderTest 35-case keyboard automation paste harness.
+# qa_run_batch.sh — FolderTest keyboard automation paste harness (all table rows).
 #
 # For each row of testTable_org.md: open testBoard.txt afresh (a cliApp
 # context-change that flushes the engine's abbreviation buffer), type the
@@ -14,8 +14,18 @@
 #     --case N   run only case N
 #     --dry-run  healthz + parse only, no typing
 #
-# Requires: cliApp running on :3015, Accessibility permission for the shell +
-# osascript, the pyobjc Quartz binding (for modifier tokens).
+# Requires: cliApp running on :$FSC_API_PORT (default 3015), Accessibility
+# permission for the shell + osascript, the pyobjc Quartz binding (for modifier
+# tokens).
+#
+# Environment (Issue245 — lets fsc-typing-test.sh drive an isolated instance):
+#   FSC_API_PORT         REST port of the instance under test (default 3015)
+#   fSnippetCli_config   data root whose snippets/ holds the _case<N> fixtures
+#                        (default: appRootPath, else ~/Documents/finfra/fSnippetData)
+#
+# Exit status: 0 only when every selected case ran and passed. A case without
+# its fixture file is a FAIL, and running zero cases is a failure — a missing
+# fixture set must never read as "0/0 passed" (Issue245).
 #
 # Issue138: literal keystrokes go through AppleScript (real keycodes) and each
 # case re-opens testBoard.txt. The earlier Quartz keycode-0 path + in-place
@@ -30,7 +40,9 @@ RESULT_DIR="$QA_DIR/results"
 # normalised (no '..' — osascript `POSIX file` does not resolve it)
 TESTBOARD="$(cd "$QA_DIR/.." && pwd)/testBoard.txt"
 
-APP_ROOT="$(defaults read kr.finfra.fSnippetCli appRootPath 2>/dev/null)"
+API_PORT="${FSC_API_PORT:-3015}"
+APP_ROOT="${fSnippetCli_config:-}"
+[ -z "$APP_ROOT" ] && APP_ROOT="$(defaults read kr.finfra.fSnippetCli appRootPath 2>/dev/null)"
 [ -z "$APP_ROOT" ] && APP_ROOT="$HOME/Documents/finfra/fSnippetData"
 SNIPPET_DIR="$APP_ROOT/snippets"
 
@@ -55,11 +67,11 @@ done
 [ -f "$TABLE" ] || { echo "❌ testTable not found: $TABLE" >&2; exit 1; }
 
 # --- Phase 0: cliApp healthz ---
-echo "▶ Phase 0 — cliApp healthz"
-HEALTH="$(curl -s -m 3 http://localhost:3015/ 2>/dev/null)"
+echo "▶ Phase 0 — cliApp healthz (:$API_PORT, root $APP_ROOT)"
+HEALTH="$(curl -s -m 3 "http://localhost:$API_PORT/" 2>/dev/null)"
 case "$HEALTH" in
   *'"status" : "ok"'*|*'"status":"ok"'*) echo "  ✅ cliApp running" ;;
-  *) echo "  ❌ cliApp not responding on :3015 — start it first" >&2; exit 1 ;;
+  *) echo "  ❌ cliApp not responding on :$API_PORT — start it first" >&2; exit 1 ;;
 esac
 
 # --- parse testTable: emit "id<TAB>abbreviation" per case row ---
@@ -75,13 +87,24 @@ parse_table() {
   ' "$TABLE"
 }
 
+# fixture_file ID: the case's snippet file `_case<ID>/<keyword>===case<ID>.txt`.
+# The keyword is the table's key (`test` for most rows, `ant` for case39), so match
+# on the comment part only. Prints the expected path even when it does not exist.
+fixture_file() {
+  local f
+  for f in "$SNIPPET_DIR/_case$1/"*"===case$1.txt"; do
+    [ -f "$f" ] && { printf '%s\n' "$f"; return; }
+  done
+  printf '%s\n' "$SNIPPET_DIR/_case$1/<key>===case$1.txt"
+}
+
 TOTAL="$(parse_table | wc -l | tr -d ' ')"
 echo "▶ Parsed $TOTAL case(s) from $(basename "$TABLE")"
 
 if [ "$DRY_RUN" -eq 1 ]; then
   echo "▶ --dry-run — parsed cases:"
   parse_table | while IFS=$(printf '\t') read -r id abbr; do
-    exp_file="$SNIPPET_DIR/_case${id}/test===case${id}.txt"
+    exp_file="$(fixture_file "$id")"
     if [ -f "$exp_file" ]; then exp="$(cat "$exp_file")"; else exp="<MISSING>"; fi
     printf "  case%-3s abbr=%-40s expect=%s\n" "$id" "$abbr" "$exp"
   done
@@ -123,9 +146,12 @@ ROWS=""
 while IFS=$(printf '\t') read -r id abbr; do
   [ -n "$ONLY_CASE" ] && [ "$id" != "$ONLY_CASE" ] && continue
 
-  exp_file="$SNIPPET_DIR/_case${id}/test===case${id}.txt"
+  exp_file="$(fixture_file "$id")"
   if [ ! -f "$exp_file" ]; then
-    ROWS="${ROWS}| $id | \`$abbr\` | <no snippet file> | — | ⚠️ SKIP |
+    # A missing fixture is a failure, not a skip (Issue245).
+    FAIL=$((FAIL + 1))
+    printf "  case%-3s ❌ FAIL (no fixture: %s)\n" "$id" "$exp_file"
+    ROWS="${ROWS}| $id | \`$abbr\` | <no snippet file> | — | ❌ FAIL (no fixture) |
 "
     continue
   fi
@@ -184,4 +210,8 @@ EOF
 
 echo "▶ 완료 — PASS ${PASS} / FAIL ${FAIL} (총 ${RAN})"
 echo "▶ 리포트: $REPORT"
+if [ "$RAN" -eq 0 ]; then
+  echo "❌ no case ran — check TABLE / --case" >&2
+  exit 1
+fi
 [ "$FAIL" -eq 0 ] && exit 0 || exit 1
