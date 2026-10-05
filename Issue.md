@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 244
+* Issue HWM: 245
 * Checkpoints:
       - 1c34407 (2026-09-12) 작업 트리 스냅샷 (Issue234 종결 시점)
       - 4a49da5 (2026-09-08) 작업 트리 스냅샷
@@ -51,6 +51,25 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue245: [Test] jma 스니펫 타이핑 테스트(폴더 테이블 39행)를 TDD 재생목록에 편입 — 격리 루트 픽스처 자동 준비 + 실패 삼킴 제거 (등록: 2026-10-05, 완료: 2026-10-05, Hash: 22b5341, de963c7, 1e67fa6, 74855c0) ✅
+* 목적: jma 에서 돌리던 스니펫 실타이핑 테스트(폴더 테이블 39행 — 키 입력 → CGEventTap → 확장 결과)를 `tdd/playlist.md` 의 한 행으로 올리고, 사람 손 준비 없이 jma 에서 반복 실행되게 한다
+* 상세:
+    - 같은 테스트가 두 벌 있다 — prj15 `_tool/qa/qa_run_batch.sh`(`qa-type-jma-mgr` 스킬, jma tmux `qa`)와 본 repo `cli/_tool/qa/qa_run_batch.sh`(Issue137·138 에서 하니스 결함을 고친 이식본, 2026-05-21 35/35 — 당시 표 35행, 현재 39행)
+    - 1.1.2 출고 테스트(2026-09-29 jma, prj15 release #7 `typing-batch-e2e`)에서 **0/35** — 엔진 결함이 아니라 픽스처 `_case1~35` 가 사용자 데이터에 없었다. 생성기는 은퇴 폴더(prj15 `_tool/_done/update_snippets_from_table.py`)에만 있고 사용자 `_rule.yml` 을 직접 고치는 방식이다
+    - 본 repo 하니스도 같은 전제: 사용자 appRootPath·`:3015` 에 `_case<N>/test===case<N>.txt` 가 있어야 하고, **없으면 `⚠️ SKIP` 으로 넘어가 FAIL 0 · exit 0** — 픽스처가 하나도 없으면 «0/0 통과» 가 된다(실패 삼킴)
+    - 그래서 재생목록에 없다: 개발 재생목록 18행 중 실제 키 입력 확장은 #9(ZTest `ztdo` 1건)뿐이고, 폴더 규칙 표는 #15 유닛(약어 생성·매칭)까지만 본다 — 특수키 토큰(`{right_option}`·`{keypad_comma}`·`{f1}` 등)의 실입력·삭제 길이·붙여넣기 결과는 이 테스트만 본다
+* 구현 명세:
+    - `qa_run_batch.sh`: 포트·데이터 루트를 `FSC_API_PORT`·`fSnippetCli_config` 로 받는다(기본은 종전 그대로 3015·appRootPath). 픽스처 없는 행은 SKIP 이 아니라 FAIL, 실행 0건이면 exit 1
+    - 신규 `cli/_tool/fsc-typing-test.sh`: `fsc-test.sh` 와 같은 격리 테스트 루트(`fSnippetData_testForCli`)·격리 인스턴스(`:3115`)에 `_rule.yml`+`_case<N>/<key>===case<N>.txt` 를 testTable 에서 생성 → 격리 인스턴스 기동 → 배치 실행 → 환경변수 원복. 사용자 데이터·`:3015`·brew 서비스 무접촉
+    - `tdd/playlist.md` #19 `typing-folder-table-e2e` 추가
+    - TDD: red — 픽스처 없는 루트에서 수정된 하니스가 39 FAIL·exit 1(종전은 SKIP·exit 0) → green — 픽스처 자동 준비 후 39/39 · jma
+* 진행 중 발견·수정 (green 1차 5/39 → 38/39 → 34/39 → 39/39, 진단 `cli/_doc_work/debug_TECH.md` 2026.10.05):
+    - 격리 루트 `_config.yml` 에 다른 스위트가 남긴 `snippet_popup_hotkey: "{A}"`(keycode 0) — Quartz 경로가 리터럴을 keycode 0 으로 보내 글자마다 팝업이 떠 키 유실 → Step 1 이 번들 기본값으로 고정 (`de963c7`)
+    - 39개 폴더 동시 적재 + 공유 키워드 `test` 로 case18 `{keypad_comma}test`(즉시 확장)가 case36 을 가림 — 엔진 결함 아님 → `QA_KEY_COLUMN=first` 로 행별 키 `t<N>` 사용 (`1e67fa6`)
+    - System Events `keystroke` 가 숫자를 키패드 keycode 로, 앞 글자보다 먼저 보냄(`t19` → `{keypad_1}{keypad_9}t`) → AppleScript 경로 숫자는 메인 행 `key code` (`74855c0`)
+* 후속(미처리): 격리 루트 `fSnippetData_testForCli/_config.yml` 오염 출처 — `snippet_popup_hotkey: "{A}"`·`alfred_import_source_path: "/tmp/_apitest.alfdb"` 를 남긴 스위트(API 테스트 추정) 특정. 본 하니스는 Step 1 고정으로 영향 차단됨
+* TDD: red — `fsc-typing-test.sh --no-fixture` 39 FAIL(no fixture)·EXIT_1 → green — 39/39·EXIT_0 연속 2회 (`result_20261005-114935.md`·`result_20261005-115314.md`) · jma
+
 ## Issue243: TDD 풀 재생 — 재생목록 ✅ 18행 전 목표 jma 재실행·행별 결과 기록 (등록: 2026-09-29, 완료: 2026-09-29, Hash: 58221eb) ✅
 * 목적: `tdd/playlist.md` ✅ 18행을 현 HEAD 에서 다시 돌려 여전히 green 인지 확인하고 red 는 고친다 (prj5#Issue108 위임 — 전 prj TDD 풀 회귀)
 * 상세:
