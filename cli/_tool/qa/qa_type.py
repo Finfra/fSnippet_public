@@ -98,6 +98,30 @@ def type_via_quartz(text: str, delay: float) -> None:
 
 # --- AppleScript path (single osascript session) ---
 
+# System Events `keystroke "1"` picks the keypad keycode (83..92) for digits and
+# they reached the engine ahead of the preceding letter (Issue245: `t19` arrived
+# as {keypad_1}{keypad_9}t). Digits go as explicit main-row `key code` (US layout,
+# which force_ascii.py selects).
+_DIGIT_KEYCODES = {"1": 18, "2": 19, "3": 20, "4": 21, "5": 23,
+                   "6": 22, "7": 26, "8": 28, "9": 25, "0": 29}
+_DIGIT_RUN_RE = re.compile(r"(\d+)")
+
+
+def _applescript_literal(text: str) -> list:
+    """osascript -e lines that type `text` in order (digits by key code)."""
+    lines = []
+    for run in _DIGIT_RUN_RE.split(text):
+        if not run:
+            continue
+        if run.isdigit():
+            for d in run:
+                lines.append(
+                    f'tell application "System Events" to key code {_DIGIT_KEYCODES[d]}')
+        else:
+            esc = run.replace("\\", "\\\\").replace('"', '\\"')
+            lines.append(f'tell application "System Events" to keystroke "{esc}"')
+    return lines
+
 def type_via_applescript(text: str) -> None:
     """Type the whole abbreviation in one osascript invocation.
 
@@ -117,13 +141,11 @@ def type_via_applescript(text: str) -> None:
                 args += ["-e",
                          f'tell application "System Events" to key code {meta["keycode"]}']
             else:
-                esc = part.replace("\\", "\\\\").replace('"', '\\"')
-                args += ["-e",
-                         f'tell application "System Events" to keystroke "{esc}"']
+                for line in _applescript_literal(part):
+                    args += ["-e", line]
         else:
-            esc = part.replace("\\", "\\\\").replace('"', '\\"')
-            args += ["-e",
-                     f'tell application "System Events" to keystroke "{esc}"']
+            for line in _applescript_literal(part):
+                args += ["-e", line]
         args += ["-e", "delay 0.12"]
     subprocess.run(args, check=False,
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
