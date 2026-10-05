@@ -98,6 +98,13 @@ set_test_pref() {
 set_test_pref api_port "$FSC_API_PORT"
 set_test_pref snippet_trigger_key '"{right_command}"'
 set_test_pref log_level '"DEBUG"'
+# The test root is shared with other suites (API tests) and can keep a popup hotkey
+# on a plain letter (seen: "{A}" = keycode 0). qa_type.py posts every literal as
+# keycode 0, so each typed character then opens the popup and the next keys are
+# lost. Pin it to the bundle default.
+POPUP_HOTKEY="$(sed -nE 's/^[[:space:]]*snippet_popup_hotkey:[[:space:]]*(.*)$/\1/p' "$CLI_DIR/fSnippetCli/_config.yml" | head -1)"
+[ -n "$POPUP_HOTKEY" ] || fail_out "번들 _config.yml 에 snippet_popup_hotkey 없음"
+set_test_pref snippet_popup_hotkey "$POPUP_HOTKEY"
 
 # --- Step 2 ---
 echo "=== Step 2: 픽스처 생성 ==="
