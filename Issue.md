@@ -375,13 +375,13 @@ date: 2026-04-07
     - 재현: `Markdown/Example===mExample_.txt` → 기대 `mExample{right_command}`, 실제 `Example{right_command}` (`GET /api/v2/snippets?folder=Markdown` 실측)
     - 사용자 대조 실험 (같은 `Markdown` 폴더):
 
-        | 파일 | 입력 | 결과 |
-        | :--- | :--- | :--- |
-        | `e===mExample_ copy.txt` | `me` | 성공 |
-        | `E===mExample.txt` | `mE` | 성공 |
-        | `Example===mExample_.txt` | `mExample` | **실패** |
-        | `example===mExample.txt` | `mexample` | 성공 |
-        | `Examplee===mExample.txt` | `mExamplee` | 성공 |
+        | 파일                      | 입력        | 결과     |
+        | :------------------------ | :---------- | :------- |
+        | `e===mExample_ copy.txt`  | `me`        | 성공     |
+        | `E===mExample.txt`        | `mE`        | 성공     |
+        | `Example===mExample_.txt` | `mExample`  | **실패** |
+        | `example===mExample.txt`  | `mexample`  | 성공     |
+        | `Examplee===mExample.txt` | `mExamplee` | 성공     |
     - 결론: 키워드 대소문자·길이와 무관하고, **파일명(확장자 제외)이 `_` 로 끝날 때만** 실패한다 (`_ copy` 는 `_` 로 끝나지 않아 통과)
     - 원인: [AbbreviationCalculator.swift:41](cli/fSnippetCli/Data/AbbreviationCalculator.swift#L41) 의 `isInitcapFile` 이 `===` 포함 + `_` suffix 이면 참이 되고, `keyword===name` 분기 [L98](cli/fSnippetCli/Data/AbbreviationCalculator.swift#L98) 에서 `useFolderPrefix = false` 로 prefix 를 끈다
     - `_` suffix Initcap 규칙은 원래 **키 없는 파일(`===Name_.txt`) 전용**이다(snippet-rules §3.2). 키 없는 분기는 `hasInitcapSuffix` 로 이미 따로 처리하므로 `keyword===` 분기에 적용할 근거가 없다
