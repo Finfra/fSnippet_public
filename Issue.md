@@ -60,7 +60,7 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
-## Issue249: ✅ [Core/Log] 플레이스홀더 Esc 취소 시 `ExpansionCoordinator Replacement Failed: Unknown Error` 가 ERROR 로 찍힘 — 취소 판정 단일화 (등록: 2026-10-08, 출처: prj15#Issue991 qa 2차 · fbotreq-1791463293-48c3bc6e) (완료: 2026-10-08, commit: b5adf39)
+## Issue249: [Core/Log] 플레이스홀더 Esc 취소 시 `ExpansionCoordinator Replacement Failed: Unknown Error` 가 ERROR 로 찍힘 — 취소 판정 단일화 (등록: 2026-10-08, 출처: prj15#Issue991 qa 2차 · fbotreq-1791463293-48c3bc6e) (해결: 2026-10-08, commit: b5adf39) ✅
 * 목적: 사용자 취소는 실패가 아니다. e185cf1 에서 `TextReplacementCoordinator` 쪽 취소 로그는 INFO 로 내렸으나 상위 [SnippetExpansionCoordinator.swift:83](cli/fSnippetCli/Core/SnippetExpansionCoordinator.swift#L83) 가 `(false, nil)` 을 받아 여전히 `logE … Unknown Error` 를 남긴다 — 판정이 두 층에 갈려 한쪽만 갱신된 상태
 * 상세:
     - 재현: 플레이스홀더 스니펫 확장 → 입력 창에서 Esc → `flog_cliApp.log` 에 `❌ [ExpansionCoordinator] Replacement Failed: Unknown Error` 1줄 (jma qa 2차 실측)
