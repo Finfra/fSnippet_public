@@ -10,6 +10,19 @@ protocol TextReplacementCoordinatorDelegate: AnyObject {
     func requestEventMonitoringResumption()
 }
 
+/// 텍스트 대체 completion `(success, error)` 의 판정 — 취소/실패 구분은 여기 한 곳 (Issue249)
+enum ReplacementOutcome: Equatable {
+    case success
+    case cancelled  // error 없는 비성공 = 사용자 취소 (ERROR 로 찍지 않는다)
+    case failed(String)
+
+    static func classify(success: Bool, error: String?) -> ReplacementOutcome {
+        if success { return .success }
+        if let error = error { return .failed(error) }
+        return .cancelled
+    }
+}
+
 /// 개선된 텍스트 대체 작업 조정 클래스
 class TextReplacementCoordinator {
 
@@ -266,13 +279,13 @@ class TextReplacementCoordinator {
         // ✅ 플래그 해제 - didSet이 호출되어 델리게이트에 알림
         isPerformingReplacement = false
 
-        if success {
+        switch ReplacementOutcome.classify(success: success, error: error) {
+        case .success:
             logV("🚦 텍스트 대체 성공: '\(error ?? "")'")
-        } else if error == nil {
-            // Issue991: error 없는 비성공 = 사용자 취소. ERROR 로 찍지 않는다
+        case .cancelled:
             logV("🚦 텍스트 대체 취소")
-        } else {
-            logE("🚦 텍스트 대체 실패: \(error ?? "알 수 없는 오류")")
+        case .failed(let message):
+            logE("🚦 텍스트 대체 실패: \(message)")
         }
 
         // 완료 콜백 호출

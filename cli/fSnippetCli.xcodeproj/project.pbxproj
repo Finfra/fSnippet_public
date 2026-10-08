@@ -157,6 +157,7 @@
 		A9999A000040000000000001 /* HistorySettingsPersistTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9999A000040000000000002 /* HistorySettingsPersistTests.swift */; };
 		A9999A000060000000000001 /* OfficialBuildTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9999A000060000000000002 /* OfficialBuildTests.swift */; };
 		A9910001B1C2D3E4F5060718 /* HistoryViewerKeyReassertTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9910002B1C2D3E4F5060718 /* HistoryViewerKeyReassertTests.swift */; };
+		A9490001B1C2D3E4F5060718 /* ReplacementOutcomeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9490002B1C2D3E4F5060718 /* ReplacementOutcomeTests.swift */; };
 		DAF03F4D1C5B6D6897DDB0DE /* ShortcutBlacklistTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 468C089347CC709937722F65 /* ShortcutBlacklistTests.swift */; };
 		DAF0BE56A11F359F047BFE16 /* appSetting.json in Resources */ = {isa = PBXBuildFile; fileRef = B95AC2536AF81E882BADAF72 /* appSetting.json */; };
 		DB908306F9EA5DB4F10CBE92 /* ConfigCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7251B209AF1506566A633A2 /* ConfigCommand.swift */; };
@@ -255,6 +256,7 @@
 		A9999A000040000000000002 /* HistorySettingsPersistTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistorySettingsPersistTests.swift; sourceTree = "<group>"; };
 		A9999A000060000000000002 /* OfficialBuildTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficialBuildTests.swift; sourceTree = "<group>"; };
 		A9910002B1C2D3E4F5060718 /* HistoryViewerKeyReassertTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryViewerKeyReassertTests.swift; sourceTree = "<group>"; };
+		A9490002B1C2D3E4F5060718 /* ReplacementOutcomeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplacementOutcomeTests.swift; sourceTree = "<group>"; };
 		468C089347CC709937722F65 /* ShortcutBlacklistTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutBlacklistTests.swift; sourceTree = "<group>"; };
 		48B4EB102AC686165B86F8ED /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		49DA528D5DDE1AFED377ABAF /* InputSourceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputSourceManager.swift; sourceTree = "<group>"; };
@@ -547,6 +549,7 @@
 				3301FA64D4284B1A13A6744C /* PaidAppPhaseATests.swift */,
 				A916947B15B250D2CA627467 /* PaidAppStateLoggerTests.swift */,
 				A9910002B1C2D3E4F5060718 /* HistoryViewerKeyReassertTests.swift */,
+				A9490002B1C2D3E4F5060718 /* ReplacementOutcomeTests.swift */,
 				468C089347CC709937722F65 /* ShortcutBlacklistTests.swift */,
 				A233C0DE0000000000000002 /* TapAsymmetryCounterTests.swift */,
 				A9999A000010000000000002 /* RuntimeIsolationTests.swift */,
@@ -889,6 +892,7 @@
 				881EEBCED923ED41D91ABFE2 /* PaidAppPhaseATests.swift in Sources */,
 				151CA373FC191BEB3BD1C08E /* PaidAppStateLoggerTests.swift in Sources */,
 				A9910001B1C2D3E4F5060718 /* HistoryViewerKeyReassertTests.swift in Sources */,
+				A9490001B1C2D3E4F5060718 /* ReplacementOutcomeTests.swift in Sources */,
 				DAF03F4D1C5B6D6897DDB0DE /* ShortcutBlacklistTests.swift in Sources */,
 				A233C0DE0000000000000001 /* TapAsymmetryCounterTests.swift in Sources */,
 				A9999A000010000000000001 /* RuntimeIsolationTests.swift in Sources */,

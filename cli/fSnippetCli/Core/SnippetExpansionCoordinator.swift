@@ -72,15 +72,20 @@ class SnippetExpansionCoordinator: TextReplacementCoordinatorDelegate {
     ) { [weak self] success, error in
       guard let self = self else { return }
 
-      if success {
+      switch ReplacementOutcome.classify(success: success, error: error) {
+      case .success:
         logV("🗿 🔹 [ExpansionCoordinator] Replacement Success: '\(snippet.abbreviation)'")
         if !fromPopup {
           SnippetUsageManager.shared.logUsage(snippet: snippet, triggerMethod: triggerMethod)
         }
 
         self.onExpansionSuccess?()
-      } else {
-        logE("🗿 🔹 ❌ [ExpansionCoordinator] Replacement Failed: \(error ?? "Unknown Error")")
+      case .cancelled:
+        // Issue249: user cancel is not a failure; callback behavior is unchanged
+        logI("🗿 🔹 [ExpansionCoordinator] Replacement Cancelled: '\(snippet.abbreviation)'")
+        self.onExpansionFailure?()
+      case .failed(let message):
+        logE("🗿 🔹 ❌ [ExpansionCoordinator] Replacement Failed: \(message)")
         self.onExpansionFailure?()
       }
 
