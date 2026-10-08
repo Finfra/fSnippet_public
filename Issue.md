@@ -51,7 +51,10 @@ date: 2026-04-07
 
 # 📙 일반
 
-## Issue248: [Tool] `jma-firstrun-check.sh` 가 «alert window captured» 를 출력하지만 png 가 생성되지 않음 (등록: 2026-10-08, 출처: prj15#Issue989 ⑤)
+# 📗 선택
+
+# ✅ 완료
+## Issue248: [Tool] `jma-firstrun-check.sh` 가 «alert window captured» 를 출력하지만 png 가 생성되지 않음 (등록: 2026-10-08, 출처: prj15#Issue989 ⑤) (해결: 2026-10-08, commit: 864185b — Issue.md 이력, 스크립트 본체 `.claude/` 는 gitignored) ✅
 * 목적: prj15 1.1.2 출고 테스트(배포 #5 `firstrun-real-home`)에서 스크립트가 `alert window captured: /tmp/jma_firstrun_alert.png (id N)` 를 찍는데 파일이 없었다 — 성공 메시지가 거짓이라 증적으로 쓸 수 없다
 * 상세:
     - `.claude/skills/jma-fsnippet-deploy/scripts/jma-firstrun-check.sh` 의 python 블록이 `subprocess.run(["screencapture", …])` 반환코드·결과 파일 존재를 확인하지 않고 곧바로 «captured» 를 출력한다. 블록 전체가 `2>/dev/null` 이라 screencapture 실패(ssh/tmux 세션의 화면 기록 권한 등) 사유도 사라진다
@@ -65,9 +68,6 @@ date: 2026-04-07
     - 원인 확정: jma tmux 서버가 로그인 스크립트(`loginScript`, 부모 launchd)로 떠 있어 **화면 기록 권한 주체가 없다** — 창 목록 조회는 되고 캡처만 실패. 실세션 green(png 생성)은 권한 부여가 필요해 이슈후보로 분리
     - 산출물(전부 gitignored 자산 — 커밋 해시는 본 Issue.md 이력): [jma-firstrun-check.sh](.claude/skills/jma-fsnippet-deploy/scripts/jma-firstrun-check.sh) · [test-firstrun-capture.sh](.claude/skills/jma-fsnippet-deploy/scripts/test-firstrun-capture.sh) · [SKILL.md](.claude/skills/jma-fsnippet-deploy/SKILL.md) 판정 표 `alert-capture` 행 · [debug_TECH.md](cli/_doc_work/debug_TECH.md) 2026.10.08 항목
 
-# 📗 선택
-
-# ✅ 완료
 ## Issue250: [Test] 플레이스홀더 창 콜백 모드 히스토리 선택 → 포커스 필드 반영 회귀 테스트 (등록: 2026-10-08, 출처: prj15#Issue991 구현명세 ③) (해결: 2026-10-08, commit: 3a67d70) ✅
 * 목적: e185cf1 수정(콜백 모드 히스토리 창이 앱 활성화 직후 키 재배정으로 숨겨지던 문제)을 회귀 테스트로 고정한다. 실앱 qa 3차는 합격(prj15 a1b1864a) — **테스트만 추가, 동작 변경 없음**
 * 상세:
