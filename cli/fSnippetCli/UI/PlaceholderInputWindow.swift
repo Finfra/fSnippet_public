@@ -302,6 +302,10 @@ class PlaceholderInputViewModel: ObservableObject {
     var currentFocusedIndex: Int = 0
     /// Issue991: 히스토리 선택 후 플레이스홀더 창을 다시 키 창으로 되돌리는 훅
     var onHistoryClosed: (() -> Void)?
+    /// Issue250: injection point so tests can capture the selection callback without creating a real window
+    var presentHistory: (@escaping (String) -> Void) -> Void = { callback in
+        HistoryViewerManager.shared.show(onSelection: callback)
+    }
 
     // Issue158: initial values snapshot to detect unedited fields (replace vs. append)
     private var initialValues: [String: String] = [:]
@@ -350,12 +354,12 @@ class PlaceholderInputViewModel: ObservableObject {
     // ✅ Issue 346: 기록 뷰어 열기
     func openHistory() {
         logV("🌫️ [Issue991] openHistory - 히스토리 창 요청 (focusIndex=\(currentFocusedIndex))")
-        HistoryViewerManager.shared.show(onSelection: { [weak self] selectedText in
+        presentHistory { [weak self] selectedText in
             logV("🌫️ [Issue991] 히스토리 선택 콜백 도달 (\(selectedText.count)자)")
             self?.insertTextIntoFocusedField(selectedText)
             // 히스토리 창이 닫힌 뒤 플레이스홀더 창이 키보드 포커스를 되찾도록 함
             self?.onHistoryClosed?()
-        })
+        }
     }
 
     // ✅ Issue 346: 붙여넣기 구현
