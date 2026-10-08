@@ -46,7 +46,8 @@ date: 2026-04-07
     - ④ `fsc-official-build-check.sh` 가 jma bash 3.2 에서 `unbound variable` 로 빌드 불가(PASS 14/FAIL 24), `DEPLOY_NO_SIGN=1` 에선 35/35 이나 서명 3건 SKIP
     - ⑤ `fsc-deploy-brew.sh publish` 가 끝에 «로컬 install» 을 자동으로 이어 돌아 실행 머신의 brew 설치를 uninstall → brew 자동 update 가 로컬 tap Formula 를 stash/pop 하다 방금 push 한 공개 Formula 와 충돌(`<<<<<<< Stashed changes`) → 재설치 실패. jm4 에서 발생·복구함
     - ⑥ `jma-fsnippet-deploy.sh --cliApp` 이 tap `Formula/fsnippet-cli.rb` 를 로컬 빌드용으로 바꾸고 되돌리지 않는다 — 이후 `brew reinstall` 이 공개본 대신 로컬 빌드를 깐다
-    - **2026-10-08 사용자 결정**: 릴리스 라인을 1.1.1 로 고정 — VERSION·MARKETING_VERSION 1.1.2 → 1.1.1 환원(prj25 `e1357c8` · prj15 `f4a0fd49` · prj9 `14b6f1c`). 본 이슈의 «1.1.2» 는 **공개된 tap 빌드**를 가리키므로 그대로 둔다. 공개 tap 은 같은 날 23:31 1.1.1 로 롤백됨(tap `6b619f7` «fsnippet-cli 1.1.1 (rollback from cli-v1.1.2)», ① 결함 빌드 회수). `cli-v1.1.1`·`cli-v1.1.2` 태그가 모두 공개 번호라 ①~⑥ 수정본의 다음 출고 라벨은 미정
+    - **2026-10-08 사용자 결정**: 릴리스 라인을 1.1.1 로 고정 — VERSION·MARKETING_VERSION 1.1.2 → 1.1.1 환원(prj25 `e1357c8` · prj15 `f4a0fd49` · prj9 `14b6f1c`). 본 이슈의 «1.1.2» 는 **공개된 tap 빌드**를 가리키므로 그대로 둔다. 공개 tap 은 같은 날 23:31 1.1.1 로 롤백됨(tap `6b619f7` «fsnippet-cli 1.1.1 (rollback from cli-v1.1.2)», ① 결함 빌드 회수)
+    - **2026-10-09 사용자 결정 — 1.1.2 는 없는 것으로**: GitHub release·태그 `cli-v1.1.2` 삭제(origin·jma), `cli-v1.1.1` 을 Latest 로 · prj9 `release/1.1.2` 브랜치 삭제 · repo Formula 스냅샷을 tap 과 같은 1.1.1 로(`fa9e0d4`). 본문의 «1.1.2» 는 폐기된 당시 빌드를 가리키는 이력이다. 남은 공개 번호는 `cli-v1.1.1` 하나 — ①~⑥ 수정본의 다음 출고 라벨은 Issue251 에서 정한다
 * 증거: `_doc_work/_release/v1.1.2/release-test_1.1.2.md`(result: fail) · prj15 `_doc_work/_release/v1.1.2/jma-logs_2026.09.29/` · 보고 prj5 `_doc_work/report/fapp-jma-release-test_issue107_report.md`
 
 # 📙 일반
@@ -55,10 +56,10 @@ date: 2026-04-07
 * 목적: 2026-10-08 공개 tap 을 1.1.1 로 되돌렸다(사용자 지시 «fSnippet 는 1.1.1 로 통일»). 이 repo 의 출고 기록·다음 출고 절차가 그 사실을 따르게 한다
 * depends: Issue244, prj15#Issue989
 * 상세:
-    - 집행 사실(prj5 세션): `Finfra/homebrew-tap` `6b619f7` «fsnippet-cli 1.1.1 (rollback from cli-v1.1.2)» push — Formula 를 `c135db4`(cli-v1.1.1, sha `b8f0388e…`) 내용으로 복원. GitHub 릴리스 `cli-v1.1.2` 는 **유지**(삭제 안 함)
+    - 집행 사실(prj5 세션): `Finfra/homebrew-tap` `6b619f7` «fsnippet-cli 1.1.1 (rollback from cli-v1.1.2)» push — Formula 를 `c135db4`(cli-v1.1.1, sha `b8f0388e…`) 내용으로 복원. GitHub 릴리스 `cli-v1.1.2` 는 이때는 유지했으나 2026-10-09 사용자 결정으로 **삭제**(태그 포함, origin·jma — Issue244 결정 줄)
     - 설치본: jma 1.1.2 → 공식 1.1.1 · jm4 로컬 빌드 1.1.1 → 공식 1.1.1(pin 유지). 양쪽 `GET :3015/` 가 `uptimeSeconds`·`version 1.1.1` 응답
     - Issue244 본문 «공개 tap 은 여전히 1.1.2» 는 이제 사실이 아니다 — 정정 필요
-    - 다음 출고 라벨: `cli-v1.1.1`·`cli-v1.1.2` 가 모두 공개 번호라 같은 번호 재사용 불가(Issue244 «다음 출고 라벨은 미정»). 1.1.2 를 건너뛴 다음 번호로 tap 을 다시 올리려면 ① paidApp 관용 디코딩(prj15#Issue989) 출고 ② cliApp 이 두 키(`uptimeSeconds`·`uptime_seconds`) 동시 응답 중 하나 이상이 먼저 나가야 한다
+    - 다음 출고 라벨: `cli-v1.1.2` 는 2026-10-09 삭제됐고 공개 번호는 `cli-v1.1.1` 뿐이다 — 릴리스 라인은 1.1.1 고정(사용자 결정)이나 `cli-v1.1.1` 은 이미 공개된 빌드라 같은 라벨 재공개 방식은 정해야 한다. 새 번호로 tap 을 다시 올리려면 ① paidApp 관용 디코딩(prj15#Issue989) 출고 ② cliApp 이 두 키(`uptimeSeconds`·`uptime_seconds`) 동시 응답 중 하나 이상이 먼저 나가야 한다
 * 구현 명세:
     - Issue244 의 tap 상태 문구를 «2026-10-08 1.1.1 로 롤백(tap `6b619f7`)» 으로 갱신
     - 다음 출고 번호 결정(사람 결정 — H:배포) 후 `fsc-deploy-brew.sh publish` 로 tap 상향. 상향 전 jma 에서 paidApp 실제 등록(`registered:true`) 확인을 출고 재생목록에 넣는다(Issue244 «재생목록 공백»)
