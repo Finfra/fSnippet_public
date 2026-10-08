@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 249
+* Issue HWM: 250
 * Checkpoints:
       - 1c34407 (2026-09-12) 작업 트리 스냅샷 (Issue234 종결 시점)
       - 4a49da5 (2026-09-08) 작업 트리 스냅샷
@@ -56,6 +56,14 @@ date: 2026-04-07
     - 요구: png 가 실제로 생기고 비어 있지 않을 때만 «captured», 아니면 `FAIL`/`WARN` 로 집계하고 stderr 를 남긴다 (실패 삼킴 제거)
 * 구현 명세: screencapture 종료코드·`test -s` 검사 + 실패 시 사유 출력. 검증 — 권한 없는 세션에서 실패가 드러나는지(red), 권한 있는 세션에서 png 생성(green)
 * 증거: prj15 `_doc_work/_release/v1.1.2/release-test_1.1.2.md` 배포 #5 · `jma-logs_2026.09.29/prj15_rel5_firstrun.log`
+
+## Issue250: [Test] 플레이스홀더 창 콜백 모드 히스토리 선택 → 포커스 필드 반영 회귀 테스트 (등록: 2026-10-08, 출처: prj15#Issue991 구현명세 ③)
+* 목적: e185cf1 수정(콜백 모드 히스토리 창이 앱 활성화 직후 키 재배정으로 숨겨지던 문제)을 회귀 테스트로 고정한다. 실앱 qa 3차는 합격(prj15 a1b1864a) — **테스트만 추가, 동작 변경 없음**
+* 상세:
+    - 대상: `cli/fSnippetCli/UI/PlaceholderInputWindow.swift`(`openHistory`·`insertTextIntoFocusedField`) · `cli/fSnippetCli/Managers/HistoryViewerManager.swift`(`hideAndPaste` 콜백 · 패널 키 재탈취 시 hide 금지)
+    - 성질: 플레이스홀더 창 콜백 모드에서 히스토리 항목을 선택하면 그 텍스트가 **포커스 필드(ex) `cname`)** 에 들어가고, 패널 키 재탈취로 히스토리 창이 숨겨지지 않는다
+* 구현 명세: 단위 테스트 1건 이상 red→green — e185cf1 이전 동작에서 red 임을 확인(되돌려 보거나 동등 조건 재현)한 뒤 green. 테스트 가능하게 하려고 프로덕션 동작을 바꾸지 않는다(필요하면 주입 지점만 최소 추가하고 사유 기록)
+* 완료 통지: 커밋 해시를 `fbot-lead-fsnippet` 인박스로 통지(요청 `fbotreq-1791464039-a6211df7`)
 
 # 📗 선택
 
