@@ -700,7 +700,7 @@ class ShortcutMgr: ObservableObject {
             switch id {
             case "history.viewer.hotkey":
                 // Pass the eagerly captured cursor rect
-                HistoryViewerManager.shared.show(cursorRect: cursorRect)
+                HistoryViewerManager.shared.showFromHotkey(cursorRect: cursorRect)
             case "history.pause.hotkey":
                 self.toggleHistoryPause()
             case "settings.hotkey":

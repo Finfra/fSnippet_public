@@ -59,4 +59,35 @@ final class PlaceholderHistoryCallbackTests: XCTestCase {
         XCTAssertTrue(HistoryViewerManager.shouldReassertKey(
             callbackMode: true, elapsedSinceShow: 0.05, alreadyReasserted: false))
     }
+
+    // Issue991: viewer hotkey (⌘;) routing while the placeholder window is up
+    func testHotkeyRoutesToPlaceholderWhenPlaceholderVisible() {
+        XCTAssertEqual(HistoryViewerManager.hotkeyRoute(
+            placeholderVisible: true, historyVisible: false, callbackMode: false), .placeholder)
+    }
+
+    func testHotkeyIsNormalWithoutPlaceholder() {
+        XCTAssertEqual(HistoryViewerManager.hotkeyRoute(
+            placeholderVisible: false, historyVisible: false, callbackMode: false), .normal)
+        XCTAssertEqual(HistoryViewerManager.hotkeyRoute(
+            placeholderVisible: false, historyVisible: true, callbackMode: false), .normal)
+    }
+
+    func testRepeatedHotkeyDoesNotReplaceCallback() {
+        XCTAssertEqual(HistoryViewerManager.hotkeyRoute(
+            placeholderVisible: true, historyVisible: true, callbackMode: true), .ignore)
+    }
+
+    func testHotkeyRouteOpensHistoryWithCallbackThatFillsField() {
+        let (vm, callback) = makeViewModel(focusIndex: 1)
+        let mgr = HistoryViewerManager.shared
+        let savedActive = mgr.isPlaceholderActive, savedOpen = mgr.openPlaceholderHistory
+        defer { mgr.isPlaceholderActive = savedActive; mgr.openPlaceholderHistory = savedOpen }
+        mgr.isPlaceholderActive = { true }
+        mgr.openPlaceholderHistory = { vm.openHistory() }
+        mgr.showFromHotkey()
+        guard let cb = callback() else { return XCTFail("hotkey did not open history in callback mode") }
+        cb("web01")
+        XCTAssertEqual(vm.results["cname"], "web01")
+    }
 }

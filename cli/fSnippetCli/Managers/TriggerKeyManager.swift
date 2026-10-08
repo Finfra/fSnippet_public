@@ -122,7 +122,7 @@ class TriggerKeyManager: ObservableObject {
         if matchHotkey(event: event, hotkeyString: viewerHotkey) {
             logI("🔑 [TriggerKeyManager] Viewer Hotkey Detected: \(viewerHotkey)")
             DispatchQueue.main.async {
-                HistoryViewerManager.shared.show()
+                HistoryViewerManager.shared.showFromHotkey()
             }
             return true
         }

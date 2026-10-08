@@ -578,7 +578,7 @@ class KeyEventHandler: KeyEventProcessorDelegate {
     logI("🔹 [KeyEventHandler] App Shortcut: \(item.id)")
     DispatchQueue.main.async {
       if item.id == "history.viewer.hotkey" {
-        HistoryViewerManager.shared.show()
+        HistoryViewerManager.shared.showFromHotkey()
       } else if item.id == "history.pause.hotkey" {
         // Toggle logic duplicated or access Monitor?
         // Ideally Access a Manager. But Toggle logic was in Monitor.

@@ -527,6 +527,13 @@ class PlaceholderInputWindow: NSObject, NSWindowDelegate {
             guard let window = self?.window, window.isVisible else { return }
             window.makeKeyAndOrderFront(nil)
         }
+        // Issue991: route the global viewer hotkey into this window's history callback
+        HistoryViewerManager.shared.isPlaceholderActive = { [weak self] in
+            self?.window?.isVisible == true
+        }
+        HistoryViewerManager.shared.openPlaceholderHistory = { [weak self] in
+            self?.viewModel.openHistory()
+        }
         logV("🌫️ [PlaceholderInputWindow] 초기화 완료 - 화면 중앙 위치")
     }
 

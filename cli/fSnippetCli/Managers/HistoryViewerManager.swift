@@ -29,6 +29,38 @@ class HistoryViewerManager: NSObject, NSWindowDelegate {
             && elapsedSinceShow >= 0 && elapsedSinceShow < activationGraceInterval
     }
 
+    /// Issue991: where the viewer hotkey goes. While the placeholder window is up, the hotkey must
+    /// open the history in callback mode (selection lands in the focused field), not in plain mode.
+    enum HotkeyRoute: Equatable { case normal, placeholder, ignore }
+
+    static func hotkeyRoute(
+        placeholderVisible: Bool, historyVisible: Bool, callbackMode: Bool
+    ) -> HotkeyRoute {
+        guard placeholderVisible else { return .normal }
+        // Already open for the placeholder: a repeated hotkey press must not replace the callback
+        return (historyVisible && callbackMode) ? .ignore : .placeholder
+    }
+
+    /// Registered by the placeholder window controller (single decision point for "is it up")
+    var isPlaceholderActive: () -> Bool = { false }
+    var openPlaceholderHistory: () -> Void = {}
+
+    /// Single entry point for every viewer-hotkey path (TriggerKeyManager / ShortcutMgr / KeyEventHandler)
+    func showFromHotkey(cursorRect: CGRect? = nil) {
+        let route = Self.hotkeyRoute(
+            placeholderVisible: isPlaceholderActive(), historyVisible: isVisible,
+            callbackMode: onSelection != nil)
+        switch route {
+        case .normal:
+            show(cursorRect: cursorRect)
+        case .placeholder:
+            logI("🎞️ [HistoryViewerManager] Viewer hotkey while placeholder window is up -> callback mode")
+            openPlaceholderHistory()
+        case .ignore:
+            logV("🎞️ [Issue991] Viewer hotkey ignored - history already open for the placeholder")
+        }
+    }
+
     // [Issue383] 초기화 및 알림 등록
     override init() {
         super.init()
