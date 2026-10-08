@@ -45,6 +45,7 @@ date: 2026-04-07
     - ④ `fsc-official-build-check.sh` 가 jma bash 3.2 에서 `unbound variable` 로 빌드 불가(PASS 14/FAIL 24), `DEPLOY_NO_SIGN=1` 에선 35/35 이나 서명 3건 SKIP
     - ⑤ `fsc-deploy-brew.sh publish` 가 끝에 «로컬 install» 을 자동으로 이어 돌아 실행 머신의 brew 설치를 uninstall → brew 자동 update 가 로컬 tap Formula 를 stash/pop 하다 방금 push 한 공개 Formula 와 충돌(`<<<<<<< Stashed changes`) → 재설치 실패. jm4 에서 발생·복구함
     - ⑥ `jma-fsnippet-deploy.sh --cliApp` 이 tap `Formula/fsnippet-cli.rb` 를 로컬 빌드용으로 바꾸고 되돌리지 않는다 — 이후 `brew reinstall` 이 공개본 대신 로컬 빌드를 깐다
+    - **2026-10-08 사용자 결정**: 릴리스 라인을 1.1.1 로 고정 — VERSION·MARKETING_VERSION 1.1.2 → 1.1.1 환원(prj25 `e1357c8` · prj15 `f4a0fd49` · prj9 `14b6f1c`). 본 이슈의 «1.1.2» 는 **공개된 tap 빌드**를 가리키므로 그대로 둔다. 공개 tap 은 여전히 1.1.2(① 결함 포함)이며, `cli-v1.1.1`·`cli-v1.1.2` 가 모두 공개 번호라 다음 출고 라벨은 미정
 * 증거: `_doc_work/_release/v1.1.2/release-test_1.1.2.md`(result: fail) · prj15 `_doc_work/_release/v1.1.2/jma-logs_2026.09.29/` · 보고 prj5 `_doc_work/report/fapp-jma-release-test_issue107_report.md`
 
 # 📙 일반
