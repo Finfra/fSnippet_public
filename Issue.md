@@ -31,31 +31,6 @@ date: 2026-04-07
 1. `jma-fsnippet-deploy.sh` 가 `git pull origin release/1.1.1` 하드코딩 — 다음 출고 라인에서 R1 전에 브랜치 인자화 필요 (prj3#Issue717 배포용 TDD 적용 중 발견)
 
 # 🚧 진행중
-## Issue247: [문서] `manual/FunctionalSpecification.md` §4 REST API 를 v2 기준으로 갱신 (등록: 2026-10-08)
-* 목적: 매뉴얼 §4 가 v1 시절 서술 그대로라 사용자가 따라 하면 실패한다 — 경로에 `/api/v2` 접두가 없고(`/api/v1/*` 는 410 Gone), 응답 래퍼를 `success` 로 적었으며(실제 `ok`), «기본 비활성화» 라고 적었지만 번들 기본 `_config.yml` 은 `api_enabled: true` 다
-* 상세:
-    - 실측(cliApp 1.1.1, jm4): `GET /api/v1/folders` → 410 · `GET /api/v2/snippets/search` → `{"ok":true,"data":[],"meta":{…}}` · 404 → `{"ok":false,"error":{"code":"NOT_FOUND",…}}` · `GET /api/v2/settings/advanced/api` → `enabled/port/allowExternal/allowedCidr/running`
-    - 설정 키도 v2 는 REST(`PATCH /api/v2/settings/advanced/api`)와 `_config.yml` 키(`api_enabled` 등) 두 표기가 있다
-* 구현 명세:
-    - §4.1~4.2: 기본값(활성)·설정 키(REST 필드 ↔ `_config.yml` 키) 정정
-    - §4.3·4.5: 엔드포인트 경로를 `/api/v2/...` 로, 설정 CRUD·`/status`·`/reload` 등 v2 범주 요약 추가 — 전체 목록은 `api/openapi_v2.yaml` 이 SSOT
-    - §4.4·4.6: 예제 curl 을 v2 로, 응답 래퍼를 `ok` 로
-    - §4.7: v1 은 폐기(410) 이력 보존용임을 명시
-    - 검증: 문서의 모든 예제 curl 을 로컬 cliApp 에 실행해 200/의도 응답 확인
-
-## Issue246: [문서] `manual/` 을 fSnippetCli 전용 매뉴얼로 정리 — fSnippet(paidApp)은 fSnippetCli 의 GUI 래퍼임을 명시하고 매뉴얼 링크 정비 (등록: 2026-10-08)
-* 목적: fSnippetCli(cliApp, prj25)와 fSnippet(paidApp, prj15)은 다른 프로젝트다. 그런데 `manual/` 은 단일 앱 시절 «fSnippet 매뉴얼» 그대로라 제목·빠른 시작·관련 링크가 paidApp(`xcodebuild -scheme fSnippet`·`com.nowage.fSnippet`·`.agent/rules/…`)을 가리킨다. 이 매뉴얼이 fSnippetCli 의 것임을 밝히고, paidApp 은 이 엔진의 GUI 래퍼라는 관계와 상대 매뉴얼 링크를 확실히 한다
-* depends: prj15#Issue990 (짝 이슈 — paidApp `manual/` 신설)
-* 상세:
-    - `manual/README.md`: 제목·범위가 «fSnippet» · 빠른 시작이 paidApp Debug 빌드 · 관련 링크가 이 저장소에 없는 경로(`.agent/rules/`·`_doc_arch/ARCHITECTURE.md`·`_doc_work/…`)
-    - `manual/FunctionalSpecification.md`: 엔진 기능과 paidApp GUI 기능이 구분 없이 섞여 있음
-    - `README.md`·`README_ko.md` «문서» 표의 Manual 행이 어느 앱 매뉴얼인지 불명
-* 구현 명세:
-    - `manual/README.md` 재작성 — «fSnippetCli 매뉴얼» 명시, 제품 구성 표(fSnippetCli = 엔진·무료 / fSnippet = fSnippetCli 의 GUI 래퍼·유료), 빠른 시작을 brew 설치·REST 확인으로 교체, 죽은 링크를 이 저장소 실재 경로로 교체
-    - `manual/FunctionalSpecification.md` 첫머리에 적용 범위 안내 + paidApp GUI 전용 항목 표시
-    - `README.md`·`README_ko.md` Manual 행을 «fSnippetCli 매뉴얼» 로 명확화하고 paidApp 래퍼 관계 1줄 추가
-    - 검증: `grep '_public/' manual/*.md` 0건(public-path-rules) · 새 상대 링크 실재 확인
-
 # 📕 중요
 
 ## Issue244: [출고차단] cliApp 1.1.2 `GET /` 응답 키 변경(`uptimeSeconds`→`uptime_seconds`)으로 paidApp 연결 불가 + 출고 테스트 발견 결함 (등록: 2026-09-29)
@@ -76,6 +51,33 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue247: [문서] `manual/FunctionalSpecification.md` §4 REST API 를 v2 기준으로 갱신 (등록: 2026-10-08, 완료: 2026-10-08, Hash: 1b7291d) ✅
+* 목적: 매뉴얼 §4 가 v1 시절 서술 그대로라 사용자가 따라 하면 실패한다 — 경로에 `/api/v2` 접두가 없고(`/api/v1/*` 는 410 Gone), 응답 래퍼를 `success` 로 적었으며(실제 `ok`), «기본 비활성화» 라고 적었지만 번들 기본 `_config.yml` 은 `api_enabled: true` 다
+* 상세:
+    - 실측(cliApp 1.1.1, jm4): `GET /api/v1/folders` → 410 · `GET /api/v2/snippets/search` → `{"ok":true,"data":[],"meta":{…}}` · 404 → `{"ok":false,"error":{"code":"NOT_FOUND",…}}` · `GET /api/v2/settings/advanced/api` → `enabled/port/allowExternal/allowedCidr/running`
+    - 설정 키도 v2 는 REST(`PATCH /api/v2/settings/advanced/api`)와 `_config.yml` 키(`api_enabled` 등) 두 표기가 있다
+* 구현 명세:
+    - §4.1~4.2: 기본값(활성)·설정 키(REST 필드 ↔ `_config.yml` 키) 정정
+    - §4.3·4.5: 엔드포인트 경로를 `/api/v2/...` 로, 설정 CRUD·`/status`·`/reload` 등 v2 범주 요약 추가 — 전체 목록은 `api/openapi_v2.yaml` 이 SSOT
+    - §4.4·4.6: 예제 curl 을 v2 로, 응답 래퍼를 `ok` 로
+    - §4.7: v1 은 폐기(410) 이력 보존용임을 명시
+    - 검증: 문서의 모든 예제 curl 을 로컬 cliApp 에 실행해 200/의도 응답 확인
+* 결과: §4 전면 v2 화. 예제 엔드포인트 16건 로컬 실측 — 200 13건, 의도된 410(v1) 1건, 사용자 데이터 의존이라 404 였던 약어·ID·확장 예제는 «검색 결과의 abbreviation·id 사용» 흐름으로 바꿔 200 확인. 약어는 트리거 표기(`{right_command}` 등)까지 포함해야 한다는 점을 실측으로 확인해 명시. `ReferenceAgenda.md` 죽은 링크 3건(`README_kr`·`.claude-plugin/`)도 정정
+
+## Issue246: [문서] `manual/` 을 fSnippetCli 전용 매뉴얼로 정리 — fSnippet(paidApp)은 fSnippetCli 의 GUI 래퍼임을 명시하고 매뉴얼 링크 정비 (등록: 2026-10-08, 완료: 2026-10-08, Hash: 3caf3ef) ✅
+* 목적: fSnippetCli(cliApp, prj25)와 fSnippet(paidApp, prj15)은 다른 프로젝트다. 그런데 `manual/` 은 단일 앱 시절 «fSnippet 매뉴얼» 그대로라 제목·빠른 시작·관련 링크가 paidApp(`xcodebuild -scheme fSnippet`·`com.nowage.fSnippet`·`.agent/rules/…`)을 가리킨다. 이 매뉴얼이 fSnippetCli 의 것임을 밝히고, paidApp 은 이 엔진의 GUI 래퍼라는 관계와 상대 매뉴얼 링크를 확실히 한다
+* depends: prj15#Issue990 (짝 이슈 — paidApp `manual/` 신설)
+* 상세:
+    - `manual/README.md`: 제목·범위가 «fSnippet» · 빠른 시작이 paidApp Debug 빌드 · 관련 링크가 이 저장소에 없는 경로(`.agent/rules/`·`_doc_arch/ARCHITECTURE.md`·`_doc_work/…`)
+    - `manual/FunctionalSpecification.md`: 엔진 기능과 paidApp GUI 기능이 구분 없이 섞여 있음
+    - `README.md`·`README_ko.md` «문서» 표의 Manual 행이 어느 앱 매뉴얼인지 불명
+* 구현 명세:
+    - `manual/README.md` 재작성 — «fSnippetCli 매뉴얼» 명시, 제품 구성 표(fSnippetCli = 엔진·무료 / fSnippet = fSnippetCli 의 GUI 래퍼·유료), 빠른 시작을 brew 설치·REST 확인으로 교체, 죽은 링크를 이 저장소 실재 경로로 교체
+    - `manual/FunctionalSpecification.md` 첫머리에 적용 범위 안내 + paidApp GUI 전용 항목 표시
+    - `README.md`·`README_ko.md` Manual 행을 «fSnippetCli 매뉴얼» 로 명확화하고 paidApp 래퍼 관계 1줄 추가
+    - 검증: `grep '_public/' manual/*.md` 0건(public-path-rules) · 새 상대 링크 실재 확인
+* 결과: `manual/README.md` 를 fSnippetCli 매뉴얼로 재작성(제품 구성 표·brew 빠른 시작·죽은 링크 교체), 기능명세 제목·적용 범위 안내, 공개 README 에디션 설명에 GUI 래퍼 관계 명시. 새 상대 링크 실재·공개 URL 6건 200 확인. 짝 이슈 prj15#Issue990(`e882bbce`) 도 종결됨
+
 ## Issue245: [Test] jma 스니펫 타이핑 테스트(폴더 테이블 39행)를 TDD 재생목록에 편입 — 격리 루트 픽스처 자동 준비 + 실패 삼킴 제거 (등록: 2026-10-05, 완료: 2026-10-05, Hash: 22b5341, de963c7, 1e67fa6, 74855c0) ✅
 * 목적: jma 에서 돌리던 스니펫 실타이핑 테스트(폴더 테이블 39행 — 키 입력 → CGEventTap → 확장 결과)를 `tdd/playlist.md` 의 한 행으로 올리고, 사람 손 준비 없이 jma 에서 반복 실행되게 한다
 * 상세:
