@@ -300,6 +300,8 @@ class PlaceholderInputViewModel: ObservableObject {
 
     // ✅ 삽입을 위한 포커스된 필드 인덱스 추적
     var currentFocusedIndex: Int = 0
+    /// Issue991: 히스토리 선택 후 플레이스홀더 창을 다시 키 창으로 되돌리는 훅
+    var onHistoryClosed: (() -> Void)?
 
     // Issue158: initial values snapshot to detect unedited fields (replace vs. append)
     private var initialValues: [String: String] = [:]
@@ -347,8 +349,12 @@ class PlaceholderInputViewModel: ObservableObject {
 
     // ✅ Issue 346: 기록 뷰어 열기
     func openHistory() {
+        logV("🌫️ [Issue991] openHistory - 히스토리 창 요청 (focusIndex=\(currentFocusedIndex))")
         HistoryViewerManager.shared.show(onSelection: { [weak self] selectedText in
+            logV("🌫️ [Issue991] 히스토리 선택 콜백 도달 (\(selectedText.count)자)")
             self?.insertTextIntoFocusedField(selectedText)
+            // 히스토리 창이 닫힌 뒤 플레이스홀더 창이 키보드 포커스를 되찾도록 함
+            self?.onHistoryClosed?()
         })
     }
 
@@ -513,6 +519,10 @@ class PlaceholderInputWindow: NSObject, NSWindowDelegate {
     override init() {
         super.init()
         setupWindow()
+        viewModel.onHistoryClosed = { [weak self] in
+            guard let window = self?.window, window.isVisible else { return }
+            window.makeKeyAndOrderFront(nil)
+        }
         logV("🌫️ [PlaceholderInputWindow] 초기화 완료 - 화면 중앙 위치")
     }
 
@@ -817,6 +827,13 @@ class PlaceholderInputWindow: NSObject, NSWindowDelegate {
 
         // 약간의 지연 후 창 자동 닫기 (사용자가 확인/엔터 누르지 않은 경우)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            // ✅ Issue991: 이 창은 nonactivatingPanel 이라 키 창이어도 NSApp.isActive 가 false 다.
+            // 히스토리 창(클립보드 선택)으로 포커스가 넘어간 경우도 «내부 포커스 이동» 이므로 닫지 않는다.
+            if HistoryViewerManager.shared.isVisible {
+                logV("🌫️ [PlaceholderInputWindow] 히스토리 창으로 포커스 이동 - 창 닫기 취소 (Issue991)")
+                return
+            }
+
             // ✅ Issue262: 앱이 여전히 활성 상태라면(예: 내부 포커스 이동, Tab 키 등) 창을 닫지 않음
             if NSApp.isActive {
                 logV("🌫️ [PlaceholderInputWindow] 앱이 활성 상태이므로 창 닫기 취소 (내부 포커스 이동 추정)")

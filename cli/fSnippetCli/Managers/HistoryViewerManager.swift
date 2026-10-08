@@ -86,7 +86,8 @@ class HistoryViewerManager: NSObject, NSWindowDelegate {
             } else {
                 // ✅ Issue 346 수정: fSnippet에 있다면, 이것이 플레이스홀더 입력 창인지 확인.
                 // 만약 그렇다면, 자신에게 붙여넣기 할 수 있도록 fSnippet을 "이전 앱"으로 취급함.
-                if let keyWindow = NSApp.keyWindow, keyWindow.title == "플레이스홀더 입력" {
+                // Issue991: 현지화 제목이 아니라 콜백 모드 여부(플레이스홀더 요청)로 판정
+                if onSelection != nil {
                     self.previousApp = frontApp  // fSnippet 자체
                     logI(
                         "🎞️ [HistoryViewerManager] Placeholder Input Window detected. Setting previousApp to self (fSnippet) for self-paste."
