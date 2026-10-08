@@ -60,7 +60,7 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
-## Issue250: [Test] 플레이스홀더 창 콜백 모드 히스토리 선택 → 포커스 필드 반영 회귀 테스트 (등록: 2026-10-08, 출처: prj15#Issue991 구현명세 ③)
+## Issue250: [Test] 플레이스홀더 창 콜백 모드 히스토리 선택 → 포커스 필드 반영 회귀 테스트 (등록: 2026-10-08, 출처: prj15#Issue991 구현명세 ③) (해결: 2026-10-08, commit: 3a67d70) ✅
 * 목적: e185cf1 수정(콜백 모드 히스토리 창이 앱 활성화 직후 키 재배정으로 숨겨지던 문제)을 회귀 테스트로 고정한다. 실앱 qa 3차는 합격(prj15 a1b1864a) — **테스트만 추가, 동작 변경 없음**
 * 상세:
     - 대상: `cli/fSnippetCli/UI/PlaceholderInputWindow.swift`(`openHistory`·`insertTextIntoFocusedField`) · `cli/fSnippetCli/Managers/HistoryViewerManager.swift`(`hideAndPaste` 콜백 · 패널 키 재탈취 시 hide 금지)
