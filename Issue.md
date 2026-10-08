@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 248
+* Issue HWM: 249
 * Checkpoints:
       - 1c34407 (2026-09-12) 작업 트리 스냅샷 (Issue234 종결 시점)
       - 4a49da5 (2026-09-08) 작업 트리 스냅샷
@@ -48,6 +48,15 @@ date: 2026-04-07
 * 증거: `_doc_work/_release/v1.1.2/release-test_1.1.2.md`(result: fail) · prj15 `_doc_work/_release/v1.1.2/jma-logs_2026.09.29/` · 보고 prj5 `_doc_work/report/fapp-jma-release-test_issue107_report.md`
 
 # 📙 일반
+
+## Issue249: [Core/Log] 플레이스홀더 Esc 취소 시 `ExpansionCoordinator Replacement Failed: Unknown Error` 가 ERROR 로 찍힘 — 취소 판정 단일화 (등록: 2026-10-08, 출처: prj15#Issue991 qa 2차 · fbotreq-1791463293-48c3bc6e)
+* 목적: 사용자 취소는 실패가 아니다. e185cf1 에서 `TextReplacementCoordinator` 쪽 취소 로그는 INFO 로 내렸으나 상위 [SnippetExpansionCoordinator.swift:83](cli/fSnippetCli/Core/SnippetExpansionCoordinator.swift#L83) 가 `(false, nil)` 을 받아 여전히 `logE … Unknown Error` 를 남긴다 — 판정이 두 층에 갈려 한쪽만 갱신된 상태
+* 상세:
+    - 재현: 플레이스홀더 스니펫 확장 → 입력 창에서 Esc → `flog_cliApp.log` 에 `❌ [ExpansionCoordinator] Replacement Failed: Unknown Error` 1줄 (jma qa 2차 실측)
+    - 원인: completion 계약이 «취소 = `(false, nil)`» 로 암묵 표현되어 상위가 실패와 구분하지 못함
+    - 요구: 취소 판정을 **한 지점**으로 — completion 이 취소를 명시적으로 구분(ex) 취소 전용 값·enum)하고, 취소는 INFO/VERBOSE, 실제 실패(error 존재)만 ERROR. `onExpansionFailure` 호출 여부가 취소 시 기존 동작과 같은지 확인
+* 구현 명세: `performReplacement` completion 의 취소 표현 확정 → ExpansionCoordinator 분기 수정. 검증 — Esc 취소 시 ERROR 0줄(red→green), 실제 실패 경로는 ERROR 유지
+* 증거: prj15 `Issue.md` Issue991 «qa 재검증» 절 · prj15 커밋 804b953d · _public e185cf1
 
 ## Issue248: [Tool] `jma-firstrun-check.sh` 가 «alert window captured» 를 출력하지만 png 가 생성되지 않음 (등록: 2026-10-08, 출처: prj15#Issue989 ⑤)
 * 목적: prj15 1.1.2 출고 테스트(배포 #5 `firstrun-real-home`)에서 스크립트가 `alert window captured: /tmp/jma_firstrun_alert.png (id N)` 를 찍는데 파일이 없었다 — 성공 메시지가 거짓이라 증적으로 쓸 수 없다
