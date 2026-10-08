@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 251
+* Issue HWM: 253
 * Checkpoints:
       - 1c34407 (2026-09-12) 작업 트리 스냅샷 (Issue234 종결 시점)
       - 4a49da5 (2026-09-08) 작업 트리 스냅샷
@@ -34,6 +34,24 @@ date: 2026-04-07
 # 🚧 진행중
 
 # 📕 중요
+
+## Issue252: [긴급] jm4 로컬 tap `Formula/fsnippet-cli.rb` 머지 충돌로 `brew install` 실패 — cliApp 미설치·스니펫 확장 정지 (등록: 2026-10-09, 출처: prj15#Issue994 · 요청 fbotreq-1791474928-b7077b64)
+* 목적: jm4 에 fsnippet-cli 를 다시 설치·기동해 스니펫 확장을 되살리고, 같은 충돌이 다시 나지 않게 원인(Issue244 ⑤⑥)을 막는다
+* depends: Issue244
+* 상세:
+    - 실측(2026-10-09, `/opt/homebrew/Library/Taps/finfra/homebrew-tap`): HEAD `6b619f7`(fsnippet-cli 1.1.1 rollback) 위에 `UU Formula/fsnippet-cli.rb`(upstream `cli-v1.1.1` URL ↔ stash 의 `file:///tmp/fSnippetCli-local.tar.gz` 로컬 빌드 URL) + `M Formula/fwarrange-cli.rb`(스테이징본 안에 **중첩 충돌 마커** — prj26 Formula 도 깨짐) · stash 8건(`stash@{0}`~`{7}`, 모두 로컬 빌드용 Formula 잔재)
+    - 결과: `brew list --versions fsnippet-cli` 빈 값 · `pgrep fSnippetCli` 없음
+    - 원인: Issue244 ⑤(publish 뒤 자동 로컬 install → brew 자동 update 가 로컬 Formula 를 stash/pop) · ⑥(로컬 배포가 tap Formula 를 `file:///tmp` 로 바꾸고 되돌리지 않음) 의 재발. 같은 복구가 Issue170 무렵(`merge --abort` + `reset --hard origin/main`)에도 있었다 — 세 번째
+* 구현 명세:
+    - ① tap 복구 — **사람 승인 대기(H:파괴)**: tap 을 `origin/main` 으로 되돌리고 로컬 빌드 stash 를 폐기. tap 은 prj26 와 공유라 fwarrange-cli.rb 도 함께 원복된다
+        ```bash
+        cd /opt/homebrew/Library/Taps/finfra/homebrew-tap
+        git stash list > /tmp/tap-stash-backup.txt; for i in $(seq 0 7); do git stash show -p stash@{$i} > /tmp/tap-stash-$i.patch; done  # 폐기 전 백업
+        git fetch origin && git reset --hard origin/main && git stash clear
+        ```
+    - ② 재설치·기동: `brew install finfra/tap/fsnippet-cli && brew services start fsnippet-cli` → `curl -s localhost:3015/` 의 `version` 확인 → 요청자(fbot-lead-fsnippet)에 설치 버전 회신
+    - ③ 재발 방지: 로컬 배포 경로(`fsc-deploy-brew.sh local`·`jma-fsnippet-deploy.sh --cliApp`)가 tap 작업트리를 직접 고치지 않게 한다(로컬 빌드는 별도 로컬 Formula/임시 tap 사용, 또는 끝에 반드시 원복) — Issue244 ⑤⑥ 와 합쳐 처리
+    - 검증: tap `git status` clean · `brew list --versions fsnippet-cli` = 1.1.1 · `GET :3015/` 200
 
 ## Issue244: [출고차단] cliApp 1.1.1 후보 빌드 `GET /` 응답 키 변경(`uptimeSeconds`→`uptime_seconds`)으로 paidApp 연결 불가 + 출고 테스트 발견 결함 (등록: 2026-09-29)
 * 목적: prj5#Issue107 jma 출고 테스트(2026-09-29)가 찾은 출고 차단 결함과 부수 결함을 기록한다. 공개 tap `fsnippet-cli` 는 2026-10-08 23:31 결함 이전 공개 빌드 `cli-v1.1.1` 로 복원됐다(tap `6b619f7`)
@@ -66,6 +84,17 @@ date: 2026-04-07
     - 검증: `brew info finfra/tap/fsnippet-cli` 버전 · jma paidApp 등록 성공
 
 # 📗 선택
+
+## Issue253: [API] 헬스 응답에 빌드 식별 정보 노출 — 실행 바이너리 대조용 (등록: 2026-10-09, 출처: prj15#Issue994 구현 명세 ⑤ · 요청 fbotreq-1791474931-f82652c1)
+* 목적: prj15 `_tool/lib/verify-running-build.sh` 의 `verify_running_build` 가 sha256 대조에 더해 REST 로도 실행 중인 빌드를 대조할 수 있게 한다
+* 상세:
+    - 현황(2026-10-09 실측): `GET /` 는 이미 `version`(`CFBundleShortVersionString`)을 낸다 · `GET /api/v2/status`·`GET /api/v2/cli/version` 은 `version`+`build`(`CFBundleVersion`)를 낸다. **없는 것은 빌드 시각**(및 `GET /` 의 `build`)
+    - 같은 1.1.1·같은 build 번호로 로컬 빌드가 반복되면 버전만으로는 구분이 안 된다 — 빌드 시각(또는 빌드 식별자)이 실질적 대조 값
+* 구현 명세:
+    - ① 빌드 시 Info.plist 에 빌드 시각(ISO8601 UTC) 주입 — Run Script phase 또는 `project.yml` 설정. 키 이름 예 `FSBuildTimestamp`
+    - ② `GET /`(HealthResponse)에 `build`·`build_time` 추가, `/api/v2/cli/version`·`/api/v2/status` 에 `build_time` 추가 — 기존 키 유지(paidApp `HealthResponse` 디코딩 호환, Issue244 ① 교훈)
+    - ③ `api/openapi_v2.yaml` 동시 갱신(v1 yaml 은 아카이브라 수정 대상 아님 — api-rules)
+    - 검증: 빌드 2회 → `build_time` 이 달라짐 · paidApp 연결 정상(registered:true)
 
 # ✅ 완료
 ## Issue248: [Tool] `jma-firstrun-check.sh` 가 «alert window captured» 를 출력하지만 png 가 생성되지 않음 (등록: 2026-10-08, 출처: prj15#Issue989 ⑤) (해결: 2026-10-08, commit: 864185b — Issue.md 이력, 스크립트 본체 `.claude/` 는 gitignored) ✅
