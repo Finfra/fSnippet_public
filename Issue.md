@@ -57,6 +57,9 @@ date: 2026-04-07
 * 구현 명세: screencapture 종료코드·`test -s` 검사 + 실패 시 사유 출력. 검증 — 권한 없는 세션에서 실패가 드러나는지(red), 권한 있는 세션에서 png 생성(green)
 * 증거: prj15 `_doc_work/_release/v1.1.2/release-test_1.1.2.md` 배포 #5 · `jma-logs_2026.09.29/prj15_rel5_firstrun.log`
 
+# 📗 선택
+
+# ✅ 완료
 ## Issue250: [Test] 플레이스홀더 창 콜백 모드 히스토리 선택 → 포커스 필드 반영 회귀 테스트 (등록: 2026-10-08, 출처: prj15#Issue991 구현명세 ③)
 * 목적: e185cf1 수정(콜백 모드 히스토리 창이 앱 활성화 직후 키 재배정으로 숨겨지던 문제)을 회귀 테스트로 고정한다. 실앱 qa 3차는 합격(prj15 a1b1864a) — **테스트만 추가, 동작 변경 없음**
 * 상세:
@@ -64,10 +67,8 @@ date: 2026-04-07
     - 성질: 플레이스홀더 창 콜백 모드에서 히스토리 항목을 선택하면 그 텍스트가 **포커스 필드(ex) `cname`)** 에 들어가고, 패널 키 재탈취로 히스토리 창이 숨겨지지 않는다
 * 구현 명세: 단위 테스트 1건 이상 red→green — e185cf1 이전 동작에서 red 임을 확인(되돌려 보거나 동등 조건 재현)한 뒤 green. 테스트 가능하게 하려고 프로덕션 동작을 바꾸지 않는다(필요하면 주입 지점만 최소 추가하고 사유 기록)
 * 완료 통지: 커밋 해시를 `fbot-lead-fsnippet` 인박스로 통지(요청 `fbotreq-1791464039-a6211df7`)
+* 결과: 커밋 3a67d70 — `PlaceholderHistoryCallbackTests` 4건. 주입 지점 `PlaceholderInputViewModel.presentHistory`(기본값은 기존 `HistoryViewerManager.shared.show`, 동작 변경 없음)로 윈도우 없이 선택 콜백을 포착. TDD: 훅 제거·인덱스 오류·재획득 판정 제거 mutant 에서 3/4 red → 원복 후 관련 11/11 green. 키 재탈취 시 hide 금지는 `shouldReassertKey` 판정 단위로 고정(실제 NSWindow 델리게이트 경로는 실앱 qa 3차 a1b1864a 로 검증)
 
-# 📗 선택
-
-# ✅ 완료
 ## Issue249: [Core/Log] 플레이스홀더 Esc 취소 시 `ExpansionCoordinator Replacement Failed: Unknown Error` 가 ERROR 로 찍힘 — 취소 판정 단일화 (등록: 2026-10-08, 출처: prj15#Issue991 qa 2차 · fbotreq-1791463293-48c3bc6e) (해결: 2026-10-08, commit: b5adf39) ✅
 * 목적: 사용자 취소는 실패가 아니다. e185cf1 에서 `TextReplacementCoordinator` 쪽 취소 로그는 INFO 로 내렸으나 상위 [SnippetExpansionCoordinator.swift:83](cli/fSnippetCli/Core/SnippetExpansionCoordinator.swift#L83) 가 `(false, nil)` 을 받아 여전히 `logE … Unknown Error` 를 남긴다 — 판정이 두 층에 갈려 한쪽만 갱신된 상태
 * 상세:
