@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 246
+* Issue HWM: 247
 * Checkpoints:
       - 1c34407 (2026-09-12) 작업 트리 스냅샷 (Issue234 종결 시점)
       - 4a49da5 (2026-09-08) 작업 트리 스냅샷
@@ -31,6 +31,18 @@ date: 2026-04-07
 1. `jma-fsnippet-deploy.sh` 가 `git pull origin release/1.1.1` 하드코딩 — 다음 출고 라인에서 R1 전에 브랜치 인자화 필요 (prj3#Issue717 배포용 TDD 적용 중 발견)
 
 # 🚧 진행중
+## Issue247: [문서] `manual/FunctionalSpecification.md` §4 REST API 를 v2 기준으로 갱신 (등록: 2026-10-08)
+* 목적: 매뉴얼 §4 가 v1 시절 서술 그대로라 사용자가 따라 하면 실패한다 — 경로에 `/api/v2` 접두가 없고(`/api/v1/*` 는 410 Gone), 응답 래퍼를 `success` 로 적었으며(실제 `ok`), «기본 비활성화» 라고 적었지만 번들 기본 `_config.yml` 은 `api_enabled: true` 다
+* 상세:
+    - 실측(cliApp 1.1.1, jm4): `GET /api/v1/folders` → 410 · `GET /api/v2/snippets/search` → `{"ok":true,"data":[],"meta":{…}}` · 404 → `{"ok":false,"error":{"code":"NOT_FOUND",…}}` · `GET /api/v2/settings/advanced/api` → `enabled/port/allowExternal/allowedCidr/running`
+    - 설정 키도 v2 는 REST(`PATCH /api/v2/settings/advanced/api`)와 `_config.yml` 키(`api_enabled` 등) 두 표기가 있다
+* 구현 명세:
+    - §4.1~4.2: 기본값(활성)·설정 키(REST 필드 ↔ `_config.yml` 키) 정정
+    - §4.3·4.5: 엔드포인트 경로를 `/api/v2/...` 로, 설정 CRUD·`/status`·`/reload` 등 v2 범주 요약 추가 — 전체 목록은 `api/openapi_v2.yaml` 이 SSOT
+    - §4.4·4.6: 예제 curl 을 v2 로, 응답 래퍼를 `ok` 로
+    - §4.7: v1 은 폐기(410) 이력 보존용임을 명시
+    - 검증: 문서의 모든 예제 curl 을 로컬 cliApp 에 실행해 200/의도 응답 확인
+
 ## Issue246: [문서] `manual/` 을 fSnippetCli 전용 매뉴얼로 정리 — fSnippet(paidApp)은 fSnippetCli 의 GUI 래퍼임을 명시하고 매뉴얼 링크 정비 (등록: 2026-10-08)
 * 목적: fSnippetCli(cliApp, prj25)와 fSnippet(paidApp, prj15)은 다른 프로젝트다. 그런데 `manual/` 은 단일 앱 시절 «fSnippet 매뉴얼» 그대로라 제목·빠른 시작·관련 링크가 paidApp(`xcodebuild -scheme fSnippet`·`com.nowage.fSnippet`·`.agent/rules/…`)을 가리킨다. 이 매뉴얼이 fSnippetCli 의 것임을 밝히고, paidApp 은 이 엔진의 GUI 래퍼라는 관계와 상대 매뉴얼 링크를 확실히 한다
 * depends: prj15#Issue990 (짝 이슈 — paidApp `manual/` 신설)

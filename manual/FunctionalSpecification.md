@@ -108,48 +108,69 @@ macOS의 한계 상 NSPasteboard(클립보드) 변화는 지속적인 폴링(감
 
 # 4. REST API 서버 (External Integration)
 
-fSnippet에 **NWListener 기반 REST API 서버**가 내장되었습니다. 외부 도구, 자동화 스크립트, 혹은 나만의 대시보드에서 fSnippet의 스니펫 데이터베이스와 클립보드 히스토리를 HTTP 요청 한 줄로 자유롭게 조회하고 활용할 수 있는 강력한 통합 인터페이스입니다.
+fSnippetCli 에는 **NWListener 기반 REST API 서버**(API v2)가 내장되어 있습니다. 외부 도구·자동화 스크립트·AI 에이전트가 스니펫·클립보드 히스토리·설정을 HTTP 요청으로 조회하고 바꿀 수 있습니다. fSnippet(GUI 래퍼)도 이 API 로 fSnippetCli 와 통신합니다.
+
+> **API 버전**: 현행 API 는 **v2**(`http://localhost:3015/api/v2/...`) 하나입니다. `/api/v1/*` 는 폐기되어 모든 요청에 `410 Gone` 을 돌려줍니다. 전체 명세의 정본은 [openapi_v2.yaml](../api/openapi_v2.yaml) 입니다.
 
 ## 4.1. 보안과 접근 제어 (Security & Access Control)
 
-REST API 서버는 기본적으로 **비활성화** 상태로 출하됩니다. 사용자가 설정에서 명시적으로 켜야만 동작하며, 켜더라도 다음과 같은 다층 방어 체계가 가동됩니다:
+REST API 서버는 기본 설정(`_config.yml`)에서 **활성화** 상태로 출하됩니다 — fSnippet(GUI 래퍼)이 이 API 로 엔진에 접근하기 때문입니다. 켜져 있어도 다음 방어 체계가 적용됩니다:
 
-* **localhost 전용 바인딩**: 기본적으로 `127.0.0.1`에서만 요청을 수락합니다. 같은 Mac 안의 스크립트/앱만 접근 가능하고, 외부 네트워크에서의 침투는 원천 차단됩니다.
-* **CIDR 기반 IP 화이트리스트**: `api_allowed_cidr` 설정으로 허용할 IP 대역을 서브넷 마스크 단위(`127.0.0.1/32`, `192.168.0.0/24` 등)로 세밀하게 제어합니다.
-* **외부 접속 이중 잠금**: `api_allow_external` 플래그가 `OFF`인 한, CIDR 규칙과 무관하게 외부 IP의 연결 시도 자체를 거부합니다.
+* **localhost 전용 바인딩**: 기본적으로 `127.0.0.1` 에서만 요청을 수락합니다. 같은 Mac 안의 스크립트/앱만 접근할 수 있습니다.
+* **CIDR 기반 IP 화이트리스트**: 허용할 IP 대역을 CIDR 단위(`127.0.0.1/32`, `192.168.0.0/24` 등)로 제어합니다.
+* **외부 접속 이중 잠금**: 외부 접속 허용이 꺼져 있는 한 CIDR 설정과 무관하게 `127.0.0.1/32` 로 강제됩니다.
 
 ## 4.2. 설정 항목 (Configuration)
 
-| 설정 키 | 설명 | 기본값 |
-|---------|------|--------|
-| `api_enabled` | API 서버 활성화 여부 | `OFF` |
-| `api_port` | 수신 포트 번호 | `3015` |
-| `api_allow_external` | 외부(LAN/WAN) 접속 허용 여부 | `OFF` |
-| `api_allowed_cidr` | 허용 IP 대역 (CIDR 표기) | `127.0.0.1/32` |
+같은 설정을 `_config.yml` 키 또는 REST(`GET`/`PATCH /api/v2/settings/advanced/api`) 필드로 다룹니다.
 
-## 4.3. 엔드포인트 레퍼런스 (13개)
+| `_config.yml` 키     | REST 필드       | 설명                                   | 기본값         |
+| :------------------- | :-------------- | :------------------------------------- | :------------- |
+| `api_enabled`        | `enabled`       | API 서버 활성화 여부                   | `true`         |
+| `api_port`           | `port`          | 수신 포트 번호                         | `3015`         |
+| `api_allow_external` | `allowExternal` | 외부(LAN/WAN) 접속 허용 여부           | `false`        |
+| `api_allowed_cidr`   | `allowedCidr`   | 허용 IP 대역 (CIDR 표기)               | `127.0.0.1/32` |
+| —                    | `running`       | 현재 서버 기동 여부 (조회 전용)        | —              |
 
-fSnippet REST API는 스니펫 검색/조회, 클립보드 히스토리 탐색, 폴더/통계/트리거 정보 조회까지 총 13개의 엔드포인트를 제공합니다.
+* `enabled`·`port` 를 바꾸면 서버 재바인딩이 필요합니다.
 
-| Method | Path | 설명 |
-|--------|------|------|
-| GET | `/` | Health Check (앱 상태, 스니펫 수, 가동 시간 등) |
-| GET | `/api/snippets/search?q=&limit=&offset=&folder=` | 스니펫 검색 |
-| GET | `/api/snippets/by-abbreviation/{abbrev}` | 약어(Abbreviation)로 스니펫 조회 |
-| GET | `/api/snippets/{id}` | 스니펫 상세 조회 |
-| POST | `/api/snippets/expand` | 스니펫 확장 (플레이스홀더 치환 포함) |
-| GET | `/api/clipboard/history?limit=&offset=&kind=&app=&pinned=` | 클립보드 히스토리 목록 |
-| GET | `/api/clipboard/history/{id}` | 클립보드 항목 상세 조회 |
-| GET | `/api/clipboard/search?q=&limit=&offset=` | 클립보드 검색 |
-| GET | `/api/folders` | 폴더 목록 조회 |
-| GET | `/api/folders/{name}?limit=&offset=` | 폴더 상세 (하위 스니펫 포함) |
-| GET | `/api/stats/top?limit=` | 사용 통계 Top N |
-| GET | `/api/stats/history?limit=&offset=&from=&to=` | 사용 이력 조회 |
-| GET | `/api/triggers` | 트리거 키 매핑 정보 조회 |
+## 4.3. 엔드포인트 개요
+
+경로는 모두 `http://localhost:3015/api/v2` 기준입니다(단, Health Check `/` 는 버전 접두 없음).
+
+**데이터 조회·조작**
+
+| Method | Path                                                       | 설명                                           |
+| :----- | :--------------------------------------------------------- | :--------------------------------------------- |
+| GET    | `/` (접두 없음)                                            | Health Check (앱 상태, 스니펫 수 등)           |
+| GET    | `/status`                                                  | 엔진 상태                                      |
+| GET    | `/snippets/search?q=&limit=&offset=&folder=`               | 스니펫 검색                                    |
+| GET    | `/snippets/by-abbreviation/{abbrev}`                       | 약어(Abbreviation)로 스니펫 조회               |
+| GET    | `/snippets/{id}`                                           | 스니펫 상세 조회                               |
+| POST   | `/snippets/expand`                                         | 스니펫 확장 (플레이스홀더 치환 포함)           |
+| POST   | `/snippets`                                                | 스니펫 생성                                    |
+| GET    | `/clipboard/history?limit=&offset=&kind=&app=&pinned=`     | 클립보드 히스토리 목록                         |
+| GET    | `/clipboard/history/{id}`                                  | 클립보드 항목 상세 조회                        |
+| GET    | `/clipboard/search?q=&limit=&offset=`                      | 클립보드 검색                                  |
+| GET    | `/folders`                                                 | 폴더 목록 (prefix·suffix·스니펫 수 포함)       |
+| GET    | `/folders/{name}?limit=&offset=`                           | 폴더 상세 (하위 스니펫 포함)                   |
+| GET    | `/stats/top?limit=`                                        | 사용 통계 Top N                                |
+| GET    | `/stats/history?limit=&offset=&from=&to=`                  | 사용 이력 조회                                 |
+| GET    | `/triggers`                                                | 트리거 키 매핑 정보 조회                       |
+
+**설정·제어** (상세는 [openapi_v2.yaml](../api/openapi_v2.yaml))
+
+| 범주            | Path                                                                                   |
+| :-------------- | :------------------------------------------------------------------------------------- |
+| 일반 설정       | `/settings/general` · `/settings/general/{language,appearance,paths,logging,trigger-key,…}` |
+| 팝업·동작·단축키 | `/settings/popup` · `/settings/behavior` · `/settings/shortcuts`                        |
+| 폴더 규칙       | `/settings/snippet-folders` · `/settings/snippet-folders/{folder}`                     |
+| 히스토리        | `/settings/history` · `/settings/history/clear`                                        |
+| 고급            | `/settings/advanced/{info,performance,input,debug,api,alfred-import}`                  |
+| 엔진 제어       | `/reload` · `/cli/pause` · `/cli/resume` · `/cli/status` · `/cli/version` · `/cli/quit` |
+| 가져오기        | `/import/alfred`                                                                       |
 
 ## 4.4. 사용 예제 (Quick Taste)
-
-서버를 켠 뒤, 터미널에서 `curl` 한 줄이면 fSnippet의 심장부에 닿을 수 있습니다.
 
 ```bash
 # Health Check — 앱 상태와 스니펫 총 개수 확인
@@ -158,149 +179,157 @@ $ curl -s http://localhost:3015/ | python3 -m json.tool
     "app": "fSnippet",
     "status": "ok",
     "port": 3015,
-    "snippet_count": 1961,
-    "uptime_seconds": 143
+    "snippet_count": 1861,
+    "clipboard_count": 1,
+    ...
 }
 
 # 스니펫 검색 — "docker" 키워드로 1건 검색
-$ curl -s "http://localhost:3015/api/snippets/search?q=docker&limit=1" | python3 -m json.tool
+$ curl -s "http://localhost:3015/api/v2/snippets/search?q=docker&limit=1" | python3 -m json.tool
 
 # 폴더 목록 — 전체 스니펫 컬렉션 구조 확인
-$ curl -s http://localhost:3015/api/folders | python3 -m json.tool
+$ curl -s http://localhost:3015/api/v2/folders | python3 -m json.tool
 
 # 트리거 키 — 현재 설정된 트리거 매핑 조회
-$ curl -s http://localhost:3015/api/triggers | python3 -m json.tool
+$ curl -s http://localhost:3015/api/v2/triggers | python3 -m json.tool
 ```
 
-자동화 스크립트(Python, Node.js 등)에서도 동일한 HTTP 요청으로 fSnippet 데이터를 프로그래밍 방식으로 활용할 수 있으며, OpenAPI 스펙(`api/openapi_v1.yaml`, `api/openapi_v2.yaml`)을 참조하면 Swagger UI나 코드 제너레이터와의 연동도 가능합니다.
+자동화 스크립트(Python, Node.js 등)에서도 같은 HTTP 요청으로 활용할 수 있으며, [openapi_v2.yaml](../api/openapi_v2.yaml) 을 Swagger UI 나 코드 제너레이터에 넣어 클라이언트를 만들 수 있습니다.
 
 ## 4.5. 엔드포인트 상세 레퍼런스
 
 ### GET `/` — Health Check
 
-서버 상태와 기본 통계를 반환합니다.
+서버 상태와 기본 통계를 반환합니다. 버전 접두(`/api/v2`) 없이 호출합니다.
 
 **응답 예시:**
 ```json
 {
     "status": "ok",
     "app": "fSnippet",
-    "version": "2.1.0",
+    "version": "1.1.1",
     "port": 3015,
-    "uptime_seconds": 3600,
-    "snippet_count": 1937,
-    "clipboard_count": 245
+    "snippet_count": 1861,
+    "clipboard_count": 1
 }
 ```
 
-### GET `/api/snippets/search` — 스니펫 검색
+### GET `/api/v2/snippets/search` — 스니펫 검색
 
 약어, 폴더명, 태그, 설명 등을 키워드로 검색합니다. 관련도 점수(relevance score) 기준으로 정렬됩니다.
 
-| 파라미터 | 타입 | 필수 | 기본값 | 설명 |
-|----------|------|------|--------|------|
-| `q` | string | O | - | 검색 키워드 |
-| `limit` | int | X | `20` | 반환할 최대 결과 수 |
-| `offset` | int | X | `0` | 페이지네이션 오프셋 |
-| `folder` | string | X | - | 특정 폴더로 필터링 |
-
-**요청 예시:**
-```bash
-curl -s "http://localhost:3015/api/snippets/search?q=docker&limit=2" | python3 -m json.tool
-```
-
-### GET `/api/snippets/by-abbreviation/{abbrev}` — 약어로 스니펫 조회
-
-정확한 약어(Abbreviation)를 사용하여 스니펫을 조회합니다.
+| 파라미터 | 타입   | 필수 | 기본값 | 설명                |
+| :------- | :----- | :--- | :----- | :------------------ |
+| `q`      | string | O    | -      | 검색 키워드         |
+| `limit`  | int    | X    | `20`   | 반환할 최대 결과 수 |
+| `offset` | int    | X    | `0`    | 페이지네이션 오프셋 |
+| `folder` | string | X    | -      | 특정 폴더로 필터링  |
 
 ```bash
-curl -s "http://localhost:3015/api/snippets/by-abbreviation/dc" | python3 -m json.tool
+curl -s "http://localhost:3015/api/v2/snippets/search?q=docker&limit=2" | python3 -m json.tool
 ```
 
-### GET `/api/snippets/{id}` — 스니펫 상세 조회
+### GET `/api/v2/snippets/by-abbreviation/{abbrev}` — 약어로 스니펫 조회
 
-스니펫 ID(폴더/파일명 형식)로 상세 정보를 조회합니다.
+정확한 약어(Abbreviation)로 스니펫을 조회합니다. 없으면 `404 NOT_FOUND` 를 돌려줍니다.
+
+* 약어는 **트리거 키 표기까지 포함한 전체 값**이어야 합니다(ex) `drocv2{right_command}`). 트리거 표기를 뺀 `drocv2` 는 404 입니다
+* 정확한 값은 검색 결과의 `abbreviation` 필드에서 얻고, URL 인코딩해 넣습니다
 
 ```bash
-curl -s "http://localhost:3015/api/snippets/Docker%2Frm%3D%3D%3Ddrm.txt" | python3 -m json.tool
+# 1) 검색 결과에서 abbreviation 을 얻는다
+ABBR=$(curl -s "http://localhost:3015/api/v2/snippets/search?q=docker&limit=1" \
+    | python3 -c 'import sys,json,urllib.parse; print(urllib.parse.quote(json.load(sys.stdin)["data"][0]["abbreviation"], safe=""))')
+# 2) 약어로 조회
+curl -s "http://localhost:3015/api/v2/snippets/by-abbreviation/$ABBR" | python3 -m json.tool
 ```
 
-### POST `/api/snippets/expand` — 스니펫 확장
+### GET `/api/v2/snippets/{id}` — 스니펫 상세 조회
 
-약어를 전달하면 플레이스홀더 치환을 포함한 확장된 텍스트를 반환합니다.
+스니펫 ID(`폴더/파일명` — 검색 결과의 `id` 필드)를 URL 인코딩해 상세 정보를 조회합니다.
 
-**요청:**
+```bash
+# 검색 결과의 id(ex) "Docker/rocv2===Docker_Run.txt")를 URL 인코딩해 조회
+ID=$(curl -s "http://localhost:3015/api/v2/snippets/search?q=docker&limit=1" \
+    | python3 -c 'import sys,json,urllib.parse; print(urllib.parse.quote(json.load(sys.stdin)["data"][0]["id"], safe=""))')
+curl -s "http://localhost:3015/api/v2/snippets/$ID" | python3 -m json.tool
+```
+
+### POST `/api/v2/snippets/expand` — 스니펫 확장
+
+약어를 전달하면 플레이스홀더 치환을 포함한 확장 텍스트(`expanded_text`)와 지울 글자 수(`delete_count`)를 반환합니다. 약어는 위와 같이 트리거 키 표기까지 포함한 전체 값입니다.
+
 ```bash
 curl -s -X POST -H "Content-Type: application/json" \
-    -d '{"abbreviation":"dc"}' \
-    http://localhost:3015/api/snippets/expand | python3 -m json.tool
+    -d '{"abbreviation":"<검색 결과의 abbreviation 값>"}' \
+    http://localhost:3015/api/v2/snippets/expand | python3 -m json.tool
 ```
 
-### GET `/api/clipboard/history` — 클립보드 히스토리
+### GET `/api/v2/clipboard/history` — 클립보드 히스토리
 
-| 파라미터 | 타입 | 필수 | 기본값 | 설명 |
-|----------|------|------|--------|------|
-| `limit` | int | X | `50` | 반환할 최대 결과 수 |
-| `offset` | int | X | `0` | 페이지네이션 오프셋 |
-| `kind` | string | X | - | 항목 종류 필터 (`plain_text`, `image`, `file_list`) |
-| `app` | string | X | - | 복사 출처 앱으로 필터 |
-| `pinned` | bool | X | - | 고정된 항목만 필터 |
+| 파라미터 | 타입   | 필수 | 기본값 | 설명                                                |
+| :------- | :----- | :--- | :----- | :-------------------------------------------------- |
+| `limit`  | int    | X    | `50`   | 반환할 최대 결과 수                                 |
+| `offset` | int    | X    | `0`    | 페이지네이션 오프셋                                 |
+| `kind`   | string | X    | -      | 항목 종류 필터 (`plain_text`, `image`, `file_list`) |
+| `app`    | string | X    | -      | 복사 출처 앱으로 필터                               |
+| `pinned` | bool   | X    | -      | 고정된 항목만 필터                                  |
 
-### GET `/api/clipboard/search` — 클립보드 검색
+### GET `/api/v2/clipboard/search` — 클립보드 검색
 
-| 파라미터 | 타입 | 필수 | 기본값 | 설명 |
-|----------|------|------|--------|------|
-| `q` | string | O | - | 검색 키워드 |
-| `limit` | int | X | `50` | 반환할 최대 결과 수 |
-| `offset` | int | X | `0` | 페이지네이션 오프셋 |
+| 파라미터 | 타입   | 필수 | 기본값 | 설명                |
+| :------- | :----- | :--- | :----- | :------------------ |
+| `q`      | string | O    | -      | 검색 키워드         |
+| `limit`  | int    | X    | `50`   | 반환할 최대 결과 수 |
+| `offset` | int    | X    | `0`    | 페이지네이션 오프셋 |
 
-### GET `/api/folders` — 폴더 목록
+### GET `/api/v2/folders` — 폴더 목록
 
-전체 스니펫 폴더 목록과 각 폴더의 스니펫 수를 반환합니다.
+전체 스니펫 폴더 목록과 각 폴더의 prefix·suffix·스니펫 수를 반환합니다.
 
-### GET `/api/folders/{name}` — 폴더 상세
+### GET `/api/v2/folders/{name}` — 폴더 상세
 
 특정 폴더의 스니펫 목록을 반환합니다. `limit`, `offset` 파라미터로 페이지네이션을 지원합니다.
 
-### GET `/api/stats/top` — 사용 통계 Top N
+### GET `/api/v2/stats/top` — 사용 통계 Top N
 
 가장 많이 사용된 스니펫의 통계를 반환합니다.
 
-### GET `/api/stats/history` — 사용 이력
+### GET `/api/v2/stats/history` — 사용 이력
 
-| 파라미터 | 타입 | 필수 | 기본값 | 설명 |
-|----------|------|------|--------|------|
-| `limit` | int | X | `100` | 반환할 최대 결과 수 |
-| `offset` | int | X | `0` | 페이지네이션 오프셋 |
-| `from` | string | X | - | 시작 날짜 (ISO 8601) |
-| `to` | string | X | - | 종료 날짜 (ISO 8601) |
+| 파라미터 | 타입   | 필수 | 기본값 | 설명                 |
+| :------- | :----- | :--- | :----- | :------------------- |
+| `limit`  | int    | X    | `100`  | 반환할 최대 결과 수  |
+| `offset` | int    | X    | `0`    | 페이지네이션 오프셋  |
+| `from`   | string | X    | -      | 시작 날짜 (ISO 8601) |
+| `to`     | string | X    | -      | 종료 날짜 (ISO 8601) |
 
-### GET `/api/triggers` — 트리거 키 매핑
+### GET `/api/v2/triggers` — 트리거 키 매핑
 
 현재 설정된 트리거 키 매핑 정보를 반환합니다.
 
-## 4.6. 에러 응답 형식
+## 4.6. 응답·에러 형식
 
-모든 엔드포인트는 에러 발생 시 일관된 JSON 형식으로 응답합니다.
+목록·조회 엔드포인트는 `ok` 플래그로 감싼 JSON 을 돌려줍니다.
 
-| HTTP 상태 코드 | 의미 | 예시 |
-|----------------|------|------|
-| `200` | 정상 응답 | `{"success": true, "data": {...}}` |
-| `400` | 잘못된 요청 | `{"success": false, "error": {"code": "BAD_REQUEST", "message": "Invalid parameter"}}` |
-| `404` | 리소스 없음 | `{"success": false, "error": {"code": "NOT_FOUND", "message": "Snippet not found"}}` |
-| `500` | 서버 내부 오류 | `{"success": false, "error": {"code": "INTERNAL_ERROR", "message": "Internal error"}}` |
+| HTTP 상태 코드 | 의미                     | 예시                                                                                   |
+| :------------- | :----------------------- | :------------------------------------------------------------------------------------- |
+| `200`          | 정상 응답                | `{"ok": true, "data": [...], "meta": {"count": 1, "total": 1, "duration_ms": 0.4}}`    |
+| `400`          | 잘못된 요청              | `{"ok": false, "error": {"code": "BAD_REQUEST", "message": "..."}}`                    |
+| `404`          | 리소스 없음              | `{"ok": false, "error": {"code": "NOT_FOUND", "message": "Snippet not found for abbreviation: ..."}}` |
+| `410`          | 폐기된 API (`/api/v1/*`) | `/api/v2/` 로 호출해야 함                                                              |
+| `500`          | 서버 내부 오류           | `{"ok": false, "error": {"code": "INTERNAL_ERROR", "message": "..."}}`                 |
 
 ## 4.7. OpenAPI 스펙
 
-fSnippet REST API의 전체 스펙은 OpenAPI 3.0.3 형식으로 제공됩니다.
+REST API 의 전체 스펙은 OpenAPI 3.0.3 형식으로 제공됩니다.
 
-* **파일 위치**:
-    - `api/openapi_v1.yaml` (v1: 조회 중심)
-    - `api/openapi_v2.yaml` (v2: 설정 CRUD)
+* **정본**: [api/openapi_v2.yaml](../api/openapi_v2.yaml) — 현행 v2 전체 (조회 + 설정 CRUD + 엔진 제어)
+* **이력 보존**: [api/openapi_v1.yaml](../api/openapi_v1.yaml) — 폐기된 v1 (서버는 `410 Gone` 응답)
 * **활용 방법**:
-  - [Swagger Editor](https://editor.swagger.io/)에 붙여넣어 인터랙티브 문서로 사용
-  - `openapi-generator-cli`로 각 언어별 클라이언트 코드 자동 생성
-  - Postman에서 Import하여 API 컬렉션 생성
+    - [Swagger Editor](https://editor.swagger.io/)에 붙여넣어 인터랙티브 문서로 사용
+    - `openapi-generator-cli`로 각 언어별 클라이언트 코드 자동 생성
+    - Postman에서 Import하여 API 컬렉션 생성
 
 ---
 

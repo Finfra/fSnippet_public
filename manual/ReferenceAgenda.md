@@ -28,7 +28,7 @@ date: 2026-03-26
 
 # 5. REST API (External Integration)
 
-> **참조 문서**: [REST API 문서](../api/) | [OpenAPI v1](../api/openapi_v1.yaml) | [OpenAPI v2](../api/openapi_v2.yaml) | [한국어 README](../api/README_kr.md) | [테스트 스크립트](../api/test-api.sh)
+> **참조 문서**: [REST API 문서](../api/) | [OpenAPI v2 (정본)](../api/openapi_v2.yaml) | [OpenAPI v1 (폐기, 410 Gone)](../api/openapi_v1.yaml) | [한국어 README](../api/README_ko.md) | [테스트 스크립트](../api/test-api.sh)
 
 ## 5-1. 서버 활성화 및 보안 설정
 - NWListener 기반 내장 HTTP 서버 개요
@@ -50,7 +50,7 @@ date: 2026-03-26
 
 # 6. Claude Code Skill 연동 (AI Agent Integration)
 
-> **참조 문서**: [Claude Code Skill README](../agents/claude/README.md) | [한국어 README](../agents/claude/README_kr.md) | [플러그인 매니페스트](../agents/claude/.claude-plugin/)
+> **참조 문서**: [Claude Code Skill README](../agents/claude/README.md) | [한국어 README](../agents/claude/README_ko.md) | 플러그인 매니페스트는 Claude Code 마켓플레이스 배포 저장소에서 관리
 
 ## 6-1. Skill 개요
 - Claude Code Slash Command 기반 fSnippet REST API 연동
@@ -68,7 +68,7 @@ date: 2026-03-26
 
 # 7. MCP 서버 연동 (Model Context Protocol)
 
-> **참조 문서**: [MCP 서버 README](../mcp/README.md) | [한국어 README](../mcp/README_kr.md) | [npm 패키지](../mcp/package.json)
+> **참조 문서**: [MCP 서버 README](../mcp/README.md) | [한국어 README](../mcp/README_ko.md) | [npm 패키지](../mcp/package.json)
 
 ## 7-1. MCP 개요
 - fSnippet REST API를 MCP 프로토콜로 감싸는 경량 어댑터
