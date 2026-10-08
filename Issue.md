@@ -29,6 +29,7 @@ date: 2026-04-07
 # 🌱 이슈후보
 
 1. `jma-fsnippet-deploy.sh` 가 `git pull origin release/1.1.1` 하드코딩 — 다음 출고 라인에서 R1 전에 브랜치 인자화 필요 (prj3#Issue717 배포용 TDD 적용 중 발견)
+1. jma tmux(`loginScript`, 부모 launchd)에 화면 기록 권한이 없어 `jma-firstrun-check.sh` 안내창 캡처가 항상 `WARN` — 증적 png 가 필요하면 권한 주체 지정·부여(사람 작업, 시스템 설정) 또는 다른 캡처 경로 (Issue248 실측에서 발견)
 
 # 🚧 진행중
 
@@ -57,6 +58,12 @@ date: 2026-04-07
     - 요구: png 가 실제로 생기고 비어 있지 않을 때만 «captured», 아니면 `FAIL`/`WARN` 로 집계하고 stderr 를 남긴다 (실패 삼킴 제거)
 * 구현 명세: screencapture 종료코드·`test -s` 검사 + 실패 시 사유 출력. 검증 — 권한 없는 세션에서 실패가 드러나는지(red), 권한 있는 세션에서 png 생성(green)
 * 증거: prj15 `_doc_work/_release/v1.1.2/release-test_1.1.2.md` 배포 #5 · `jma-logs_2026.09.29/prj15_rel5_firstrun.log`
+* 결과 (2026-10-08):
+    - 수정: 창 조회(python·Quartz)와 캡처(bash)를 분리. 조회 실패·창 없음·`screencapture` 비0·빈 파일을 사유와 함께 `WARN alert-capture` 로 집계(끝줄 `FAIL n · WARN m`), 실제 png 가 있고 비어 있지 않을 때만 `CHECK alert-capture: PASS`. 실행 전 이전 png 삭제(stale 파일이 증적으로 둔갑 방지). 캡처는 증적 전용이라 회귀 `FAIL` 에는 넣지 않음
+    - TDD: `test-firstrun-capture.sh` — 스크립트의 캡처 구간을 그대로 잘라 fake `Quartz`·`screencapture` 로 6케이스(실패·빈 파일·stale·정상·창 없음·Quartz 없음). 수정 전 6/6 red(실패해도 «captured») → 수정 후 6/6 green
+    - jma 실측(23:16, tmux GUI 세션): 회귀 `CHECK` 4종 PASS · `WARN alert-capture: screencapture failed (rc=1, window 4254): could not create image from window` — 이전에 삼켜지던 실패가 사유와 함께 드러남(실세션 red). appRootPath·paidApp 원상 복구 확인
+    - 원인 확정: jma tmux 서버가 로그인 스크립트(`loginScript`, 부모 launchd)로 떠 있어 **화면 기록 권한 주체가 없다** — 창 목록 조회는 되고 캡처만 실패. 실세션 green(png 생성)은 권한 부여가 필요해 이슈후보로 분리
+    - 산출물(전부 gitignored 자산 — 커밋 해시는 본 Issue.md 이력): [jma-firstrun-check.sh](.claude/skills/jma-fsnippet-deploy/scripts/jma-firstrun-check.sh) · [test-firstrun-capture.sh](.claude/skills/jma-fsnippet-deploy/scripts/test-firstrun-capture.sh) · [SKILL.md](.claude/skills/jma-fsnippet-deploy/SKILL.md) 판정 표 `alert-capture` 행 · [debug_TECH.md](cli/_doc_work/debug_TECH.md) 2026.10.08 항목
 
 # 📗 선택
 
