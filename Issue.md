@@ -36,7 +36,7 @@ date: 2026-04-07
 # 📕 중요
 
 ## Issue244: [출고차단] cliApp 1.1.2 `GET /` 응답 키 변경(`uptimeSeconds`→`uptime_seconds`)으로 paidApp 연결 불가 + 출고 테스트 발견 결함 (등록: 2026-09-29)
-* 목적: prj5#Issue107 jma 출고 테스트(2026-09-29)가 찾은 출고 차단 결함과 부수 결함을 기록한다. 공개 tap `fsnippet-cli` 1.1.2 는 2026-09-28 에 이미 나갔다 — 롤백 여부는 사용자 결정 대기(aoa-mq `[컨펌] [H:배포]`)
+* 목적: prj5#Issue107 jma 출고 테스트(2026-09-29)가 찾은 출고 차단 결함과 부수 결함을 기록한다. 공개 tap `fsnippet-cli` 1.1.2 는 2026-09-28 에 나갔다가 2026-10-08 23:31 1.1.1 로 롤백됐다(tap `6b619f7`)
 * 상세:
     - ① **출고 차단**: `c65e15a`(prj5#Issue99)가 HealthResponse 키를 명세대로 `uptime_seconds` 로 바꿨으나 paidApp `HealthResponse.uptimeSeconds` 는 필수 `Int` — 디코딩 `keyNotFound` → paidApp 미등록·"fSnippetCli is not responding"·Advanced `Loaded Snippets: 0`. jma 실측 + jm4 재현, 공개 1.1.1(키 이전)로 되돌리면 `registered:true`. `cli-v1.1.1` 에는 없고 1.1.2 에만 있다
         + 재생목록 공백: API 호환 42/42·등록 API 테스트가 모두 통과했다 — paidApp 의 **실제 디코딩·등록**을 보는 행이 없다
@@ -46,7 +46,7 @@ date: 2026-04-07
     - ④ `fsc-official-build-check.sh` 가 jma bash 3.2 에서 `unbound variable` 로 빌드 불가(PASS 14/FAIL 24), `DEPLOY_NO_SIGN=1` 에선 35/35 이나 서명 3건 SKIP
     - ⑤ `fsc-deploy-brew.sh publish` 가 끝에 «로컬 install» 을 자동으로 이어 돌아 실행 머신의 brew 설치를 uninstall → brew 자동 update 가 로컬 tap Formula 를 stash/pop 하다 방금 push 한 공개 Formula 와 충돌(`<<<<<<< Stashed changes`) → 재설치 실패. jm4 에서 발생·복구함
     - ⑥ `jma-fsnippet-deploy.sh --cliApp` 이 tap `Formula/fsnippet-cli.rb` 를 로컬 빌드용으로 바꾸고 되돌리지 않는다 — 이후 `brew reinstall` 이 공개본 대신 로컬 빌드를 깐다
-    - **2026-10-08 사용자 결정**: 릴리스 라인을 1.1.1 로 고정 — VERSION·MARKETING_VERSION 1.1.2 → 1.1.1 환원(prj25 `e1357c8` · prj15 `f4a0fd49` · prj9 `14b6f1c`). 본 이슈의 «1.1.2» 는 **공개된 tap 빌드**를 가리키므로 그대로 둔다. 공개 tap 은 여전히 1.1.2(① 결함 포함)이며, `cli-v1.1.1`·`cli-v1.1.2` 가 모두 공개 번호라 다음 출고 라벨은 미정
+    - **2026-10-08 사용자 결정**: 릴리스 라인을 1.1.1 로 고정 — VERSION·MARKETING_VERSION 1.1.2 → 1.1.1 환원(prj25 `e1357c8` · prj15 `f4a0fd49` · prj9 `14b6f1c`). 본 이슈의 «1.1.2» 는 **공개된 tap 빌드**를 가리키므로 그대로 둔다. 공개 tap 은 같은 날 23:31 1.1.1 로 롤백됨(tap `6b619f7` «fsnippet-cli 1.1.1 (rollback from cli-v1.1.2)», ① 결함 빌드 회수). `cli-v1.1.1`·`cli-v1.1.2` 태그가 모두 공개 번호라 ①~⑥ 수정본의 다음 출고 라벨은 미정
 * 증거: `_doc_work/_release/v1.1.2/release-test_1.1.2.md`(result: fail) · prj15 `_doc_work/_release/v1.1.2/jma-logs_2026.09.29/` · 보고 prj5 `_doc_work/report/fapp-jma-release-test_issue107_report.md`
 
 # 📙 일반
