@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 250
+* Issue HWM: 251
 * Checkpoints:
       - 1c34407 (2026-09-12) 작업 트리 스냅샷 (Issue234 종결 시점)
       - 4a49da5 (2026-09-08) 작업 트리 스냅샷
@@ -50,6 +50,19 @@ date: 2026-04-07
 * 증거: `_doc_work/_release/v1.1.2/release-test_1.1.2.md`(result: fail) · prj15 `_doc_work/_release/v1.1.2/jma-logs_2026.09.29/` · 보고 prj5 `_doc_work/report/fapp-jma-release-test_issue107_report.md`
 
 # 📙 일반
+
+## Issue251: [Release] 공개 tap `fsnippet-cli` 1.1.1 롤백 반영 — Issue244 tap 상태 정정·다음 출고 시 tap 재상향 (등록: 2026-10-09, 출처: prj5 이슈후보3)
+* 목적: 2026-10-08 공개 tap 을 1.1.1 로 되돌렸다(사용자 지시 «fSnippet 는 1.1.1 로 통일»). 이 repo 의 출고 기록·다음 출고 절차가 그 사실을 따르게 한다
+* depends: Issue244, prj15#Issue989
+* 상세:
+    - 집행 사실(prj5 세션): `Finfra/homebrew-tap` `6b619f7` «fsnippet-cli 1.1.1 (rollback from cli-v1.1.2)» push — Formula 를 `c135db4`(cli-v1.1.1, sha `b8f0388e…`) 내용으로 복원. GitHub 릴리스 `cli-v1.1.2` 는 **유지**(삭제 안 함)
+    - 설치본: jma 1.1.2 → 공식 1.1.1 · jm4 로컬 빌드 1.1.1 → 공식 1.1.1(pin 유지). 양쪽 `GET :3015/` 가 `uptimeSeconds`·`version 1.1.1` 응답
+    - Issue244 본문 «공개 tap 은 여전히 1.1.2» 는 이제 사실이 아니다 — 정정 필요
+    - 다음 출고 라벨: `cli-v1.1.1`·`cli-v1.1.2` 가 모두 공개 번호라 같은 번호 재사용 불가(Issue244 «다음 출고 라벨은 미정»). 1.1.2 를 건너뛴 다음 번호로 tap 을 다시 올리려면 ① paidApp 관용 디코딩(prj15#Issue989) 출고 ② cliApp 이 두 키(`uptimeSeconds`·`uptime_seconds`) 동시 응답 중 하나 이상이 먼저 나가야 한다
+* 구현 명세:
+    - Issue244 의 tap 상태 문구를 «2026-10-08 1.1.1 로 롤백(tap `6b619f7`)» 으로 갱신
+    - 다음 출고 번호 결정(사람 결정 — H:배포) 후 `fsc-deploy-brew.sh publish` 로 tap 상향. 상향 전 jma 에서 paidApp 실제 등록(`registered:true`) 확인을 출고 재생목록에 넣는다(Issue244 «재생목록 공백»)
+    - 검증: `brew info finfra/tap/fsnippet-cli` 버전 · jma paidApp 등록 성공
 
 # 📗 선택
 
