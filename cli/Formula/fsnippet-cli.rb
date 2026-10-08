@@ -1,10 +1,10 @@
 class FsnippetCli < Formula
   desc "Text snippet expansion engine daemon for fSnippet"
   homepage "https://github.com/Finfra/fSnippet_public"
-  url "https://github.com/Finfra/fSnippet_public/releases/download/cli-v1.1.2/fSnippetCli-1.1.2.tar.gz"
-  version "1.1.2"
-  sha256 "cc25b34c9200bafe4ec73e143ecb8bc75b440c272d73cf0523287946926e1bba"
-  license "Apache-2.0"
+  url "https://github.com/Finfra/fSnippet_public/releases/download/cli-v1.1.1/fSnippetCli-1.1.1.tar.gz"
+  version "1.1.1"
+  sha256 "b8f0388e4adff2790aa5f30801b47a837b3b52161d49ef9d46161f3286d8c1c2"
+  license "MIT"
 
   depends_on :macos
 
@@ -25,11 +25,6 @@ class FsnippetCli < Formula
   def caveats
     <<~EOS
       fSnippetCli requires Accessibility permissions.
-
-      License: the source code is Apache-2.0 — build it yourself and use it without limit.
-      This Official Build is free for personal use, education, non-profits, open-source
-      projects and organizations up to 250 concurrent copies; beyond that, or for resale,
-      bundling or hosting, see DISTRIBUTION-TERMS.md and COMMERCIAL.md in the repository.
 
       To enable auto-start after installation:
         brew services start finfra/tap/fsnippet-cli
