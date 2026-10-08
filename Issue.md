@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 247
+* Issue HWM: 248
 * Checkpoints:
       - 1c34407 (2026-09-12) 작업 트리 스냅샷 (Issue234 종결 시점)
       - 4a49da5 (2026-09-08) 작업 트리 스냅샷
@@ -21,16 +21,17 @@ date: 2026-04-07
 
 결정은 **각 정본 문서**에 산다 — 여기 사본을 두지 않는다(2026.09.02 정리).
 
-| 결정 | 정본 |
-| :--- | :--- |
-| paidApp↔cliApp 연동은 상위 레포 프로토콜 문서 기준 | [paid_cli_protocol.md](../_doc_arch/paid_cli_protocol.md) — 상위 메인 레포 |
-| 메뉴바는 `cli/_doc_arch/menuBar_enhance.md` 기준 (로컬 SSOT · gitignored) | [menuBar_enhance.md](cli/_doc_arch/menuBar_enhance.md) |
+| 결정                                                                      | 정본                                                                       |
+| :------------------------------------------------------------------------ | :------------------------------------------------------------------------- |
+| paidApp↔cliApp 연동은 상위 레포 프로토콜 문서 기준                        | [paid_cli_protocol.md](../_doc_arch/paid_cli_protocol.md) — 상위 메인 레포 |
+| 메뉴바는 `cli/_doc_arch/menuBar_enhance.md` 기준 (로컬 SSOT · gitignored) | [menuBar_enhance.md](cli/_doc_arch/menuBar_enhance.md)                     |
 
 # 🌱 이슈후보
 
 1. `jma-fsnippet-deploy.sh` 가 `git pull origin release/1.1.1` 하드코딩 — 다음 출고 라인에서 R1 전에 브랜치 인자화 필요 (prj3#Issue717 배포용 TDD 적용 중 발견)
 
 # 🚧 진행중
+
 # 📕 중요
 
 ## Issue244: [출고차단] cliApp 1.1.2 `GET /` 응답 키 변경(`uptimeSeconds`→`uptime_seconds`)으로 paidApp 연결 불가 + 출고 테스트 발견 결함 (등록: 2026-09-29)
@@ -47,6 +48,14 @@ date: 2026-04-07
 * 증거: `_doc_work/_release/v1.1.2/release-test_1.1.2.md`(result: fail) · prj15 `_doc_work/_release/v1.1.2/jma-logs_2026.09.29/` · 보고 prj5 `_doc_work/report/fapp-jma-release-test_issue107_report.md`
 
 # 📙 일반
+
+## Issue248: [Tool] `jma-firstrun-check.sh` 가 «alert window captured» 를 출력하지만 png 가 생성되지 않음 (등록: 2026-10-08, 출처: prj15#Issue989 ⑤)
+* 목적: prj15 1.1.2 출고 테스트(배포 #5 `firstrun-real-home`)에서 스크립트가 `alert window captured: /tmp/jma_firstrun_alert.png (id N)` 를 찍는데 파일이 없었다 — 성공 메시지가 거짓이라 증적으로 쓸 수 없다
+* 상세:
+    - `.claude/skills/jma-fsnippet-deploy/scripts/jma-firstrun-check.sh` 의 python 블록이 `subprocess.run(["screencapture", …])` 반환코드·결과 파일 존재를 확인하지 않고 곧바로 «captured» 를 출력한다. 블록 전체가 `2>/dev/null` 이라 screencapture 실패(ssh/tmux 세션의 화면 기록 권한 등) 사유도 사라진다
+    - 요구: png 가 실제로 생기고 비어 있지 않을 때만 «captured», 아니면 `FAIL`/`WARN` 로 집계하고 stderr 를 남긴다 (실패 삼킴 제거)
+* 구현 명세: screencapture 종료코드·`test -s` 검사 + 실패 시 사유 출력. 검증 — 권한 없는 세션에서 실패가 드러나는지(red), 권한 있는 세션에서 png 생성(green)
+* 증거: prj15 `_doc_work/_release/v1.1.2/release-test_1.1.2.md` 배포 #5 · `jma-logs_2026.09.29/prj15_rel5_firstrun.log`
 
 # 📗 선택
 
