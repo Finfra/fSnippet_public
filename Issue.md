@@ -43,7 +43,7 @@ date: 2026-04-07
     - 결과: `brew list --versions fsnippet-cli` 빈 값 · `pgrep fSnippetCli` 없음
     - 원인: Issue244 ⑤(publish 뒤 자동 로컬 install → brew 자동 update 가 로컬 Formula 를 stash/pop) · ⑥(로컬 배포가 tap Formula 를 `file:///tmp` 로 바꾸고 되돌리지 않음) 의 재발. 같은 복구가 Issue170 무렵(`merge --abort` + `reset --hard origin/main`)에도 있었다 — 세 번째
 * 구현 명세:
-    - ① tap 복구 — **사람 승인 대기(H:파괴)**: tap 을 `origin/main` 으로 되돌리고 로컬 빌드 stash 를 폐기. tap 은 prj26 와 공유라 fwarrange-cli.rb 도 함께 원복된다
+    - ① tap 복구 — **사람 승인 대기(H:파괴)**, 총괄 상신 mq `20261009-040244-001`(선택지 a 백업·reset / b 백업만 / c 보류 — 결정 전 tap 무변경): tap 을 `origin/main` 으로 되돌리고 로컬 빌드 stash 를 폐기. tap 은 prj26 와 공유라 fwarrange-cli.rb 도 함께 원복된다
         ```bash
         cd /opt/homebrew/Library/Taps/finfra/homebrew-tap
         git stash list > /tmp/tap-stash-backup.txt; for i in $(seq 0 7); do git stash show -p stash@{$i} > /tmp/tap-stash-$i.patch; done  # 폐기 전 백업
