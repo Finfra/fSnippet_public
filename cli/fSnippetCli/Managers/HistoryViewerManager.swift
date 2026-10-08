@@ -15,6 +15,20 @@ class HistoryViewerManager: NSObject, NSWindowDelegate {
     // [Issue782] 클립보드 팝업창이 열려있는지 확인
     var isVisible: Bool { window?.isVisible == true }
 
+    /// Issue991: show() 직후 앱 활성화 과정에서 플레이스홀더 패널이 키를 되찾는 구간(초)
+    static let activationGraceInterval: TimeInterval = 1.0
+    private var lastShowAt: Date = .distantPast
+    private var graceReassertUsed = false
+
+    /// Issue991: 콜백 모드(플레이스홀더 요청)에서 show() 직후의 resign key 는 사용자 이탈이 아니라
+    /// 앱 활성화에 따른 키 창 재배정이다. 이때는 숨기지 않고 히스토리 창이 키를 다시 가져간다(1회).
+    static func shouldReassertKey(
+        callbackMode: Bool, elapsedSinceShow: TimeInterval, alreadyReasserted: Bool
+    ) -> Bool {
+        return callbackMode && !alreadyReasserted
+            && elapsedSinceShow >= 0 && elapsedSinceShow < activationGraceInterval
+    }
+
     // [Issue383] 초기화 및 알림 등록
     override init() {
         super.init()
@@ -70,6 +84,8 @@ class HistoryViewerManager: NSObject, NSWindowDelegate {
 
         // 콜백 저장
         self.onSelection = onSelection
+        self.lastShowAt = Date()
+        self.graceReassertUsed = false
 
         // ✅ CL061: "유령 미리보기" 방지를 위한 상태 강제 재설정
         // 표시하기 전에 비활성 상태를 엄격히 보장 (포커스 시 .list로 업데이트됨)
@@ -247,6 +263,20 @@ class HistoryViewerManager: NSObject, NSWindowDelegate {
                 logD(
                     "🎞️ [HistoryViewerManager] Focus moved to Editor Window. Maintaining state (Focus Retention)."
                 )
+                return
+            }
+
+            // ✅ Issue991: 콜백 모드 show() 직후 앱 활성화로 플레이스홀더 패널이 키를 되찾은 경우
+            // 히스토리 창을 숨기지 않고 키를 다시 가져온다 (선택 콜백까지 도달해야 함)
+            if Self.shouldReassertKey(
+                callbackMode: self.onSelection != nil,
+                elapsedSinceShow: Date().timeIntervalSince(self.lastShowAt),
+                alreadyReasserted: self.graceReassertUsed),
+                let win = self.window, win.isVisible
+            {
+                self.graceReassertUsed = true
+                logV("🎞️ [Issue991] 활성화 직후 키 재배정 감지 - 숨기지 않고 히스토리 창 키 재획득")
+                win.makeKeyAndOrderFront(nil)
                 return
             }
 

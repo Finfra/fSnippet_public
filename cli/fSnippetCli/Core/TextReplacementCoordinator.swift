@@ -184,6 +184,11 @@ class TextReplacementCoordinator {
             ) { [weak self] success, error in
                 if success {
                     self?.completeReplacement(success: true, error: nil, completion: completion)
+                } else if error == nil {
+                    // Issue991: 플레이스홀더 취소는 (false, nil) — 실패가 아니므로 ERROR 로 찍지 않는다
+                    logI("🚦 플레이스홀더 입력 취소 - 원본 복원됨")
+                    self?.completeReplacement(
+                        success: false, error: nil, completion: completion)
                 } else {
                     let errorInfo = error?.localizedDescription ?? "알 수 없는 오류"
                     logE("🚦 텍스트 대체 실패(플레이스홀더 경로): \(errorInfo)")
@@ -263,6 +268,9 @@ class TextReplacementCoordinator {
 
         if success {
             logV("🚦 텍스트 대체 성공: '\(error ?? "")'")
+        } else if error == nil {
+            // Issue991: error 없는 비성공 = 사용자 취소. ERROR 로 찍지 않는다
+            logV("🚦 텍스트 대체 취소")
         } else {
             logE("🚦 텍스트 대체 실패: \(error ?? "알 수 없는 오류")")
         }
