@@ -35,10 +35,10 @@ date: 2026-04-07
 
 # 📕 중요
 
-## Issue244: [출고차단] cliApp 1.1.2 `GET /` 응답 키 변경(`uptimeSeconds`→`uptime_seconds`)으로 paidApp 연결 불가 + 출고 테스트 발견 결함 (등록: 2026-09-29)
-* 목적: prj5#Issue107 jma 출고 테스트(2026-09-29)가 찾은 출고 차단 결함과 부수 결함을 기록한다. 공개 tap `fsnippet-cli` 1.1.2 는 2026-09-28 에 나갔다가 2026-10-08 23:31 1.1.1 로 롤백됐다(tap `6b619f7`)
+## Issue244: [출고차단] cliApp 1.1.1 후보 빌드 `GET /` 응답 키 변경(`uptimeSeconds`→`uptime_seconds`)으로 paidApp 연결 불가 + 출고 테스트 발견 결함 (등록: 2026-09-29)
+* 목적: prj5#Issue107 jma 출고 테스트(2026-09-29)가 찾은 출고 차단 결함과 부수 결함을 기록한다. 공개 tap `fsnippet-cli` 는 2026-10-08 23:31 결함 이전 공개 빌드 `cli-v1.1.1` 로 복원됐다(tap `6b619f7`)
 * 상세:
-    - ① **출고 차단**: `c65e15a`(prj5#Issue99)가 HealthResponse 키를 명세대로 `uptime_seconds` 로 바꿨으나 paidApp `HealthResponse.uptimeSeconds` 는 필수 `Int` — 디코딩 `keyNotFound` → paidApp 미등록·"fSnippetCli is not responding"·Advanced `Loaded Snippets: 0`. jma 실측 + jm4 재현, 공개 1.1.1(키 이전)로 되돌리면 `registered:true`. `cli-v1.1.1` 에는 없고 1.1.2 에만 있다
+    - ① **출고 차단**: `c65e15a`(prj5#Issue99)가 HealthResponse 키를 명세대로 `uptime_seconds` 로 바꿨으나 paidApp `HealthResponse.uptimeSeconds` 는 필수 `Int` — 디코딩 `keyNotFound` → paidApp 미등록·"fSnippetCli is not responding"·Advanced `Loaded Snippets: 0`. jma 실측 + jm4 재현, 공개 `cli-v1.1.1`(키 이전 빌드)로 되돌리면 `registered:true` — 결함은 `c65e15a` 이후 빌드에만 있다
         + 재생목록 공백: API 호환 42/42·등록 API 테스트가 모두 통과했다 — paidApp 의 **실제 디코딩·등록**을 보는 행이 없다
         + 수정 방향 후보: cliApp 이 두 키를 함께 내보내기(구 paidApp 호환) + paidApp 쪽 관용 디코딩(prj15#Issue989)
     - ② 첫 실행 Documents 동의창 대기 중 REST 전체 무응답 — API 서버 큐가 health 처리 중 DB 초기화 sqlite `open()` 에서 블록(스택 샘플 `fsc-sample-blocked.txt`)
@@ -46,9 +46,9 @@ date: 2026-04-07
     - ④ `fsc-official-build-check.sh` 가 jma bash 3.2 에서 `unbound variable` 로 빌드 불가(PASS 14/FAIL 24), `DEPLOY_NO_SIGN=1` 에선 35/35 이나 서명 3건 SKIP
     - ⑤ `fsc-deploy-brew.sh publish` 가 끝에 «로컬 install» 을 자동으로 이어 돌아 실행 머신의 brew 설치를 uninstall → brew 자동 update 가 로컬 tap Formula 를 stash/pop 하다 방금 push 한 공개 Formula 와 충돌(`<<<<<<< Stashed changes`) → 재설치 실패. jm4 에서 발생·복구함
     - ⑥ `jma-fsnippet-deploy.sh --cliApp` 이 tap `Formula/fsnippet-cli.rb` 를 로컬 빌드용으로 바꾸고 되돌리지 않는다 — 이후 `brew reinstall` 이 공개본 대신 로컬 빌드를 깐다
-    - **2026-10-08 사용자 결정**: 릴리스 라인을 1.1.1 로 고정 — VERSION·MARKETING_VERSION 1.1.2 → 1.1.1 환원(prj25 `e1357c8` · prj15 `f4a0fd49` · prj9 `14b6f1c`). 본 이슈의 «1.1.2» 는 **공개된 tap 빌드**를 가리키므로 그대로 둔다. 공개 tap 은 같은 날 23:31 1.1.1 로 롤백됨(tap `6b619f7` «fsnippet-cli 1.1.1 (rollback from cli-v1.1.2)», ① 결함 빌드 회수)
-    - **2026-10-09 사용자 결정 — 1.1.2 는 없는 것으로**: GitHub release·태그 `cli-v1.1.2` 삭제(origin·jma), `cli-v1.1.1` 을 Latest 로 · prj9 `release/1.1.2` 브랜치 삭제 · repo Formula 스냅샷을 tap 과 같은 1.1.1 로(`fa9e0d4`). 본문의 «1.1.2» 는 폐기된 당시 빌드를 가리키는 이력이다. 남은 공개 번호는 `cli-v1.1.1` 하나 — ①~⑥ 수정본의 다음 출고 라벨은 Issue251 에서 정한다
-* 증거: `_doc_work/_release/v1.1.2/release-test_1.1.2.md`(result: fail) · prj15 `_doc_work/_release/v1.1.2/jma-logs_2026.09.29/` · 보고 prj5 `_doc_work/report/fapp-jma-release-test_issue107_report.md`
+    - **2026-10-08 사용자 결정**: 릴리스 라인을 1.1.1 로 고정 — VERSION·MARKETING_VERSION 1.1.1 확정(prj25 `e1357c8` · prj15 `f4a0fd49` · prj9 `14b6f1c`). 공개 tap 은 같은 날 23:31 결함 이전 `cli-v1.1.1` 로 복원(tap `6b619f7`, ① 결함 빌드 회수)
+    - **2026-10-09 사용자 결정 — 모두 1.1.1 로 재출시**: 공개 번호는 `cli-v1.1.1` 하나로 정리(그 밖의 GitHub release·태그·브랜치 삭제, repo Formula 스냅샷을 tap 과 동기화 `fa9e0d4`). ①~⑥ 수정본은 1.1.1 로 재출시한다 — 절차는 Issue251
+* 증거: `_doc_work/_release/v1.1.1/release-test_1.1.1.md`(result: fail) · prj15 `_doc_work/_release/v1.1.1/jma-logs_2026.09.29/` · 보고 prj5 `_doc_work/report/fapp-jma-release-test_issue107_report.md`
 
 # 📙 일반
 
@@ -56,25 +56,25 @@ date: 2026-04-07
 * 목적: 2026-10-08 공개 tap 을 1.1.1 로 되돌렸다(사용자 지시 «fSnippet 는 1.1.1 로 통일»). 이 repo 의 출고 기록·다음 출고 절차가 그 사실을 따르게 한다
 * depends: Issue244, prj15#Issue989
 * 상세:
-    - 집행 사실(prj5 세션): `Finfra/homebrew-tap` `6b619f7` «fsnippet-cli 1.1.1 (rollback from cli-v1.1.2)» push — Formula 를 `c135db4`(cli-v1.1.1, sha `b8f0388e…`) 내용으로 복원. GitHub 릴리스 `cli-v1.1.2` 는 이때는 유지했으나 2026-10-09 사용자 결정으로 **삭제**(태그 포함, origin·jma — Issue244 결정 줄)
-    - 설치본: jma 1.1.2 → 공식 1.1.1 · jm4 로컬 빌드 1.1.1 → 공식 1.1.1(pin 유지). 양쪽 `GET :3015/` 가 `uptimeSeconds`·`version 1.1.1` 응답
-    - Issue244 본문 «공개 tap 은 여전히 1.1.2» 는 이제 사실이 아니다 — 정정 필요
-    - 다음 출고 라벨: `cli-v1.1.2` 는 2026-10-09 삭제됐고 공개 번호는 `cli-v1.1.1` 뿐이다 — 릴리스 라인은 1.1.1 고정(사용자 결정)이나 `cli-v1.1.1` 은 이미 공개된 빌드라 같은 라벨 재공개 방식은 정해야 한다. 새 번호로 tap 을 다시 올리려면 ① paidApp 관용 디코딩(prj15#Issue989) 출고 ② cliApp 이 두 키(`uptimeSeconds`·`uptime_seconds`) 동시 응답 중 하나 이상이 먼저 나가야 한다
+    - 집행 사실(prj5 세션): `Finfra/homebrew-tap` `6b619f7` push — Formula 를 `c135db4`(cli-v1.1.1, sha `b8f0388e…`) 내용으로 복원. 2026-10-09 공개 번호를 `cli-v1.1.1` 하나로 정리(Issue244 결정 줄)
+    - 설치본: jma 결함 빌드 → 공식 1.1.1 · jm4 로컬 빌드 → 공식 1.1.1(pin 유지). 양쪽 `GET :3015/` 가 `uptimeSeconds`·`version 1.1.1` 응답
+    - Issue244 본문의 tap 상태 서술은 정정 완료(`6c2404a`)
+    - 출고 라벨: 2026-10-09 사용자 결정 — **1.1.1 로 재출시**(GitHub 업로드 포함). `cli-v1.1.1` 은 이미 공개된 빌드라 같은 라벨 재공개 방식(태그 이동·release asset 교체·tap sha256 갱신)을 정해 집행한다(H:배포). 재출시 전 ① paidApp 관용 디코딩(prj15#Issue989) 출고 ② cliApp 이 두 키(`uptimeSeconds`·`uptime_seconds`) 동시 응답 중 하나 이상이 먼저 나가야 한다
 * 구현 명세:
     - Issue244 의 tap 상태 문구를 «2026-10-08 1.1.1 로 롤백(tap `6b619f7`)» 으로 갱신
-    - 다음 출고 번호 결정(사람 결정 — H:배포) 후 `fsc-deploy-brew.sh publish` 로 tap 상향. 상향 전 jma 에서 paidApp 실제 등록(`registered:true`) 확인을 출고 재생목록에 넣는다(Issue244 «재생목록 공백»)
+    - 1.1.1 재출시 방식 확정(사람 결정 — H:배포) 후 `fsc-deploy-brew.sh publish` 로 tap 갱신. 상향 전 jma 에서 paidApp 실제 등록(`registered:true`) 확인을 출고 재생목록에 넣는다(Issue244 «재생목록 공백»)
     - 검증: `brew info finfra/tap/fsnippet-cli` 버전 · jma paidApp 등록 성공
 
 # 📗 선택
 
 # ✅ 완료
 ## Issue248: [Tool] `jma-firstrun-check.sh` 가 «alert window captured» 를 출력하지만 png 가 생성되지 않음 (등록: 2026-10-08, 출처: prj15#Issue989 ⑤) (해결: 2026-10-08, commit: 864185b — Issue.md 이력, 스크립트 본체 `.claude/` 는 gitignored) ✅
-* 목적: prj15 1.1.2 출고 테스트(배포 #5 `firstrun-real-home`)에서 스크립트가 `alert window captured: /tmp/jma_firstrun_alert.png (id N)` 를 찍는데 파일이 없었다 — 성공 메시지가 거짓이라 증적으로 쓸 수 없다
+* 목적: prj15 1.1.1 출고 테스트(배포 #5 `firstrun-real-home`)에서 스크립트가 `alert window captured: /tmp/jma_firstrun_alert.png (id N)` 를 찍는데 파일이 없었다 — 성공 메시지가 거짓이라 증적으로 쓸 수 없다
 * 상세:
     - `.claude/skills/jma-fsnippet-deploy/scripts/jma-firstrun-check.sh` 의 python 블록이 `subprocess.run(["screencapture", …])` 반환코드·결과 파일 존재를 확인하지 않고 곧바로 «captured» 를 출력한다. 블록 전체가 `2>/dev/null` 이라 screencapture 실패(ssh/tmux 세션의 화면 기록 권한 등) 사유도 사라진다
     - 요구: png 가 실제로 생기고 비어 있지 않을 때만 «captured», 아니면 `FAIL`/`WARN` 로 집계하고 stderr 를 남긴다 (실패 삼킴 제거)
 * 구현 명세: screencapture 종료코드·`test -s` 검사 + 실패 시 사유 출력. 검증 — 권한 없는 세션에서 실패가 드러나는지(red), 권한 있는 세션에서 png 생성(green)
-* 증거: prj15 `_doc_work/_release/v1.1.2/release-test_1.1.2.md` 배포 #5 · `jma-logs_2026.09.29/prj15_rel5_firstrun.log`
+* 증거: prj15 `_doc_work/_release/v1.1.1/release-test_1.1.1.md` 배포 #5 · `jma-logs_2026.09.29/prj15_rel5_firstrun.log`
 * 결과 (2026-10-08):
     - 수정: 창 조회(python·Quartz)와 캡처(bash)를 분리. 조회 실패·창 없음·`screencapture` 비0·빈 파일을 사유와 함께 `WARN alert-capture` 로 집계(끝줄 `FAIL n · WARN m`), 실제 png 가 있고 비어 있지 않을 때만 `CHECK alert-capture: PASS`. 실행 전 이전 png 삭제(stale 파일이 증적으로 둔갑 방지). 캡처는 증적 전용이라 회귀 `FAIL` 에는 넣지 않음
     - TDD: `test-firstrun-capture.sh` — 스크립트의 캡처 구간을 그대로 잘라 fake `Quartz`·`screencapture` 로 6케이스(실패·빈 파일·stale·정상·창 없음·Quartz 없음). 수정 전 6/6 red(실패해도 «captured») → 수정 후 6/6 green
@@ -132,7 +132,7 @@ date: 2026-04-07
 * 목적: jma 에서 돌리던 스니펫 실타이핑 테스트(폴더 테이블 39행 — 키 입력 → CGEventTap → 확장 결과)를 `tdd/playlist.md` 의 한 행으로 올리고, 사람 손 준비 없이 jma 에서 반복 실행되게 한다
 * 상세:
     - 같은 테스트가 두 벌 있다 — prj15 `_tool/qa/qa_run_batch.sh`(`qa-type-jma-mgr` 스킬, jma tmux `qa`)와 본 repo `cli/_tool/qa/qa_run_batch.sh`(Issue137·138 에서 하니스 결함을 고친 이식본, 2026-05-21 35/35 — 당시 표 35행, 현재 39행)
-    - 1.1.2 출고 테스트(2026-09-29 jma, prj15 release #7 `typing-batch-e2e`)에서 **0/35** — 엔진 결함이 아니라 픽스처 `_case1~35` 가 사용자 데이터에 없었다. 생성기는 은퇴 폴더(prj15 `_tool/_done/update_snippets_from_table.py`)에만 있고 사용자 `_rule.yml` 을 직접 고치는 방식이다
+    - 1.1.1 출고 테스트(2026-09-29 jma, prj15 release #7 `typing-batch-e2e`)에서 **0/35** — 엔진 결함이 아니라 픽스처 `_case1~35` 가 사용자 데이터에 없었다. 생성기는 은퇴 폴더(prj15 `_tool/_done/update_snippets_from_table.py`)에만 있고 사용자 `_rule.yml` 을 직접 고치는 방식이다
     - 본 repo 하니스도 같은 전제: 사용자 appRootPath·`:3015` 에 `_case<N>/test===case<N>.txt` 가 있어야 하고, **없으면 `⚠️ SKIP` 으로 넘어가 FAIL 0 · exit 0** — 픽스처가 하나도 없으면 «0/0 통과» 가 된다(실패 삼킴)
     - 그래서 재생목록에 없다: 개발 재생목록 18행 중 실제 키 입력 확장은 #9(ZTest `ztdo` 1건)뿐이고, 폴더 규칙 표는 #15 유닛(약어 생성·매칭)까지만 본다 — 특수키 토큰(`{right_option}`·`{keypad_comma}`·`{f1}` 등)의 실입력·삭제 길이·붙여넣기 결과는 이 테스트만 본다
 * 구현 명세:
