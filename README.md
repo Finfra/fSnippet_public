@@ -18,8 +18,8 @@ macOS Menu Bar Snippet & Clipboard Manager. Manage text snippets, track clipboar
 | **fSnippet Pro** (GUI) | Paid       | GUI       | —       | App Store (Coming Soon)                                                 |
 | **fSnippetCli** (CLI)  | Free / OSS | CLI       | v1.1.1  | Homebrew — [Installation](#installation-fsnippetcli) ([Source](./cli/)) |
 
-* **fSnippet Pro** - Full-featured GUI app with intuitive settings, visual snippet management, and clipboard history viewer. Available on the Mac App Store (coming soon).
-* **fSnippetCli** - Fully open-source CLI version. All source code is in the [`cli/`](./cli/) directory. Installable via Homebrew.
+* **fSnippet Pro** - **GUI wrapper of fSnippetCli.** Provides settings and snippet-management screens on top of the fSnippetCli engine; it does not work without fSnippetCli. Available on the Mac App Store (coming soon). Its manual is maintained in the fSnippet project.
+* **fSnippetCli** - The engine: key monitoring, snippet expansion, popup, clipboard history and REST API. Runs standalone. Fully open-source — all source code is in the [`cli/`](./cli/) directory. Installable via Homebrew. → [fSnippetCli Manual](./manual/)
 
 ## Installation (fSnippetCli)
 
@@ -129,7 +129,7 @@ Automate and extend fSnippet with AI agents. All integration methods use the bui
 
 | Document                              | Description                                    |
 | :------------------------------------ | :--------------------------------------------- |
-| [Manual](./manual/)                   | User manual (KR/EN)                            |
+| [Manual](./manual/)                   | fSnippetCli manual (engine) — fSnippet is the GUI wrapper of this engine |
 | [REST API](./api/)                    | REST API reference & OpenAPI spec              |
 | [MCP Server](./mcp/)                  | Model Context Protocol server                  |
 | [Claude Code Skill](./agents/claude/) | Claude Code plugin                             |

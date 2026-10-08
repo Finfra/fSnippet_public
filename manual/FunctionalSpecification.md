@@ -1,9 +1,12 @@
 ---
-title: fSnippet 사용자 매뉴얼 및 기능 명세서 (User Manual & Functional Specification)
+title: fSnippetCli 기능 명세서 (Functional Specification)
 description: 본 문서는 fSnippet의 핵심 가치 창출 도구인 **스니펫(Snippet)**과 체계적인 데이터 보관을 위한 **클립보드 히스토리(Clipboard History)** 시스템, 그리고 고급 사용자 설정 및 안정성 제어 기술에 대한 총체적이고 상세한 가이드를 제공합니다.
 date: 2026-03-18
 tags: [매뉴얼, 사용자 가이드, 기능 명세]
 ---
+
+> **적용 범위** — 이 문서는 **fSnippetCli**(엔진)의 기능 명세다. 아래 기능은 모두 fSnippetCli 가 수행한다.
+> **fSnippet**(유료 GUI 앱)은 fSnippetCli 의 **GUI 래퍼**로, 같은 기능의 설정을 창에서 바꾸는 화면만 제공한다. 본문에서 «설정 - ○○ 탭» 처럼 설정 창을 가리키는 대목은 fSnippet 을 함께 쓸 때의 조작이다 — fSnippet 화면 사용법은 fSnippet 매뉴얼 몫이다. 문서 지도: [manual/README.md](README.md)
 
 # fSnippet이란? (Overview)
 
@@ -39,7 +42,7 @@ fSnippet은 사용자의 키보드 입력을 시스템 레벨에서 모니터링
 화면 상단의 통합 치환 도구에 정규식(Regex) 형식으로 검색어를 입력하고 치환 버튼을 누르면, 본문 내 문자열들이 한 번에 `{{placeholder}}` 포맷으로 안전하게 일괄 변환(Undo 스택 기본 지원)됩니다.
 
 ### 1.2.3. 강력한 Alfred 호환 모드 (Seamless Import)
-기존에 사용하던 Alfred 스니펫 팩커지를 설정 - 고급 탭에서 버튼 한 번에 가져옵니다. 이 과정에서 중복된 접미어를 덜어내고, 불필요한 키 이벤트를 줄이는 최적화와 더불어 아이콘까지 그대로 파싱하여 이식하는 강력한 마이그레이션 경험을 제공합니다.
+기존에 사용하던 Alfred 스니펫 패키지를 한 번에 가져옵니다(fSnippet 사용 시 설정 - 고급 탭의 버튼). 이 과정에서 중복된 접미어를 덜어내고, 불필요한 키 이벤트를 줄이는 최적화와 더불어 아이콘까지 그대로 파싱하여 이식하는 강력한 마이그레이션 경험을 제공합니다.
 
 ## 1.3. 동적 플레이스홀더 (Dynamic Placeholders)
 

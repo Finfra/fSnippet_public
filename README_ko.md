@@ -18,8 +18,8 @@ macOS 메뉴바 스니펫 & 클립보드 관리 도구. 텍스트 스니펫을 �
 | **fSnippet Pro** (GUI) | 유료            | GUI        | —      | App Store (출시 예정)                                     |
 | **fSnippetCli** (CLI)  | 무료 / 오픈소스 | CLI        | v1.1.1 | Homebrew — [설치](#설치-fsnippetcli) ([소스코드](./cli/)) |
 
-* **fSnippet Pro** - 직관적인 설정 화면, 시각적 스니펫 관리, 클립보드 히스토리 뷰어를 갖춘 정식 GUI 앱. Mac App Store에서 출시 예정.
-* **fSnippetCli** - 완전 무료 오픈소스 CLI 버전. 모든 소스코드는 [`cli/`](./cli/) 디렉토리에 있으며 Homebrew로 설치 가능.
+* **fSnippet Pro** - **fSnippetCli 의 GUI 래퍼.** fSnippetCli 엔진 위에서 설정·스니펫 관리 화면을 제공하며, fSnippetCli 없이는 동작하지 않음. Mac App Store에서 출시 예정. 매뉴얼은 fSnippet 프로젝트에서 따로 관리.
+* **fSnippetCli** - 엔진: 키 감시·스니펫 확장·팝업·클립보드 히스토리·REST API. 단독 실행 가능. 완전 무료 오픈소스로 모든 소스코드는 [`cli/`](./cli/) 디렉토리에 있으며 Homebrew로 설치 가능. → [fSnippetCli 매뉴얼](./manual/)
 
 ## 설치 (fSnippetCli)
 
@@ -133,7 +133,7 @@ AI 에이전트로 fSnippet을 자동화하고 확장하세요. 모든 연동 �
 
 | 문서                                 | 설명                             |
 | :----------------------------------- | :------------------------------- |
-| [매뉴얼](./manual/)                  | 사용자 매뉴얼 (한국어/영어)      |
+| [매뉴얼](./manual/)                  | fSnippetCli 매뉴얼 (엔진) — fSnippet 은 이 엔진의 GUI 래퍼 |
 | [REST API](./api/)                   | REST API 레퍼런스 & OpenAPI 명세 |
 | [MCP 서버](./mcp/)                   | Model Context Protocol 서버      |
 | [Claude Code 스킬](./agents/claude/) | Claude Code 플러그인             |

@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 245
+* Issue HWM: 246
 * Checkpoints:
       - 1c34407 (2026-09-12) 작업 트리 스냅샷 (Issue234 종결 시점)
       - 4a49da5 (2026-09-08) 작업 트리 스냅샷
@@ -31,6 +31,19 @@ date: 2026-04-07
 1. `jma-fsnippet-deploy.sh` 가 `git pull origin release/1.1.1` 하드코딩 — 다음 출고 라인에서 R1 전에 브랜치 인자화 필요 (prj3#Issue717 배포용 TDD 적용 중 발견)
 
 # 🚧 진행중
+## Issue246: [문서] `manual/` 을 fSnippetCli 전용 매뉴얼로 정리 — fSnippet(paidApp)은 fSnippetCli 의 GUI 래퍼임을 명시하고 매뉴얼 링크 정비 (등록: 2026-10-08)
+* 목적: fSnippetCli(cliApp, prj25)와 fSnippet(paidApp, prj15)은 다른 프로젝트다. 그런데 `manual/` 은 단일 앱 시절 «fSnippet 매뉴얼» 그대로라 제목·빠른 시작·관련 링크가 paidApp(`xcodebuild -scheme fSnippet`·`com.nowage.fSnippet`·`.agent/rules/…`)을 가리킨다. 이 매뉴얼이 fSnippetCli 의 것임을 밝히고, paidApp 은 이 엔진의 GUI 래퍼라는 관계와 상대 매뉴얼 링크를 확실히 한다
+* depends: prj15#Issue990 (짝 이슈 — paidApp `manual/` 신설)
+* 상세:
+    - `manual/README.md`: 제목·범위가 «fSnippet» · 빠른 시작이 paidApp Debug 빌드 · 관련 링크가 이 저장소에 없는 경로(`.agent/rules/`·`_doc_arch/ARCHITECTURE.md`·`_doc_work/…`)
+    - `manual/FunctionalSpecification.md`: 엔진 기능과 paidApp GUI 기능이 구분 없이 섞여 있음
+    - `README.md`·`README_ko.md` «문서» 표의 Manual 행이 어느 앱 매뉴얼인지 불명
+* 구현 명세:
+    - `manual/README.md` 재작성 — «fSnippetCli 매뉴얼» 명시, 제품 구성 표(fSnippetCli = 엔진·무료 / fSnippet = fSnippetCli 의 GUI 래퍼·유료), 빠른 시작을 brew 설치·REST 확인으로 교체, 죽은 링크를 이 저장소 실재 경로로 교체
+    - `manual/FunctionalSpecification.md` 첫머리에 적용 범위 안내 + paidApp GUI 전용 항목 표시
+    - `README.md`·`README_ko.md` Manual 행을 «fSnippetCli 매뉴얼» 로 명확화하고 paidApp 래퍼 관계 1줄 추가
+    - 검증: `grep '_public/' manual/*.md` 0건(public-path-rules) · 새 상대 링크 실재 확인
+
 # 📕 중요
 
 ## Issue244: [출고차단] cliApp 1.1.2 `GET /` 응답 키 변경(`uptimeSeconds`→`uptime_seconds`)으로 paidApp 연결 불가 + 출고 테스트 발견 결함 (등록: 2026-09-29)
