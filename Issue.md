@@ -36,27 +36,6 @@ date: 2026-04-07
 
 # 📕 중요
 
-## Issue252: [긴급] jm4 로컬 tap `Formula/fsnippet-cli.rb` 머지 충돌로 `brew install` 실패 — cliApp 미설치·스니펫 확장 정지 (등록: 2026-10-09, 출처: prj15#Issue994 · 요청 fbotreq-1791474928-b7077b64)
-* 목적: jm4 에 fsnippet-cli 를 다시 설치·기동해 스니펫 확장을 되살리고, 같은 충돌이 다시 나지 않게 원인(Issue244 ⑤⑥)을 막는다
-* depends: Issue244
-* 상세:
-    - 실측(2026-10-09, `/opt/homebrew/Library/Taps/finfra/homebrew-tap`): HEAD `6b619f7`(fsnippet-cli 1.1.1 rollback) 위에 `UU Formula/fsnippet-cli.rb`(upstream `cli-v1.1.1` URL ↔ stash 의 `file:///tmp/fSnippetCli-local.tar.gz` 로컬 빌드 URL) + `M Formula/fwarrange-cli.rb`(스테이징본 안에 **중첩 충돌 마커** — prj26 Formula 도 깨짐) · stash 8건(`stash@{0}`~`{7}`, 모두 로컬 빌드용 Formula 잔재)
-    - 결과: `brew list --versions fsnippet-cli` 빈 값 · `pgrep fSnippetCli` 없음
-    - 원인: Issue244 ⑤(publish 뒤 자동 로컬 install → brew 자동 update 가 로컬 Formula 를 stash/pop) · ⑥(로컬 배포가 tap Formula 를 `file:///tmp` 로 바꾸고 되돌리지 않음) 의 재발. 같은 복구가 Issue170 무렵(`merge --abort` + `reset --hard origin/main`)에도 있었다 — 세 번째
-* 구현 명세:
-    - ① tap 복구 — **사람 승인 대기(H:파괴)**, 총괄 상신 mq `20261009-040244-001`(선택지 a 백업·reset / b 백업만 / c 보류 — 결정 전 tap 무변경): tap 을 `origin/main` 으로 되돌리고 로컬 빌드 stash 를 폐기. tap 은 prj26 와 공유라 fwarrange-cli.rb 도 함께 원복된다
-        ```bash
-        cd /opt/homebrew/Library/Taps/finfra/homebrew-tap
-        git stash list > /tmp/tap-stash-backup.txt; for i in $(seq 0 7); do git stash show -p stash@{$i} > /tmp/tap-stash-$i.patch; done  # 폐기 전 백업
-        git fetch origin && git reset --hard origin/main && git stash clear
-        ```
-    - ② 재설치·기동: `brew install finfra/tap/fsnippet-cli && brew services start fsnippet-cli` → `curl -s localhost:3015/` 의 `version` 확인 → 요청자(fbot-lead-fsnippet)에 설치 버전 회신
-    - ③ 재발 방지: 로컬 배포 경로(`fsc-deploy-brew.sh local`·`jma-fsnippet-deploy.sh --cliApp`)가 tap 작업트리를 직접 고치지 않게 한다(로컬 빌드는 별도 로컬 Formula/임시 tap 사용, 또는 끝에 반드시 원복) — Issue244 ⑤⑥ 와 합쳐 처리
-    - 검증: tap `git status` clean · `brew list --versions fsnippet-cli` = 1.1.1 · `GET :3015/` 200
-* 진행 (2026-10-09):
-    - ③ 재발 방지 완료(`170a3c9`, Issue244 ⑤⑥) — `local` 은 tap Formula 를 원복하고 충돌 tap 에는 손대지 않음. jm4 실 tap(`UU`) 에서 `/run` 이 무변경 중단함을 확인
-    - ①② 사람 결정 대기(mq `20261009-040244-001`) — 그 전까지 tap 무변경
-
 # 📙 일반
 
 ## Issue251: [Release] 공개 tap `fsnippet-cli` 1.1.1 롤백 반영 — Issue244 tap 상태 정정·다음 출고 시 tap 재상향 (등록: 2026-10-09, 출처: prj5 이슈후보3)
@@ -75,6 +54,30 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue252: [긴급] jm4 로컬 tap `Formula/fsnippet-cli.rb` 머지 충돌로 `brew install` 실패 — cliApp 미설치·스니펫 확장 정지 (등록: 2026-10-09, 출처: prj15#Issue994 · 요청 fbotreq-1791474928-b7077b64) (해결: 2026-10-09, commit: 170a3c9) ✅
+* 목적: jm4 에 fsnippet-cli 를 다시 설치·기동해 스니펫 확장을 되살리고, 같은 충돌이 다시 나지 않게 원인(Issue244 ⑤⑥)을 막는다
+* depends: Issue244
+* 상세:
+    - 실측(2026-10-09, `/opt/homebrew/Library/Taps/finfra/homebrew-tap`): HEAD `6b619f7`(fsnippet-cli 1.1.1 rollback) 위에 `UU Formula/fsnippet-cli.rb`(upstream `cli-v1.1.1` URL ↔ stash 의 `file:///tmp/fSnippetCli-local.tar.gz` 로컬 빌드 URL) + `M Formula/fwarrange-cli.rb`(스테이징본 안에 **중첩 충돌 마커** — prj26 Formula 도 깨짐) · stash 8건(`stash@{0}`~`{7}`, 모두 로컬 빌드용 Formula 잔재)
+    - 결과: `brew list --versions fsnippet-cli` 빈 값 · `pgrep fSnippetCli` 없음
+    - 원인: Issue244 ⑤(publish 뒤 자동 로컬 install → brew 자동 update 가 로컬 Formula 를 stash/pop) · ⑥(로컬 배포가 tap Formula 를 `file:///tmp` 로 바꾸고 되돌리지 않음) 의 재발. 같은 복구가 Issue170 무렵(`merge --abort` + `reset --hard origin/main`)에도 있었다 — 세 번째
+* 구현 명세:
+    - ① tap 복구 — **사람 승인 대기(H:파괴)**, 총괄 상신 mq `20261009-040244-001`(선택지 a 백업·reset / b 백업만 / c 보류 — 결정 전 tap 무변경): tap 을 `origin/main` 으로 되돌리고 로컬 빌드 stash 를 폐기. tap 은 prj26 와 공유라 fwarrange-cli.rb 도 함께 원복된다
+        ```bash
+        cd /opt/homebrew/Library/Taps/finfra/homebrew-tap
+        git stash list > /tmp/tap-stash-backup.txt; for i in $(seq 0 7); do git stash show -p stash@{$i} > /tmp/tap-stash-$i.patch; done  # 폐기 전 백업
+        git fetch origin && git reset --hard origin/main && git stash clear
+        ```
+    - ② 재설치·기동: `brew install finfra/tap/fsnippet-cli && brew services start fsnippet-cli` → `curl -s localhost:3015/` 의 `version` 확인 → 요청자(fbot-lead-fsnippet)에 설치 버전 회신
+    - ③ 재발 방지: 로컬 배포 경로(`fsc-deploy-brew.sh local`·`jma-fsnippet-deploy.sh --cliApp`)가 tap 작업트리를 직접 고치지 않게 한다(로컬 빌드는 별도 로컬 Formula/임시 tap 사용, 또는 끝에 반드시 원복) — Issue244 ⑤⑥ 와 합쳐 처리
+    - 검증: tap `git status` clean · `brew list --versions fsnippet-cli` = 1.1.1 · `GET :3015/` 200
+* 진행 (2026-10-09):
+    - ③ 재발 방지 완료(`170a3c9`, Issue244 ⑤⑥) — `local` 은 tap Formula 를 원복하고 충돌 tap 에는 손대지 않음. jm4 실 tap(`UU`) 에서 `/run` 이 무변경 중단함을 확인
+    - ①② 완료 — 사용자 결정 «(a) 백업 후 reset»(폼 답변, mq `20261009-040244-001` confirmed)
+        - 백업: `cli/_doc_work/tap-backup/2026.10.09/`(작업트리·인덱스 patch, 충돌 `fsnippet-cli.rb` 원본, prj26 `fwarrange-cli.rb` 수정본, stash 0~7 patch) — `git stash clear` 는 하지 않음(설치와 무관, 백업만)
+        - `reset --hard origin/main`(`6b619f7`) → `brew install finfra/tap/fsnippet-cli` + `brew services start` → `GET :3015/` status ok · version 1.1.1 · snippet_count 1861 · tap `git status` clean
+        - 요청자 회신: `fbotreq-1791474928-b7077b64`·`fbotreq-1791474931-f82652c1` done
+
 ## Issue244: [출고차단] cliApp 1.1.1 후보 빌드 `GET /` 응답 키 변경(`uptimeSeconds`→`uptime_seconds`)으로 paidApp 연결 불가 + 출고 테스트 발견 결함 (등록: 2026-09-29) (해결: 2026-10-09, commit: 170a3c9) ✅
 * 목적: prj5#Issue107 jma 출고 테스트(2026-09-29)가 찾은 출고 차단 결함과 부수 결함을 기록한다. 공개 tap `fsnippet-cli` 는 2026-10-08 23:31 결함 이전 공개 빌드 `cli-v1.1.1` 로 복원됐다(tap `6b619f7`)
 * 상세:
