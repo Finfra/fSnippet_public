@@ -74,6 +74,7 @@ date: 2026-04-07
     - 보충 신고 원인 확정: 코드 결함 아님 — jma 설치본이 수정 이전 소스(`52d3c36`)였다. `jma-fsnippet-deploy --cliApp` 재배포(정식 서명 valid) 후 설치본 `AppIcon.icns` 다이제스트 = jm4 iconutil 산출물(`270ac7daffc85437`), `CFBundleIconFile=AppIcon`·`CFBundleIconName` 없음·Assets.car 없음, `lsregister -f` 재등록. 기록: `cli/_doc_work/debug_TECH.md`(로컬 전용)
     - 코드 변경이 없어 red 테스트 추가 대상 아님(TDD 해당 없음: 환경 — 미배포)
     - 남은 일: `[사람]` jma 에서 fSnippetCli 를 재시작해 권한 안내를 띄우고 «손쉬운 사용» 목록에 다시 추가(시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용 > + > `/Applications/_nowage_app/fSnippetCli.app`) 후 아이콘 확인
+    - 최종 확인(2026-10-09 20:07, 총괄 직접): 재배포(19:53) 뒤에도 목록 아이콘이 안 보여 사용자가 jma 재부팅. 재부팅 뒤 서비스가 미등록(`brew services` none)이라 GUI 세션에서 `brew services start` → 앱이 권한 안내를 띄우며 목록에 재등록. jma 캡처에서 fSnippetCli.app 아이콘이 fWarrangeCli 와 같이 또렷이 표시(jm4 와 동일). 재배포 직후 미표시는 로그인 세션의 아이콘 캐시가 옛 무아이콘 번들 것을 들고 있던 것으로 판단 — 재부팅으로 해소 (검증 필요: 캐시 주체 미특정). 권한 토글 ON 은 사람 작업
 
 ## Issue258: [Test] `apiTest/v2/*.sh` 35건이 `jq .` 출력만 하고 판정 안 함 — 케이스별 단언·종료코드 도입 (등록: 2026-10-09, 출처: 이슈후보, Issue244 ③ 수정 중 발견) (해결: 2026-10-09, commit: 40259ce) ✅
 * 목적: `fsc-test.sh` Step 9 «API 통합 테스트» 가 실행 수만 보고 PASS 하는 것을 막아 실패를 실패로 보고하게 한다
