@@ -49,7 +49,7 @@ cd fSnippet_public/cli
 xcodebuild -scheme fSnippetCli -configuration Release build
 ```
 
-A source build shows the macOS default app icon — the fSnippet icon is an Official Build Component (see [NOTICE](../NOTICE)) and ships only in Official Builds.
+A source build shows the fSnippet icon too. The icon is still an Official Build Component and a Finfra trademark, not licensed under the Apache License (see [NOTICE](../NOTICE) and [TRADEMARK.md](../TRADEMARK.md)) — redistributing a build that carries it is governed by TRADEMARK.md.
 
 # Accessibility Permission
 

@@ -1,18 +1,22 @@
 #!/bin/sh
 # Xcode build phase "Official Build Components" (Issue238 — DISTRIBUTION-TERMS.md v1.2 §1(b)).
 #
-# FSNIPPET_OFFICIAL_BUILD=YES (passed only by `fsc-deploy-brew.sh publish`) bundles:
+# Every build (Issue254):
+#   Contents/Resources/AppIcon.icns <- iconutil cli/resources/official/AppIcon.iconset
+#     The icon stays a Finfra brand asset outside the Apache license (it lives in
+#     resources/official/, not the asset catalog — Issue242), but source builds ship it too
+#     instead of falling back to the macOS default icon (user decision 2026-10-09).
+# FSNIPPET_OFFICIAL_BUILD=YES (passed only by `fsc-deploy-brew.sh publish`) also bundles:
 #   Contents/Resources/Official/ <- cli/resources/official/  (Finfra-proprietary, not Apache)
-#                                   except AppIcon.iconset, which becomes the app icon:
-#   Contents/Resources/AppIcon.icns <- iconutil cli/resources/official/AppIcon.iconset (Issue242)
+#                                   except AppIcon.iconset (already the app icon above)
 #   Contents/Resources/Legal/    <- LICENSE, NOTICE, TRADEMARK.md, DISTRIBUTION-TERMS.md,
 #                                   DISTRIBUTION-TERMS_ko.md
 #                                   (terms shipped inside the package — DISTRIBUTION-TERMS §6;
 #                                   the Korean text has equal force for Korean residents — §10, Issue241)
 # Any other build is a source build: remove whatever an earlier official build left in the
-# same DerivedData, so the marker and the icon can never leak into a source build.
+# same DerivedData, so the marker and the terms can never leak into a source build.
 # Info.plist names CFBundleIconFile=AppIcon in every build and the public asset catalog has
-# no app icon, so a source build — with no AppIcon.icns — shows the macOS default app icon.
+# no app icon, so AppIcon.icns is the one icon every build shows.
 # The phase runs before code signing, so the signature seals the copied files.
 
 set -eu
@@ -56,9 +60,21 @@ if [ -f "$DEST/Assets.car" ]; then
     fi
 fi
 
+if [ ! -d "$ICONSET" ]; then
+    echo "error: $ICONSET missing — cannot build the app icon"
+    exit 1
+fi
+iconutil -c icns "$ICONSET" -o "$DEST/AppIcon.icns"
+
 if [ "${FSNIPPET_OFFICIAL_BUILD:-NO}" != "YES" ]; then
-    write_stamp "source$HEALED"
-    echo "Official Build Components: source build — none bundled (macOS default app icon)"
+    # Assigned on its own line so a failure is caught instead of writing a partial stamp.
+    ICON_DIGEST=$(shasum -a 256 "$DEST/AppIcon.icns" | cut -c1-16)
+    case "$ICON_DIGEST" in
+        [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;;
+        *) echo "error: could not hash the app icon ('$ICON_DIGEST')"; exit 1 ;;
+    esac
+    write_stamp "source icon $ICON_DIGEST$HEALED"
+    echo "Official Build Components: source build — app icon only (no Official/, no Legal/)"
     exit 0
 fi
 
@@ -69,11 +85,6 @@ for f in "$OFFICIAL_SRC/official-build.txt" $(for l in $LEGAL_FILES; do echo "$R
         exit 1
     fi
 done
-if [ ! -d "$ICONSET" ]; then
-    echo "error: $ICONSET missing — cannot make an Official Build"
-    exit 1
-fi
-
 mkdir -p "$DEST/Official" "$DEST/Legal"
 for item in "$OFFICIAL_SRC"/*; do
     [ "$item" = "$ICONSET" ] && continue
@@ -82,7 +93,6 @@ done
 for f in $LEGAL_FILES; do
     cp "$REPO_ROOT/$f" "$DEST/Legal/$f"
 done
-iconutil -c icns "$ICONSET" -o "$DEST/AppIcon.icns"
 
 # Assigned on its own line so a failure is caught instead of writing a partial stamp.
 DIGEST=$(cd "$DEST" && find Official Legal AppIcon.icns -type f -print0 | LC_ALL=C sort -z \

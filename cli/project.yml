@@ -31,7 +31,7 @@ targets:
         CODE_SIGN_ENTITLEMENTS: fSnippetCli/fSnippetCli.entitlements
         GENERATE_INFOPLIST_FILE: false
         # Issue242: the app icon is an Official Build Component (cli/resources/official/), not
-        # an asset-catalog icon — the build phase below installs it into official builds only
+        # an asset-catalog icon — the build phase below installs it into every build (Issue254)
         ASSETCATALOG_COMPILER_APPICON_NAME: ""
         ENABLE_HARDENED_RUNTIME: true
         LD_RUNPATH_SEARCH_PATHS:
@@ -40,7 +40,7 @@ targets:
     entitlements:
       path: fSnippetCli/fSnippetCli.entitlements
     postBuildScripts:
-      # Issue238·242: bundle Official Build Components (marker, terms, app icon) only when FSNIPPET_OFFICIAL_BUILD=YES
+      # Issue238·242·254: app icon in every build; marker and terms only when FSNIPPET_OFFICIAL_BUILD=YES
       - name: Official Build Components
         basedOnDependencyAnalysis: false
         script: /bin/sh "${SRCROOT}/_tool/fsc-official-components.sh"

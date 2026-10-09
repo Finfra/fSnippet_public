@@ -7,17 +7,17 @@
 #      code signature is still valid (the files are copied before signing, so the seal covers them).
 #      The Korean terms ship too (Issue241): §10 gives them equal force for individuals resident
 #      in Korea, and §6 presents the terms inside the package.
-#   2. A source build in the same DerivedData right after it carries neither — nothing an
-#      official build left behind may leak into a source build.
+#   2. A source build in the same DerivedData right after it carries neither marker nor terms —
+#      nothing an official build left behind may leak into a source build.
 #   3. An official build on top of that source build (publish from a developer's DerivedData)
 #      is again complete and validly signed. 2 and 3 guard against Xcode skipping CodeSign
 #      when only the build phase changed the bundle (seen before the OfficialBuildState stamp).
 #   4. `fSnippetCli --version` of the official build prints the "Finfra Official Build" line
 #      (needs a running service on :3015 — reported as SKIP when absent, never as PASS).
-#   5. (tdd #18, Issue242) The app icon is an Official Build Component too: the official build
-#      ships Resources/AppIcon.icns made from cli/resources/official/AppIcon.iconset, while the
-#      source build carries no icon at all (no AppIcon.icns, no icon in Assets.car, no
-#      CFBundleIconName) and shows the macOS default app icon.
+#   5. (tdd #18, Issue242 → Issue254) The app icon is a brand asset kept in
+#      cli/resources/official/AppIcon.iconset (not the Apache asset catalog). Every build — official
+#      and source alike — ships Resources/AppIcon.icns made from it, with no icon in Assets.car and
+#      no CFBundleIconName. Source builds showed the macOS default icon until Issue254.
 #   6. (Issue241) The publish gate (fsc-deploy-brew.sh Step 2.6) refuses a release that lacks any
 #      of the Legal files above — the bundle list and the gate list must not drift apart.
 #
@@ -71,6 +71,21 @@ plist_value() {
     /usr/libexec/PlistBuddy -c "Print :$1" "$APP/Contents/Info.plist" 2>/dev/null
 }
 
+check_app_icon() {
+    # $1 = label. Every build ships the official icon as Resources/AppIcon.icns (Issue254).
+    if [ -f "$RES/AppIcon.icns" ] && [ -f "$EXPECTED_ICNS" ] && cmp -s "$RES/AppIcon.icns" "$EXPECTED_ICNS"; then
+        pass "$1: AppIcon.icns is the official icon (resources/official/AppIcon.iconset)"
+    else
+        fail "$1: AppIcon.icns missing or not the official icon"
+    fi
+    if [ "$(plist_value CFBundleIconFile)" = "AppIcon" ]; then
+        pass "$1: Info.plist CFBundleIconFile = AppIcon"
+    else
+        fail "$1: Info.plist CFBundleIconFile is '$(plist_value CFBundleIconFile)', not AppIcon"
+    fi
+    check_no_catalog_icon "$1"
+}
+
 check_no_catalog_icon() {
     # $1 = label. CFBundleIconName (an asset-catalog icon) would override CFBundleIconFile.
     if [ -n "$(plist_value CFBundleIconName)" ]; then
@@ -101,22 +116,12 @@ check_official() {
             fail "$1: Legal/$f missing or differs from repository"
         fi
     done
-    if [ -f "$RES/AppIcon.icns" ] && [ -f "$EXPECTED_ICNS" ] && cmp -s "$RES/AppIcon.icns" "$EXPECTED_ICNS"; then
-        pass "$1: AppIcon.icns is the official icon (resources/official/AppIcon.iconset)"
-    else
-        fail "$1: AppIcon.icns missing or not the official icon"
-    fi
-    if [ "$(plist_value CFBundleIconFile)" = "AppIcon" ]; then
-        pass "$1: Info.plist CFBundleIconFile = AppIcon"
-    else
-        fail "$1: Info.plist CFBundleIconFile is '$(plist_value CFBundleIconFile)', not AppIcon"
-    fi
     if [ -e "$RES/Official/AppIcon.iconset" ]; then
         fail "$1: the iconset source was copied into Official/"
     else
         pass "$1: no iconset source under Official/"
     fi
-    check_no_catalog_icon "$1"
+    check_app_icon "$1"
     check_signature "$1"
 
     if curl -s -m 2 -o /dev/null http://localhost:3015/api/v2/status; then
@@ -168,12 +173,7 @@ if build; then
     else
         pass "source: no Official/ and no Legal/ in the bundle"
     fi
-    if [ -e "$RES/AppIcon.icns" ]; then
-        fail "source: AppIcon.icns in the bundle"
-    else
-        pass "source: no AppIcon.icns in the bundle"
-    fi
-    check_no_catalog_icon "source"
+    check_app_icon "source"
     check_signature "source"
 
     if curl -s -m 2 -o /dev/null http://localhost:3015/api/v2/status; then

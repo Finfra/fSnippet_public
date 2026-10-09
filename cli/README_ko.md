@@ -49,7 +49,7 @@ cd fSnippet_public/cli
 xcodebuild -scheme fSnippetCli -configuration Release build
 ```
 
-소스 빌드는 macOS 기본 앱 아이콘으로 표시됨 — fSnippet 아이콘은 공식 빌드 구성요소([NOTICE](../NOTICE) 참고)라 공식 빌드에만 들어감.
+소스 빌드에도 fSnippet 아이콘이 표시됨. 아이콘은 여전히 공식 빌드 구성요소이자 Finfra 상표로 Apache License 대상이 아님([NOTICE](../NOTICE)·[TRADEMARK.md](../TRADEMARK.md) 참고) — 아이콘이 든 빌드를 재배포하는 것은 TRADEMARK.md 를 따름.
 
 # 접근성 권한 설정
 

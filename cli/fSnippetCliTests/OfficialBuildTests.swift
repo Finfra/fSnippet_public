@@ -7,8 +7,8 @@
 //  nobody can tell an Official Build from a source build, so the terms have no target.
 //  The marker lives in cli/resources/official/ and is bundled only when
 //  FSNIPPET_OFFICIAL_BUILD=YES (see _tool/fsc-official-components.sh).
-//  tdd #18 official-app-icon (Issue242): the app icon lives there too — source builds show the
-//  macOS default icon.
+//  tdd #18 official-app-icon (Issue242 → Issue254): the app icon lives there too. It stays a
+//  brand asset outside the Apache license, but every build — source builds included — ships it.
 //
 
 import XCTest
@@ -40,7 +40,7 @@ final class OfficialBuildTests: XCTestCase {
         repoCliDir.appendingPathComponent("resources/official")
     }
 
-    /// CFBundleIconFile of every build; only an Official Build ships Resources/AppIcon.icns.
+    /// CFBundleIconFile of every build; every build ships Resources/AppIcon.icns (Issue254).
     private let appIconName = "AppIcon"
 
     /// The ten images `iconutil -c icns` expects in an .iconset (16–512 pt at 1x and 2x).
@@ -88,10 +88,12 @@ final class OfficialBuildTests: XCTestCase {
         XCTAssertEqual(source.map(\.0), ["App", "Version", "Build", "Swift", "macOS Target"])
     }
 
-    // MARK: - Official app icon (Issue242)
+    // MARK: - Official app icon (Issue242 → Issue254)
     //
-    // The app icon is a brand asset (NOTICE: Official Build Components). While it sat in the
-    // Apache-licensed asset catalog, every source build showed it too.
+    // The app icon is a brand asset (NOTICE: Official Build Components), so it lives in
+    // cli/resources/official/ and not in the Apache-licensed asset catalog (Issue242). Source
+    // builds showed the macOS default icon until Issue254 (user decision 2026-10-09): every
+    // build now ships the same official icon, made from that iconset by the build phase.
 
     func testPublicAssetCatalogCarriesNoAppIcon() throws {
         let catalog = repoCliDir.appendingPathComponent("fSnippetCli/Assets.xcassets")
@@ -107,14 +109,30 @@ final class OfficialBuildTests: XCTestCase {
         XCTAssertEqual(files, iconsetFileNames)
     }
 
-    /// The XCTest host is a plain source build — it must fall back to the macOS default icon.
-    func testSourceBuildHostCarriesNoAppIcon() {
-        XCTAssertNil(Bundle.main.url(forResource: appIconName, withExtension: "icns"))
-        XCTAssertNil(Bundle.main.image(forResource: appIconName))
+    /// The XCTest host is a plain source build — it must carry the official icon, byte for byte
+    /// what `iconutil` makes from the repository iconset (Issue254).
+    func testSourceBuildHostCarriesTheOfficialAppIcon() throws {
+        let bundled = try XCTUnwrap(
+            Bundle.main.url(forResource: appIconName, withExtension: "icns"),
+            "source build has no \(appIconName).icns — it would show the macOS default icon")
+        XCTAssertNotNil(Bundle.main.image(forResource: appIconName))
         XCTAssertNil(Bundle.main.object(forInfoDictionaryKey: "CFBundleIconName"))
+
+        let expected = tempDir.appendingPathComponent("expected-\(appIconName).icns")
+        let iconutil = Process()
+        iconutil.executableURL = URL(fileURLWithPath: "/usr/bin/iconutil")
+        iconutil.arguments = [
+            "-c", "icns",
+            repoOfficialDir.appendingPathComponent("\(appIconName).iconset").path,
+            "-o", expected.path,
+        ]
+        try iconutil.run()
+        iconutil.waitUntilExit()
+        XCTAssertEqual(iconutil.terminationStatus, 0)
+        XCTAssertEqual(try Data(contentsOf: bundled), try Data(contentsOf: expected))
     }
 
-    /// Both builds share one Info.plist, so the icon an Official Build installs is picked up
+    /// Both builds share one Info.plist, so the icon the build phase installs is picked up
     /// without the build phase editing Info.plist.
     func testInfoPlistNamesTheOfficialIconFile() {
         XCTAssertEqual(
