@@ -1,4 +1,6 @@
 #!/bin/bash
-# Issue92: v2 health check (/api/v2/status)
-BASE="http://localhost:${FSC_API_PORT:-3015}/api/v2"
-curl -s --connect-timeout 3 "$BASE/status" | jq .
+# GET /status (Issue92 v2 health check)
+. "${APITEST_LIB:-$(dirname "$0")/../lib.sh}"
+expect_status "GET /status" 200 GET /status
+expect_jq "ok and status=ok" '.ok==true and .data.status=="ok"'
+api_finish

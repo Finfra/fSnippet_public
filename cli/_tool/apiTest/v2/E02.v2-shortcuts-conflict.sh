@@ -1,15 +1,9 @@
 #!/bin/bash
-# PUT 충돌 (409): 두 이름에 동일 토큰을 연속 할당
-BASE="http://localhost:${FSC_API_PORT:-3015}/api/v2"
-# 1단계: settingsHotkey 에 임시 토큰 설정
-curl -s -o /dev/null -X PUT -H "Content-Type: application/json" \
-  -d '{"keyCode":null,"modifiers":[],"display":"⌃⇧⌘0","token":"⌃⇧⌘0"}' \
-  "$BASE/settings/shortcuts/settingsHotkey"
-# 2단계: viewerHotkey 에 같은 토큰 → 409 기대
-curl -s -w "\nHTTP=%{http_code}\n" -X PUT -H "Content-Type: application/json" \
-  -d '{"keyCode":null,"modifiers":[],"display":"⌃⇧⌘0","token":"⌃⇧⌘0"}' \
-  "$BASE/settings/shortcuts/viewerHotkey"
-# 정리: settingsHotkey 복구
-curl -s -o /dev/null -X PUT -H "Content-Type: application/json" \
-  -d '{"keyCode":null,"modifiers":[],"display":"^⇧⌘;","token":"^⇧⌘;"}' \
-  "$BASE/settings/shortcuts/settingsHotkey"
+# assigning an already-used token -> 409
+. "${APITEST_LIB:-$(dirname "$0")/../lib.sh}"
+SC='{"keyCode":null,"modifiers":[],"display":"⌃⇧⌘0","token":"⌃⇧⌘0"}'
+expect_status "PUT settingsHotkey (setup)" 200 PUT /settings/shortcuts/settingsHotkey "$SC"
+expect_status "PUT viewerHotkey same token" 409 PUT /settings/shortcuts/viewerHotkey "$SC"
+expect_jq "error.code == conflict" '.error.code == "conflict"'
+expect_status "PUT settingsHotkey (restore)" 200 PUT /settings/shortcuts/settingsHotkey '{"keyCode":null,"modifiers":[],"display":"^⇧⌘;","token":"^⇧⌘;"}'
+api_finish

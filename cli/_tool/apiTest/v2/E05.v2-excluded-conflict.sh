@@ -1,17 +1,9 @@
 #!/bin/bash
-# 409 duplicate + 404 not-found 복합 검증 (global)
-BASE="http://localhost:${FSC_API_PORT:-3015}/api/v2"
+# global excluded: duplicate -> 409, missing -> 404
+. "${APITEST_LIB:-$(dirname "$0")/../lib.sh}"
 TEMP="apitest-err-$$.md"
-curl -s -o /dev/null -X POST -H "Content-Type: application/json" \
-  -d "{\"filename\":\"$TEMP\"}" \
-  "$BASE/settings/advanced/excluded-files/global/entries"
-echo "== POST duplicate → 409 =="
-curl -s -w "\nHTTP=%{http_code}\n" -X POST -H "Content-Type: application/json" \
-  -d "{\"filename\":\"$TEMP\"}" \
-  "$BASE/settings/advanced/excluded-files/global/entries"
-echo "== DELETE non-existent → 404 =="
-curl -s -w "\nHTTP=%{http_code}\n" -X DELETE \
-  "$BASE/settings/advanced/excluded-files/global/entries/nothing-$$.txt"
-# 정리
-curl -s -o /dev/null -X DELETE \
-  "$BASE/settings/advanced/excluded-files/global/entries/$TEMP"
+expect_status "POST $TEMP (setup)" 201 POST /settings/advanced/excluded-files/global/entries "{\"filename\":\"$TEMP\"}"
+expect_status "POST duplicate" 409 POST /settings/advanced/excluded-files/global/entries "{\"filename\":\"$TEMP\"}"
+expect_status "DELETE non-existent" 404 DELETE "/settings/advanced/excluded-files/global/entries/nothing-$$.txt"
+expect_status "DELETE $TEMP (cleanup)" 204 DELETE "/settings/advanced/excluded-files/global/entries/$TEMP"
+api_finish

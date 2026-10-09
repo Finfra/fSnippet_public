@@ -1,5 +1,5 @@
 #!/bin/bash
-# DELETE /api/v2/settings/shortcuts/togglePreviewHotkey — 단축키 해제 (204)
-BASE="http://localhost:${FSC_API_PORT:-3015}/api/v2"
-curl -s --connect-timeout 3 -o /dev/null -w "HTTP=%{http_code}\n" -X DELETE \
-  "$BASE/settings/shortcuts/togglePreviewHotkey"
+# DELETE /settings/shortcuts/togglePreviewHotkey (204)
+. "${APITEST_LIB:-$(dirname "$0")/../lib.sh}"
+expect_status "DELETE togglePreviewHotkey" 204 DELETE /settings/shortcuts/togglePreviewHotkey
+api_finish

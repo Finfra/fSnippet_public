@@ -1,10 +1,9 @@
 #!/bin/bash
-# GET + PATCH /api/v2/settings/advanced/input
-BASE="http://localhost:${FSC_API_PORT:-3015}/api/v2"
-echo "== GET =="
-curl -s --connect-timeout 3 "$BASE/settings/advanced/input" | jq .
-echo "== PATCH (forceSearchInputLanguage=U.S.) =="
-curl -s --connect-timeout 3 -X PATCH \
-  -H "Content-Type: application/json" \
-  -d '{"forceSearchInputLanguage": "U.S."}' \
-  "$BASE/settings/advanced/input" | jq .
+# PATCH /settings/advanced/input forceSearchInputLanguage
+. "${APITEST_LIB:-$(dirname "$0")/../lib.sh}"
+expect_status "GET /settings/advanced/input" 200 GET /settings/advanced/input
+expect_jq "response is an object" 'type=="object"'
+expect_status "PATCH forceSearchInputLanguage" 200 PATCH /settings/advanced/input '{"forceSearchInputLanguage": "U.S."}'
+expect_status "GET /settings/advanced/input (after)" 200 GET /settings/advanced/input
+expect_jq "forceSearchInputLanguage == U.S." '.forceSearchInputLanguage == "U.S."'
+api_finish

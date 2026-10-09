@@ -1,5 +1,13 @@
 #!/bin/bash
-# POST /api/v2/settings/snippet-folders/_emoji/rebuild — 202 Accepted
-BASE="http://localhost:${FSC_API_PORT:-3015}/api/v2"
-curl -s --connect-timeout 3 -w "\nHTTP=%{http_code}\n" \
-  -X POST "$BASE/settings/snippet-folders/_emoji/rebuild"
+# POST /settings/snippet-folders/_emoji/rebuild (202 accepted)
+. "${APITEST_LIB:-$(dirname "$0")/../lib.sh}"
+api_call GET /settings/snippet-folders/_emoji
+if [ "$API_STATUS" = "404" ]; then
+    api_skip "_emoji folder absent on this data root"
+elif [ "$API_STATUS" != "200" ]; then
+    _api_fail "GET _emoji: HTTP $API_STATUS (want 200 or 404)"
+else
+    expect_status "POST rebuild" 202 POST /settings/snippet-folders/_emoji/rebuild
+    expect_jq "status == accepted" '.data.status == "accepted"'
+fi
+api_finish

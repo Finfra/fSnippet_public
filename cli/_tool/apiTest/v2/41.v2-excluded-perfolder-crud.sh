@@ -1,18 +1,15 @@
 #!/bin/bash
-# Per-folder excluded files — PUT / GET / POST entry / DELETE entry / DELETE folder
-BASE="http://localhost:${FSC_API_PORT:-3015}/api/v2"
+# per-folder excluded files CRUD
+. "${APITEST_LIB:-$(dirname "$0")/../lib.sh}"
 F="_apitest_folder_$$"
-echo "== PUT list --"
-curl -s -X PUT -H "Content-Type: application/json" -d '["a.md","b.md"]' \
-  "$BASE/settings/excluded-files/per-folder/$F" | jq .
-echo "== GET one =="; curl -s "$BASE/settings/excluded-files/per-folder/$F" | jq .
-echo "== POST entry c.md =="
-curl -s -w "\nHTTP=%{http_code}\n" -X POST -H "Content-Type: application/json" \
-  -d '{"filename":"c.md"}' \
-  "$BASE/settings/excluded-files/per-folder/$F/entries"
-echo "== DELETE entry a.md =="
-curl -s -o /dev/null -w "HTTP=%{http_code}\n" -X DELETE \
-  "$BASE/settings/excluded-files/per-folder/$F/entries/a.md"
-echo "== DELETE folder =="
-curl -s -o /dev/null -w "HTTP=%{http_code}\n" -X DELETE \
-  "$BASE/settings/excluded-files/per-folder/$F"
+P="/settings/excluded-files/per-folder/$F"
+expect_status "PUT list" 200 PUT "$P" '["a.md","b.md"]'
+expect_status "GET one" 200 GET "$P"
+expect_jq "list == [a,b]" '. == ["a.md","b.md"]'
+expect_status "POST entry c.md" 201 POST "$P/entries" '{"filename":"c.md"}'
+expect_status "DELETE entry a.md" 204 DELETE "$P/entries/a.md"
+expect_status "GET one (after)" 200 GET "$P"
+expect_jq "a.md gone, c.md present" 'any(.[]; .=="c.md") and (any(.[]; .=="a.md")|not)'
+expect_status "DELETE folder" 204 DELETE "$P"
+expect_status "GET one (deleted)" 404 GET "$P"
+api_finish

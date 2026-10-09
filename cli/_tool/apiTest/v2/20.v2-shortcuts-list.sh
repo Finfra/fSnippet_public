@@ -1,4 +1,6 @@
 #!/bin/bash
-# GET /api/v2/settings/shortcuts — 전 단축키 조회
-BASE="http://localhost:${FSC_API_PORT:-3015}/api/v2"
-curl -s --connect-timeout 3 "$BASE/settings/shortcuts" | jq .
+# GET /settings/shortcuts
+. "${APITEST_LIB:-$(dirname "$0")/../lib.sh}"
+expect_status "GET /settings/shortcuts" 200 GET /settings/shortcuts
+expect_jq "settingsHotkey entry has a token" '(.settingsHotkey.token|type)=="string"'
+api_finish

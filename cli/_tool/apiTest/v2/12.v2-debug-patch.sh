@@ -1,10 +1,13 @@
 #!/bin/bash
-# GET + PATCH /api/v2/settings/advanced/debug
-BASE="http://localhost:${FSC_API_PORT:-3015}/api/v2"
-echo "== GET =="
-curl -s --connect-timeout 3 "$BASE/settings/advanced/debug" | jq .
-echo "== PATCH (logLevel=debug) =="
-curl -s --connect-timeout 3 -X PATCH \
-  -H "Content-Type: application/json" \
-  -d '{"logLevel": "debug"}' \
-  "$BASE/settings/advanced/debug" | jq .
+# PATCH /settings/advanced/debug logLevel round trip
+. "${APITEST_LIB:-$(dirname "$0")/../lib.sh}"
+expect_status "GET /settings/advanced/debug (original)" 200 GET /settings/advanced/debug
+ORIG=$(echo "$API_BODY" | jq -c '.logLevel')
+expect_status "PATCH logLevel" 200 PATCH /settings/advanced/debug '{"logLevel": "warning"}'
+expect_status "GET /settings/advanced/debug (after)" 200 GET /settings/advanced/debug
+expect_jq "logLevel updated" '.logLevel == "warning"'
+# restore the original value so later cases see the state they started with
+if [ "$ORIG" != "null" ]; then
+    expect_status "PATCH logLevel (restore)" 200 PATCH /settings/advanced/debug "{\"logLevel\": $ORIG}"
+fi
+api_finish

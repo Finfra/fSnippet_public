@@ -22,6 +22,27 @@ else
   SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 fi
 
+# Issue258: each case must print an APITEST_RESULT verdict line (lib.sh api_finish); the runner
+# counts failures and exits non-zero. APITEST_DIR overrides the case root (used by selftest.sh).
+export APITEST_LIB="$SCRIPT_DIR/lib.sh"
+CASE_ROOT="${APITEST_DIR:-$SCRIPT_DIR}"
+APITEST_TOTAL=0
+APITEST_FAILED=0
+
+# run_case <file> - run one case; no verdict line / non-zero exit / fail>0 all count as failure
+run_case() {
+  local f="$1" out rc
+  out=$(bash "$f" 2>&1); rc=$?
+  echo "$out"
+  APITEST_TOTAL=$((APITEST_TOTAL + 1))
+  if ! echo "$out" | grep -q '^APITEST_RESULT '; then
+    echo "  ❌ FAIL: $(basename "$f") printed no APITEST_RESULT verdict"
+    APITEST_FAILED=$((APITEST_FAILED + 1))
+  elif [ "$rc" -ne 0 ]; then
+    APITEST_FAILED=$((APITEST_FAILED + 1))
+  fi
+}
+
 # 인자 파싱
 VERSION="${1:-v2}"
 TEST_NUM="${2:---all}"
@@ -42,7 +63,7 @@ run_version() {
   local ver="$1"
   local num="$2"
 
-  local base_dir="$SCRIPT_DIR/$ver"
+  local base_dir="$CASE_ROOT/$ver"
 
   if [ ! -d "$base_dir" ]; then
     echo "❌ $base_dir 디렉터리 없음"
@@ -58,14 +79,14 @@ run_version() {
       return 1
     fi
     echo "=== [$ver] $(basename "$MATCHED") ==="
-    bash "$MATCHED"
+    run_case "$MATCHED"
   else
     # 전체 실행
     for f in $(ls "$base_dir"/[0-9]*.sh "$base_dir"/E*.sh 2>/dev/null \
       | grep -v '/17\.' \
       | awk -F'/' '{print $NF" "$0}' | sort -V | awk '{print $2}'); do
       echo "=== [$ver] $(basename "$f") ==="
-      bash "$f"
+      run_case "$f"
       echo
       # Issue93: burst sleep — avoid HTTP=000 from rapid consecutive APIServer hits
       if [ "$APITEST_BURST_DELAY" != "0" ]; then
@@ -80,3 +101,8 @@ run_version() {
 
 # 메인 로직
 run_version "$VERSION" "$TEST_NUM"
+echo "=== API 테스트 요약: 실행=${APITEST_TOTAL} 실패=${APITEST_FAILED} ==="
+# source 호환: return when sourced, exit when executed
+if [ "$APITEST_FAILED" -gt 0 ] || [ "$APITEST_TOTAL" -eq 0 ]; then
+  (return 0 2>/dev/null) && return 1 || exit 1
+fi

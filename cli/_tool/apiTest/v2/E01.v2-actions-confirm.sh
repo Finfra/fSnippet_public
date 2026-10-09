@@ -1,12 +1,8 @@
 #!/bin/bash
-# Danger Zone — confirm guard (positive path 실행 금지)
-# 잘못된 confirm / 빈 body / 누락 필드 에 대한 가드 동작만 검증.
-BASE="http://localhost:${FSC_API_PORT:-3015}/api/v2"
-echo "== reset-settings wrong confirm (403) =="
-curl -s -w "\nHTTP=%{http_code}\n" -X POST -H "Content-Type: application/json" \
-  -d '{"confirm":"no"}' "$BASE/settings/actions/reset-settings"
-echo "== reset-snippets no body (400) =="
-curl -s -w "\nHTTP=%{http_code}\n" -X POST "$BASE/settings/actions/reset-snippets"
-echo "== factory-reset empty body (400) =="
-curl -s -w "\nHTTP=%{http_code}\n" -X POST -H "Content-Type: application/json" \
-  -d '{}' "$BASE/settings/actions/factory-reset"
+# destructive actions reject a missing/wrong confirm token
+. "${APITEST_LIB:-$(dirname "$0")/../lib.sh}"
+expect_status "reset-settings wrong confirm" 403 POST /settings/actions/reset-settings '{"confirm":"no"}'
+expect_jq "error.code == forbidden" '.error.code == "forbidden"'
+expect_status "reset-snippets no body" 400 POST /settings/actions/reset-snippets
+expect_status "factory-reset empty object" 400 POST /settings/actions/factory-reset '{}'
+api_finish

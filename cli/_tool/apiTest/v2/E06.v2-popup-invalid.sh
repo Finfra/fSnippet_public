@@ -1,7 +1,6 @@
 #!/bin/bash
-# PATCH /api/v2/settings/popup — popupRows 범위 초과 (400 invalid_argument 기대)
-BASE="http://localhost:${FSC_API_PORT:-3015}/api/v2"
-curl -s --connect-timeout 3 -X PATCH \
-  -H "Content-Type: application/json" \
-  -d '{"popupRows": 9999}' \
-  "$BASE/settings/popup" | jq .
+# PATCH /settings/popup popupRows out of range -> 400 invalid_argument
+. "${APITEST_LIB:-$(dirname "$0")/../lib.sh}"
+expect_status "PATCH popupRows=9999" 400 PATCH /settings/popup '{"popupRows": 9999}'
+expect_jq "error.code == invalid_argument" '.error.code == "invalid_argument"'
+api_finish

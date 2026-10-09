@@ -278,13 +278,10 @@ if [ -f "$SCRIPT_DIR/apiTestDo.sh" ]; then
     # v1/17.cli-quit 자동 skip 을 위해 stdin 에 N 주입
     API_RESULT=$(echo "N" | bash "$SCRIPT_DIR/apiTestDo.sh" all 2>&1)
     echo "$API_RESULT" | tail -60
-    API_TOTAL=$(echo "$API_RESULT" | grep -c '^===' || true)
-    API_FAIL=$(echo "$API_RESULT" | grep -cE '"status": *"error"|❌' || true)
-    if [ "$API_TOTAL" -gt 0 ]; then
-        record_result "API 통합 테스트" "PASS" "${API_TOTAL}개 실행 (error/❌=${API_FAIL})"
-    else
-        record_result "API 통합 테스트" "FAIL" "테스트 실행 안 됨"
-    fi
+    API_TOTAL=$(echo "$API_RESULT" | grep -c '^=== \[v2\]' || true)
+    # Issue258: every case now asserts and apiTestDo.sh prints `실패=N` — judge it like Step 10
+    API_FAIL=$(echo "$API_RESULT" | sed -n 's/.*실패=\([0-9][0-9]*\).*/\1/p' | awk '{s+=$1} END {print s+0}')
+    suite_verdict "API 통합 테스트" "$API_TOTAL" "$API_FAIL"
 else
     record_result "API 통합 테스트" "FAIL" "apiTestDo.sh 없음"
 fi

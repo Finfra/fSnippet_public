@@ -1,14 +1,14 @@
 #!/bin/bash
-# GET/PUT /api/v2/settings/advanced/alfred-import — sourcePath 조회/변경
-BASE="http://localhost:${FSC_API_PORT:-3015}/api/v2"
-ORIG=$(curl -s "$BASE/settings/advanced/alfred-import" | jq -r .sourcePath)
-echo "== GET (원본) =="; echo "$ORIG"
-echo "== PUT tmp =="
-curl -s -X PUT -H "Content-Type: application/json" \
-  -d '{"sourcePath":"/tmp/_apitest.alfdb"}' \
-  "$BASE/settings/advanced/alfred-import" | jq .
-echo "== GET (확인) =="; curl -s "$BASE/settings/advanced/alfred-import" | jq .
-# 원복
-curl -s -o /dev/null -X PUT -H "Content-Type: application/json" \
-  -d "{\"sourcePath\":\"$ORIG\"}" \
-  "$BASE/settings/advanced/alfred-import"
+# alfred-import source path GET / PUT
+. "${APITEST_LIB:-$(dirname "$0")/../lib.sh}"
+expect_status "GET source (original)" 200 GET /settings/advanced/alfred-import
+expect_jq "has sourcePath" 'has("sourcePath")'
+ORIG=$(echo "$API_BODY" | jq -r '.sourcePath // empty')
+expect_status "PUT tmp source" 200 PUT /settings/advanced/alfred-import '{"sourcePath":"/tmp/_apitest.alfdb"}'
+expect_status "GET source (after)" 200 GET /settings/advanced/alfred-import
+expect_jq "sourcePath == tmp" '.sourcePath == "/tmp/_apitest.alfdb"'
+# the API rejects an empty sourcePath, so an originally-empty value cannot be restored
+if [ -n "$ORIG" ]; then
+    expect_status "PUT source (restore)" 200 PUT /settings/advanced/alfred-import "{\"sourcePath\":\"$ORIG\"}"
+fi
+api_finish

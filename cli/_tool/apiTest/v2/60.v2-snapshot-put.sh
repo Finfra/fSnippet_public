@@ -1,10 +1,9 @@
 #!/bin/bash
-# GET /api/v2/settings/snapshot + PUT snapshot cycle
-BASE="http://localhost:${FSC_API_PORT:-3015}/api/v2"
-echo "== GET =="; curl -s "$BASE/settings/snapshot" | jq '.version, .exportedAt' | head -1
-echo "== PUT (echo) =="; curl -s -w "HTTP=%{http_code}\n" -X PUT -H "Content-Type: application/json" \
-  -d '{}' "$BASE/settings/snapshot" | head -1
-echo "== PUT (valid) =="; \
-  curl -s "$BASE/settings/snapshot" | \
-  curl -s -w "HTTP=%{http_code}\n" -X PUT -H "Content-Type: application/json" -d @- \
-  "$BASE/settings/snapshot"
+# PUT /settings/snapshot
+. "${APITEST_LIB:-$(dirname "$0")/../lib.sh}"
+expect_status "GET snapshot" 200 GET /settings/snapshot
+expect_jq "snapshot has version" 'has("version")'
+SNAP="$API_BODY"
+expect_status "PUT empty snapshot (nothing restored)" 200 PUT /settings/snapshot '{}'
+expect_status "PUT exported snapshot back" 200 PUT /settings/snapshot "$SNAP"
+api_finish

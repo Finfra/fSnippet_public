@@ -1,22 +1,10 @@
 #!/bin/bash
-set -e
-BASE="http://localhost:${FSC_API_PORT:-3015}/api/v2"
-
-# Get current value
-echo "📖 현재 일반 설정 조회..."
-CURRENT=$(curl -s --connect-timeout 3 "$BASE/settings/general" | jq '.triggerBias // 0')
-echo "현재 triggerBias: $CURRENT"
-
-# Update
-echo "📝 triggerBias 변경 (5로) ..."
-curl -s --connect-timeout 3 -X PATCH "$BASE/settings/general" \
-  -H "Content-Type: application/json" \
-  -d '{"triggerBias": 5}' | jq '.'
-
-# Restore
-echo "📝 원본값으로 복원 ($CURRENT) ..."
-curl -s --connect-timeout 3 -X PATCH "$BASE/settings/general" \
-  -H "Content-Type: application/json" \
-  -d "{\"triggerBias\": $CURRENT}" | jq '.'
-
-echo "✅ PATCH /settings/general 테스트 완료"
+# PATCH /settings/general triggerBias round trip
+. "${APITEST_LIB:-$(dirname "$0")/../lib.sh}"
+expect_status "GET /settings/general (original)" 200 GET /settings/general
+ORIG=$(echo "$API_BODY" | jq -c '.triggerBias // 0')
+expect_status "PATCH triggerBias=5" 200 PATCH /settings/general '{"triggerBias": 5}'
+expect_status "GET /settings/general (after)" 200 GET /settings/general
+expect_jq "triggerBias == 5" '.triggerBias == 5'
+expect_status "PATCH triggerBias (restore)" 200 PATCH /settings/general "{\"triggerBias\": $ORIG}"
+api_finish

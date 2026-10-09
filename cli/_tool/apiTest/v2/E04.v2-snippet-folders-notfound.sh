@@ -1,5 +1,5 @@
 #!/bin/bash
-# GET 404 — 존재하지 않는 폴더
-BASE="http://localhost:${FSC_API_PORT:-3015}/api/v2"
-curl -s --connect-timeout 3 -w "\nHTTP=%{http_code}\n" \
-  "$BASE/settings/snippet-folders/NoSuchFolder"
+# unknown snippet folder -> 404
+. "${APITEST_LIB:-$(dirname "$0")/../lib.sh}"
+expect_status "GET unknown folder" 404 GET /settings/snippet-folders/NoSuchFolder
+api_finish

@@ -1,4 +1,6 @@
 #!/bin/bash
-# GET /api/v2/settings/excluded-files/per-folder — 전체 맵 조회
-BASE="http://localhost:${FSC_API_PORT:-3015}/api/v2"
-curl -s --connect-timeout 3 "$BASE/settings/excluded-files/per-folder" | jq .
+# GET /settings/excluded-files/per-folder
+. "${APITEST_LIB:-$(dirname "$0")/../lib.sh}"
+expect_status "GET /settings/excluded-files/per-folder" 200 GET /settings/excluded-files/per-folder
+expect_jq "response is an object" 'type=="object"'
+api_finish

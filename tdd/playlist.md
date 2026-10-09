@@ -9,7 +9,7 @@ date: 2026.09.26
 키 이벤트 워치독이 권한을 잘못 판정해 재시작하거나 키보드를 잠그지 않게 하고, 스니펫 확장과 REST 설정 영속성을 지킨다
 
 * 기존 러너: `bash cli/_tool/fsc-test.sh (12단계 통합: 빌드→ZTest 확장→apiTestDo.sh→cmdTestDo.sh→로그 검사) / XCTest 타깃 cli/fSnippetCliTests (xcodebuild test 는 아래 목표 목록 참고)`
-* 목표 24개 — 전부 ✅ (#1~16 prj5#Issue99 2026-09-27 jma 실행 · #17 Issue238 jm4 → Issue241 jma · #18 Issue242 jm4 · #19 Issue245 2026-10-05 jma 39/39 · #20~23 Issue244·253 2026-10-09 jm4 · #24 Issue255 jm4). 유닛: `xcodebuild test -project cli/fSnippetCli.xcodeproj -scheme fSnippetCli -destination 'platform=macOS'`
+* 목표 25개 — 전부 ✅ (#1~16 prj5#Issue99 2026-09-27 jma 실행 · #17 Issue238 jm4 → Issue241 jma · #18 Issue242 jm4 · #19 Issue245 2026-10-05 jma 39/39 · #20~23 Issue244·253 2026-10-09 jm4 · #24 Issue255 jm4 · #25 Issue258 jm4). 유닛: `xcodebuild test -project cli/fSnippetCli.xcodeproj -scheme fSnippetCli -destination 'platform=macOS'`
 
 # 재생목록
 
@@ -41,6 +41,7 @@ date: 2026.09.26
 | 22 | `api-queue-no-db-init` | REST 요청 경로는 ClipboardDB 를 초기화하지 않는다 — 준비 전이면 백그라운드 warm-up 만 요청하고 health 는 즉시 응답, clipboard 엔드포인트는 503 | Issue244 ②(Documents 동의 대기 중 sqlite `open()` 블록으로 REST 전체 무응답). red 2/3 → green | `cli/fSnippetCliTests/ClipboardDBReadinessTests.swift` | ✅ jm4 |
 | 23 | `tool-scripts-selftest` | 테스트·배포 도구가 실패를 삼키지 않고 tap 을 오염시키지 않는다 — bash 3.2 빈 배열·빌드 실패 전파(④), CMD 실패의 FAIL 판정·없는 id 조회 금지·SKIP 분리 집계(③), `local` 의 tap 원복·충돌 tap 거부·`publish` 후속의 로컬 재빌드 금지(⑤⑥) | Issue244 ③④⑤⑥ · Issue252 ③. red 9/9 → green 14/14 | `/bin/bash cli/_tool/fsc-tool-selftest.sh` | ✅ jm4 |
 | 24 | `context-window-layer` | 창 ID 폴백(`AXWindowNumber` 미지원 앱)은 layer 0 일반 창만 활성 창으로 본다 — 떠 있는 보조 창(layer≠0)이 오가도 «창 전환» 으로 버퍼를 비우지 않는다 | Issue255(jma TextEdit `@good` → `od` 오확장, 6회 중 4회). red 4/5 → green | `cli/fSnippetCliTests/ContextWindowSelectionTests.swift` | ✅ jm4 |
+| 25 | `api-case-verdict` | `apiTest/v2/*.sh` 케이스는 HTTP 코드·핵심 필드를 단언하고, 하나라도 틀리거나 판정 줄을 안 내면 `apiTestDo.sh` 가 비0 으로 끝나 `fsc-test.sh` Step 9 가 FAIL 한다 | Issue258(35건이 `jq .` 출력만 해 실행 수만 세고 PASS 했음). 계약 검증은 #10 이 맡고 여기는 케이스 응답 단언만. red 5/5 → green | `bash cli/_tool/apiTest/selftest.sh` (스텁 서버 · 실제 인스턴스 불필요) | ✅ jm4 (selftest 5/5 · 읽기 전용 17건 실서버 green · 변경 12건은 스텁 상태서버로 로직 검증 — 실서버 Step 9 는 fsc-test 재실행 필요) |
 
 # 규약
 
