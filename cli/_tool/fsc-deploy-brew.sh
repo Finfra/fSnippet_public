@@ -41,7 +41,7 @@ Usage: /deploy brew <sub>       ⚠️ 서브커맨드 필수 — 단독 호출 
   sub         설명                                                         상태
   ---------   -----------------------------------------------------------  -----
   local       Release 빌드 → 로컬 tap 재설치 + 심링크 + (옵트인 brew services) + 앱 실행 (9단계)  ✅
-  publish     Release 빌드 → gh release(cli-v{ver}) + asset → Formula 갱신 + 원격 tap push  ✅
+  publish     Release 빌드 → gh release(cli-v{ver}) + asset → Formula 갱신 + 원격 tap push → 공개본 install  ✅
   status      brew 설치·tap·프로세스·REST API 상태 조회                    ✅
   uninstall   brew uninstall + 로컬 tap Formula 파일 정리                  ✅
 
@@ -68,9 +68,67 @@ tcc_notice() {
 }
 
 # ==========================================
+# Tap work-tree protection (Issue244 ⑥ · Issue252 ③)
+# ==========================================
+# TAP_DIR is a git clone of the public Finfra/homebrew-tap, shared with prj26 (fwarrange-cli.rb).
+# `local` used to overwrite Formula/fsnippet-cli.rb with a file:///tmp build and leave it there;
+# brew's auto-update then stash/pop'ed it against the published formula and left merge conflicts
+# (jm4, three times). `local` must now leave the tap exactly as it found it.
+TAP_FORMULA_BACKUP=""
+TAP_FORMULA_EXISTED=0
+
+# Refuse to touch a tap that already has unresolved merges — writing into it compounds the damage.
+tap_formula_guard() {
+    [ -d "$TAP_DIR/.git" ] || return 0
+    local st
+    st=$(git -C "$TAP_DIR" status --porcelain 2>/dev/null)
+    if printf '%s\n' "$st" | grep -qE '^(UU|AA|DD|AU|UA|DU|UD) '; then
+        echo "❌ tap work tree has unresolved merge conflicts — not touching it: $TAP_DIR"
+        printf '%s\n' "$st" | sed 's/^/     /'
+        echo "   Recover first (Issue252 ①): git -C \"$TAP_DIR\" status / reset to origin, then retry."
+        return 1
+    fi
+    return 0
+}
+
+tap_formula_backup() {
+    TAP_FORMULA_BACKUP=$(mktemp "${TMPDIR:-/tmp}/fsc-tap-formula.XXXXXX")
+    if [ -f "$TAP_FORMULA" ]; then
+        cp -p "$TAP_FORMULA" "$TAP_FORMULA_BACKUP"
+        TAP_FORMULA_EXISTED=1
+    else
+        TAP_FORMULA_EXISTED=0
+    fi
+}
+
+# Byte-for-byte restore. A formula that did not exist before is left in place: nothing upstream
+# to conflict with, and brew services still needs a formula to resolve the installed keg.
+tap_formula_restore() {
+    [ -n "$TAP_FORMULA_BACKUP" ] || return 0
+    if [ "$TAP_FORMULA_EXISTED" = 1 ]; then
+        cp -p "$TAP_FORMULA_BACKUP" "$TAP_FORMULA"
+        echo "↩︎  tap formula restored: $TAP_FORMULA"
+    fi
+    rm -f "$TAP_FORMULA_BACKUP"
+    TAP_FORMULA_BACKUP=""
+}
+
+# ==========================================
 # 서브커맨드: local (기존 8단계)
 # ==========================================
 cmd_local() {
+    tap_formula_guard || return 1
+    tap_formula_backup
+    trap 'tap_formula_restore' EXIT INT TERM
+    # No auto-update while the local formula sits in the tap — that is what stash/pop'ed it (Issue244 ⑤).
+    HOMEBREW_NO_AUTO_UPDATE=1 cmd_local_body
+    local rc=$?
+    tap_formula_restore
+    trap - EXIT INT TERM
+    return "$rc"
+}
+
+cmd_local_body() {
     local TOTAL_PASS=0
     local TOTAL_FAIL=0
     local STEP_RESULTS=()
@@ -600,6 +658,40 @@ brew install $PUB_OWNER/tap/fsnippet-cli" \
 }
 
 # ==========================================
+# publish follow-up: install the formula that was just published (Issue244 ⑤)
+# ==========================================
+# Previously `publish` chained `cmd_local`, which rebuilt locally and rewrote the tap formula right
+# after the push — the trigger of the jm4 conflict. The machine now installs the public release
+# from the public tap, exactly what users get, without writing anything into the tap.
+post_publish_install() {
+    tap_formula_guard || return 1
+    echo "── tap fast-forward: $TAP_DIR"
+    if ! git -C "$TAP_DIR" pull --ff-only -q 2>&1 | tail -3; then
+        echo "❌ tap fast-forward failed — not forcing it. Install manually: brew update && brew reinstall finfra/tap/fsnippet-cli"
+        return 1
+    fi
+    local verb=install
+    brew list fsnippet-cli >/dev/null 2>&1 && verb=reinstall
+    if ! HOMEBREW_NO_AUTO_UPDATE=1 brew "$verb" finfra/tap/fsnippet-cli 2>&1 | tail -5; then
+        echo "❌ brew $verb finfra/tap/fsnippet-cli failed"
+        return 1
+    fi
+    brew services restart fsnippet-cli 2>&1 | tail -2
+    local health="" _i
+    for _i in $(seq 1 10); do
+        health=$(curl -s --connect-timeout 2 http://localhost:3015/ 2>/dev/null)
+        [ -n "$health" ] && break
+        sleep 1
+    done
+    if [ -z "$health" ]; then
+        echo "❌ no response on :3015 within 10s"
+        return 1
+    fi
+    echo "$health" | python3 -m json.tool 2>/dev/null || echo "$health"
+    return 0
+}
+
+# ==========================================
 # 서브커맨드: status
 # ==========================================
 cmd_status() {
@@ -771,14 +863,14 @@ case "$SUB" in
         cmd_local
         ;;
     publish)
-        # publish 성공 시 로컬 머신에도 설치 (사용자 요청: deploy 시 local install 동반).
-        # 원격 tap push 후 개발 머신이 최신 릴리스를 곧바로 실행하도록 cmd_local 체이닝.
+        # On success this machine also installs the release (user request: deploy comes with a local
+        # install) — but the published formula from the public tap, not a local rebuild (Issue244 ⑤).
         if cmd_publish; then
             echo ""
             echo "╔══════════════════════════════════════════╗"
-            echo "║  publish 후속: 로컬 install (brew local) ║"
+            echo "║  publish 후속: 공개본 install (tap)      ║"
             echo "╚══════════════════════════════════════════╝"
-            cmd_local
+            post_publish_install
         else
             PUB_STATUS=$?
             echo "❌ publish 실패 (exit=$PUB_STATUS) — 로컬 install 생략"

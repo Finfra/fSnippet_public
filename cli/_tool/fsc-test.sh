@@ -54,6 +54,18 @@ record_result() {
 }
 
 # 실패 경로에서 공통 뒷정리 (환경변수 원복)
+# suite_verdict <name> <executed> <failed> — a suite passes only if it ran and nothing failed (Issue244 ③)
+suite_verdict() {
+    local name="$1" total="$2" failed="$3"
+    if [ "$total" -eq 0 ]; then
+        record_result "$name" "FAIL" "테스트 실행 안 됨"
+    elif [ "$failed" -gt 0 ]; then
+        record_result "$name" "FAIL" "${total}개 실행 중 실패 ${failed}"
+    else
+        record_result "$name" "PASS" "${total}개 실행 (실패 0)"
+    fi
+}
+
 cleanup_env() {
     launchctl unsetenv fSnippetCli_config 2>/dev/null || true
     launchctl unsetenv fSnippetCli_isolated 2>/dev/null || true
@@ -285,12 +297,9 @@ if [ -f "$SCRIPT_DIR/cmdTestDo.sh" ]; then
     CMD_RESULT=$(CLI="$DEBUG_BIN --port $FSC_API_PORT" bash "$SCRIPT_DIR/cmdTestDo.sh" all 2>&1)
     echo "$CMD_RESULT" | tail -60
     CMD_TOTAL=$(echo "$CMD_RESULT" | grep -c '^===' || true)
-    CMD_FAIL=$(echo "$CMD_RESULT" | grep -cE '실패=[1-9]' || true)
-    if [ "$CMD_TOTAL" -gt 0 ]; then
-        record_result "CMD 통합 테스트" "PASS" "${CMD_TOTAL}개 실행 (실패 라인=${CMD_FAIL})"
-    else
-        record_result "CMD 통합 테스트" "FAIL" "테스트 실행 안 됨"
-    fi
+    # Issue244 ③: sum the 실패=N of every summary line — the count used to be printed but never judged
+    CMD_FAIL=$(echo "$CMD_RESULT" | sed -n 's/.*실패=\([0-9][0-9]*\).*/\1/p' | awk '{s+=$1} END {print s+0}')
+    suite_verdict "CMD 통합 테스트" "$CMD_TOTAL" "$CMD_FAIL"
 else
     record_result "CMD 통합 테스트" "FAIL" "cmdTestDo.sh 없음"
 fi

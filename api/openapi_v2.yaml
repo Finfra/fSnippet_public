@@ -1135,8 +1135,12 @@ paths:
                 status: ok
                 app: fSnippet
                 version: "2.1.0"
+                build: "7"
+                build_time: "2026-10-09T01:02:03Z"
+                build_uuid: "8C1F2A9E-3B4D-4E5F-9A0B-1C2D3E4F5A6B"
                 port: 3015
                 uptime_seconds: 3600
+                uptimeSeconds: 3600
                 snippet_count: 1937
                 clipboard_count: 245
 
@@ -1878,6 +1882,8 @@ paths:
                   app: fSnippetCli
                   version: "1.6.0"
                   build: "100"
+                  build_time: "2026-10-09T01:02:03Z"
+                  build_uuid: "8C1F2A9E-3B4D-4E5F-9A0B-1C2D3E4F5A6B"
                   uptime_seconds: 1234
                   active_hotkey_count: 11
                   snippet_count: 1937
@@ -2102,6 +2108,29 @@ components:
           schema: { $ref: '#/components/schemas/Error' }
 
   schemas:
+    # --- Health (GET /) -----------------------------------------------------
+    HealthResponse:
+      type: object
+      description: |
+        GET / health check. `uptime_seconds` is the spec key; `uptimeSeconds` is emitted as well
+        because paidApp <= 1.1.1 decodes it as a required field (Issue244 ①). Clients should accept either.
+      required: [status, app, version, port, uptime, uptime_seconds, isRunning, isMenuBarVisible, snippet_count, clipboard_count]
+      properties:
+        status:           { type: string,  example: "ok" }
+        app:              { type: string,  example: "fSnippet" }
+        version:          { type: string,  example: "2.1.0" }
+        build:            { type: string,  description: "CFBundleVersion", example: "7" }
+        build_time:       { type: string,  description: "Main executable mtime, UTC ISO8601 — Issue253", example: "2026-10-09T01:02:03Z" }
+        build_uuid:       { type: string,  description: "Mach-O LC_UUID of the running binary — Issue253", example: "8C1F2A9E-3B4D-4E5F-9A0B-1C2D3E4F5A6B" }
+        port:             { type: integer, example: 3015 }
+        uptime:           { type: string,  example: "01:00:00" }
+        uptime_seconds:   { type: integer, example: 3600 }
+        uptimeSeconds:    { type: integer, deprecated: true, description: "Legacy alias of uptime_seconds (paidApp <= 1.1.1)", example: 3600 }
+        isRunning:        { type: boolean, example: true }
+        isMenuBarVisible: { type: boolean, example: true }
+        snippet_count:    { type: integer, example: 1937 }
+        clipboard_count:  { type: integer, example: 120 }
+
     Error:
       type: object
       required: [ok, error]
@@ -2127,6 +2156,8 @@ components:
             app:                 { type: string,  example: "fSnippetCli" }
             version:             { type: string,  example: "1.6.0" }
             build:               { type: string,  example: "100" }
+            build_time:          { type: string,  description: "Main executable mtime, UTC ISO8601 ('unknown' if unreadable) — Issue253", example: "2026-10-09T01:02:03Z" }
+            build_uuid:          { type: string,  description: "Mach-O LC_UUID of the running binary; compare with `dwarfdump --uuid` ('unknown' if unreadable) — Issue253", example: "8C1F2A9E-3B4D-4E5F-9A0B-1C2D3E4F5A6B" }
             uptime_seconds:      { type: integer, example: 1234 }
             active_hotkey_count: { type: integer, description: "Total registered shortcuts (App + Trigger + Buffer + Folder)", example: 11 }
             snippet_count:       { type: integer, example: 1937 }
@@ -2575,6 +2606,8 @@ components:
             app:          { type: string, example: "fSnippetCli" }
             version:      { type: string, example: "1.0.0" }
             build:        { type: string, example: "1" }
+            build_time:   { type: string, description: "Main executable mtime, UTC ISO8601 — Issue253", example: "2026-10-09T01:02:03Z" }
+            build_uuid:   { type: string, description: "Mach-O LC_UUID of the running binary — Issue253", example: "8C1F2A9E-3B4D-4E5F-9A0B-1C2D3E4F5A6B" }
             swift_version:     { type: string, example: "5.0" }
             macos_target:      { type: string, example: "14.0" }
             minPaidAppVersion:

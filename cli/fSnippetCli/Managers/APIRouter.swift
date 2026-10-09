@@ -1575,9 +1575,31 @@ class APIRouter {
 
   // MARK: - Health Check
 
+  /// Issue244 ②: requests run on the serial API queue, so a handler that initializes ClipboardDB
+  /// (open() under ~/Documents, blocked while the TCC consent prompt is up) stalls every request,
+  /// the health check included. Returns true when the DB may be used; otherwise requests a
+  /// background warm-up and returns false so the caller answers without touching the DB.
+  static func clipboardDBGate(isReady: Bool, warmUp: () -> Void) -> Bool {
+    if isReady { return true }
+    warmUp()
+    return false
+  }
+
+  private var clipboardDBUsable: Bool {
+    APIRouter.clipboardDBGate(isReady: ClipboardDB.isReady, warmUp: ClipboardDB.warmUpInBackground)
+  }
+
+  private func clipboardDBNotReady() -> APIServer.HTTPResponse {
+    errorResponse(
+      code: "CLIPBOARD_DB_NOT_READY",
+      message: "Clipboard database is still initializing (may be waiting for Documents folder access). Retry shortly.",
+      statusCode: 503)
+  }
+
   private func handleHealthCheck(server: APIServer) -> APIServer.HTTPResponse {
     let snippetCount = SnippetIndexManager.shared.entries.count
-    let (clipItems, _) = ClipboardDB.shared.search(query: "", limit: 1, offset: 0)
+    // Never initialize the DB from the health check (Issue244 ②); count is 0 until it is ready.
+    let clipboardCount = clipboardDBUsable ? ClipboardDB.shared.totalCount() : 0
     let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
     let uptimeSecs = server.uptimeSeconds
     let hours = uptimeSecs / 3600
@@ -1590,13 +1612,16 @@ class APIRouter {
       status: "ok",
       app: "fSnippet",
       version: version,
+      build: Bundle.main.infoDictionary?["CFBundleVersion"] as? String,
+      buildTime: BuildIdentity.executableModificationTime(),
+      buildUUID: BuildIdentity.executableUUID(),
       port: Int(server.currentPort),
       uptime: uptimeString,
       uptimeSeconds: uptimeSecs,
       isRunning: server.isRunning,
       isMenuBarVisible: !isPaidAppRunning,
       snippetCount: snippetCount,
-      clipboardCount: clipItems.count
+      clipboardCount: clipboardCount
     )
     return jsonResponse(response)
   }
@@ -1794,6 +1819,7 @@ class APIRouter {
     let appFilter = request.query["app"]
     let pinnedFilter = request.query["pinned"]
 
+    guard clipboardDBUsable else { return clipboardDBNotReady() }
     let startTime = CFAbsoluteTimeGetCurrent()
     let (items, _) = ClipboardDB.shared.search(
       query: "", limit: limit + offset, offset: 0, appBundle: appFilter, kind: kindFilter
@@ -1834,6 +1860,7 @@ class APIRouter {
       return errorResponse(code: "INVALID_ID", message: "Invalid clipboard item ID", statusCode: 400)
     }
 
+    guard clipboardDBUsable else { return clipboardDBNotReady() }
     let (items, _) = ClipboardDB.shared.search(query: "", limit: 10000, offset: 0)
     guard let item = items.first(where: { $0.id == id }) else {
       return errorResponse(code: "NOT_FOUND", message: "Clipboard item not found", statusCode: 404)
@@ -1865,6 +1892,7 @@ class APIRouter {
     let limit = min(Int(request.query["limit"] ?? "50") ?? 50, 200)
     let offset = max(Int(request.query["offset"] ?? "0") ?? 0, 0)
 
+    guard clipboardDBUsable else { return clipboardDBNotReady() }
     let startTime = CFAbsoluteTimeGetCurrent()
     let (items, _) = ClipboardDB.shared.search(query: q, limit: limit + offset, offset: 0)
 
@@ -2159,6 +2187,8 @@ class APIRouter {
         "app": "fSnippetCli",
         "version": version,
         "build": build,
+        "build_time": BuildIdentity.executableModificationTime() ?? "unknown",
+        "build_uuid": BuildIdentity.executableUUID() ?? "unknown",
         "uptime_seconds": server.uptimeSeconds,
         "active_hotkey_count": activeHotkeyCount,
         "snippet_count": snippetCount,
@@ -2225,6 +2255,8 @@ class APIRouter {
       "app": "fSnippetCli",
       "version": version,
       "build": build,
+      "build_time": BuildIdentity.executableModificationTime() ?? "unknown",
+      "build_uuid": BuildIdentity.executableUUID() ?? "unknown",
       "swift_version": "5.0",
       "macos_target": "14.0"
     ]
@@ -2982,6 +3014,7 @@ class APIRouter {
 
   private func handleV2PostHistoryClear(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
     if let denied = requireLocalWrite(request) { return denied }
+    guard clipboardDBUsable else { return clipboardDBNotReady() }
     let removed = ClipboardDB.shared.totalCount()
     ClipboardDB.shared.clearAll()
     return jsonResponse(V2HistoryClearResponse(removedEntries: removed))

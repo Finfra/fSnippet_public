@@ -51,9 +51,10 @@ fi
 
 build() {
     # $@ = extra build settings
-    (cd "$CLI_DIR" && xcodebuild -project fSnippetCli.xcodeproj -scheme fSnippetCli \
-        -configuration Release -derivedDataPath "$DD" build "${sign_args[@]}" "$@" 2>&1 | tail -3)
-    return "${PIPESTATUS[0]}"
+    # Issue244 ④: `${a[@]+"${a[@]}"}` — bash 3.2 (jma /bin/bash) treats an empty array as unbound
+    # under set -u. pipefail makes the subshell return xcodebuild's status instead of tail's.
+    (set -o pipefail; cd "$CLI_DIR" && xcodebuild -project fSnippetCli.xcodeproj -scheme fSnippetCli \
+        -configuration Release -derivedDataPath "$DD" build ${sign_args[@]+"${sign_args[@]}"} "$@" 2>&1 | tail -3)
 }
 
 check_signature() {

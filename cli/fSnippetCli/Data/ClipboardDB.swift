@@ -19,6 +19,34 @@ struct ClipboardItem {
 /// Clipboard History DB 초기화 및 경로 관리 (CL006)
 class ClipboardDB {
     static let shared = ClipboardDB()
+
+    // Issue244 ②: opening the DB under ~/Documents blocks in open() while the TCC consent prompt
+    // is pending. Callers on the serial API queue must not be the ones to initialize it — they
+    // check `isReady` and request a background warm-up instead.
+    private static let stateLock = NSLock()
+    private static var ready = false
+    private static var warming = false
+
+    /// True once `shared` has finished initializing (opened, pragmas, schema). Never blocks.
+    static var isReady: Bool {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        return ready
+    }
+
+    /// Initializes `shared` on a background queue. Idempotent; returns immediately.
+    static func warmUpInBackground() {
+        stateLock.lock()
+        if ready || warming {
+            stateLock.unlock()
+            return
+        }
+        warming = true
+        stateLock.unlock()
+        DispatchQueue.global(qos: .utility).async {
+            _ = ClipboardDB.shared
+        }
+    }
     
     // CL079: SQLite를 위한 스레드 안전성 보장
     private let dbQueue = DispatchQueue(label: "com.nowage.fSnippet.dbQueue")
@@ -45,6 +73,10 @@ class ClipboardDB {
         open()
         applyPragmas()
         createSchemaIfNeeded()
+        Self.stateLock.lock()
+        Self.ready = true
+        Self.warming = false
+        Self.stateLock.unlock()
     }
 
     private func ensureDirectories() {

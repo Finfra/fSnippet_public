@@ -121,6 +121,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         keyEventMonitor = KeyEventMonitor(onPotentialAbbreviation: { _ in })
         keyEventMonitor?.startMonitoring()
 
+        // Open the clipboard DB off the main and API queues. On first run this is where the
+        // Documents-folder consent prompt waits; the API answers meanwhile (Issue244 ②).
+        ClipboardDB.warmUpInBackground()
+
         // 4. API 서버 시작 (forceEnabled: api_enabled 설정 무시하고 항상 시작)
         APIServer.shared.start(forceEnabled: true)
 

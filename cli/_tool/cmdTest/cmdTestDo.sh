@@ -38,32 +38,34 @@ echo
 
 run_normal() {
   local dir="$1"
-  local pass=0 fail=0 total=0
+  local pass=0 fail=0 skip=0 total=0
   for f in $(ls "$dir"/[0-9]*.sh 2>/dev/null \
     | awk -F'/' '{print $NF" "$0}' | sort -V | awk '{print $2}'); do
     total=$((total + 1))
     echo "=== $(basename "$f") ==="
     bash "$f"
-    if [ $? -eq 0 ]; then pass=$((pass + 1)); else fail=$((fail + 1)); fi
+    # exit 77 = SKIP (precondition absent, e.g. empty clipboard history) — counted apart (Issue244 ③)
+    case $? in 0) pass=$((pass + 1)) ;; 77) skip=$((skip + 1)) ;; *) fail=$((fail + 1)) ;; esac
     echo
   done
   echo "==============================="
-  echo "결과: 전체=$total  성공=$pass  실패=$fail"
+  echo "결과: 전체=$total  성공=$pass  실패=$fail  건너뜀=$skip"
   echo "==============================="
 }
 
 run_error() {
   local dir="$1"
-  local pass=0 fail=0 total=0
+  local pass=0 fail=0 skip=0 total=0
   for f in $(ls "$dir"/E*.sh 2>/dev/null | sort); do
     total=$((total + 1))
     echo "=== $(basename "$f") ==="
     bash "$f"
-    if [ $? -eq 0 ]; then pass=$((pass + 1)); else fail=$((fail + 1)); fi
+    # exit 77 = SKIP (precondition absent, e.g. empty clipboard history) — counted apart (Issue244 ③)
+    case $? in 0) pass=$((pass + 1)) ;; 77) skip=$((skip + 1)) ;; *) fail=$((fail + 1)) ;; esac
     echo
   done
   echo "==============================="
-  echo "결과: 전체=$total  성공=$pass  실패=$fail"
+  echo "결과: 전체=$total  성공=$pass  실패=$fail  건너뜀=$skip"
   echo "==============================="
 }
 

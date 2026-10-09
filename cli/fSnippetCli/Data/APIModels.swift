@@ -32,6 +32,9 @@ struct HealthResponse: Codable {
   let status: String
   let app: String
   let version: String
+  let build: String?
+  let buildTime: String?
+  let buildUUID: String?
   let port: Int
   let uptime: String
   let uptimeSeconds: Int
@@ -40,13 +43,82 @@ struct HealthResponse: Codable {
   let snippetCount: Int
   let clipboardCount: Int
   enum CodingKeys: String, CodingKey {
-    case status, app, version, port
+    case status, app, version, port, build
+    case buildTime = "build_time"
+    case buildUUID = "build_uuid"
     case uptime
     case uptimeSeconds = "uptime_seconds"
     case isRunning
     case isMenuBarVisible
     case snippetCount = "snippet_count"
     case clipboardCount = "clipboard_count"
+  }
+  /// Legacy camelCase key still required by paidApp <= 1.1.1 (Issue244 ①)
+  private enum LegacyKeys: String, CodingKey {
+    case uptimeSeconds
+  }
+
+  init(
+    status: String, app: String, version: String, build: String? = nil,
+    buildTime: String? = nil, buildUUID: String? = nil, port: Int, uptime: String,
+    uptimeSeconds: Int, isRunning: Bool, isMenuBarVisible: Bool, snippetCount: Int,
+    clipboardCount: Int
+  ) {
+    self.status = status
+    self.app = app
+    self.version = version
+    self.build = build
+    self.buildTime = buildTime
+    self.buildUUID = buildUUID
+    self.port = port
+    self.uptime = uptime
+    self.uptimeSeconds = uptimeSeconds
+    self.isRunning = isRunning
+    self.isMenuBarVisible = isMenuBarVisible
+    self.snippetCount = snippetCount
+    self.clipboardCount = clipboardCount
+  }
+
+  init(from decoder: Decoder) throws {
+    let c = try decoder.container(keyedBy: CodingKeys.self)
+    let legacy = try decoder.container(keyedBy: LegacyKeys.self)
+    status = try c.decode(String.self, forKey: .status)
+    app = try c.decode(String.self, forKey: .app)
+    version = try c.decode(String.self, forKey: .version)
+    build = try c.decodeIfPresent(String.self, forKey: .build)
+    buildTime = try c.decodeIfPresent(String.self, forKey: .buildTime)
+    buildUUID = try c.decodeIfPresent(String.self, forKey: .buildUUID)
+    port = try c.decode(Int.self, forKey: .port)
+    uptime = try c.decode(String.self, forKey: .uptime)
+    if let v = try c.decodeIfPresent(Int.self, forKey: .uptimeSeconds) {
+      uptimeSeconds = v
+    } else {
+      uptimeSeconds = try legacy.decode(Int.self, forKey: .uptimeSeconds)
+    }
+    isRunning = try c.decode(Bool.self, forKey: .isRunning)
+    isMenuBarVisible = try c.decode(Bool.self, forKey: .isMenuBarVisible)
+    snippetCount = try c.decode(Int.self, forKey: .snippetCount)
+    clipboardCount = try c.decode(Int.self, forKey: .clipboardCount)
+  }
+
+  /// Emits both `uptime_seconds` (spec) and `uptimeSeconds` (legacy paidApp) — Issue244 ①
+  func encode(to encoder: Encoder) throws {
+    var c = encoder.container(keyedBy: CodingKeys.self)
+    try c.encode(status, forKey: .status)
+    try c.encode(app, forKey: .app)
+    try c.encode(version, forKey: .version)
+    try c.encodeIfPresent(build, forKey: .build)
+    try c.encodeIfPresent(buildTime, forKey: .buildTime)
+    try c.encodeIfPresent(buildUUID, forKey: .buildUUID)
+    try c.encode(port, forKey: .port)
+    try c.encode(uptime, forKey: .uptime)
+    try c.encode(uptimeSeconds, forKey: .uptimeSeconds)
+    try c.encode(isRunning, forKey: .isRunning)
+    try c.encode(isMenuBarVisible, forKey: .isMenuBarVisible)
+    try c.encode(snippetCount, forKey: .snippetCount)
+    try c.encode(clipboardCount, forKey: .clipboardCount)
+    var legacy = encoder.container(keyedBy: LegacyKeys.self)
+    try legacy.encode(uptimeSeconds, forKey: .uptimeSeconds)
   }
 }
 
