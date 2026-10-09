@@ -38,6 +38,9 @@ date: 2026-04-07
 
 # 📙 일반
 
+# 📗 선택
+
+# ✅ 완료
 ## Issue251: [Release] 공개 tap `fsnippet-cli` 1.1.1 롤백 반영 — Issue244 tap 상태 정정·다음 출고 시 tap 재상향 (등록: 2026-10-09, 출처: prj5 이슈후보3)
 * 목적: 2026-10-08 공개 tap 을 1.1.1 로 되돌렸다(사용자 지시 «fSnippet 는 1.1.1 로 통일»). 이 repo 의 출고 기록·다음 출고 절차가 그 사실을 따르게 한다
 * depends: Issue244, prj15#Issue989
@@ -57,10 +60,25 @@ date: 2026-04-07
     - 공개 시 주의: `fsc-deploy-brew.sh publish` Step 2.9 는 태그가 있으면 건너뜀 → 그대로면 `cli-v1.1.1` 이 옛 커밋 `f2f3715` 에 남고 asset 만 교체돼 소스·바이너리가 갈린다. 재출시는 태그를 R1 통과 커밋으로 옮긴 뒤(로컬·origin) publish
     - 배포 #6~8(tarball·공개 tap·버전 일치)은 publish 뒤에만 돌 수 있어 R3 확인으로 수행 — 실패 시 tap 을 `6b619f7` 로 되돌림
     - 14:30 차단 해제 확인: jma `CGSSessionScreenIsLocked`=False · jma 에 진행 중 빌드·테스트 없음 · jm4 로컬 tap clean(`6b619f7`=origin, UU 해소). **R1 은 세션 public-84 가 인수**(사용자 폼 답변 «R1 먼저 → 재출시» · tap 충돌은 «prj16 에 맡김» 이었으나 이미 해소) — 다른 세션은 jma 에서 R1 을 병행하지 말 것
+* 결과 (2026-10-09 14:20~14:55):
+    - R1 jma 통과 — 증거 `cli/_doc_work/_release/v1.1.1/release-test_1.1.1.md`(result pass, commit `d7840c6`, peers prj15@`52d3c36c`)
+        - 개발 재생목록 23/23
+        - 배포 재생목록 10 통과 · #11 해당 없음(공개 paidApp 없음)
+        - R2 `recheck` ✅
+    - 재출시 집행
+        - 옛 release·태그 `cli-v1.1.1`(`f2f3715`) 삭제 — 옛 asset 은 sha `b8f0388e` 로 로컬에 백업
+        - `fsc-deploy-brew.sh publish` → 태그 `cli-v1.1.1`=`3afbf95`, asset sha `0f0a3bb2…`, tap `a988894`
+        - repo Formula 커밋 `f507c75`
+    - publish 뒤 #6~8: jma 를 다시 클린한 뒤 공개 tap 으로 설치했고 모두 확인됨
+        - 실제 다운로드
+        - 서명 보존
+        - REST ok
+        - 패키지·번들·데몬·`VERSION`·Formula 모두 1.1.1
+    - paidApp 등록 `registered:true` 확인. 단 클린 첫 기동에서는 «기본 설정 폴더» 안내 모달(`AppInitializer.checkInitialSetup`) 이 닫히기 전까지 등록이 안 됨(재기동으로 확인) → prj15 판단 대상
+    - 증거 경로를 `cli/_doc_work/_release` 로 선언(`3afbf95`). 루트 `_doc_work/` 는 `doc-root-guard.sh` 금지 경로라 `tdd/release.md` 와 갈라져 있었음
+    - jm4 로컬 tap `main` 의 upstream 이 빠져 publish 후속 설치가 옛 sha 로 실패 → upstream 복구 + ff(`a988894`). jm4 설치본은 손대지 않음(14:24 후보 빌드 그대로)
+* 커밋: 3afbf95, f507c75
 
-# 📗 선택
-
-# ✅ 완료
 ## Issue252: [긴급] jm4 로컬 tap `Formula/fsnippet-cli.rb` 머지 충돌로 `brew install` 실패 — cliApp 미설치·스니펫 확장 정지 (등록: 2026-10-09, 출처: prj15#Issue994 · 요청 fbotreq-1791474928-b7077b64) (해결: 2026-10-09, commit: 170a3c9) ✅
 * 목적: jm4 에 fsnippet-cli 를 다시 설치·기동해 스니펫 확장을 되살리고, 같은 충돌이 다시 나지 않게 원인(Issue244 ⑤⑥)을 막는다
 * depends: Issue244
