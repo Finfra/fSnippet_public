@@ -46,6 +46,11 @@ date: 2026-04-07
     - 문서: cli README(en·ko) 소스 빌드 아이콘 안내 · `tdd/playlist.md` #18 · 스크립트·테스트·project.yml 주석
     - 검증: 유닛 전체 · `fsc-official-build-check.sh`(공식→소스→공식) · jma 소스 빌드 배포 후 아이콘 확인
     - 금지: push·tap·태그·릴리스 — 공개 반영은 다음 출고 라인에서
+* 보충(2026-10-09 19:4x 사용자 신고 — 요청 fbotreq-1791543059-8d543a51): `9738ae5`(소스 빌드 AppIcon.icns 생성) 뒤에도 jma «손쉬운 사용» 목록에서 fSnippetCli 아이콘이 안 보임. 사용자가 목록에서 fSnippetCli 를 지운 상태
+    - ① 원인을 실측으로 확정(우회·제거 제안 금지) — TCC 에 등록되는 경로(brew Cellar vs `/Applications` 심링크), 설치본 Info.plist `CFBundleIconFile`/`CFBundleIconName`, `Resources/AppIcon.icns` 실재·서명 봉인 포함, Assets.car, 공식 빌드(brew 공개 tap)와의 차이, LaunchServices·아이콘 캐시
+    - ② tdd red 먼저 → 수정 → jma 재배포(`jma-fsnippet-deploy --branch` 로 release/1.1.1 동기화) → 권한 재등록 경로(최초 실행 안내)로 목록에 다시 올린 뒤 아이콘 표시 증적(캡처 불가하면 설치본 속성 실측). 손쉬운 사용 토글·추가는 사람 작업 → 필요 시 `[사람]` 1줄로 상향
+    - ③ 오진이 있으면 `cli/_doc_work/debug_TECH.md` 기록
+    - 제약: push·tap·태그 금지 · Issue.md 는 issue-tx 로만 · `.agents/`·`.codex/`·`AGENTS.md` 커밋 금지 · _public 주석 영어 · jma GUI 작업은 tmux 경유
 
 # 📕 중요
 
