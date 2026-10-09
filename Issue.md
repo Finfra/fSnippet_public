@@ -30,6 +30,7 @@ date: 2026-04-07
 
 1. `jma-fsnippet-deploy.sh` 가 `git pull origin release/1.1.1` 하드코딩 — 다음 출고 라인에서 R1 전에 브랜치 인자화 필요 (prj3#Issue717 배포용 TDD 적용 중 발견)
 1. jma tmux(`loginScript`, 부모 launchd)에 화면 기록 권한이 없어 `jma-firstrun-check.sh` 안내창 캡처가 항상 `WARN` — 증적 png 가 필요하면 권한 주체 지정·부여(사람 작업, 시스템 설정) 또는 다른 캡처 경로 (Issue248 실측에서 발견)
+1. `apiTest/v2/*.sh` 케이스가 응답을 `jq .` 로 출력만 하고 성공·실패를 판정하지 않음 — `fsc-test.sh` Step 9 «API 통합 테스트» 는 실행 수만 보고 PASS(계약 검증은 tdd #10 `api/test-api.sh` 가 담당). 케이스별 단언·종료코드 도입 (Issue244 ③ 수정 중 발견)
 
 # 🚧 진행중
 
@@ -52,21 +53,9 @@ date: 2026-04-07
     - ② 재설치·기동: `brew install finfra/tap/fsnippet-cli && brew services start fsnippet-cli` → `curl -s localhost:3015/` 의 `version` 확인 → 요청자(fbot-lead-fsnippet)에 설치 버전 회신
     - ③ 재발 방지: 로컬 배포 경로(`fsc-deploy-brew.sh local`·`jma-fsnippet-deploy.sh --cliApp`)가 tap 작업트리를 직접 고치지 않게 한다(로컬 빌드는 별도 로컬 Formula/임시 tap 사용, 또는 끝에 반드시 원복) — Issue244 ⑤⑥ 와 합쳐 처리
     - 검증: tap `git status` clean · `brew list --versions fsnippet-cli` = 1.1.1 · `GET :3015/` 200
-
-## Issue244: [출고차단] cliApp 1.1.1 후보 빌드 `GET /` 응답 키 변경(`uptimeSeconds`→`uptime_seconds`)으로 paidApp 연결 불가 + 출고 테스트 발견 결함 (등록: 2026-09-29)
-* 목적: prj5#Issue107 jma 출고 테스트(2026-09-29)가 찾은 출고 차단 결함과 부수 결함을 기록한다. 공개 tap `fsnippet-cli` 는 2026-10-08 23:31 결함 이전 공개 빌드 `cli-v1.1.1` 로 복원됐다(tap `6b619f7`)
-* 상세:
-    - ① **출고 차단**: `c65e15a`(prj5#Issue99)가 HealthResponse 키를 명세대로 `uptime_seconds` 로 바꿨으나 paidApp `HealthResponse.uptimeSeconds` 는 필수 `Int` — 디코딩 `keyNotFound` → paidApp 미등록·"fSnippetCli is not responding"·Advanced `Loaded Snippets: 0`. jma 실측 + jm4 재현, 공개 `cli-v1.1.1`(키 이전 빌드)로 되돌리면 `registered:true` — 결함은 `c65e15a` 이후 빌드에만 있다
-        + 재생목록 공백: API 호환 42/42·등록 API 테스트가 모두 통과했다 — paidApp 의 **실제 디코딩·등록**을 보는 행이 없다
-        + 수정 방향 후보: cliApp 이 두 키를 함께 내보내기(구 paidApp 호환) + paidApp 쪽 관용 디코딩(prj15#Issue989)
-    - ② 첫 실행 Documents 동의창 대기 중 REST 전체 무응답 — API 서버 큐가 health 처리 중 DB 초기화 sqlite `open()` 에서 블록(스택 샘플 `fsc-sample-blocked.txt`)
-    - ③ `fsc-test.sh` CMD `25.clipboard-get` 실패(클린 이력 0건에서 id 1 조회)를 PASS 로 집계 — 2회 재현
-    - ④ `fsc-official-build-check.sh` 가 jma bash 3.2 에서 `unbound variable` 로 빌드 불가(PASS 14/FAIL 24), `DEPLOY_NO_SIGN=1` 에선 35/35 이나 서명 3건 SKIP
-    - ⑤ `fsc-deploy-brew.sh publish` 가 끝에 «로컬 install» 을 자동으로 이어 돌아 실행 머신의 brew 설치를 uninstall → brew 자동 update 가 로컬 tap Formula 를 stash/pop 하다 방금 push 한 공개 Formula 와 충돌(`<<<<<<< Stashed changes`) → 재설치 실패. jm4 에서 발생·복구함
-    - ⑥ `jma-fsnippet-deploy.sh --cliApp` 이 tap `Formula/fsnippet-cli.rb` 를 로컬 빌드용으로 바꾸고 되돌리지 않는다 — 이후 `brew reinstall` 이 공개본 대신 로컬 빌드를 깐다
-    - **2026-10-08 사용자 결정**: 릴리스 라인을 1.1.1 로 고정 — VERSION·MARKETING_VERSION 1.1.1 확정(prj25 `e1357c8` · prj15 `f4a0fd49` · prj9 `14b6f1c`). 공개 tap 은 같은 날 23:31 결함 이전 `cli-v1.1.1` 로 복원(tap `6b619f7`, ① 결함 빌드 회수)
-    - **2026-10-09 사용자 결정 — 모두 1.1.1 로 재출시**: 공개 번호는 `cli-v1.1.1` 하나로 정리(그 밖의 GitHub release·태그·브랜치 삭제, repo Formula 스냅샷을 tap 과 동기화 `fa9e0d4`). ①~⑥ 수정본은 1.1.1 로 재출시한다 — 절차는 Issue251
-* 증거: `_doc_work/_release/v1.1.1/release-test_1.1.1.md`(result: fail) · prj15 `_doc_work/_release/v1.1.1/jma-logs_2026.09.29/` · 보고 prj5 `_doc_work/report/fapp-jma-release-test_issue107_report.md`
+* 진행 (2026-10-09):
+    - ③ 재발 방지 완료(`170a3c9`, Issue244 ⑤⑥) — `local` 은 tap Formula 를 원복하고 충돌 tap 에는 손대지 않음. jm4 실 tap(`UU`) 에서 `/run` 이 무변경 중단함을 확인
+    - ①② 사람 결정 대기(mq `20261009-040244-001`) — 그 전까지 tap 무변경
 
 # 📙 일반
 
@@ -85,7 +74,31 @@ date: 2026-04-07
 
 # 📗 선택
 
-## Issue253: [API] 헬스 응답에 빌드 식별 정보 노출 — 실행 바이너리 대조용 (등록: 2026-10-09, 출처: prj15#Issue994 구현 명세 ⑤ · 요청 fbotreq-1791474931-f82652c1)
+# ✅ 완료
+## Issue244: [출고차단] cliApp 1.1.1 후보 빌드 `GET /` 응답 키 변경(`uptimeSeconds`→`uptime_seconds`)으로 paidApp 연결 불가 + 출고 테스트 발견 결함 (등록: 2026-09-29) (해결: 2026-10-09, commit: 170a3c9) ✅
+* 목적: prj5#Issue107 jma 출고 테스트(2026-09-29)가 찾은 출고 차단 결함과 부수 결함을 기록한다. 공개 tap `fsnippet-cli` 는 2026-10-08 23:31 결함 이전 공개 빌드 `cli-v1.1.1` 로 복원됐다(tap `6b619f7`)
+* 상세:
+    - ① **출고 차단**: `c65e15a`(prj5#Issue99)가 HealthResponse 키를 명세대로 `uptime_seconds` 로 바꿨으나 paidApp `HealthResponse.uptimeSeconds` 는 필수 `Int` — 디코딩 `keyNotFound` → paidApp 미등록·"fSnippetCli is not responding"·Advanced `Loaded Snippets: 0`. jma 실측 + jm4 재현, 공개 `cli-v1.1.1`(키 이전 빌드)로 되돌리면 `registered:true` — 결함은 `c65e15a` 이후 빌드에만 있다
+        + 재생목록 공백: API 호환 42/42·등록 API 테스트가 모두 통과했다 — paidApp 의 **실제 디코딩·등록**을 보는 행이 없다
+        + 수정 방향 후보: cliApp 이 두 키를 함께 내보내기(구 paidApp 호환) + paidApp 쪽 관용 디코딩(prj15#Issue989)
+    - ② 첫 실행 Documents 동의창 대기 중 REST 전체 무응답 — API 서버 큐가 health 처리 중 DB 초기화 sqlite `open()` 에서 블록(스택 샘플 `fsc-sample-blocked.txt`)
+    - ③ `fsc-test.sh` CMD `25.clipboard-get` 실패(클린 이력 0건에서 id 1 조회)를 PASS 로 집계 — 2회 재현
+    - ④ `fsc-official-build-check.sh` 가 jma bash 3.2 에서 `unbound variable` 로 빌드 불가(PASS 14/FAIL 24), `DEPLOY_NO_SIGN=1` 에선 35/35 이나 서명 3건 SKIP
+    - ⑤ `fsc-deploy-brew.sh publish` 가 끝에 «로컬 install» 을 자동으로 이어 돌아 실행 머신의 brew 설치를 uninstall → brew 자동 update 가 로컬 tap Formula 를 stash/pop 하다 방금 push 한 공개 Formula 와 충돌(`<<<<<<< Stashed changes`) → 재설치 실패. jm4 에서 발생·복구함
+    - ⑥ `jma-fsnippet-deploy.sh --cliApp` 이 tap `Formula/fsnippet-cli.rb` 를 로컬 빌드용으로 바꾸고 되돌리지 않는다 — 이후 `brew reinstall` 이 공개본 대신 로컬 빌드를 깐다
+    - **2026-10-08 사용자 결정**: 릴리스 라인을 1.1.1 로 고정 — VERSION·MARKETING_VERSION 1.1.1 확정(prj25 `e1357c8` · prj15 `f4a0fd49` · prj9 `14b6f1c`). 공개 tap 은 같은 날 23:31 결함 이전 `cli-v1.1.1` 로 복원(tap `6b619f7`, ① 결함 빌드 회수)
+    - **2026-10-09 사용자 결정 — 모두 1.1.1 로 재출시**: 공개 번호는 `cli-v1.1.1` 하나로 정리(그 밖의 GitHub release·태그·브랜치 삭제, repo Formula 스냅샷을 tap 과 동기화 `fa9e0d4`). ①~⑥ 수정본은 1.1.1 로 재출시한다 — 절차는 Issue251
+* 증거: `_doc_work/_release/v1.1.1/release-test_1.1.1.md`(result: fail) · prj15 `_doc_work/_release/v1.1.1/jma-logs_2026.09.29/` · 보고 prj5 `_doc_work/report/fapp-jma-release-test_issue107_report.md`
+* 결과 (2026-10-09, `170a3c9`):
+    - ① `HealthResponse` 가 `uptime_seconds`·`uptimeSeconds` 두 키를 함께 출력, 디코딩은 어느 쪽이든 수용 — 구 paidApp 모델(필수 `uptimeSeconds`) 디코딩 테스트 red 4/5 → green(tdd #20). 재생목록 공백은 #20 으로 메움(실기 등록 `registered:true` 확인은 Issue251 재출시 재생목록)
+    - ② 원인 확정: health 가 API **직렬 큐**에서 `ClipboardDB` 를 처음 초기화 → sqlite 저널 `openDirectory` 의 `open()` 이 Documents TCC 동의 대기 중 커널 블록. API 경로는 DB 를 초기화하지 않게 변경(`ClipboardDB.isReady` 게이트 + 백그라운드 warm-up, health 즉시 응답·clipboard 503 `CLIPBOARD_DB_NOT_READY`, 기동 시 warm-up). 덤으로 `clipboard_count` 가 `search(limit:1)` 라 0/1 이던 것을 `totalCount()` 로 정정(tdd #22)
+    - ③ `fsc-test.sh` 가 CMD 실패 수를 세고도 판정에 안 쓰던 것 → `suite_verdict`(실패 1건이면 FAIL). `25.clipboard-get` 은 `clipboard list` 의 실재 id 조회·빈 이력 SKIP(77)·list 실패는 FAIL, `cmdTestDo` 는 건너뜀 분리 집계
+    - ④ bash 3.2 는 `set -u` 에서 빈 배열 `"${sign_args[@]}"` 를 unbound 로 침(서명 빌드일 때만 빈 배열) + `( xcodebuild | tail )` 이 빌드 실패를 0 으로 가려 뒤 검사 24건 FAIL 로 번짐 → `${a[@]+"${a[@]}"}` + `pipefail`
+    - ⑤⑥ 공통 원인: `fsc-deploy-brew.sh local`(jma `--cliApp` 도 경유)이 공개 tap 작업트리의 Formula 를 로컬 빌드용으로 덮어쓰고 방치. `local` 은 백업 → `HOMEBREW_NO_AUTO_UPDATE=1` → trap 바이트 원복, 충돌 tap 은 손대지 않고 중단. `publish` 후속은 로컬 재빌드 대신 공개 tap ff-only pull + `brew reinstall finfra/tap/fsnippet-cli`
+    - 검증: 유닛 159/159 · `/bin/bash cli/_tool/fsc-tool-selftest.sh` red 9/9 → green 14/14(tdd #23) · 격리 인스턴스 :3115 실측(두 uptime 키·clipboard 200) · `/run` 은 jm4 tap 충돌(Issue252 ①)로 가드가 빌드·uninstall 전 무변경 중단 — 의도대로
+    - 남은 것: jma 실기 출고 검증(paidApp `registered:true`)은 Issue251 · tap 복구는 Issue252 ①② · 진단 기록 `cli/_doc_work/debug_TECH.md` 2026.10.09 3건
+
+## Issue253: [API] 헬스 응답에 빌드 식별 정보 노출 — 실행 바이너리 대조용 (등록: 2026-10-09, 출처: prj15#Issue994 구현 명세 ⑤ · 요청 fbotreq-1791474931-f82652c1) (해결: 2026-10-09, commit: 170a3c9) ✅
 * 목적: prj15 `_tool/lib/verify-running-build.sh` 의 `verify_running_build` 가 sha256 대조에 더해 REST 로도 실행 중인 빌드를 대조할 수 있게 한다
 * 상세:
     - 현황(2026-10-09 실측): `GET /` 는 이미 `version`(`CFBundleShortVersionString`)을 낸다 · `GET /api/v2/status`·`GET /api/v2/cli/version` 은 `version`+`build`(`CFBundleVersion`)를 낸다. **없는 것은 빌드 시각**(및 `GET /` 의 `build`)
@@ -95,8 +108,11 @@ date: 2026-04-07
     - ② `GET /`(HealthResponse)에 `build`·`build_time` 추가, `/api/v2/cli/version`·`/api/v2/status` 에 `build_time` 추가 — 기존 키 유지(paidApp `HealthResponse` 디코딩 호환, Issue244 ① 교훈)
     - ③ `api/openapi_v2.yaml` 동시 갱신(v1 yaml 은 아카이브라 수정 대상 아님 — api-rules)
     - 검증: 빌드 2회 → `build_time` 이 달라짐 · paidApp 연결 정상(registered:true)
+* 결과 (2026-10-09, `170a3c9`):
+    - **명세 편차 — Info.plist 주입(①) 대신 런타임 값**: Run Script 로 번들을 바꾸면 증분 빌드가 재서명을 건너뛰는 사례(debug_TECH 2026.09.27)가 있어 빌드 단계 주입을 피함. `build_time` = 실행 파일 mtime(UTC ISO8601, 요청자 `verify-running-build.sh` 의 `stat -f %Sm` 과 같은 정의) · `build_uuid` = Mach-O `LC_UUID`(링크마다 바뀜, `dwarfdump --uuid` 로 설치본과 대조) — `cli/fSnippetCli/Utils/BuildIdentity.swift`
+    - ② `GET /` 에 `build`·`build_time`·`build_uuid`, `/api/v2/status`·`/api/v2/cli/version` 에 `build_time`·`build_uuid` 추가(기존 키 유지) · ③ `openapi_v2.yaml` 갱신 — `GET /` 가 가리키던 `HealthResponse` 스키마가 정의돼 있지 않던 dangling `$ref` 도 해소
+    - 검증: 유닛(tdd #21) · 격리 인스턴스 :3115 실측 `build_uuid` = `dwarfdump --uuid` · `build_time` = `stat` 일치. paidApp 실기 연결은 jm4 cliApp 미설치(Issue252)로 Issue251 재출시 재생목록에서 확인
 
-# ✅ 완료
 ## Issue248: [Tool] `jma-firstrun-check.sh` 가 «alert window captured» 를 출력하지만 png 가 생성되지 않음 (등록: 2026-10-08, 출처: prj15#Issue989 ⑤) (해결: 2026-10-08, commit: 864185b — Issue.md 이력, 스크립트 본체 `.claude/` 는 gitignored) ✅
 * 목적: prj15 1.1.1 출고 테스트(배포 #5 `firstrun-real-home`)에서 스크립트가 `alert window captured: /tmp/jma_firstrun_alert.png (id N)` 를 찍는데 파일이 없었다 — 성공 메시지가 거짓이라 증적으로 쓸 수 없다
 * 상세:
