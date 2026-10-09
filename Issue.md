@@ -29,9 +29,7 @@ date: 2026-04-07
 # 🌱 이슈후보
 
 1. [문서] 매뉴얼 밖 낡은 서술 정리 (Issue256 집필 중 발견) — ① `api/openapi_v2.yaml`·Skill 문서가 `cli/pause` 를 «스니펫 확장 일시정지» 로 쓰지만 코드는 REST 요청만 503 ② `cli/README.md` v1 엔드포인트 표 잔존 ③ `mcp/README*.md` 전제가 «fSnippet.app 실행·설정>고급» GUI 기준, 등록 위치 `settings.json` ④ `cli/README.md`·`HelpCommand.swift` 가 `config` 명령을 «v1 API» 로 표기(실제 `/api/v2/settings/general`) ⑤ f-claude-plugins `fSnippet/plugin.json` `mcpServers` 경로가 `/Users/nowage/...` 하드코딩(타 repo)
-1. `jma-fsnippet-deploy.sh` 가 `git pull origin release/1.1.1` 하드코딩 — 다음 출고 라인에서 R1 전에 브랜치 인자화 필요 (prj3#Issue717 배포용 TDD 적용 중 발견)
 1. jma tmux(`loginScript`, 부모 launchd)에 화면 기록 권한이 없어 `jma-firstrun-check.sh` 안내창 캡처가 항상 `WARN` — 증적 png 가 필요하면 권한 주체 지정·부여(사람 작업, 시스템 설정) 또는 다른 캡처 경로 (Issue248 실측에서 발견)
-1. `apiTest/v2/*.sh` 케이스가 응답을 `jq .` 로 출력만 하고 성공·실패를 판정하지 않음 — `fsc-test.sh` Step 9 «API 통합 테스트» 는 실행 수만 보고 PASS(계약 검증은 tdd #10 `api/test-api.sh` 가 담당). 케이스별 단언·종료코드 도입 (Issue244 ③ 수정 중 발견)
 
 # 🚧 진행중
 
