@@ -1,48 +1,48 @@
 ---
 title: fSnippetCli 기능 명세서 (Functional Specification)
-description: 본 문서는 fSnippet의 핵심 가치 창출 도구인 **스니펫(Snippet)**과 체계적인 데이터 보관을 위한 **클립보드 히스토리(Clipboard History)** 시스템, 그리고 고급 사용자 설정 및 안정성 제어 기술에 대한 총체적이고 상세한 가이드를 제공합니다.
-date: 2026-03-18
+description: fSnippetCli(엔진)의 스니펫 확장 · 클립보드 히스토리 · 구동 시스템 · REST API · Claude Code Skill · MCP 기능 명세
+date: 2026.10.09
 tags: [매뉴얼, 사용자 가이드, 기능 명세]
 ---
 
 > **적용 범위** — 이 문서는 **fSnippetCli**(엔진)의 기능 명세다. 아래 기능은 모두 fSnippetCli 가 수행한다.
-> **fSnippet**(유료 GUI 앱)은 fSnippetCli 의 **GUI 래퍼**로, 같은 기능의 설정을 창에서 바꾸는 화면만 제공한다. 본문에서 «설정 - ○○ 탭» 처럼 설정 창을 가리키는 대목은 fSnippet 을 함께 쓸 때의 조작이다 — fSnippet 화면 사용법은 fSnippet 매뉴얼 몫이다. 문서 지도: [manual/README.md](README.md)
+> **fSnippet**(유료 GUI 앱)은 fSnippetCli 의 **GUI 래퍼**로, 같은 기능의 설정을 창에서 바꾸는 화면과 스니펫 편집기만 제공한다. 이 문서는 엔진의 설정 방법(`_config.yml` · REST API · 메뉴바 · 명령행)만 쓴다. fSnippet 이 있어야 하는 동작은 «(fSnippet 사용 시)» 로 범위를 밝힌다. 문서 지도: [manual/README.md](README.md)
 
-# fSnippet이란? (Overview)
+# fSnippetCli 란? (Overview)
 
-fSnippet은 반복적인 텍스트 입력을 획기적으로 줄여주고, 과거에 복사했던 수많은 데이터(텍스트, 이미지, 파일)를 손실 없이 찾아 활용할 수 있게 해주는 macOS 전용 생산성 극대화 도구입니다. 백그라운드에서 가볍고 빠르게 동작하며, 타 스니펫 앱(예: Alfred)의 방대한 데이터베이스를 클릭 한 번으로 가져와 그대로 사용할 수 있는 강력한 호환성도 제공합니다.
+fSnippetCli 는 반복적인 텍스트 입력을 줄여 주고, 과거에 복사했던 데이터(텍스트, 이미지, 파일)를 다시 찾아 쓸 수 있게 해 주는 macOS 스니펫 엔진입니다. 메뉴바에 상주해 백그라운드에서 가볍게 동작하며, 다른 스니펫 앱(예: Alfred)의 데이터베이스를 명령 하나(`fSnippetCli import alfred <경로>`)로 가져와 그대로 쓸 수 있습니다. 사용자 매뉴얼은 [한국어](kr/01_Overview.md) · [English](en/01_Overview.md).
 
 ---
 
 # 1. 스니펫 (Snippet) 기능
 
-사용자가 몇 글자의 짧은 '단축어'를 키보드로 입력하면, 애플리케이션이 이를 백그라운드에서 즉각 감지하여 미리 정의된 길고 복잡한 '전체 텍스트'로 자동 확장(대치)해 주는 fSnippet의 핵심 엔진입니다.
+사용자가 몇 글자의 짧은 '단축어'를 키보드로 입력하면, 애플리케이션이 이를 백그라운드에서 즉각 감지하여 미리 정의된 길고 복잡한 '전체 텍스트'로 자동 확장(대치)해 주는 fSnippetCli 의 핵심 기능입니다.
 
 ## 1.1. 스니펫 확장 (Text Expansion)의 원리 및 입력 안정성
 
 ### 1.1.1. 지능형 트리거 감지 및 뛰어난 입력 호환성
-fSnippet은 사용자의 키보드 입력을 시스템 레벨에서 모니터링합니다. 단축어 다음에 약속된 **트리거 키(예: `Right+Cmd`(다이아몬드 키 `{right_command}`), `=`, Space 등)** 가 입력되는 순간, 화면에 문자를 뿌릴 준비를 마칩니다. 
+fSnippetCli 는 사용자의 키보드 입력을 시스템 레벨에서 모니터링합니다(손쉬운 사용 권한 필요). 단축어 다음에 약속된 **트리거 키(예: `Right+Cmd`(다이아몬드 키 `{right_command}`), `=`, Space 등)** 가 입력되는 순간, 화면에 문자를 뿌릴 준비를 마칩니다. 
 특히 강력한 안정성을 위해 다음과 같은 특수 호환 로직이 내장되어 있습니다:
 * **Karabiner-Elements 완벽 호환**: 키 맵핑 앱을 통해 특정 키를 `{right_command}` 등으로 우회 입력하더라도 이를 원본처럼 정확하게 가로채어 인식합니다.
 * **다국어 및 특수 문자 완벽 방어**: 한글 입력기(`Gureum` 등) 사용 중에 영문 단축어(`j`, `k`, `l` 등)를 치거나, Shift 키가 결합된 기호(`<--`, `-->`), 대소문자가 섞인 단축키(`Cf∆`)를 입력해도 백그라운드에서 이를 정확히 보정하여 씹히지 않게 동작합니다.
 
 ### 1.1.2. 백스페이스 역방향 탐색 및 순간 대치
-트리거를 감지하면 fSnippet은 즉시 **역방향 검색 알고리즘**을 통해 방금 화면에 입력된 단축어 버퍼를 스캔합니다. 특히 공백 접미사(`_symbol_space`)나 특수 스크립트 접미사(`_`)를 가진 복잡한 조건에서도 Greedy 알고리즘을 사용해 가장 긴 최적의 스니펫을 찾아냅니다. 이후 지연 길이 보정치를 계산해 백스페이스 커맨드를 전송하여 입력된 글자를 지우고, 저장된 긴 스니펫 텍스트를 눈 깜짝할 새에 붙여넣습니다.
+트리거를 감지하면 fSnippetCli 는 즉시 **역방향 검색 알고리즘**을 통해 방금 화면에 입력된 단축어 버퍼를 스캔합니다. 특히 공백 접미사(`_symbol_space`)나 특수 스크립트 접미사(`_`)를 가진 복잡한 조건에서도 Greedy 알고리즘을 사용해 가장 긴 최적의 스니펫을 찾아냅니다. 이후 지연 길이 보정치를 계산해 백스페이스 커맨드를 전송하여 입력된 글자를 지우고, 저장된 긴 스니펫 텍스트를 눈 깜짝할 새에 붙여넣습니다.
 
 ### 1.1.3. 다양한 트리거 키와 유연한 규칙 지원
-애플리케이션은 기본 다이아몬드 트리거(`Right+Cmd`) 외에도 특정 폴더별(예: Markdown, Code 등)로 사용자 정의 접두사(Prefix)/접미사(Suffix) 규칙(`_rule.yml`)을 다르게 세팅할 수 있습니다. 수천 개의 파일에서도 트리거가 꼬이는 일이 없습니다.
+기본 트리거(`Right+Cmd`, `_config.yml` 의 `snippet_trigger_key`) 외에도 폴더별(예: Markdown, Code 등)로 사용자 정의 접두사(Prefix)/접미사(Suffix) 규칙(`snippets/_rule.yml`)을 다르게 세팅할 수 있습니다. 규칙은 파일을 직접 고치거나 REST `PATCH /api/v2/settings/snippet-folders/{folder}` 로 바꿉니다 — 상세: [스니펫 사용법](kr/04_Snippet_Usage.md#폴더-규칙-_ruleyml).
 
 ## 1.2. 스니펫 관리와 유용한 컴패니언 기능
 
 ### 1.2.1. 스마트 폴더 기반 파일 관리
-`snippets` 폴더 내의 스니펫은 단순한 텍스트 파일(.txt)로 저장됩니다. 파일명은 직관적인 `단축어===스니펫설명.txt` 형태를 취합니다. 추가로 fSnippet은 대문자로 이루어진 폴더명(예: `EMAIL`, `AWS`)을 분석해 자동으로 해당 폴더의 모든 스니펫에 도메인별 안전한 그룹 접두어(`e`, `a`)를 매핑해 줍니다.
+`snippets` 폴더 내의 스니펫은 단순한 텍스트 파일(.txt)로 저장됩니다. 파일명은 직관적인 `단축어===스니펫설명.txt` 형태를 취합니다. 추가로 fSnippetCli 는 폴더명의 대문자를 모아 소문자로 바꾼 값을 그 폴더 모든 스니펫의 그룹 접두어로 자동 매핑합니다(예: `Docker` → `d`, `AWS` → `aws`, `EMAIL` → `email`, `MyFolder` → `mf`). 대문자가 없거나 `_` 로 시작하는 폴더는 자동 접두어가 없습니다.
 
-### 1.2.2. 에디터 내 「Search to Placeholder」 정규식 도우미
-앱에 내장된 스니펫 전용 편집기에서는 길고 복잡한 템플릿의 특정 키워드를 편리하게 처리하는 기능을 제공합니다.
-화면 상단의 통합 치환 도구에 정규식(Regex) 형식으로 검색어를 입력하고 치환 버튼을 누르면, 본문 내 문자열들이 한 번에 `{{placeholder}}` 포맷으로 안전하게 일괄 변환(Undo 스택 기본 지원)됩니다.
+### 1.2.2. 스니펫 편집 (fSnippet 사용 시)
+fSnippetCli 에는 스니펫 편집 화면이 없습니다. 스니펫은 텍스트 파일이므로 아무 편집기로 고치고, REST `POST /api/v2/snippets` · `DELETE /api/v2/snippets/{id}` 로 만들고 지울 수 있습니다.
+fSnippet(GUI 래퍼)을 함께 쓰면 전용 편집기와 「Search to Placeholder」 정규식 도우미(본문 문자열을 `{{placeholder}}` 포맷으로 일괄 변환)를 쓸 수 있습니다 — [fSnippet 제품 페이지](https://finfra.kr/product/fSnippet/kr/index.html).
 
 ### 1.2.3. 강력한 Alfred 호환 모드 (Seamless Import)
-기존에 사용하던 Alfred 스니펫 패키지를 한 번에 가져옵니다(fSnippet 사용 시 설정 - 고급 탭의 버튼). 이 과정에서 중복된 접미어를 덜어내고, 불필요한 키 이벤트를 줄이는 최적화와 더불어 아이콘까지 그대로 파싱하여 이식하는 강력한 마이그레이션 경험을 제공합니다.
+기존에 사용하던 Alfred 스니펫 패키지(`snippets.alfdb`)를 한 번에 가져옵니다 — 명령행 `fSnippetCli import alfred <경로>` 또는 REST `POST /api/v2/import/alfred`. 컬렉션별 접두어 · 접미어 매핑은 `snippets/_rule_for_import.yml` 을 따릅니다. 이 과정에서 중복된 접미어를 덜어내고, 불필요한 키 이벤트를 줄이는 최적화와 더불어 아이콘까지 그대로 파싱하여 이식하는 강력한 마이그레이션 경험을 제공합니다.
 
 ## 1.3. 동적 플레이스홀더 (Dynamic Placeholders)
 
@@ -51,7 +51,7 @@ fSnippet은 사용자의 키보드 입력을 시스템 레벨에서 모니터링
 * **`{{date}}`, `{{time}}` 자동 채움**: 현재의 날짜와 시간을 포맷팅해 삽입합니다.
 * **포커스 텔레포트 (`{{cursor}}`)**: 코딩 중 괄호 안이나 함수 블록을 비워두기 위해 텍스트 중간에 배치하면 그 위치로 커서가 알아서 돌아갑니다.
 * **즉석 동적 폼 (`{{placeholder}}`)**: 문구 중간중간에 가변 정보(고객명 등)가 필요할 때 사용하면, 텍스트가 모두 출력되기 직전에 작고 우아한 **입력 팝업창**이 떠오릅니다. 내용을 적고 엔터를 누르면 원래 타이핑하던 창(포커스 앱)으로 깔끔하게 자동으로 복귀해 남은 문장을 완성합니다!
-* **시너지 복합 삽입 (`{{clipboard}}`, `{{uuid}}`)**: 최신 클립보드 값이나 고유 문자열 ID를 생성하여 꽂아 넣습니다.
+* **시너지 복합 삽입 (`{{clipboard}}`, `{{random:UUID}}`)**: 최신 클립보드 값이나 고유 문자열 ID를 생성하여 꽂아 넣습니다. 전체 문법: [플레이스홀더 가이드](Placeholder.md)
 
 ## 1.4. 언제든지 띄우는 브라우저와 UI/UX
 
@@ -77,9 +77,9 @@ fSnippet은 사용자의 키보드 입력을 시스템 레벨에서 모니터링
 
 * **리스트-프리뷰 통합 배치**: 전역 단축키 한 번으로 왼쪽에는 클립보드 목록(List), 오른쪽에는 해당 항목의 풀 사이즈 텍스트나 원본 이미지(Preview Layout)가 동시에 나타나 눈의 피로도와 깜빡임을 혁신적으로 줄였습니다. 
 * **타이핑 즉시 검색 (`Typing-to-Search`)**: 리스트를 구경하다 키보드를 치기만 하면 마우스 이동이나 단축키 없이 즉시 검색창 모드로 자동 진입합니다.
-* **키보드 액션 완벽 제어**: 검색 모드에서 리스트 삭제 단축키(Delete)가 엉뚱하게 오작동하는 것을 원천 차단했고, `Cmd+A` 전체 선택 기능과 더불어 `Esc` 키를 눌렀을 때 완전히 창이 닫히지 않고 우아하게 리스트 모드로 복귀하는 등 세밀한 유저 경험을 보장합니다.
+* **키보드 액션 완벽 제어**: 검색 모드에서 리스트 삭제 단축키(Delete)가 엉뚱하게 오작동하는 것을 원천 차단했고, `Cmd+A` 전체 선택 기능과 더불어 검색어가 있을 때 `Esc` 를 누르면 창을 닫지 않고 검색어만 지우는(검색어가 없으면 닫힘) 등 세밀한 유저 경험을 보장합니다. 키 전체: [클립보드 히스토리](kr/05_Clipboard_Usage.md#키-조작)
 
-## 2.3. スマート 3-Phase 검색과 자동 가비지 컬렉션
+## 2.3. 스마트 3-Phase 검색과 자동 가비지 컬렉션
 
 * **타이핑 렉 없는 3-Phase 메모리 최적화 검색 엔진**: 검색창에 단어를 넣을 때마다 수 만 개의 클립보드 데이터를 0.5초 디바운싱 -> 백그라운드 필터링 -> 메모리 부분 병합(3단계) 방식으로 읽어오므로 지연이 느껴지지 않습니다.
 * **수명 관리(TTL)**: 앱 최적화를 위해 클립보드 내 텍스트는 90일 후, 파일 리스트는 30일 후, 무거운 이미지는 7일이 지나면 스스로 가비지 처리되어 하드 디스크 여유 공간을 안전하게 회수합니다.
@@ -93,16 +93,16 @@ fSnippet은 사용자의 키보드 입력을 시스템 레벨에서 모니터링
 
 # 3. 앱 구동 시스템과 퍼포먼스 제어 기술
 
-운영체제의 키보드 후킹 권한을 직접 제어해야 하는 만큼, fSnippet은 매우 유연하면서도 보수적인 극강의 최적화 시스템을 거느리고 있습니다.
+운영체제의 키보드 후킹 권한을 직접 제어해야 하는 만큼, fSnippetCli 는 매우 유연하면서도 보수적인 극강의 최적화 시스템을 거느리고 있습니다.
 
 ### 3.1. 백그라운드 편의성과 단축키 글로벌 호출
-앱이 기본적으로 독(Dock)을 더럽히지 않도록 메뉴바 전용(LSUIElement)으로 디자인되어 조용히 돌아가지만, 원할 경우 설정에서 `앱 전환기(Cmd + Tab) 표시`를 켜서 윈도우 간격을 손쉽게 좁힐 수 있습니다. 모든 핵심 창호출이나 환경 설정은 글로벌 단축키로 제어되며, 앱 재실행을 시도(중복 클릭)하면 자동으로 환경 설정 창을 화면 앞으로 호출합니다.
+앱이 기본적으로 독(Dock)을 더럽히지 않도록 메뉴바 전용(LSUIElement)으로 디자인되어 조용히 돌아가지만, 앱 전환기(Cmd + Tab) 표시 여부는 `_config.yml` 의 `show_in_app_switcher` 로 정합니다. 스니펫 팝업 · 클립보드 히스토리 같은 핵심 창은 글로벌 단축키로 호출되며(단축키 표: [메뉴바 사용법](kr/06_MenuBar_Usage.md#전역-단축키)), 이미 실행 중일 때 앱을 다시 실행하면 새 인스턴스는 바로 종료되고 기존 인스턴스의 메뉴바 아이콘을 복원합니다.
 
 ### 3.2. [O(1) 증분 로딩]을 통한 앱 프리징 탈출 (Zero Freezing)
 수천 개의 스니펫과 수십 개의 폴더 환경 구성을 사용할 때 빛을 발합니다. 사용자가 특정 스니펫 하나를 편집하거나, 클립보드로 만들어 바로 스니펫 폴더에 저장할 때마다 과거처럼 전체 파일 리스트를 새로 갱신하지 않고 **[파일 단 한 개만 스캔하여]** 메모리를 바꿔 끼우는 증분 업데이트 성능을 실현했습니다. 파일 추가/수정이 매우 즉각적으로 이루어집니다.
 
 ### 3.3. 배터리와 CPU를 살려내는 [지능형 동적 폴링 (Dynamic Polling)]
-macOS의 한계 상 NSPasteboard(클립보드) 변화는 지속적인 폴링(감시)이 필요해 CPU를 야금야금 잡아먹는 원인이었습니다. fSnippet은 사용자가 키보드로 `Cmd + C` 따위의 액션을 취하는 바로 그 순간(밀리초 커버)에만 바짝 긴장하여 0.5초 단위로 수집합니다. 이후 사용자 행동이 없으면 조용히 감시 간격을 10초까지 조금씩 늘려서(Back-off 백그라운드 알고리즘) 배터리 소모와 발열을 원천적으로 막아냅니다.
+macOS의 한계 상 NSPasteboard(클립보드) 변화는 지속적인 폴링(감시)이 필요해 CPU를 야금야금 잡아먹는 원인이었습니다. fSnippetCli 는 클립보드 변화가 있으면 0.5초 간격으로 감시하고, 변화가 없으면 감시 간격을 1.5배씩 늘려 최대 2초까지 넓혀서(Back-off 알고리즘) 배터리 소모와 발열을 원천적으로 막아냅니다.
 
 ---
 
@@ -335,48 +335,53 @@ REST API 의 전체 스펙은 OpenAPI 3.0.3 형식으로 제공됩니다.
 
 # 5. Claude Code Skill 연동 (AI Agent Integration)
 
-fSnippet은 [Claude Code](https://claude.com/claude-code)의 Skill 시스템과 연동하여, AI 에이전트가 대화 중에 fSnippet의 스니펫 데이터를 직접 검색하고 활용할 수 있도록 지원합니다.
+fSnippetCli 는 [Claude Code](https://claude.com/claude-code)의 Skill 시스템과 연동하여, AI 에이전트가 대화 중에 스니펫 데이터를 직접 검색하고 활용할 수 있도록 지원합니다. 사용자용 안내: [Claude Code Skill 사용법](kr/08_Skill_Usage.md)
 
 ## 5.1. 개요
 
-Claude Code Skill은 AI 에이전트에게 특정 도구를 Slash Command(`/fsnippet:...`) 형태로 제공하는 확장 모듈입니다. fSnippet REST API를 백엔드로 활용하여, 대화 흐름 안에서 스니펫 검색, 확장, 클립보드 조회 등을 수행합니다.
+Claude Code Skill은 AI 에이전트에게 특정 도구를 Slash Command(`/fsnippet:...`) 형태로 제공하는 확장 모듈입니다. fSnippetCli REST API를 백엔드로 활용하여, 대화 흐름 안에서 스니펫 검색 · 확장 · 생성 · 삭제, 클립보드 조회, 엔진 일시 정지 · 재개 · 다시 불러오기 등을 수행합니다.
 
 ## 5.2. 설치 방법
 
-### 방법 1: 수동 복사
+플러그인 본체는 통합 플러그인 저장소 [Finfra/f-claude-plugins](https://github.com/Finfra/f-claude-plugins) 의 `fSnippet/` 에 있습니다(이 저장소의 [agents/claude/](../agents/claude/README_ko.md) 는 안내 포인터).
 
-프로젝트 루트에 플러그인 디렉토리를 복사합니다.
+### 방법 1: 마켓플레이스 (권장)
 
-```bash
-# fSnippet 프로젝트 루트에서 실행
-cp -r agents/claude/.claude-plugin .claude-plugin
-cp -r agents/claude/skills .claude/skills
+```
+/plugin marketplace add Finfra/f-claude-plugins
+/plugin install fsnippet@f-claude-plugins
 ```
 
-### 방법 2: Symbolic Link
+### 방법 2: 수동 복사
+
+Skill 을 쓸 프로젝트 폴더에서 실행합니다.
 
 ```bash
-ln -sf agents/claude/skills/fsnippet .claude/skills/fsnippet
+git clone https://github.com/Finfra/f-claude-plugins.git
+mkdir -p .claude-plugin .claude
+cp f-claude-plugins/fSnippet/plugin.json .claude-plugin/plugin.json
+cp -r f-claude-plugins/fSnippet/skills .claude/skills
 ```
 
 ## 5.3. 사전 조건
 
-fSnippet REST API 서버가 실행 중이어야 합니다.
+fSnippetCli 가 실행 중이고 REST API 가 켜져 있어야 합니다.
 
-| 항목 | 값 |
-|------|-----|
-| 서버 주소 | `http://localhost:3015` |
-| 활성화 | 설정 > 고급 > REST API 활성화 |
-| 포트 | 기본 `3015` (설정에서 변경 가능) |
+| 항목      | 값                                                                                            |
+| :-------- | :-------------------------------------------------------------------------------------------- |
+| 서버 주소 | `http://localhost:3015`                                                                       |
+| 활성화    | 기본 켜짐 — `_config.yml` 의 `api_enabled: true` (또는 `PATCH /api/v2/settings/advanced/api`) |
+| 포트      | 기본 `3015` — `_config.yml` 의 `api_port`. Skill 은 `localhost:3015` 를 기준으로 동작         |
 
 ## 5.4. 플러그인 구조
 
 ```
-agents/claude/
-├── .claude-plugin/
-│   └── plugin.json          # 플러그인 매니페스트
+f-claude-plugins/fSnippet/
+├── plugin.json              # 플러그인 매니페스트
+├── mcp-server.js
 └── skills/
-    └── fsnippet/             # fSnippet Skill 정의
+    └── fsnippet/
+        └── SKILL.md         # fsnippet Skill 정의
 ```
 
 ## 5.5. 사용 예시
@@ -397,17 +402,17 @@ Claude Code에서 다음과 같이 사용할 수 있습니다:
 "최근 복사한 내용 5개를 보여줘"
 ```
 
-서버가 실행 중이지 않을 경우, Skill이 사용자에게 앱 실행 안내를 제공합니다.
+서버가 실행 중이지 않을 경우, Skill 은 앱을 대신 실행하지 않고 실행 방법(`brew services start fsnippet-cli`)을 안내합니다.
 
 ---
 
 # 6. MCP 서버 연동 (Model Context Protocol)
 
-fSnippet은 [MCP (Model Context Protocol)](https://modelcontextprotocol.io/)를 통해 Claude Desktop, Claude Code 등의 AI 에이전트에서 스니펫 데이터를 직접 활용할 수 있는 MCP 서버를 제공합니다.
+fSnippetCli 는 [MCP (Model Context Protocol)](https://modelcontextprotocol.io/)를 통해 Claude Desktop, Claude Code 등의 AI 에이전트에서 스니펫 데이터를 직접 활용할 수 있는 MCP 서버 `fsnippet-mcp`([mcp/](../mcp/))를 제공합니다. 사용자용 안내: [MCP 서버 사용법](kr/09_MCP_Usage.md)
 
 ## 6.1. 개요
 
-MCP 서버는 fSnippet REST API를 감싸는 경량 프로토콜 어댑터로, AI 에이전트가 표준화된 MCP 도구(Tool) 호출을 통해 스니펫 검색, 확장, 클립보드 히스토리 조회 등의 기능을 수행할 수 있습니다.
+MCP 서버는 fSnippetCli REST API를 감싸는 경량 프로토콜 어댑터로, AI 에이전트가 표준화된 MCP 도구(Tool) 호출을 통해 스니펫 검색, 확장, 클립보드 히스토리 조회 등의 기능을 수행할 수 있습니다.
 
 ```
 Claude Code / Claude Desktop
@@ -418,20 +423,21 @@ fsnippet-mcp (MCP 서버)
     |
     | HTTP (REST API)
     v
-fSnippet.app (localhost:3015)
+fSnippetCli (localhost:3015)
 ```
 
 ## 6.2. 사전 조건
 
-* fSnippet 앱이 실행 중이어야 합니다
-* 설정에서 REST API가 활성화되어야 합니다
-* 기본 서버 주소: `http://localhost:3015`
+* Node.js 18 이상
+* fSnippetCli 가 실행 중이어야 합니다 (`brew services start fsnippet-cli`)
+* REST API 가 켜져 있어야 합니다 — 기본 켜짐(`_config.yml` 의 `api_enabled: true`)
+* 기본 서버 주소: `http://localhost:3015` (`--server=<url>` 인자 > 환경변수 `FSNIPPET_SERVER` > 기본값 순)
 
 ## 6.3. 설정 방법
 
 ### Claude Code 설정
 
-`~/.claude/settings.json` 또는 프로젝트의 `.claude/settings.json`에 MCP 서버를 등록합니다.
+`claude mcp add --scope user fsnippet -- npx -y fsnippet-mcp` 로 등록하거나, 프로젝트 루트의 `.mcp.json` 에 아래 형식으로 MCP 서버를 적습니다.
 
 **글로벌 설치 후 실행:**
 ```bash
@@ -503,52 +509,19 @@ npm install -g fsnippet-mcp
 
 ## 6.4. 제공 도구 (Tools)
 
-### `health_check` — 서버 상태 확인
+정본은 [mcp/index.js](../mcp/index.js) 입니다.
 
-fSnippet REST API 서버의 동작 상태를 확인합니다.
-
-**파라미터**: 없음
-
-**응답 예시:**
-```json
-{
-    "status": "ok",
-    "app": "fSnippet",
-    "port": 3015,
-    "snippet_count": 1937
-}
-```
-
-### `search_snippets` — 스니펫 검색
-
-키워드로 스니펫을 검색합니다.
-
-| 파라미터 | 타입 | 필수 | 기본값 | 설명 |
-|----------|------|------|--------|------|
-| `query` | string | O | - | 검색 키워드 |
-| `limit` | int | X | `10` | 반환할 최대 결과 수 |
-| `folder` | string | X | - | 특정 폴더로 필터링 |
-
-### `expand_snippet` — 스니펫 확장
-
-약어를 입력하면 플레이스홀더 치환을 포함한 확장된 텍스트를 반환합니다.
-
-| 파라미터 | 타입 | 필수 | 설명 |
-|----------|------|------|------|
-| `abbreviation` | string | O | 스니펫 약어 |
-
-### `get_clipboard_history` — 클립보드 히스토리
-
-최근 복사한 항목 목록을 반환합니다.
-
-| 파라미터 | 타입 | 필수 | 기본값 | 설명 |
-|----------|------|------|--------|------|
-| `limit` | int | X | `10` | 반환할 최대 결과 수 |
-| `kind` | string | X | - | 항목 종류 필터 (`plain_text`, `image`, `file_list`) |
-
-### `list_folders` — 폴더 목록
-
-전체 스니펫 폴더 목록과 각 폴더의 스니펫 수를 반환합니다.
+| 도구                | 파라미터 (기본값)                                                                | 설명                                   |
+| :------------------ | :------------------------------------------------------------------------------- | :------------------------------------- |
+| `health_check`      | 없음                                                                             | REST 서버 상태 확인                    |
+| `search_snippets`   | `query`(필수), `limit`(20), `folder`, `offset`                                   | 키워드로 스니펫 검색                   |
+| `get_snippet`       | `abbreviation` 또는 `id`                                                         | 스니펫 하나 조회                       |
+| `expand_snippet`    | `abbreviation`(필수), 플레이스홀더 값                                            | 플레이스홀더 치환을 포함한 확장 텍스트 |
+| `clipboard_history` | `limit`(50), `kind`(`plain_text`·`image`·`file_list`), `app`, `pinned`, `offset` | 최근 클립보드 항목                     |
+| `clipboard_search`  | `query`(필수), `limit`(50), `offset`                                             | 클립보드 검색                          |
+| `list_folders`      | `name`, `limit`, `offset`                                                        | 폴더 목록 · 폴더 하나 상세             |
+| `get_stats`         | `type`(`top`·`history`, 기본 `top`), `limit`(10), `from`, `to`, `offset`         | 사용 통계                              |
+| `get_triggers`      | 없음                                                                             | 트리거 키 정보                         |
 
 ## 6.5. 사용 예시
 
@@ -574,27 +547,12 @@ npx @modelcontextprotocol/inspector npx fsnippet-mcp
 ### 서버 연결 확인
 
 ```bash
-# fSnippet REST API 서버가 실행 중인지 확인
-curl -s http://localhost:3015/ | python3 -m json.tool
+# fSnippetCli REST API 서버가 실행 중인지 확인
+curl -s http://localhost:3015/api/v2/status | python3 -m json.tool
 ```
 
 ---
 
-# 7. 설정 화면 참조 (Settings Reference)
+# 7. 설정 화면 (GUI)
 
-fSnippet의 설정 화면은 5개 탭으로 구성되어 있습니다.
-
-| 탭 | 설명 | 스크린샷 |
-|----|------|----------|
-| 일반 (General) | 기본 동작 설정, 트리거 키, 앱 표시 옵션 | ![일반 설정](https://finfra.kr/product/fSnippet/kr/screen_settings_general.png) |
-| 스니펫 (Snippets) | 스니펫 폴더 경로, 가져오기/내보내기 | ![스니펫 설정](https://finfra.kr/product/fSnippet/kr/screen_settings_snippets.png) |
-| 폴더 (Folders) | 폴더별 규칙, Prefix/Suffix, Trigger Bias | ![폴더 설정](https://finfra.kr/product/fSnippet/kr/screen_settings_folders.png) |
-| 히스토리 (History) | 클립보드 히스토리 보관 기간, 수집 대상 설정 | ![히스토리 설정](https://finfra.kr/product/fSnippet/kr/screen_settings_history.png) |
-| 고급 (Advanced) | REST API 서버 설정, 디버그 옵션, Alfred 가져오기 | ![고급 설정](https://finfra.kr/product/fSnippet/kr/screen_settings_advanced_info.png) |
-
-### 주요 UI 스크린샷
-
-| 기능 | 스크린샷 |
-|------|----------|
-| 스니펫 팝업 | ![스니펫 팝업](https://finfra.kr/product/fSnippet/kr/screen_snippet.png) |
-| 클립보드 히스토리 | ![클립보드](https://finfra.kr/product/fSnippet/kr/screen_clipboard.png) |
+설정 창(일반 · 스니펫 · 폴더 · 히스토리 · 고급 탭)과 스니펫 편집기는 GUI 래퍼 **fSnippet** 의 몫입니다 — [fSnippet 제품 페이지](https://finfra.kr/product/fSnippet/kr/index.html). fSnippetCli 에서는 같은 설정을 [`_config.yml`](kr/06_MenuBar_Usage.md#설정-파일-_configyml) · [REST `settings/*`](kr/07_API_Usage.md) · 명령행 `fSnippetCli settings` 로 바꿉니다.

@@ -32,7 +32,7 @@ date: 2026-03-26
 
 ## 5-1. 서버 활성화 및 보안 설정
 - NWListener 기반 내장 HTTP 서버 개요
-- 활성화 방법: 설정 > 고급(Advanced) > REST API 섹션에서 Enable 체크
+- 활성화: 기본 켜짐 — `_config.yml` 의 `api_enabled` 또는 `PATCH /api/v2/settings/advanced/api`
 - `api_enabled`, `api_port`, `api_allow_external`, `api_allowed_cidr` 설정 항목
 - CIDR 기반 접근 제어 및 localhost 전용 바인딩 원리
 ## 5-2. 엔드포인트 레퍼런스
@@ -73,7 +73,7 @@ date: 2026-03-26
 ## 7-1. MCP 개요
 - fSnippet REST API를 MCP 프로토콜로 감싸는 경량 어댑터
 - Claude Code, Claude Desktop 등 AI 에이전트에서 활용
-- 아키텍처: AI Agent -> MCP (stdio) -> fsnippet-mcp -> HTTP -> fSnippet.app
+- 아키텍처: AI Agent -> MCP (stdio) -> fsnippet-mcp -> HTTP -> fSnippetCli
 ## 7-2. 설치 및 설정
 - 글로벌 설치: `npm install -g fsnippet-mcp`
 - npx 방식 (설치 불필요): `npx -y fsnippet-mcp`
@@ -84,19 +84,16 @@ date: 2026-03-26
 - `health_check`: 서버 상태 확인
 - `search_snippets`: 스니펫 키워드 검색 (query, limit, folder 파라미터)
 - `expand_snippet`: 약어 기반 스니펫 확장 (abbreviation 파라미터)
-- `get_clipboard_history`: 클립보드 히스토리 조회 (limit, kind 파라미터)
+- `get_snippet`: 약어 또는 id 로 스니펫 하나 조회
+- `clipboard_history`: 클립보드 히스토리 조회 (limit, kind, app, pinned 파라미터)
+- `clipboard_search`: 클립보드 검색
 - `list_folders`: 폴더 목록 및 스니펫 수 조회
+- `get_stats`: 사용 통계 (top · history)
+- `get_triggers`: 트리거 키 정보
 ## 7-4. 디버깅
 - MCP Inspector: `npx @modelcontextprotocol/inspector npx fsnippet-mcp`
-- REST API 서버 연결 확인: `curl -s http://localhost:3015/`
+- REST API 서버 연결 확인: `curl -s http://localhost:3015/api/v2/status`
 
-# 8. 설정 화면 참조 (Settings Reference)
-## 8-1. 설정 탭 구성
-- 일반 (General): 기본 동작 설정, 트리거 키, 앱 표시 옵션
-- 스니펫 (Snippets): 스니펫 폴더 경로, 가져오기/내보내기
-- 폴더 (Folders): 폴더별 규칙, Prefix/Suffix, Trigger Bias
-- 히스토리 (History): 클립보드 히스토리 보관 기간, 수집 대상
-- 고급 (Advanced): REST API 서버 설정, 디버그 옵션, Alfred 가져오기
-## 8-2. UI 스크린샷 참조
-- 캡처 이미지 URL: `https://finfra.kr/product/fSnippet/{LANG}/screen_*.png`
-- 지원 언어: `en/` (영어), `kr/` (한국어)
+# 8. 설정 화면 (GUI)
+- 설정 창 · 스니펫 편집기는 GUI 래퍼 fSnippet 의 몫 — [fSnippet 제품 페이지](https://finfra.kr/product/fSnippet/kr/index.html)
+- fSnippetCli 에서 같은 설정 바꾸기: `_config.yml` · REST `settings/*` · 명령행 `fSnippetCli settings` — [메뉴바 사용법](kr/06_MenuBar_Usage.md)
