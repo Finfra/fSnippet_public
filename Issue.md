@@ -37,6 +37,9 @@ date: 2026-04-07
 
 # 📙 일반
 
+# 📗 선택
+
+# ✅ 완료
 ## Issue259: [API] 약어 미리보기·중복 판정 REST 엔드포인트 신설 — paidApp 스니펫 편집 창용 (등록: 2026-10-09, 출처: prj15#Issue1004)
 * 목적: paidApp 은 엔진 계산을 하지 않는다(2-앱). 편집 창의 «→ 약어» 미리보기·중복 경고를 위해 cliApp 이 계산·판정 결과를 REST 로 내놓아야 한다
 * 상세:
@@ -47,10 +50,10 @@ date: 2026-04-07
     - `api/openapi_v2.yaml` 동시 갱신(api-rules 동기화 규칙) · 읽기 전용(파일 부작용 없음)
     - 검증: 일반 폴더·`_rule.yml` 특수 폴더 각 1건의 약어가 엔진 로직과 일치, 기존 약어 키워드 → `isDuplicate: true`, `currentSnippetPath` 가 자기 자신이면 `false`
 * 후행: prj15#Issue1004 (paidApp `SnippetEditorView` 가 이 엔드포인트를 소비)
+* 결과 (커밋 3e8c2b9): `POST /api/v2/snippets/abbreviation-preview` 구현(APIRouter·APIModels·openapi_v2.yaml). 응답은 v2 표준 래퍼 `{ok, data:{abbreviation, isDuplicate}}`
+    - TDD: `AbbreviationPreviewAPITests` red(5 실패) → green(3 통과·2 skip: 테스트 환경에 인덱스·특수 폴더 룰 없음)
+    - 실앱 검증(/run 후 curl): `_emoji`(특수 폴더) `@fboy{right_command}` 중복 true → `currentSnippetPath` 자기 지정 시 false, `Docker` 일반 폴더 `dzzq{right_command}` false
 
-# 📗 선택
-
-# ✅ 완료
 ## Issue254: [Brand] 소스 빌드에도 공식 앱 아이콘 — Issue242 «소스 빌드 = macOS 기본 아이콘» 정책 철회 (등록: 2026-10-09) (해결: 2026-10-09, commit: 9738ae5) ✅
 * 목적: jma 의 소스 빌드(brew local)가 손쉬운 사용 목록 등에서 흐린 기본 아이콘으로 보여 사용자가 «아이콘 이상함» 으로 지적. 소스 빌드도 fSnippet 아이콘을 쓰게 한다
 * depends: Issue242
