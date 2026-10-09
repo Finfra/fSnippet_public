@@ -33,7 +33,14 @@ date: 2026-04-07
 
 # 🚧 진행중
 
-## Issue254: [Brand] 소스 빌드에도 공식 앱 아이콘 — Issue242 «소스 빌드 = macOS 기본 아이콘» 정책 철회 (등록: 2026-10-09)
+# 📕 중요
+
+# 📙 일반
+
+# 📗 선택
+
+# ✅ 완료
+## Issue254: [Brand] 소스 빌드에도 공식 앱 아이콘 — Issue242 «소스 빌드 = macOS 기본 아이콘» 정책 철회 (등록: 2026-10-09) (해결: 2026-10-09, commit: 9738ae5) ✅
 * 목적: jma 의 소스 빌드(brew local)가 손쉬운 사용 목록 등에서 흐린 기본 아이콘으로 보여 사용자가 «아이콘 이상함» 으로 지적. 소스 빌드도 fSnippet 아이콘을 쓰게 한다
 * depends: Issue242
 * 상세:
@@ -51,14 +58,12 @@ date: 2026-04-07
     - ② tdd red 먼저 → 수정 → jma 재배포(`jma-fsnippet-deploy --branch` 로 release/1.1.1 동기화) → 권한 재등록 경로(최초 실행 안내)로 목록에 다시 올린 뒤 아이콘 표시 증적(캡처 불가하면 설치본 속성 실측). 손쉬운 사용 토글·추가는 사람 작업 → 필요 시 `[사람]` 1줄로 상향
     - ③ 오진이 있으면 `cli/_doc_work/debug_TECH.md` 기록
     - 제약: push·tap·태그 금지 · Issue.md 는 issue-tx 로만 · `.agents/`·`.codex/`·`AGENTS.md` 커밋 금지 · _public 주석 영어 · jma GUI 작업은 tmux 경유
+* 결과(2026-10-09):
+    - 구현·tdd #18 은 9738ae5 (유닛 159/159 · 빌드 검사 PASS 39 FAIL 0 재실행 확인)
+    - 보충 신고 원인 확정: 코드 결함 아님 — jma 설치본이 수정 이전 소스(`52d3c36`)였다. `jma-fsnippet-deploy --cliApp` 재배포(정식 서명 valid) 후 설치본 `AppIcon.icns` 다이제스트 = jm4 iconutil 산출물(`270ac7daffc85437`), `CFBundleIconFile=AppIcon`·`CFBundleIconName` 없음·Assets.car 없음, `lsregister -f` 재등록. 기록: `cli/_doc_work/debug_TECH.md`(로컬 전용)
+    - 코드 변경이 없어 red 테스트 추가 대상 아님(TDD 해당 없음: 환경 — 미배포)
+    - 남은 일: `[사람]` jma 에서 fSnippetCli 를 재시작해 권한 안내를 띄우고 «손쉬운 사용» 목록에 다시 추가(시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용 > + > `/Applications/_nowage_app/fSnippetCli.app`) 후 아이콘 확인
 
-# 📕 중요
-
-# 📙 일반
-
-# 📗 선택
-
-# ✅ 완료
 ## Issue258: [Test] `apiTest/v2/*.sh` 35건이 `jq .` 출력만 하고 판정 안 함 — 케이스별 단언·종료코드 도입 (등록: 2026-10-09, 출처: 이슈후보, Issue244 ③ 수정 중 발견) (해결: 2026-10-09, commit: 40259ce) ✅
 * 목적: `fsc-test.sh` Step 9 «API 통합 테스트» 가 실행 수만 보고 PASS 하는 것을 막아 실패를 실패로 보고하게 한다
 * 상세:
