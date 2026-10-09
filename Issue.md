@@ -56,6 +56,7 @@ date: 2026-04-07
     - ⏸ **차단: jma 화면 잠금**(`CGSSessionScreenIsLocked`=True) — 정식 서명 빌드·TextEdit 입력 E2E 불가. 해제 수단은 사람뿐. 해제 확인 후 R1 착수
     - 공개 시 주의: `fsc-deploy-brew.sh publish` Step 2.9 는 태그가 있으면 건너뜀 → 그대로면 `cli-v1.1.1` 이 옛 커밋 `f2f3715` 에 남고 asset 만 교체돼 소스·바이너리가 갈린다. 재출시는 태그를 R1 통과 커밋으로 옮긴 뒤(로컬·origin) publish
     - 배포 #6~8(tarball·공개 tap·버전 일치)은 publish 뒤에만 돌 수 있어 R3 확인으로 수행 — 실패 시 tap 을 `6b619f7` 로 되돌림
+    - 14:30 차단 해제 확인: jma `CGSSessionScreenIsLocked`=False · jma 에 진행 중 빌드·테스트 없음 · jm4 로컬 tap clean(`6b619f7`=origin, UU 해소). **R1 은 세션 public-84 가 인수**(사용자 폼 답변 «R1 먼저 → 재출시» · tap 충돌은 «prj16 에 맡김» 이었으나 이미 해소) — 다른 세션은 jma 에서 R1 을 병행하지 말 것
 
 # 📗 선택
 
