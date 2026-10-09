@@ -50,6 +50,12 @@ date: 2026-04-07
     - Issue244 의 tap 상태 문구를 «2026-10-08 1.1.1 로 롤백(tap `6b619f7`)» 으로 갱신
     - 1.1.1 재출시 방식 확정(사람 결정 — H:배포) 후 `fsc-deploy-brew.sh publish` 로 tap 갱신. 상향 전 jma 에서 paidApp 실제 등록(`registered:true`) 확인을 출고 재생목록에 넣는다(Issue244 «재생목록 공백»)
     - 검증: `brew info finfra/tap/fsnippet-cli` 버전 · jma paidApp 등록 성공
+* 진행 (2026-10-09):
+    - 사용자 결정: **(b) jma R1 통과 시 공개까지 집행**(폼 답변). 선행 ② cliApp 두 키 동시 응답은 `170a3c9`, ① paidApp 관용 디코딩은 prj15#Issue989 완료
+    - jma 후보 동기화: prj25 `9bf825c` · prj15 `99ead1fb` — jma 가 jm4 에서 fetch + ff-only(공개 repo push 는 R1 통과 뒤). 작업트리 rsync 는 하지 않음(jm4 미추적 37건이 jma 를 dirty 로 만들어 R1 clean 조건을 깨므로)
+    - ⏸ **차단: jma 화면 잠금**(`CGSSessionScreenIsLocked`=True) — 정식 서명 빌드·TextEdit 입력 E2E 불가. 해제 수단은 사람뿐. 해제 확인 후 R1 착수
+    - 공개 시 주의: `fsc-deploy-brew.sh publish` Step 2.9 는 태그가 있으면 건너뜀 → 그대로면 `cli-v1.1.1` 이 옛 커밋 `f2f3715` 에 남고 asset 만 교체돼 소스·바이너리가 갈린다. 재출시는 태그를 R1 통과 커밋으로 옮긴 뒤(로컬·origin) publish
+    - 배포 #6~8(tarball·공개 tap·버전 일치)은 publish 뒤에만 돌 수 있어 R3 확인으로 수행 — 실패 시 tap 을 `6b619f7` 로 되돌림
 
 # 📗 선택
 
