@@ -234,6 +234,8 @@ class APIRouter {
       return handleGetByAbbreviation(abbrev: abbrev.removingPercentEncoding ?? abbrev)
     case ("POST", "/api/v2/snippets/expand"):
       return handleExpandSnippet(request: request)
+    case ("POST", "/api/v2/snippets/abbreviation-preview"):
+      return handleAbbreviationPreview(request: request)
     case ("POST", "/api/v2/snippets"):
       return handleCreateSnippet(request: request)
     case ("DELETE", _) where decodedPath.hasPrefix("/api/v2/snippets/"):
@@ -1808,6 +1810,24 @@ class APIRouter {
       placeholdersResolved: resolvedPlaceholders
     )
     return jsonResponse(APIExpandResponse(ok: true, data: data))
+  }
+
+  /// Issue259: read-only abbreviation preview + duplicate check for the paidApp editor.
+  private func handleAbbreviationPreview(request: APIServer.HTTPRequest) -> APIServer.HTTPResponse {
+    guard let bodyData = request.body,
+          let req = try? JSONDecoder().decode(APIAbbreviationPreviewRequest.self, from: bodyData) else {
+      return errorResponse(code: "INVALID_REQUEST", message: "유효한 JSON body 필요 (folder, keyword, name 필드)", statusCode: 400)
+    }
+    let folder = req.folder.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !folder.isEmpty else {
+      return errorResponse(code: "INVALID_REQUEST", message: "folder가 비어있음", statusCode: 400)
+    }
+    let manager = SnippetFileManager.shared
+    let abbreviation = manager.calculateAbbreviation(folder: folder, keyword: req.keyword, name: req.name)
+    let isDuplicate = manager.checkDuplicate(
+      abbreviation: abbreviation, currentSnippetPath: req.currentSnippetPath)
+    return jsonResponse(APIV2SuccessResponse(
+      APIAbbreviationPreviewData(abbreviation: abbreviation, isDuplicate: isDuplicate)))
   }
 
   // MARK: - Clipboard History

@@ -430,6 +430,20 @@ struct APICreateSnippetRequest: Codable {
   let content: String
 }
 
+/// 약어 미리보기 요청 (Issue259)
+struct APIAbbreviationPreviewRequest: Codable {
+  let folder: String
+  let keyword: String
+  let name: String
+  let currentSnippetPath: String?
+}
+
+/// 약어 미리보기 결과 데이터 (Issue259)
+struct APIAbbreviationPreviewData: Codable {
+  let abbreviation: String
+  let isDuplicate: Bool
+}
+
 /// 스니펫 생성/삭제 응답
 struct APISnippetMutationResponse: Codable {
   let ok: Bool

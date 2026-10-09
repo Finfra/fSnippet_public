@@ -1424,6 +1424,53 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /snippets/abbreviation-preview:
+    post:
+      summary: Preview abbreviation and duplicate status
+      description: |
+        Read-only. Calculates the abbreviation the engine would assign to a (folder, keyword, name)
+        snippet and reports whether it collides with an existing one. Pass `currentSnippetPath`
+        when editing so the snippet itself is excluded from the duplicate check. (Issue259)
+      operationId: previewSnippetAbbreviation
+      tags:
+        - Snippets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [folder, keyword, name]
+              properties:
+                folder: { type: string, example: "Bash" }
+                keyword: { type: string, example: "ls" }
+                name: { type: string, example: "list files" }
+                currentSnippetPath:
+                  type: string
+                  description: Absolute path of the snippet being edited (excluded from duplicate check)
+      responses:
+        '200':
+          description: Calculated abbreviation
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, data]
+                properties:
+                  ok: { type: boolean, example: true }
+                  data:
+                    type: object
+                    required: [abbreviation, isDuplicate]
+                    properties:
+                      abbreviation: { type: string, example: "bls{right_command}" }
+                      isDuplicate: { type: boolean }
+        '400':
+          description: Invalid request (JSON parse failure or empty folder)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /clipboard/history:
     get:
       summary: Get clipboard history
