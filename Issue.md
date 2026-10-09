@@ -41,7 +41,7 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
-## Issue251: [Release] 공개 tap `fsnippet-cli` 1.1.1 롤백 반영 — Issue244 tap 상태 정정·다음 출고 시 tap 재상향 (등록: 2026-10-09, 출처: prj5 이슈후보3)
+## Issue251: [Release] 공개 tap `fsnippet-cli` 1.1.1 롤백 반영 — Issue244 tap 상태 정정·다음 출고 시 tap 재상향 (등록: 2026-10-09, 출처: prj5 이슈후보3) (해결: 2026-10-09, commit: 3afbf95, f507c75) ✅
 * 목적: 2026-10-08 공개 tap 을 1.1.1 로 되돌렸다(사용자 지시 «fSnippet 는 1.1.1 로 통일»). 이 repo 의 출고 기록·다음 출고 절차가 그 사실을 따르게 한다
 * depends: Issue244, prj15#Issue989
 * 상세:
