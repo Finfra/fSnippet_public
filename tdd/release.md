@@ -6,6 +6,7 @@ gate: pre-merge
 r2: warn
 env: jma
 peers: prj15
+evidence_dir: cli/_doc_work/_release
 ---
 
 # 무엇을 지키나
@@ -35,7 +36,7 @@ peers: prj15
 
 # 증거
 
-경로 `_doc_work/_release/v{VER}/release-test_{VER}.md` — 형식은 [release-test-rules](~/.claude/_doc_arch/rules-ondemand/release-test-rules.md) «증거 형식».
+경로 `cli/_doc_work/_release/v{VER}/release-test_{VER}.md`(frontmatter `evidence_dir` — 이 repo 는 루트 `_doc_work/` 가 금지 경로라 로컬 path-rules §4 의 `cli/_doc_work/` 를 쓴다. prj26 과 같음) — 형식은 [release-test-rules](~/.claude/_doc_arch/rules-ondemand/release-test-rules.md) «증거 형식».
 
 * frontmatter `version·commit·dirty·result·env·peers·date` — `peers: prj15@{후보 SHA}` 필수(2-레포 락스텝)
 * 본문 `| # | id | 결과 | 비고 |` 에 행별 결과. jma 로그 경로(`/tmp/jma_build_*.log` 등)를 비고에 남긴다
