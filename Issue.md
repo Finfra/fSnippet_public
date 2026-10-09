@@ -63,7 +63,7 @@ date: 2026-04-07
     - 코드 주석은 영어. push·tap·태그 금지
 
 # ✅ 완료
-## Issue257: [Tool] `jma-fsnippet-deploy.sh` 의 `git pull origin release/1.1.1` 하드코딩 — 브랜치 인자화 (등록: 2026-10-09, 출처: 이슈후보, prj3#Issue717 발견)
+## Issue257: [Tool] `jma-fsnippet-deploy.sh` 의 `git pull origin release/1.1.1` 하드코딩 — 브랜치 인자화 (등록: 2026-10-09, 출처: 이슈후보, prj3#Issue717 발견) (해결: 2026-10-09, commit: df14009) ✅
 * 목적: 다음 출고 라인(release/1.1.2 등)에서 R1 전에 스크립트를 손으로 고치지 않게 브랜치를 인자로 받는다
 * 상세:
     - 대상: `.claude/skills/jma-fsnippet-deploy/` 스크립트와 `.agents` 사본(있으면 같은 내용). 기본값은 현재 브랜치(`git rev-parse --abbrev-ref HEAD`) 또는 첫 인자
