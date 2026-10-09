@@ -93,6 +93,7 @@
 "settings.folder.alert.empty_prefix_suffix.title" = "Missing Required Field";
 "settings.folder.alert.select_icon" = "Select Icon";
 "settings.folder.button.add" = "Add";
+"settings.folder.hint.select_folder_first" = "Select a folder first";
 "settings.folder.button.delete" = "Delete";
 "settings.folder.button.edit" = "Edit";
 "settings.folder.desc.excluded_files" = "Manage files to exclude from specific folders.";
@@ -144,6 +145,8 @@
 "settings.general.desc.popup_width" = "Adjust width of the snippet list window (300-800)";
 "settings.general.desc.quick_select" = "Press number keys (1-9) in the popup to instantly select items.";
 "settings.general.error.validation" = "Settings validation error:";
+"settings.general.footer.config_path" = "Settings file: %@";
+"settings.general.footer.desc" = "Important settings only take effect after clicking [Apply].";
 "settings.general.label.backspace_adj" = "Backspace Adj:";
 "settings.general.label.popup_key" = "Popup Key (Shortcut):";
 "settings.general.label.popup_rows" = "Popup Rows";
@@ -199,6 +202,7 @@
 "settings.history.label.preview_hotkey" = "Toggle Preview";
 "settings.history.label.preview_width" = "Preview Window Width";
 "settings.history.label.register_hotkey" = "Register as Snippet";
+"settings.history.help.register_hotkey" = "Empty = shortcut disabled. Registering opens fSnippet's New Snippet window (requires the paid fSnippet app).";
 "settings.history.label.viewer_hotkey" = "Viewer Hotkey";
 "settings.history.label.viewer_width" = "History Window Width";
 "settings.history.section.data" = "Data Management";
@@ -283,3 +287,19 @@
 "settings.tab.history" = "History";
 "settings.tab.snippets" = "Snippets";
 "settings.title" = "fSnippet Settings";
+
+/* Issue945: settings window gate while cliApp settings load */
+"settings.loading.cli" = "Connecting to fSnippetCli…";
+
+/* Issue1005: i18n 누락 보완 */
+"settings.advanced.api.port" = "Port";
+"settings.advanced.api.allow_external" = "Allow External Access";
+"settings.folder.label.excluded_folders" = "Excluded folders";
+"settings.appearance.system" = "System Default";
+"settings.appearance.dark" = "Dark";
+"settings.appearance.light" = "Light";
+"settings.folder.menu.edit_rule" = "Edit Rule...";
+"settings.folder.menu.open_in_finder" = "Open in Finder";
+"settings.folder.tooltip.edit_rule" = "Edit rule details";
+"settings.folder.tooltip.reset" = "Reset settings";
+"settings.folder.tooltip.open_root" = "Open snippet root folder in Finder";

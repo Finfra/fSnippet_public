@@ -93,6 +93,7 @@
 "settings.folder.alert.empty_prefix_suffix.title" = "필수 항목 누락";
 "settings.folder.alert.select_icon" = "아이콘 선택";
 "settings.folder.button.add" = "추가";
+"settings.folder.hint.select_folder_first" = "먼저 폴더를 선택하세요";
 "settings.folder.button.delete" = "삭제";
 "settings.folder.button.edit" = "편집";
 "settings.folder.desc.excluded_files" = "특정 폴더에서 제외할 파일을 관리합니다.";
@@ -144,6 +145,8 @@
 "settings.general.desc.popup_width" = "스니펫 목록 창의 너비를 조절합니다 (300-800)";
 "settings.general.desc.quick_select" = "팝업에서 숫자키(1-9)를 눌러 항목을 즉시 실행합니다.";
 "settings.general.error.validation" = "설정 검증 오류:";
+"settings.general.footer.config_path" = "설정 파일: %@";
+"settings.general.footer.desc" = "중요 설정은 [적용] 버튼을 눌러야 반영됩니다.";
 "settings.general.label.backspace_adj" = "백스페이스 조정값:";
 "settings.general.label.popup_key" = "팝업 단축키:";
 "settings.general.label.popup_rows" = "팝업 목록 수";
@@ -199,6 +202,7 @@
 "settings.history.label.preview_hotkey" = "미리보기 토글";
 "settings.history.label.preview_width" = "미리보기 창 너비";
 "settings.history.label.register_hotkey" = "스니펫으로 등록";
+"settings.history.help.register_hotkey" = "비어 있으면 단축키가 비활성화됩니다. 등록 시 fSnippet(유료 앱)의 새 스니펫 창이 열립니다.";
 "settings.history.label.viewer_hotkey" = "뷰어 단축키";
 "settings.history.label.viewer_width" = "히스토리 창 너비";
 "settings.history.section.data" = "데이터 관리";
@@ -283,3 +287,19 @@
 "settings.tab.history" = "히스토리";
 "settings.tab.snippets" = "스니펫";
 "settings.title" = "fSnippet 설정";
+
+/* Issue945: settings window gate while cliApp settings load */
+"settings.loading.cli" = "fSnippetCli 연결 중…";
+
+/* Issue1005: i18n 누락 보완 */
+"settings.advanced.api.port" = "포트";
+"settings.advanced.api.allow_external" = "외부 접속 허용";
+"settings.folder.label.excluded_folders" = "제외된 폴더";
+"settings.appearance.system" = "시스템 기본값";
+"settings.appearance.dark" = "다크";
+"settings.appearance.light" = "라이트";
+"settings.folder.menu.edit_rule" = "규칙 편집...";
+"settings.folder.menu.open_in_finder" = "Finder에서 열기";
+"settings.folder.tooltip.edit_rule" = "규칙 상세 편집";
+"settings.folder.tooltip.reset" = "설정 초기화";
+"settings.folder.tooltip.open_root" = "스니펫 루트 폴더를 Finder에서 열기";
