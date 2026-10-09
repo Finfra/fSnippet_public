@@ -54,14 +54,6 @@ date: 2026-04-07
 
 # 📗 선택
 
-## Issue257: [Tool] `jma-fsnippet-deploy.sh` 의 `git pull origin release/1.1.1` 하드코딩 — 브랜치 인자화 (등록: 2026-10-09, 출처: 이슈후보, prj3#Issue717 발견)
-* 목적: 다음 출고 라인(release/1.1.2 등)에서 R1 전에 스크립트를 손으로 고치지 않게 브랜치를 인자로 받는다
-* 상세:
-    - 대상: `.claude/skills/jma-fsnippet-deploy/` 스크립트와 `.agents` 사본(있으면 같은 내용). 기본값은 현재 브랜치(`git rev-parse --abbrev-ref HEAD`) 또는 첫 인자
-* 구현 명세:
-    - tdd red 먼저 — 하드코딩 문자열 부재·인자 전달을 단언하는 테스트 → 수정 → green
-    - 코드 주석은 영어. push·tap·태그 금지
-
 ## Issue258: [Test] `apiTest/v2/*.sh` 35건이 `jq .` 출력만 하고 판정 안 함 — 케이스별 단언·종료코드 도입 (등록: 2026-10-09, 출처: 이슈후보, Issue244 ③ 수정 중 발견)
 * 목적: `fsc-test.sh` Step 9 «API 통합 테스트» 가 실행 수만 보고 PASS 하는 것을 막아 실패를 실패로 보고하게 한다
 * 상세:
@@ -71,6 +63,18 @@ date: 2026-04-07
     - 코드 주석은 영어. push·tap·태그 금지
 
 # ✅ 완료
+## Issue257: [Tool] `jma-fsnippet-deploy.sh` 의 `git pull origin release/1.1.1` 하드코딩 — 브랜치 인자화 (등록: 2026-10-09, 출처: 이슈후보, prj3#Issue717 발견)
+* 목적: 다음 출고 라인(release/1.1.2 등)에서 R1 전에 스크립트를 손으로 고치지 않게 브랜치를 인자로 받는다
+* 상세:
+    - 대상: `.claude/skills/jma-fsnippet-deploy/` 스크립트와 `.agents` 사본(있으면 같은 내용). 기본값은 현재 브랜치(`git rev-parse --abbrev-ref HEAD`) 또는 첫 인자
+* 구현 명세:
+    - tdd red 먼저 — 하드코딩 문자열 부재·인자 전달을 단언하는 테스트 → 수정 → green
+    - 코드 주석은 영어. push·tap·태그 금지
+* 결과:
+    - `--branch <b>`(기본: 각 repo 의 현재 브랜치 — jm4 `PRJ`·`PRJ/_public` 따로 조회, detached HEAD 는 die) + `--sync-only` 추가. `release/1.1.1` 하드코딩 제거, SKILL.md 사용 문구 갱신
+    - tdd red 4/5 → green 5/5: `.claude/skills/jma-fsnippet-deploy/scripts/test-branch-arg.sh` (fake ssh 로 원격 명령 기록 — jma 불필요)
+    - `.claude/` 는 gitignore 라 스크립트 변경은 커밋 대상이 아님(`.agents/` 사본은 동일 내용으로 갱신, 미추적). 완료 해시는 본 Issue.md 커밋
+
 ## Issue255: [Core] 입력 중 버퍼가 비워져 짧은 스니펫이 대신 확장 — 창 ID 폴백이 떠 있는 보조 창(layer≠0)을 활성 창으로 잡음 (등록: 2026-10-09) (해결: 2026-10-09, commit: 9bb7350) ✅
 * 목적: jma TextEdit 에서 `@good{right_command}` 를 치면 `👍` 대신 `od{right_command}`(`--dangerously-skip-permissions`)·`d{right_command}`(`docker`) 가 확장되는 간헐 오작동을 없앤다
 * 상세:
