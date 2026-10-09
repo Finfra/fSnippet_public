@@ -9,7 +9,7 @@ date: 2026.09.26
 키 이벤트 워치독이 권한을 잘못 판정해 재시작하거나 키보드를 잠그지 않게 하고, 스니펫 확장과 REST 설정 영속성을 지킨다
 
 * 기존 러너: `bash cli/_tool/fsc-test.sh (12단계 통합: 빌드→ZTest 확장→apiTestDo.sh→cmdTestDo.sh→로그 검사) / XCTest 타깃 cli/fSnippetCliTests (xcodebuild test 는 아래 목표 목록 참고)`
-* 목표 23개 — 전부 ✅ (#1~16 prj5#Issue99 2026-09-27 jma 실행 · #17 Issue238 jm4 → Issue241 jma · #18 Issue242 jm4 · #19 Issue245 2026-10-05 jma 39/39 · #20~23 Issue244·253 2026-10-09 jm4). 유닛: `xcodebuild test -project cli/fSnippetCli.xcodeproj -scheme fSnippetCli -destination 'platform=macOS'`
+* 목표 24개 — 전부 ✅ (#1~16 prj5#Issue99 2026-09-27 jma 실행 · #17 Issue238 jm4 → Issue241 jma · #18 Issue242 jm4 · #19 Issue245 2026-10-05 jma 39/39 · #20~23 Issue244·253 2026-10-09 jm4 · #24 Issue255 jm4). 유닛: `xcodebuild test -project cli/fSnippetCli.xcodeproj -scheme fSnippetCli -destination 'platform=macOS'`
 
 # 재생목록
 
@@ -40,6 +40,7 @@ date: 2026.09.26
 | 21 | `health-build-identity` | `GET /`·`/api/v2/status`·`/api/v2/cli/version` 이 `build`·`build_time`(실행 파일 mtime UTC)·`build_uuid`(LC_UUID) 를 내고, `build_uuid` 는 `dwarfdump --uuid`, `build_time` 은 `stat -f %Sm` 과 같다 | Issue253(어느 바이너리가 떠 있는지 REST 로 못 가림). 격리 인스턴스 실측 대조 일치 | `cli/fSnippetCliTests/HealthResponseCompatTests.swift` (testBuildIdentityOfRunningBinary) | ✅ jm4 |
 | 22 | `api-queue-no-db-init` | REST 요청 경로는 ClipboardDB 를 초기화하지 않는다 — 준비 전이면 백그라운드 warm-up 만 요청하고 health 는 즉시 응답, clipboard 엔드포인트는 503 | Issue244 ②(Documents 동의 대기 중 sqlite `open()` 블록으로 REST 전체 무응답). red 2/3 → green | `cli/fSnippetCliTests/ClipboardDBReadinessTests.swift` | ✅ jm4 |
 | 23 | `tool-scripts-selftest` | 테스트·배포 도구가 실패를 삼키지 않고 tap 을 오염시키지 않는다 — bash 3.2 빈 배열·빌드 실패 전파(④), CMD 실패의 FAIL 판정·없는 id 조회 금지·SKIP 분리 집계(③), `local` 의 tap 원복·충돌 tap 거부·`publish` 후속의 로컬 재빌드 금지(⑤⑥) | Issue244 ③④⑤⑥ · Issue252 ③. red 9/9 → green 14/14 | `/bin/bash cli/_tool/fsc-tool-selftest.sh` | ✅ jm4 |
+| 24 | `context-window-layer` | 창 ID 폴백(`AXWindowNumber` 미지원 앱)은 layer 0 일반 창만 활성 창으로 본다 — 떠 있는 보조 창(layer≠0)이 오가도 «창 전환» 으로 버퍼를 비우지 않는다 | Issue255(jma TextEdit `@good` → `od` 오확장, 6회 중 4회). red 4/5 → green | `cli/fSnippetCliTests/ContextWindowSelectionTests.swift` | ✅ jm4 |
 
 # 규약
 

@@ -156,6 +156,7 @@
 		A9999A000030000000000001 /* BrewServiceLabelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9999A000030000000000002 /* BrewServiceLabelTests.swift */; };
 		A9999A000040000000000001 /* HistorySettingsPersistTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9999A000040000000000002 /* HistorySettingsPersistTests.swift */; };
 		A9999A000060000000000001 /* OfficialBuildTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9999A000060000000000002 /* OfficialBuildTests.swift */; };
+		A9999A000080000000000001 /* ContextWindowSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9999A000080000000000002 /* ContextWindowSelectionTests.swift */; };
 		A9920001C1D2E3F4A5060718 /* PlaceholderHistoryCallbackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9920002C1D2E3F4A5060718 /* PlaceholderHistoryCallbackTests.swift */; };
 		A2440001C1D2E3F4A5060718 /* HealthResponseCompatTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2440002C1D2E3F4A5060718 /* HealthResponseCompatTests.swift */; };
 		A2440003C1D2E3F4A5060718 /* ClipboardDBReadinessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2440004C1D2E3F4A5060718 /* ClipboardDBReadinessTests.swift */; };
@@ -259,6 +260,7 @@
 		A9999A000030000000000002 /* BrewServiceLabelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrewServiceLabelTests.swift; sourceTree = "<group>"; };
 		A9999A000040000000000002 /* HistorySettingsPersistTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistorySettingsPersistTests.swift; sourceTree = "<group>"; };
 		A9999A000060000000000002 /* OfficialBuildTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficialBuildTests.swift; sourceTree = "<group>"; };
+		A9999A000080000000000002 /* ContextWindowSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextWindowSelectionTests.swift; sourceTree = "<group>"; };
 		A9920002C1D2E3F4A5060718 /* PlaceholderHistoryCallbackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceholderHistoryCallbackTests.swift; sourceTree = "<group>"; };
 		A2440002C1D2E3F4A5060718 /* HealthResponseCompatTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthResponseCompatTests.swift; sourceTree = "<group>"; };
 		A2440004C1D2E3F4A5060718 /* ClipboardDBReadinessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardDBReadinessTests.swift; sourceTree = "<group>"; };
@@ -572,6 +574,7 @@
 				A9999A000030000000000002 /* BrewServiceLabelTests.swift */,
 				A9999A000040000000000002 /* HistorySettingsPersistTests.swift */,
 				A9999A000060000000000002 /* OfficialBuildTests.swift */,
+				A9999A000080000000000002 /* ContextWindowSelectionTests.swift */,
 				AB2350000000000000000002 /* AbbreviationCalculatorTests.swift */,
 				7EC0479D3474931013F9B7F3 /* SnippetExpansionTrailingNewlineTests.swift */,
 				C37CDB6B4DA560C66647FFCA /* FolderTest */,
@@ -919,6 +922,7 @@
 				A9999A000030000000000001 /* BrewServiceLabelTests.swift in Sources */,
 				A9999A000040000000000001 /* HistorySettingsPersistTests.swift in Sources */,
 				A9999A000060000000000001 /* OfficialBuildTests.swift in Sources */,
+				A9999A000080000000000001 /* ContextWindowSelectionTests.swift in Sources */,
 				AB2350000000000000000001 /* AbbreviationCalculatorTests.swift in Sources */,
 				53B28DD231B509BE5C208301 /* SnippetExpansionTrailingNewlineTests.swift in Sources */,
 				B2928DBE754D72CBA47153CD /* fSnippetCliTests.swift in Sources */,

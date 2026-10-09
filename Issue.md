@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 254
+* Issue HWM: 255
 * Checkpoints:
       - 1c34407 (2026-09-12) 작업 트리 스냅샷 (Issue234 종결 시점)
       - 4a49da5 (2026-09-08) 작업 트리 스냅샷
@@ -47,6 +47,18 @@ date: 2026-04-07
     - 문서: cli README(en·ko) 소스 빌드 아이콘 안내 · `tdd/playlist.md` #18 · 스크립트·테스트·project.yml 주석
     - 검증: 유닛 전체 · `fsc-official-build-check.sh`(공식→소스→공식) · jma 소스 빌드 배포 후 아이콘 확인
     - 금지: push·tap·태그·릴리스 — 공개 반영은 다음 출고 라인에서
+
+## Issue255: [Core] 입력 중 버퍼가 비워져 짧은 스니펫이 대신 확장 — 창 ID 폴백이 떠 있는 보조 창(layer≠0)을 활성 창으로 잡음 (등록: 2026-10-09)
+* 목적: jma TextEdit 에서 `@good{right_command}` 를 치면 `👍` 대신 `od{right_command}`(`--dangerously-skip-permissions`)·`d{right_command}`(`docker`) 가 확장되는 간헐 오작동을 없앤다
+* 상세:
+    - 재현(jma, VERBOSE): 6회 중 4회 실패. 타이핑 도중 `[WindowContextManager] Context Changed: (24151, 5099) -> (24151, 5138)` → `Buffer Cleared: Context Change` 로 `@go` 가 지워지고 버퍼가 `od` 만 남음
+    - 원인: TextEdit 는 `AXWindowNumber` 를 지원하지 않는다(실측 `-25205`) → `ContextUtils.getCurrentFocusedWindowID()` 가 `CGWindowList` 폴백으로 «PID 가 같은 첫 on-screen 창» 을 고른다. layer 를 거르지 않아 TextEdit 의 layer 3 보조 창(5099, 84×77)이 떴다 사라질 때마다 문서 창(5138)과 번갈아 잡히고, 0.5초 폴링(`AppActivationMonitor.checkWindowFocusChange`)이 이를 «같은 앱 내 창 전환» 으로 보고 버퍼를 비운다
+    - 같은 판정의 정답은 이미 `TextReplacer.getFrontmostWindowID()` 에 있다 — layer 0(일반 앱 창)만 본다. 판정 지점이 둘로 갈라진 것
+* 구현 명세:
+    - tdd red 먼저: 창 목록에서 활성 창을 고르는 순수 함수를 분리하고(`ContextUtils.frontmostNormalWindowID(in:pid:)`) layer 3 창이 앞에 있어도 layer 0 문서 창을 고르는지 유닛으로 고정 — 재생목록 #24
+    - 구현: `getCurrentFocusedWindowID()` 폴백이 그 함수를 쓴다(layer 0 만)
+    - 검증: 유닛 전체 · jma 스모크(`@good`·`@fish`) 반복 전부 정상
+    - 금지: push·tap·태그·릴리스
 
 # 📕 중요
 

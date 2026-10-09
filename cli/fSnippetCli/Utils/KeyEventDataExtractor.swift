@@ -292,21 +292,29 @@ class ContextUtils {
         }
         
         // Fallback: CGWindowList (Robust method for non-AX apps)
-        // If AX failed, try finding the top on-screen window for this PID.
+        // If AX failed, try finding the top on-screen normal window for this PID.
         let options = CGWindowListOption(arrayLiteral: .optionOnScreenOnly, .excludeDesktopElements)
-        if let windowList = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: AnyObject]] {
-            for entry in windowList {
-                if let ownerPID = entry[kCGWindowOwnerPID as String] as? Int, ownerPID == Int(pid) {
-                    // This is the top window of the active app
-                    if let windowID = entry[kCGWindowNumber as String] as? Int {
-                        // print("🔧 [ContextUtils] Fallback to CGWindowList: PID \(pid) -> WindowID \(windowID)")
-                        return (pid, CGWindowID(windowID))
-                    }
-                }
+        if let windowList = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]],
+           let windowID = ContextUtils.frontmostNormalWindowID(in: windowList, pid: pid) {
+            return (pid, windowID)
+        }
+
+        // Final Fallback: Return (pid, 0) if all else fails.
+        return (pid, 0)
+    }
+
+    /// Front-most layer-0 (normal app) window of `pid` in a CGWindowList snapshot (front-to-back order).
+    /// Issue255: windows on other layers (transient helpers, panels) come and go while the user
+    /// types; counting them as the context made the focus poll clear the buffer mid-abbreviation.
+    /// Same rule as TextReplacer.getFrontmostWindowID().
+    static func frontmostNormalWindowID(in windowList: [[String: Any]], pid: pid_t) -> CGWindowID? {
+        for entry in windowList {
+            if let ownerPID = entry[kCGWindowOwnerPID as String] as? Int, ownerPID == Int(pid),
+               let layer = entry[kCGWindowLayer as String] as? Int, layer == 0,
+               let windowID = entry[kCGWindowNumber as String] as? Int {
+                return CGWindowID(windowID)
             }
         }
-        
-        // Final Fallback: Return (pid, 0) if all else fails.
-        return (pid, 0) 
+        return nil
     }
 }
