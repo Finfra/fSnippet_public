@@ -40,7 +40,7 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
-## Issue259: [API] 약어 미리보기·중복 판정 REST 엔드포인트 신설 — paidApp 스니펫 편집 창용 (등록: 2026-10-09, 출처: prj15#Issue1004)
+## Issue259: [API] 약어 미리보기·중복 판정 REST 엔드포인트 신설 — paidApp 스니펫 편집 창용 (등록: 2026-10-09, 출처: prj15#Issue1004) (해결: 2026-10-09, commit: 3e8c2b9) ✅
 * 목적: paidApp 은 엔진 계산을 하지 않는다(2-앱). 편집 창의 «→ 약어» 미리보기·중복 경고를 위해 cliApp 이 계산·판정 결과를 REST 로 내놓아야 한다
 * 상세:
     - 현황(2026-10-09 실측): `openapi_v2.yaml` 에 약어 계산·중복 판정 엔드포인트가 없다. 엔진 함수는 이미 있다 — `SnippetFileManager.calculateAbbreviation(folder:keyword:name:)`·`checkDuplicate(abbreviation:currentSnippetPath:)`(`SnippetFileManager.swift:88·125`)
