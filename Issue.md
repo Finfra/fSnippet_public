@@ -54,15 +54,16 @@ date: 2026-04-07
 
 # 📗 선택
 
-## Issue258: [Test] `apiTest/v2/*.sh` 35건이 `jq .` 출력만 하고 판정 안 함 — 케이스별 단언·종료코드 도입 (등록: 2026-10-09, 출처: 이슈후보, Issue244 ③ 수정 중 발견)
+# ✅ 완료
+## Issue258: [Test] `apiTest/v2/*.sh` 35건이 `jq .` 출력만 하고 판정 안 함 — 케이스별 단언·종료코드 도입 (등록: 2026-10-09, 출처: 이슈후보, Issue244 ③ 수정 중 발견) (해결: 2026-10-09, commit: 40259ce) ✅
 * 목적: `fsc-test.sh` Step 9 «API 통합 테스트» 가 실행 수만 보고 PASS 하는 것을 막아 실패를 실패로 보고하게 한다
 * 상세:
     - 대상: `cli/_tool/apiTest/v2/*.sh`(35건), `fsc-test.sh` Step 9. 계약 검증은 tdd #10 `api/test-api.sh` 가 담당 — 중복하지 않고 케이스 응답 단언(HTTP 코드·핵심 필드)만
 * 구현 명세:
     - tdd red 먼저(일부러 실패하는 케이스가 Step 9 를 실패시키는지) → 단언·종료코드 → Step 9 가 비0 집계 → green
     - 코드 주석은 영어. push·tap·태그 금지
+* 결과: 35건 단언화(lib.sh) · 러너 판정 줄 없음/비0 = 실패 · Step 9 suite_verdict · tdd #25. TDD red 5/5→green. 실서버 검증: 읽기 전용 17건 3015 green, 변경 12건은 스텁 상태서버 — 격리 인스턴스 전체 Step 9 는 fsc-test 재실행으로 확인 필요(31~33 은 `_emoji` 없으면 SKIP 표기)
 
-# ✅ 완료
 ## Issue257: [Tool] `jma-fsnippet-deploy.sh` 의 `git pull origin release/1.1.1` 하드코딩 — 브랜치 인자화 (등록: 2026-10-09, 출처: 이슈후보, prj3#Issue717 발견) (해결: 2026-10-09, commit: df14009) ✅
 * 목적: 다음 출고 라인(release/1.1.2 등)에서 R1 전에 스크립트를 손으로 고치지 않게 브랜치를 인자로 받는다
 * 상세:
