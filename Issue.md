@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 253
+* Issue HWM: 254
 * Checkpoints:
       - 1c34407 (2026-09-12) 작업 트리 스냅샷 (Issue234 종결 시점)
       - 4a49da5 (2026-09-08) 작업 트리 스냅샷
@@ -33,6 +33,20 @@ date: 2026-04-07
 1. `apiTest/v2/*.sh` 케이스가 응답을 `jq .` 로 출력만 하고 성공·실패를 판정하지 않음 — `fsc-test.sh` Step 9 «API 통합 테스트» 는 실행 수만 보고 PASS(계약 검증은 tdd #10 `api/test-api.sh` 가 담당). 케이스별 단언·종료코드 도입 (Issue244 ③ 수정 중 발견)
 
 # 🚧 진행중
+
+## Issue254: [Brand] 소스 빌드에도 공식 앱 아이콘 — Issue242 «소스 빌드 = macOS 기본 아이콘» 정책 철회 (등록: 2026-10-09)
+* 목적: jma 의 소스 빌드(brew local)가 손쉬운 사용 목록 등에서 흐린 기본 아이콘으로 보여 사용자가 «아이콘 이상함» 으로 지적. 소스 빌드도 fSnippet 아이콘을 쓰게 한다
+* depends: Issue242
+* 상세:
+    - 사용자 결정(2026-10-09, H:브랜드): 선택지 «비브랜드 소스 아이콘 신설» 대신 **«공식 아이콘을 소스에도»** 선택 — Issue242 의 «아이콘은 공식 빌드에만» 을 되돌린다
+    - 아이콘의 권리 지위는 바뀌지 않는다 — `cli/resources/official/` 에 그대로 두어 NOTICE 의 «Official Build Components, Apache 비대상»·TRADEMARK.md 상표 조항이 계속 적용된다. 바뀌는 것은 «어느 빌드에 싣는가» 뿐
+    - 공식 빌드 표식(`Official/official-build.txt`)·약관(`Legal/`)은 계속 공식 빌드 전용
+* 구현 명세:
+    - tdd red 먼저 — #18 `official-app-icon` 문구 갱신: `OfficialBuildTests`(소스 빌드 호스트에 `AppIcon.icns` 존재·`CFBundleIconName` 없음) + `fsc-official-build-check.sh`(소스 빌드 `AppIcon.icns` = 공식 아이콘)
+    - 구현: `fsc-official-components.sh` 가 소스·공식 빌드 모두 `iconutil` 로 `Resources/AppIcon.icns` 생성, 스탬프에 아이콘 다이제스트 반영(재서명 보장). stale Assets.car 치유는 유지
+    - 문서: cli README(en·ko) 소스 빌드 아이콘 안내 · `tdd/playlist.md` #18 · 스크립트·테스트·project.yml 주석
+    - 검증: 유닛 전체 · `fsc-official-build-check.sh`(공식→소스→공식) · jma 소스 빌드 배포 후 아이콘 확인
+    - 금지: push·tap·태그·릴리스 — 공개 반영은 다음 출고 라인에서
 
 # 📕 중요
 
