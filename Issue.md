@@ -28,6 +28,7 @@ date: 2026-04-07
 
 # 🌱 이슈후보
 
+1. [문서] 매뉴얼 밖 낡은 서술 정리 (Issue256 집필 중 발견) — ① `api/openapi_v2.yaml`·Skill 문서가 `cli/pause` 를 «스니펫 확장 일시정지» 로 쓰지만 코드는 REST 요청만 503 ② `cli/README.md` v1 엔드포인트 표 잔존 ③ `mcp/README*.md` 전제가 «fSnippet.app 실행·설정>고급» GUI 기준, 등록 위치 `settings.json` ④ `cli/README.md`·`HelpCommand.swift` 가 `config` 명령을 «v1 API» 로 표기(실제 `/api/v2/settings/general`) ⑤ f-claude-plugins `fSnippet/plugin.json` `mcpServers` 경로가 `/Users/nowage/...` 하드코딩(타 repo)
 1. `jma-fsnippet-deploy.sh` 가 `git pull origin release/1.1.1` 하드코딩 — 다음 출고 라인에서 R1 전에 브랜치 인자화 필요 (prj3#Issue717 배포용 TDD 적용 중 발견)
 1. jma tmux(`loginScript`, 부모 launchd)에 화면 기록 권한이 없어 `jma-firstrun-check.sh` 안내창 캡처가 항상 `WARN` — 증적 png 가 필요하면 권한 주체 지정·부여(사람 작업, 시스템 설정) 또는 다른 캡처 경로 (Issue248 실측에서 발견)
 1. `apiTest/v2/*.sh` 케이스가 응답을 `jq .` 로 출력만 하고 성공·실패를 판정하지 않음 — `fsc-test.sh` Step 9 «API 통합 테스트» 는 실행 수만 보고 PASS(계약 검증은 tdd #10 `api/test-api.sh` 가 담당). 케이스별 단언·종료코드 도입 (Issue244 ③ 수정 중 발견)
@@ -55,6 +56,22 @@ date: 2026-04-07
 # 📗 선택
 
 # ✅ 완료
+## Issue256: [문서] fSnippetCli 매뉴얼 장 구성 — 한영 01~08(빠른 시작 포함) 신설 + 기능 명세의 GUI 혼재 제거 (등록: 2026-10-09, 완료: 2026-10-09, Hash: ffa8b68) ✅
+* 목적: Issue246 이 «fSnippetCli 매뉴얼» 로 이름만 정리했고, 본문은 단일 앱 시절 기능 명세 한 파일이라 fSnippet(GUI) 설정 창 절(§7)·`fSnippet.app` 호칭·«fSnippet 프로젝트 루트» 가 남아 있다. 빠른 시작·설치·사용법 장도 없다
+* depends: prj15#Issue1003 (짝 — paidApp 매뉴얼 장 작성)
+* 상세:
+    - 사용자 지시(2026-10-09, prj5 세션): «f2x2 매뉴얼이 혼재되어 있다 — 과거 매뉴얼은 구조만 참고하고 각 프로젝트에 맞는 매뉴얼(quick start guide 포함)을 생성하라»
+    - 구조 기준: prj26 `manual/`(fWarrangeCli) — `kr|en/01_Overview·02_Install·03_QuickStart·…·08_FAQ` + 공통 문서(FunctionalSpecification·Placeholder·Glossary·ReferenceAgenda)
+    - GUI 화면 조작은 쓰지 않는다 — fSnippet 제품 페이지로 링크
+* 구현 명세:
+    - 장 내용은 cli 소스·`_config.yml` 기본값·`api/openapi_v2.yaml` 에서 확인해 쓴다
+    - `FunctionalSpecification.md`: §7 설정 화면 절 제거(→ fSnippet 링크), 개요·Skill·MCP 의 paidApp 호칭 정정
+    - `manual/README.md` 목차·디렉토리 구조 갱신, «확장 계획»·To-Do 를 실제 구성으로 교체
+    - 검증: 매뉴얼 상대 링크 전수 실파일 대조 오류 0 · `fSnippet.app`·설정 탭 서술 잔존 0
+    - 금지: push — 공개 반영은 사용자 승인 뒤
+* 결과: kr·en 각 01_Overview~10_FAQ 신설(빠른 시작 = 첫 스니펫 파일 → `dhi`+오른쪽 ⌘ 확장 → 팝업 → REST 4단계). FunctionalSpecification §7 GUI 절을 fSnippet 제품 페이지 링크로 교체, `fSnippet.app`·Skill 설치 경로·Alfred 가져오기(`import alfred`)·MCP 도구 표(5→9종)·폴링 수치(최대 2초)·`{{random:UUID}}` 등 소스 대조 정정, ReferenceAgenda 도 정리. 링크 230건 실파일·앵커 대조 오류 0, `fSnippet.app`·`スマート`·설정 탭 서술 잔존 0. push 안 함
+    - (검증 필요) 2건: Alfred DB 위치(동기화 설정 의존)·brew 서비스 실행 시 `fSnippetCli_config` 환경변수 전달 방법
+
 ## Issue258: [Test] `apiTest/v2/*.sh` 35건이 `jq .` 출력만 하고 판정 안 함 — 케이스별 단언·종료코드 도입 (등록: 2026-10-09, 출처: 이슈후보, Issue244 ③ 수정 중 발견) (해결: 2026-10-09, commit: 40259ce) ✅
 * 목적: `fsc-test.sh` Step 9 «API 통합 테스트» 가 실행 수만 보고 PASS 하는 것을 막아 실패를 실패로 보고하게 한다
 * 상세:
