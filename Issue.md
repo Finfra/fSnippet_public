@@ -6,7 +6,7 @@ date: 2026-04-07
 
 # Issue Management
 
-* Issue HWM: 258
+* Issue HWM: 259
 * Checkpoints:
       - 1c34407 (2026-09-12) 작업 트리 스냅샷 (Issue234 종결 시점)
       - 4a49da5 (2026-09-08) 작업 트리 스냅샷
@@ -36,6 +36,17 @@ date: 2026-04-07
 # 📕 중요
 
 # 📙 일반
+
+## Issue259: [API] 약어 미리보기·중복 판정 REST 엔드포인트 신설 — paidApp 스니펫 편집 창용 (등록: 2026-10-09, 출처: prj15#Issue1004)
+* 목적: paidApp 은 엔진 계산을 하지 않는다(2-앱). 편집 창의 «→ 약어» 미리보기·중복 경고를 위해 cliApp 이 계산·판정 결과를 REST 로 내놓아야 한다
+* 상세:
+    - 현황(2026-10-09 실측): `openapi_v2.yaml` 에 약어 계산·중복 판정 엔드포인트가 없다. 엔진 함수는 이미 있다 — `SnippetFileManager.calculateAbbreviation(folder:keyword:name:)`·`checkDuplicate(abbreviation:currentSnippetPath:)`(`SnippetFileManager.swift:88·125`)
+    - 부분 대체: `GET /api/v2/snippets/by-abbreviation/{abbrev}` 로 중복 여부는 가늠되나 «수정 중인 자기 자신 제외» 를 못 하고 약어 계산은 불가
+* 구현 명세:
+    - `POST /api/v2/snippets/abbreviation-preview` — 요청 `{folder, keyword, name, currentSnippetPath?}` → 응답 `{abbreviation, isDuplicate}` · `APIRouter.swift` 라우팅 + `APIModels.swift` 모델
+    - `api/openapi_v2.yaml` 동시 갱신(api-rules 동기화 규칙) · 읽기 전용(파일 부작용 없음)
+    - 검증: 일반 폴더·`_rule.yml` 특수 폴더 각 1건의 약어가 엔진 로직과 일치, 기존 약어 키워드 → `isDuplicate: true`, `currentSnippetPath` 가 자기 자신이면 `false`
+* 후행: prj15#Issue1004 (paidApp `SnippetEditorView` 가 이 엔드포인트를 소비)
 
 # 📗 선택
 
