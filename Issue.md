@@ -48,7 +48,14 @@ date: 2026-04-07
     - 검증: 유닛 전체 · `fsc-official-build-check.sh`(공식→소스→공식) · jma 소스 빌드 배포 후 아이콘 확인
     - 금지: push·tap·태그·릴리스 — 공개 반영은 다음 출고 라인에서
 
-## Issue255: [Core] 입력 중 버퍼가 비워져 짧은 스니펫이 대신 확장 — 창 ID 폴백이 떠 있는 보조 창(layer≠0)을 활성 창으로 잡음 (등록: 2026-10-09)
+# 📕 중요
+
+# 📙 일반
+
+# 📗 선택
+
+# ✅ 완료
+## Issue255: [Core] 입력 중 버퍼가 비워져 짧은 스니펫이 대신 확장 — 창 ID 폴백이 떠 있는 보조 창(layer≠0)을 활성 창으로 잡음 (등록: 2026-10-09) (해결: 2026-10-09, commit: 9bb7350) ✅
 * 목적: jma TextEdit 에서 `@good{right_command}` 를 치면 `👍` 대신 `od{right_command}`(`--dangerously-skip-permissions`)·`d{right_command}`(`docker`) 가 확장되는 간헐 오작동을 없앤다
 * 상세:
     - 재현(jma, VERBOSE): 6회 중 4회 실패. 타이핑 도중 `[WindowContextManager] Context Changed: (24151, 5099) -> (24151, 5138)` → `Buffer Cleared: Context Change` 로 `@go` 가 지워지고 버퍼가 `od` 만 남음
@@ -59,14 +66,12 @@ date: 2026-04-07
     - 구현: `getCurrentFocusedWindowID()` 폴백이 그 함수를 쓴다(layer 0 만)
     - 검증: 유닛 전체 · jma 스모크(`@good`·`@fish`) 반복 전부 정상
     - 금지: push·tap·태그·릴리스
+* 결과:
+    - 유닛 164/164 (tdd #24 `ContextWindowSelectionTests` red 4/5 → green)
+    - jma 배포(9bb7350 소스 빌드) 후 스모크 8회(TextEdit 냉기동 2회 포함) 전부 `👍 🐟` — 수정 전 같은 하네스 6회 중 4회 오확장. 남은 Context Change 는 문서 생성·닫기 시점뿐
+    - 진단 기록: `cli/_doc_work/debug_TECH.md` «입력 중 버퍼가 비워져 짧은 스니펫이 대신 확장» (오진 경로: 최장 일치 결함 의심)
+    - jma `log_level` 은 VERBOSE 계측 뒤 DEBUG 로 원복
 
-# 📕 중요
-
-# 📙 일반
-
-# 📗 선택
-
-# ✅ 완료
 ## Issue251: [Release] 공개 tap `fsnippet-cli` 1.1.1 롤백 반영 — Issue244 tap 상태 정정·다음 출고 시 tap 재상향 (등록: 2026-10-09, 출처: prj5 이슈후보3) (해결: 2026-10-09, commit: 3afbf95, f507c75) ✅
 * 목적: 2026-10-08 공개 tap 을 1.1.1 로 되돌렸다(사용자 지시 «fSnippet 는 1.1.1 로 통일»). 이 repo 의 출고 기록·다음 출고 절차가 그 사실을 따르게 한다
 * depends: Issue244, prj15#Issue989
